@@ -80,3 +80,21 @@ def test_salary_range_must_be_ordered():
 def test_contact_method_requires_a_channel():
     with pytest.raises(ValidationError):
         ContactMethod(name="HR")
+
+
+async def test_validation_messages_are_russian(client):
+    response = await client.post(
+        f"{API}/auth/register",
+        json={"email": "a@b.ru", "password": "short", "role": "candidate", "consent_pd_processing": True},
+    )
+    assert response.status_code == 422
+    issue = response.json()["error"]["details"][0]
+    assert issue["loc"] == ["body", "password"]
+    assert issue["msg"] == "Слишком короткое значение"
+
+
+def test_422_documented_as_unified_error():
+    spec = app.openapi()
+    assert "HTTPValidationError" not in spec["components"]["schemas"]
+    response = spec["paths"]["/api/v1/auth/login"]["post"]["responses"]["422"]
+    assert response["content"]["application/json"]["schema"]["$ref"].endswith("/ErrorResponse")

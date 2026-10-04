@@ -4,7 +4,7 @@ from sqlalchemy import text
 
 from app.core.config import get_settings
 from app.core.db import SessionFactory
-from app.core.errors import register_error_handlers
+from app.core.errors import register_error_handlers, use_unified_validation_schema
 from app.core.schemas import ApiModel
 from app.modules.admin.router import router as admin_router
 from app.modules.applications import router as applications
@@ -115,6 +115,13 @@ def create_app() -> FastAPI:
         api.include_router(router)
 
     app.include_router(api)
+
+    def openapi() -> dict:
+        if app.openapi_schema is None:
+            app.openapi_schema = use_unified_validation_schema(FastAPI.openapi(app))
+        return app.openapi_schema
+
+    app.openapi = openapi
     return app
 
 

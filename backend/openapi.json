@@ -315,11 +315,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "Ошибка валидации данных",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -356,11 +356,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "Ошибка валидации данных",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -387,11 +387,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "Ошибка валидации данных",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -544,11 +544,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "Ошибка валидации данных",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -1091,11 +1091,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "Ошибка валидации данных",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -1436,11 +1436,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "Ошибка валидации данных",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -1513,11 +1513,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "Ошибка валидации данных",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -1697,11 +1697,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "Ошибка валидации данных",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -2009,11 +2009,11 @@
             "description": "Successful Response"
           },
           "422": {
-            "description": "Validation Error",
+            "description": "Ошибка валидации данных",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -2087,11 +2087,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "Ошибка валидации данных",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -2174,11 +2174,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "Ошибка валидации данных",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -2261,11 +2261,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "Ошибка валидации данных",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -2480,11 +2480,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "Ошибка валидации данных",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -2557,11 +2557,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "Ошибка валидации данных",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -3218,11 +3218,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "Ошибка валидации данных",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -3526,11 +3526,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "Ошибка валидации данных",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -3603,11 +3603,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "Ошибка валидации данных",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -3699,11 +3699,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "Ошибка валидации данных",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -3783,11 +3783,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "Ошибка валидации данных",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -3860,11 +3860,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "Ошибка валидации данных",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -3937,11 +3937,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "Ошибка валидации данных",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -4347,11 +4347,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "Ошибка валидации данных",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -4420,11 +4420,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "Ошибка валидации данных",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -4600,11 +4600,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "Ошибка валидации данных",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -4687,11 +4687,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "Ошибка валидации данных",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -4761,11 +4761,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "Ошибка валидации данных",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -4842,11 +4842,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "Ошибка валидации данных",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -4929,11 +4929,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "Ошибка валидации данных",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -5016,11 +5016,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "Ошибка валидации данных",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -5103,11 +5103,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "Ошибка валидации данных",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -5374,11 +5374,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "Ошибка валидации данных",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -8176,12 +8176,22 @@
           },
           "details": {
             "anyOf": [
-              {},
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ValidationIssue"
+                },
+                "type": "array"
+              },
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
               {
                 "type": "null"
               }
             ],
-            "title": "Details"
+            "title": "Details",
+            "description": "Для 422 — список полей с ошибками"
           }
         },
         "type": "object",
@@ -8697,19 +8707,6 @@
           "employer"
         ],
         "title": "GradedBy"
-      },
-      "HTTPValidationError": {
-        "properties": {
-          "detail": {
-            "items": {
-              "$ref": "#/components/schemas/ValidationError"
-            },
-            "type": "array",
-            "title": "Detail"
-          }
-        },
-        "type": "object",
-        "title": "HTTPValidationError"
       },
       "HealthOut": {
         "properties": {
@@ -11052,7 +11049,7 @@
         "type": "object",
         "title": "VacancyTestPreviewRequest"
       },
-      "ValidationError": {
+      "ValidationIssue": {
         "properties": {
           "loc": {
             "items": {
@@ -11066,22 +11063,15 @@
               ]
             },
             "type": "array",
-            "title": "Location"
+            "title": "Loc"
           },
           "msg": {
             "type": "string",
-            "title": "Message"
+            "title": "Msg"
           },
           "type": {
             "type": "string",
-            "title": "Error Type"
-          },
-          "input": {
-            "title": "Input"
-          },
-          "ctx": {
-            "type": "object",
-            "title": "Context"
+            "title": "Type"
           }
         },
         "type": "object",
@@ -11090,7 +11080,8 @@
           "msg",
           "type"
         ],
-        "title": "ValidationError"
+        "title": "ValidationIssue",
+        "description": "Элемент details при 422: loc вида [\"body\", \"email\"], msg — по-русски."
       },
       "VerifyEmailRequest": {
         "properties": {
