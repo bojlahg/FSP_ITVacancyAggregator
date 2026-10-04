@@ -27,3 +27,125 @@
       - Поиск по ключу в хеш-таблице — O(log n)
       - Бинарный поиск в несортированном массиве — O(log n)
   n_options: 5
+
+- id: be.algo.stack_ops
+  specializations: [backend]
+  topic: algorithms
+  skills: [data_structures, python]
+  kind: code_output
+  irt: {a: 1.0, b: -1.1}
+  time_limit_sec: 120
+  generator: backend.stack_ops
+
+- id: be.algo.nested_loop_count
+  specializations: [backend]
+  topic: algorithms
+  skills: [algorithms]
+  kind: numeric
+  irt: {a: 1.1, b: -0.4}
+  time_limit_sec: 120
+  params:
+    n: {int: [6, 40]}
+    fn: {choice: [compare, check_pair, link, merge_pair]}
+    items: {choice: [users, points, tasks, nodes]}
+  stem: "Сколько раз будет вызвана функция {{fn}} при выполнении этого кода?"
+  code: |
+    {{items}} = list(range({{n}}))
+    for i in range(len({{items}})):
+        for j in range(i + 1, len({{items}})):
+            {{fn}}({{items}}[i], {{items}}[j])
+  code_language: python
+  answer:
+    # все неупорядоченные пары: n · (n − 1) / 2
+    expr: "{{n}} * ({{n}} - 1) // 2"
+    tolerance: 0
+
+- id: be.algo.heap_top_k
+  specializations: [backend]
+  topic: algorithms
+  skills: [algorithms, data_structures]
+  kind: single_choice
+  irt: {a: 1.1, b: 0.3}
+  params:
+    k: {choice: [10, 50, 100, 500]}
+    what: {choice: [самых дорогих заказов, самых медленных запросов, самых активных пользователей, наибольших транзакций]}
+  stem: >-
+    В сервис идёт бесконечный поток событий, и в любой момент нужно отдавать {{k}} {{what}} из всех полученных.
+    Какая структура данных позволяет обрабатывать каждое событие за O(log k) при памяти O(k)?
+  options:
+    correct: ["Двоичная куча (min-heap) размера k: новый элемент вытесняет минимум, если он больше"]
+    wrong:
+      - "Отсортированный массив размера k с пересортировкой после каждой вставки"
+      - "Хеш-таблица всех полученных событий"
+      - "Стек размера k"
+      - "Очередь FIFO размера k"
+
+- id: be.algo.lru_cache_state
+  specializations: [backend]
+  topic: algorithms
+  skills: [algorithms, data_structures, caching]
+  kind: code_output
+  irt: {a: 1.2, b: 0.5}
+  time_limit_sec: 150
+  generator: backend.lru_cache_state
+
+- id: be.algo.doubling_loop_complexity
+  specializations: [backend]
+  topic: algorithms
+  skills: [algorithms]
+  kind: single_choice
+  irt: {a: 1.2, b: 0.6}
+  params:
+    k: {choice: [2, 3, 4]}
+    fn: {choice: [process, handle, visit]}
+  stem: "Какова временная сложность этой функции в зависимости от n (считаем, что {{fn}} работает за O(1))?"
+  code: |
+    def run(n):
+        for i in range(n):
+            j = 1
+            while j < n:
+                {{fn}}(i, j)
+                j *= {{k}}
+  code_language: python
+  options:
+    correct: ["O(n log n)"]
+    wrong: ["O(n²)", "O(n)", "O(log n)", "O(n·{{k}})", "O(n^{{k}})"]
+
+- id: be.algo.consistent_hashing
+  specializations: [backend]
+  topic: algorithms
+  skills: [algorithms, system_design]
+  kind: numeric
+  irt: {a: 1.1, b: 1.0}
+  time_limit_sec: 150
+  params:
+    keys: {choice: [120000, 240000, 360000, 1200000]}
+    n: {choice: [3, 4, 5, 7, 9]}
+  stem: >-
+    Кеш распределяет {{keys}} ключей по {{n}} узлам с помощью консистентного хеширования (много виртуальных узлов,
+    распределение равномерное). Добавили ещё один узел. Сколько ключей в среднем сменят узел?
+  answer:
+    # на новый узел переезжает его доля K / (n + 1); остальные ключи остаются на месте
+    expr: "{{keys}} / ({{n}} + 1)"
+    tolerance: 0
+
+- id: be.algo.bloom_filter
+  specializations: [backend]
+  topic: algorithms
+  skills: [algorithms, data_structures]
+  kind: multi_choice
+  irt: {a: 1.2, b: 1.2}
+  n_options: 5
+  params:
+    use: {choice: [проверки, встречался ли URL краулеру, отсеивания запросов к несуществующим ключам, проверки занятости логина, фильтрации уже показанных рекомендаций]}
+  stem: "Для {{use}} используется классический фильтр Блума. Какие утверждения о нём верны?"
+  options:
+    correct:
+      - "Может ответить «элемент есть», когда его не добавляли (ложноположительный ответ)"
+      - "Не даёт ложноотрицательных ответов для добавленных элементов"
+      - "Не поддерживает удаление элементов без риска испортить ответы для других"
+    wrong:
+      - "Может ответить «элемента нет» для добавленного элемента"
+      - "Хранит сами элементы, поэтому их можно перечислить"
+      - "Вероятность ложного срабатывания не зависит от числа добавленных элементов"
+      - "Размер фильтра растёт пропорционально длине добавляемых строк"

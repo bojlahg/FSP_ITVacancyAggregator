@@ -1,0 +1,136 @@
+# Backend · стек-модуль java (§10.2). Формат: content/templates/README.md
+
+- id: be.java.checked_exceptions
+  specializations: [backend]
+  topic: stack
+  stack_module: java
+  skills: [java]
+  kind: single_choice
+  irt: {a: 1.0, b: -1.2}
+  params:
+    method: {choice: [readConfig, loadReport, openConnection, parseFile]}
+  stem_variants:
+    - "Метод {{method}}() может выбросить одно из перечисленных исключений. Какое из них проверяемое (checked) — его нужно объявить в throws или перехватить?"
+    - "Какое исключение в Java является проверяемым (checked), то есть компилятор требует обработать его в {{method}}() или объявить в throws?"
+  options:
+    correct: [java.io.IOException, java.sql.SQLException, java.lang.InterruptedException]
+    wrong:
+      - java.lang.NullPointerException
+      - java.lang.IllegalArgumentException
+      - java.lang.ArithmeticException
+      - java.lang.ArrayIndexOutOfBoundsException
+      - java.lang.IllegalStateException
+
+- id: be.java.string_identity
+  specializations: [backend]
+  topic: stack
+  stack_module: java
+  skills: [java]
+  kind: code_output
+  irt: {a: 1.2, b: -0.7}
+  generator: backend.java_string_identity
+
+- id: be.java.int_overflow
+  specializations: [backend]
+  topic: stack
+  stack_module: java
+  skills: [java]
+  kind: code_output
+  irt: {a: 1.2, b: 0.0}
+  time_limit_sec: 120
+  generator: backend.java_int_overflow
+
+- id: be.java.division_negative
+  specializations: [backend]
+  topic: stack
+  stack_module: java
+  skills: [java]
+  kind: code_output
+  irt: {a: 1.1, b: 0.3}
+  generator: backend.java_division_negative
+
+- id: be.java.equals_hashcode
+  specializations: [backend]
+  topic: stack
+  stack_module: java
+  skills: [java, oop]
+  kind: single_choice
+  irt: {a: 1.2, b: 0.4}
+  params:
+    cls: {choice: [Money, OrderKey, Point, Email]}
+    map: {choice: [HashMap, HashSet]}
+  stem: >-
+    В классе {{cls}} переопределён equals(), но не hashCode(). Объекты {{cls}} используются как ключи в {{map}}.
+    Какое утверждение верно?
+  options:
+    correct:
+      - "Нарушен контракт: равные объекты обязаны иметь равные hashCode, иначе поиск по равному, но другому экземпляру обычно не находит запись"
+    wrong:
+      - "{{map}} сравнивает ключи только через equals(), поэтому hashCode() не важен"
+      - "Код не скомпилируется: компилятор требует переопределять equals() и hashCode() вместе"
+      - "{{map}} сравнивает ключи через ==, поэтому переопределение equals() ни на что не влияет"
+      - "Достаточно переопределить toString(), чтобы ключи сравнивались по содержимому"
+
+- id: be.java.volatile_visibility
+  specializations: [backend]
+  topic: stack
+  stack_module: java
+  skills: [java, concurrency]
+  kind: single_choice
+  irt: {a: 1.3, b: 1.0}
+  params:
+    flag: {choice: [stopRequested, stopped, shutdown, cancelled]}
+    cls: {choice: [Worker, Poller, Consumer]}
+  stem: "Иногда поток {{cls}} не останавливается после stop(), вызванного из другого потока. Как это исправить правильно?"
+  code: |
+    class {{cls}} implements Runnable {
+        private boolean {{flag}} = false;
+
+        public void stop() { {{flag}} = true; }
+
+        public void run() {
+            while (!{{flag}}) {
+                // работа без синхронизации
+            }
+        }
+    }
+  code_language: java
+  options:
+    correct: ["Объявить поле volatile (или использовать AtomicBoolean), чтобы запись была видна другому потоку"]
+    wrong:
+      - "Ничего не нужно: запись boolean атомарна, значит, сразу видна всем потокам"
+      - "Объявить поле final"
+      - "Вызывать System.gc() внутри цикла"
+      - "Объявить поле static"
+
+- id: be.java.transactional_self_call
+  specializations: [backend]
+  topic: stack
+  stack_module: java
+  skills: [java, spring]
+  kind: single_choice
+  irt: {a: 1.3, b: 1.1}
+  params:
+    svc: {choice: [OrderService, PaymentService, UserService]}
+    outer: {choice: [process, handle, importAll]}
+    inner: {choice: [saveAll, charge, persistBatch]}
+  stem: >-
+    В Spring-бине {{svc}} публичный метод {{outer}}() без аннотаций вызывает this.{{inner}}(), помеченный
+    @Transactional. Используется режим по умолчанию (прокси Spring AOP). Что произойдёт при вызове {{svc}}.{{outer}}() извне?
+  options:
+    correct: ["Транзакция не откроется: вызов через this идёт мимо прокси, и @Transactional не применяется"]
+    wrong:
+      - "Откроется новая транзакция, как при Propagation.REQUIRES_NEW"
+      - "Откроется транзакция с настройками по умолчанию, как при вызове извне"
+      - "Spring выбросит исключение при старте контекста"
+      - "Аннотация обрабатывается компилятором, поэтому транзакция откроется в любом случае"
+
+- id: be.java.stream_short_circuit
+  specializations: [backend]
+  topic: stack
+  stack_module: java
+  skills: [java]
+  kind: code_output
+  irt: {a: 1.2, b: 1.2}
+  time_limit_sec: 120
+  generator: backend.java_stream_short_circuit

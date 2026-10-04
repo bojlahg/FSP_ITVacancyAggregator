@@ -1,0 +1,78 @@
+# Backend · стек-модуль csharp (§10.2). Формат: content/templates/README.md
+
+- id: be.cs.using_dispose
+  specializations: [backend]
+  topic: stack
+  stack_module: csharp
+  skills: [csharp, dotnet]
+  kind: single_choice
+  irt: {a: 1.0, b: -1.0}
+  params:
+    res: {choice: [SqlConnection, FileStream, HttpResponseMessage, StreamReader]}
+  stem: "Объект {{res}} создаётся в блоке using. Что гарантирует using?"
+  options:
+    correct: ["Dispose() будет вызван при выходе из блока, в том числе если внутри возникло исключение"]
+    wrong:
+      - "Объект сразу удаляется из памяти сборщиком мусора при выходе из блока"
+      - "Dispose() вызывается только при нормальном выходе из блока, без исключений"
+      - "Объект становится потокобезопасным внутри блока"
+      - "Исключения внутри блока автоматически перехватываются и логируются"
+
+- id: be.cs.struct_vs_class
+  specializations: [backend]
+  topic: stack
+  stack_module: csharp
+  skills: [csharp]
+  kind: code_output
+  irt: {a: 1.1, b: -0.6}
+  generator: backend.csharp_struct_vs_class
+
+- id: be.cs.scoped_in_singleton
+  specializations: [backend]
+  topic: stack
+  stack_module: csharp
+  skills: [csharp, aspnet]
+  kind: single_choice
+  irt: {a: 1.2, b: 0.5}
+  params:
+    single: {choice: [PriceCache, ReportScheduler, RateLimiter]}
+    scoped: {choice: [AppDbContext, UnitOfWork, CurrentUserContext]}
+  stem: >-
+    В ASP.NET Core {{single}} зарегистрирован как Singleton и принимает в конструкторе {{scoped}}, зарегистрированный
+    как Scoped. Что не так с такой конфигурацией?
+  options:
+    correct: ["Это захваченная зависимость: {{scoped}} будет жить столько же, сколько синглтон, и разделяться между запросами"]
+    wrong:
+      - "Ничего: контейнер будет передавать в {{single}} новый {{scoped}} на каждый HTTP-запрос"
+      - "{{single}} автоматически станет Scoped"
+      - "Ничего: время жизни определяется только интерфейсом, а не регистрацией"
+      - "{{scoped}} автоматически станет Transient"
+
+- id: be.cs.linq_deferred
+  specializations: [backend]
+  topic: stack
+  stack_module: csharp
+  skills: [csharp, dotnet]
+  kind: code_output
+  irt: {a: 1.2, b: 0.7}
+  generator: backend.csharp_linq_deferred
+
+- id: be.cs.sync_over_async
+  specializations: [backend]
+  topic: stack
+  stack_module: csharp
+  skills: [csharp, dotnet, concurrency]
+  kind: single_choice
+  irt: {a: 1.2, b: 1.2}
+  params:
+    method: {choice: [GetUserAsync, LoadPricesAsync, FetchReportAsync]}
+  stem: >-
+    Синхронный код вызывает асинхронный метод так: var x = {{method}}().Result;. Какое утверждение верно?
+  options:
+    correct:
+      - "Поток блокируется до завершения задачи; при SynchronizationContext (WinForms, WPF, классический ASP.NET) это может дать взаимоблокировку, а в ASP.NET Core под нагрузкой — истощение пула потоков"
+    wrong:
+      - ".Result не блокирует поток: компилятор превращает его в await"
+      - "Взаимоблокировка невозможна ни в каком окружении, потому что Task всегда выполняется в отдельном потоке"
+      - "ConfigureAwait(false) в вызывающем коде на строке с .Result делает вызов неблокирующим"
+      - "Асинхронный метод при вызове через .Result выполняется в отдельном процессе"

@@ -1,0 +1,101 @@
+# Backend · стек-модуль nodejs (§10.2). Формат: content/templates/README.md
+
+- id: be.node.express_next
+  specializations: [backend]
+  topic: stack
+  stack_module: nodejs
+  skills: [nodejs, express]
+  kind: single_choice
+  irt: {a: 1.0, b: -0.9}
+  params:
+    name: {choice: [checkAuth, logRequest, loadUser, setLocale]}
+    path: {choice: [/api/orders, /api/profile, /admin, /api/cart]}
+  stem: "Что получит клиент на запрос GET {{path}}?"
+  code: |
+    function {{name}}(req, res, next) {
+      req.startedAt = Date.now();
+    }
+
+    app.use({{name}});
+    app.get('{{path}}', (req, res) => res.json({ ok: true }));
+  code_language: javascript
+  options:
+    correct: ["Ничего: запрос зависнет, пока не сработает таймаут, потому что middleware не вызывает next() и не отправляет ответ"]
+    wrong:
+      - "{ ok: true } — Express сам вызовет следующий обработчик после middleware"
+      - "404 Not Found"
+      - "500 Internal Server Error"
+      - "Express выбросит исключение при старте приложения"
+
+- id: be.node.cpu_offload
+  specializations: [backend]
+  topic: stack
+  stack_module: nodejs
+  skills: [nodejs, concurrency]
+  kind: single_choice
+  irt: {a: 1.1, b: -0.3}
+  params:
+    task: {choice: [генерация PDF-отчёта, ресайз изображений на чистом JS, подсчёт bcrypt-хешей в цикле, парсинг гигантского CSV]}
+  stem: >-
+    В сервисе на Node.js {{task}} занимает несколько секунд процессорного времени и тормозит все остальные запросы.
+    Как вынести эту работу, чтобы она не блокировала event loop?
+  options:
+    correct: ["Выполнять её в worker_threads (пуле воркеров)", "Выполнять её в отдельном процессе через child_process"]
+    wrong:
+      - "Обернуть вычисление в async-функцию и вызвать через await"
+      - "Обернуть вычисление в Promise.all"
+      - "Запланировать вычисление через process.nextTick"
+      - "Обернуть вычисление в new Promise(resolve => resolve(compute()))"
+
+- id: be.node.promise_all_reject
+  specializations: [backend]
+  topic: stack
+  stack_module: nodejs
+  skills: [nodejs, javascript]
+  kind: single_choice
+  irt: {a: 1.1, b: 0.0}
+  params:
+    a: {choice: [loadUser, getPrices, fetchOrders]}
+    b: {choice: [loadCart, getStock, fetchReviews]}
+    c: {choice: [loadBonus, getDelivery, fetchRating]}
+  stem: >-
+    Выполняется await Promise.all([{{a}}(), {{b}}(), {{c}}()]), и промис {{b}}() отклоняется первым, пока остальные
+    ещё в работе. Что произойдёт?
+  options:
+    correct: ["Promise.all сразу отклонится с ошибкой {{b}}(); операции {{a}}() и {{c}}() не отменяются и продолжают выполняться"]
+    wrong:
+      - "Promise.all дождётся всех и вернёт массив, где на месте {{b}}() будет undefined"
+      - "Promise.all дождётся всех и отклонится с AggregateError"
+      - "Promise.all отменит {{a}}() и {{c}}() и отклонится с ошибкой {{b}}()"
+      - "Promise.all вернёт массив объектов вида { status, value | reason }"
+
+- id: be.node.event_loop_order
+  specializations: [backend]
+  topic: stack
+  stack_module: nodejs
+  skills: [nodejs, javascript]
+  kind: code_output
+  irt: {a: 1.2, b: 0.4}
+  time_limit_sec: 120
+  generator: backend.node_event_loop_order
+
+- id: be.node.unhandled_rejection
+  specializations: [backend]
+  topic: stack
+  stack_module: nodejs
+  skills: [nodejs]
+  kind: single_choice
+  irt: {a: 1.1, b: 1.0}
+  params:
+    fn: {choice: [syncInventory, refreshToken, flushMetrics, sendWebhook]}
+    ver: {choice: [18, 20, 22]}
+  stem: >-
+    В сервисе на Node.js {{ver}} функция {{fn}}() вызывается без await и без .catch(), и возвращаемый ею промис
+    отклоняется. Обработчика process.on('unhandledRejection') нет, флаги запуска по умолчанию. Что произойдёт?
+  options:
+    correct: ["Процесс завершится с ошибкой: по умолчанию необработанное отклонение промиса приводит к падению процесса"]
+    wrong:
+      - "Будет выведено предупреждение, процесс продолжит работу"
+      - "Ошибка будет молча проигнорирована"
+      - "Node.js автоматически повторит вызов {{fn}}()"
+      - "Отклонение будет перехвачено ближайшим try/catch вызывающей функции"

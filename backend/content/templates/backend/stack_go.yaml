@@ -1,0 +1,131 @@
+# Backend · стек-модуль go (§10.2). Формат: content/templates/README.md
+
+- id: be.go.zero_values
+  specializations: [backend]
+  topic: stack
+  stack_module: go
+  skills: [go]
+  kind: code_output
+  irt: {a: 1.1, b: -0.9}
+  generator: backend.go_zero_values
+
+- id: be.go.defer_order
+  specializations: [backend]
+  topic: stack
+  stack_module: go
+  skills: [go]
+  kind: code_output
+  irt: {a: 1.2, b: -0.5}
+  generator: backend.go_defer_order
+
+- id: be.go.nil_map_write
+  specializations: [backend]
+  topic: stack
+  stack_module: go
+  skills: [go]
+  kind: single_choice
+  irt: {a: 1.2, b: -0.3}
+  params:
+    m: {choice: [counts, cache, index, seen]}
+    k: {choice: [alpha, user42, total, ru]}
+    v: {int: [1, 99]}
+  stem: "Что произойдёт при запуске программы?"
+  code: |
+    package main
+
+    import "fmt"
+
+    func main() {
+    	var {{m}} map[string]int
+    	fmt.Println({{m}}["{{k}}"])
+    	{{m}}["{{k}}"] = {{v}}
+    	fmt.Println({{m}}["{{k}}"])
+    }
+  code_language: go
+  options:
+    correct: ["Выведет 0, затем panic: assignment to entry in nil map"]
+    wrong:
+      - "Выведет 0, затем {{v}}"
+      - "panic уже при первом чтении из nil map"
+      - "Ошибка компиляции: map не инициализирована"
+      - "Выведет <nil>, затем panic: assignment to entry in nil map"
+
+- id: be.go.string_len
+  specializations: [backend]
+  topic: stack
+  stack_module: go
+  skills: [go]
+  kind: code_output
+  irt: {a: 1.1, b: 0.0}
+  generator: backend.go_string_len
+
+- id: be.go.unbuffered_channel
+  specializations: [backend]
+  topic: stack
+  stack_module: go
+  skills: [go, concurrency]
+  kind: single_choice
+  irt: {a: 1.2, b: 0.2}
+  params:
+    ch: {choice: [ch, jobs, results, done]}
+    v: {int: [1, 99]}
+  stem: "Что произойдёт при запуске программы?"
+  code: |
+    package main
+
+    import "fmt"
+
+    func main() {
+    	{{ch}} := make(chan int)
+    	{{ch}} <- {{v}}
+    	fmt.Println(<-{{ch}})
+    }
+  code_language: go
+  options:
+    correct: ["fatal error: all goroutines are asleep - deadlock!"]
+    wrong:
+      - "Выведет {{v}}"
+      - "Выведет 0"
+      - "Ошибка компиляции: нельзя читать из канала в той же горутине"
+      - "Программа зависнет навсегда без сообщений"
+
+- id: be.go.errors_is
+  specializations: [backend]
+  topic: stack
+  stack_module: go
+  skills: [go]
+  kind: code_output
+  irt: {a: 1.2, b: 0.6}
+  time_limit_sec: 120
+  generator: backend.go_errors_is
+
+- id: be.go.context_cancel
+  specializations: [backend]
+  topic: stack
+  stack_module: go
+  skills: [go, concurrency]
+  kind: single_choice
+  irt: {a: 1.2, b: 1.0}
+  params:
+    ms: {choice: [100, 250, 500, 1000]}
+    work: {choice: [запрос к базе, вызов внешнего API, обработку пачки сообщений, расчёт отчёта]}
+  stem: >-
+    Обработчик создаёт ctx, cancel := context.WithTimeout(parent, {{ms}}*time.Millisecond) и запускает горутину,
+    которая выполняет {{work}}. Какое утверждение о таймауте верно?
+  options:
+    correct: ["По таймауту закрывается ctx.Done(), но горутина не останавливается сама: код должен проверять ctx.Done() или передавать ctx в вызовы"]
+    wrong:
+      - "По таймауту среда выполнения Go принудительно завершает горутину"
+      - "Отмена дочернего контекста отменяет и родительский parent"
+      - "Дочерний контекст может продлить дедлайн родителя, если его таймаут больше"
+      - "После истечения таймаута ctx.Err() возвращает nil"
+
+- id: be.go.slice_append_shared
+  specializations: [backend]
+  topic: stack
+  stack_module: go
+  skills: [go]
+  kind: code_output
+  irt: {a: 1.3, b: 1.2}
+  time_limit_sec: 120
+  generator: backend.go_slice_append_shared

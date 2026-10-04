@@ -1,0 +1,258 @@
+# Backend · базы данных (§10.2). Формат: content/templates/README.md
+
+- id: be.db.atomicity
+  specializations: [backend]
+  topic: databases
+  skills: [sql]
+  kind: single_choice
+  irt: {a: 1.0, b: -1.4}
+  params:
+    amount: {int: [500, 50000], step: 500}
+    source: {choice: [расчётного счёта, кошелька, бонусного счёта, депозита]}
+    target: {choice: [карту, счёт партнёра, счёт поставщика, кошелёк друга]}
+  stem_variants:
+    - "Перевод {{amount}} ₽ с {{source}} на {{target}}: списание и зачисление должны выполниться вместе или не выполниться вовсе. Какое свойство ACID это гарантирует?"
+    - "Если сервер упадёт между списанием {{amount}} ₽ с {{source}} и зачислением на {{target}}, не должно остаться «половины» перевода. Какое свойство транзакций ACID за это отвечает?"
+  options:
+    correct: ["Атомарность (Atomicity)"]
+    wrong: ["Согласованность (Consistency)", "Изолированность (Isolation)", "Долговечность (Durability)"]
+
+- id: be.db.where_vs_having
+  specializations: [backend]
+  topic: databases
+  skills: [sql]
+  kind: single_choice
+  irt: {a: 1.1, b: -0.9}
+  params:
+    table: {choice: [orders, payments, invoices, shipments]}
+    key: {choice: [customer_id, region_id, manager_id, store_id]}
+    total: {int: [10000, 90000], step: 5000}
+  stem: >-
+    Нужно вывести {{key}}, у которых сумма amount в таблице {{table}} больше {{total}}:
+    SELECT {{key}}, SUM(amount) FROM {{table}} GROUP BY {{key}} … Где правильно разместить условие
+    SUM(amount) > {{total}}?
+  options:
+    correct: ["В HAVING после GROUP BY"]
+    wrong:
+      - "В WHERE перед GROUP BY"
+      - "В ORDER BY"
+      - "В условии ON соединения"
+      - "В LIMIT"
+
+- id: be.db.n_plus_one
+  specializations: [backend]
+  topic: databases
+  skills: [sql, sqlalchemy, hibernate]
+  kind: numeric
+  irt: {a: 1.2, b: -0.7}
+  params:
+    n: {int: [15, 120], step: 5}
+    parent: {choice: [заказов, статей, пользователей, проектов]}
+    child: {choice: [позиции, комментарии, адреса, задачи]}
+  stem: >-
+    ORM загружает список из {{n}} {{parent}} одним запросом, а затем в цикле обращается к связанному
+    полю «{{child}}» каждого элемента. Связь ленивая (lazy loading), кеша нет, у каждого элемента есть связанные
+    записи. Сколько SQL-запросов будет выполнено всего?
+  answer:
+    # проблема N+1: один запрос списка + по одному на каждый элемент
+    expr: "{{n}} + 1"
+    tolerance: 0
+
+- id: be.db.count_nulls
+  specializations: [backend]
+  topic: databases
+  skills: [sql]
+  kind: code_output
+  irt: {a: 1.2, b: -0.3}
+  time_limit_sec: 120
+  generator: backend.sql_count_nulls
+
+- id: be.db.left_join_rows
+  specializations: [backend]
+  topic: databases
+  skills: [sql]
+  kind: code_output
+  irt: {a: 1.3, b: 0.0}
+  time_limit_sec: 150
+  generator: backend.sql_left_join_rows
+
+- id: be.db.group_having_rows
+  specializations: [backend]
+  topic: databases
+  skills: [sql]
+  kind: code_output
+  irt: {a: 1.2, b: 0.2}
+  time_limit_sec: 180
+  generator: backend.sql_group_having
+
+- id: be.db.composite_index
+  specializations: [backend]
+  topic: databases
+  skills: [sql, postgresql]
+  kind: single_choice
+  irt: {a: 1.3, b: 0.3}
+  params:
+    table: {choice: [orders, payments, events, shipments]}
+    col_a: {choice: [customer_id, account_id, user_id]}
+    col_b: {choice: [created_at, updated_at, paid_at]}
+  stem_variants:
+    - "Частый запрос: SELECT * FROM {{table}} WHERE {{col_a}} = $1 ORDER BY {{col_b}} DESC LIMIT 20. Какой B-tree индекс в PostgreSQL лучше всего его ускорит?"
+    - "Нужно быстро получать 20 последних по {{col_b}} записей {{table}} для конкретного {{col_a}}. Какой B-tree индекс создать в PostgreSQL?"
+  options:
+    correct: ["Составной индекс ({{col_a}}, {{col_b}})"]
+    wrong:
+      - "Составной индекс ({{col_b}}, {{col_a}})"
+      - "Два отдельных индекса: по {{col_a}} и по {{col_b}}"
+      - "Индекс только по {{col_b}}"
+      - "Индекс только по первичному ключу {{table}}.id"
+
+- id: be.db.index_unusable
+  specializations: [backend]
+  topic: databases
+  skills: [sql, postgresql]
+  kind: multi_choice
+  irt: {a: 1.2, b: 0.5}
+  n_options: 5
+  params:
+    col: {choice: [email, login, username]}
+    table: {choice: [users, accounts, members]}
+  stem: >-
+    В PostgreSQL на {{table}}.{{col}} (тип text) есть обычный B-tree индекс по самому столбцу. Для каких условий
+    WHERE этот индекс не поможет найти строки, и понадобится индекс по выражению или другой тип индекса?
+  options:
+    correct:
+      - "WHERE lower({{col}}) = 'ivan@mail.ru'"
+      - "WHERE {{col}} LIKE '%@mail.ru'"
+      - "WHERE coalesce({{col}}, '') = 'ivan@mail.ru'"
+    wrong:
+      - "WHERE {{col}} = 'ivan@mail.ru'"
+      - "WHERE {{col}} IN ('ivan@mail.ru', 'olga@mail.ru')"
+      - "WHERE {{col}} IS NULL"
+      - "WHERE {{col}} > 'm' AND {{col}} < 'n'"
+
+- id: be.db.replica_lag
+  specializations: [backend]
+  topic: databases
+  skills: [sql, postgresql, system_design]
+  kind: single_choice
+  irt: {a: 1.1, b: 0.6}
+  params:
+    entity: {choice: [комментарий, заказ, аватар, адрес доставки]}
+  stem: >-
+    Запись идёт в primary, чтение — с асинхронной реплики. Пользователь сохраняет {{entity}}, страница
+    перезагружается, и изменения иногда не видны несколько сотен миллисекунд. В чём причина и типичное решение?
+  options:
+    correct:
+      - "Реплика отстаёт от primary; недавно изменённые пользователем данные читать с primary (read-your-writes)"
+    wrong:
+      - "Транзакция не закоммичена, пока реплика не подтвердит запись; нужно увеличить таймаут коммита"
+      - "Уровень изоляции READ COMMITTED на реплике скрывает чужие коммиты; нужно поднять его до SERIALIZABLE"
+      - "Реплика применяет только INSERT, а UPDATE — нет; нужно перейти на логическую репликацию"
+      - "Реплика кеширует результаты SELECT; нужно отключить кеш запросов на реплике"
+
+- id: be.db.isolation_level
+  specializations: [backend]
+  topic: databases
+  skills: [sql, postgresql]
+  kind: single_choice
+  irt: {a: 1.2, b: 0.7}
+  params:
+    entity: {choice: [остаток на счёте, цену товара, статус заказа, лимит кредита]}
+  stem: >-
+    Транзакция дважды читает {{entity}}, а между этими чтениями другая транзакция изменяет значение и делает COMMIT.
+    Какой минимальный уровень изоляции по стандарту SQL гарантирует, что оба чтения вернут одно и то же
+    (нет неповторяющегося чтения)?
+  options:
+    correct: ["REPEATABLE READ"]
+    wrong:
+      - "READ COMMITTED"
+      - "READ UNCOMMITTED"
+      - "Любой уровень: внутри одной транзакции повторные чтения всегда согласованы"
+
+- id: be.db.deadlock_fix
+  specializations: [backend]
+  topic: databases
+  skills: [sql, postgresql, concurrency]
+  kind: single_choice
+  irt: {a: 1.2, b: 1.0}
+  params:
+    table: {choice: [accounts, wallets, balances]}
+    a: {int: [10, 49]}
+    b: {int: [50, 99]}
+  stem: >-
+    Две транзакции переводов: первая делает UPDATE {{table}} для id={{a}}, затем для id={{b}}; вторая —
+    сначала для id={{b}}, затем для id={{a}}. Под нагрузкой PostgreSQL периодически сообщает «deadlock
+    detected». Какое изменение устраняет причину?
+  options:
+    correct:
+      - "Во всех транзакциях блокировать строки в одном порядке, например по возрастанию id"
+    wrong:
+      - "Повысить уровень изоляции до SERIALIZABLE"
+      - "Увеличить deadlock_timeout, чтобы транзакции дольше ждали друг друга"
+      - "Увеличить размер пула соединений к базе"
+      - "Делать COMMIT после каждого UPDATE внутри одного перевода"
+
+- id: be.db.mvcc_bloat
+  specializations: [backend]
+  topic: databases
+  skills: [postgresql]
+  kind: multi_choice
+  irt: {a: 1.3, b: 1.3}
+  n_options: 5
+  params:
+    table: {choice: [sessions, job_queue, counters, carts]}
+  stem: "Таблица {{table}} в PostgreSQL часто обновляется и сильно разрослась. Какие утверждения верны?"
+  options:
+    correct:
+      - "UPDATE создаёт новую версию строки, а старая становится «мёртвой» до очистки"
+      - "Долго открытая транзакция мешает VACUUM удалить мёртвые версии строк"
+      - "Обычный VACUUM (без FULL) не блокирует чтение и запись таблицы"
+    wrong:
+      - "UPDATE изменяет строку на месте, поэтому от обновлений таблица расти не может"
+      - "Мёртвые версии строк удаляются сразу при COMMIT"
+      - "VACUUM FULL перестраивает таблицу без блокировки записи"
+      - "Обычный VACUUM всегда возвращает освобождённое место операционной системе"
+
+- id: be.db.slow_query_investigation
+  specializations: [backend]
+  topic: databases
+  skills: [sql, postgresql]
+  kind: open_approach
+  irt: {a: 1.0, b: 0.9}
+  time_limit_sec: 600
+  params:
+    endpoint: {choice: ["/orders", "/reports/daily", "/catalog/search", "/users/{id}/history"]}
+    before: {int: [40, 120], step: 20}
+    after: {int: [2, 9]}
+  stem: >-
+    После релиза ответ эндпоинта {{endpoint}} вырос с {{before}} мс до {{after}} с, нагрузка не менялась.
+    Подозрение на базу данных PostgreSQL. Опишите по шагам, как найдёте причину и как проверите, что исправление помогло.
+  rubric:
+    - Находит медленные запросы по данным (pg_stat_statements, лог медленных запросов, трейсинг), а не наугад
+    - Смотрит план через EXPLAIN (ANALYZE, BUFFERS) и объясняет, что в нём искать (Seq Scan, неверные оценки строк)
+    - Проверяет, что изменилось в релизе (новый запрос, N+1, изменённый фильтр, миграция, удалённый индекс)
+    - Предлагает конкретное исправление (индекс, переписать запрос, обновить статистику ANALYZE) с учётом стоимости записи
+    - Проверяет эффект измерением до и после на сопоставимых данных и нагрузке
+
+- id: be.db.partial_index
+  specializations: [backend]
+  topic: databases
+  skills: [sql, postgresql]
+  kind: single_choice
+  status: pilot
+  irt: {a: 1.0, b: 0.9}
+  params:
+    table: {choice: [tasks, jobs, tickets, orders]}
+    status: {choice: [pending, new, open]}
+    share: {choice: ["0,5", "1", "2"]}
+  stem: >-
+    В таблице {{table}} 50 млн строк, из них только {{share}}% имеют status = '{{status}}'. Воркеры постоянно
+    выполняют SELECT … WHERE status = '{{status}}' ORDER BY created_at LIMIT 100. Какой индекс в PostgreSQL
+    подходит лучше всего?
+  options:
+    correct: ["CREATE INDEX ON {{table}} (created_at) WHERE status = '{{status}}'"]
+    wrong:
+      - "CREATE INDEX ON {{table}} (status)"
+      - "CREATE INDEX ON {{table}} USING hash (status)"
+      - "CREATE INDEX ON {{table}} (created_at, status)"
+      - "Индекс не нужен: PostgreSQL кеширует результаты частых запросов"

@@ -1,0 +1,146 @@
+# Backend · безопасность (§10.2). Формат: content/templates/README.md
+
+- id: be.sec.sql_injection
+  specializations: [backend]
+  topic: security
+  skills: [appsec, owasp, sql]
+  kind: single_choice
+  irt: {a: 1.1, b: -1.1}
+  params:
+    table: {choice: [users, orders, products, accounts]}
+    col: {choice: [email, login, sku, phone]}
+    arg: {choice: [value, query, term, needle]}
+  stem: "Как правильно устранить уязвимость в этом коде?"
+  code: |
+    def find(cursor, {{arg}}: str):
+        cursor.execute(f"SELECT * FROM {{table}} WHERE {{col}} = '{{{arg}}}'")
+        return cursor.fetchall()
+  code_language: python
+  options:
+    correct: ["Передавать значение как параметр запроса (placeholder) и не собирать SQL из строки"]
+    wrong:
+      - "Вручную экранировать одинарные кавычки через replace"
+      - "Проверять, что строка не содержит слов DROP и DELETE"
+      - "Обернуть запрос в транзакцию"
+      - "Принимать запросы только по HTTPS"
+
+- id: be.sec.password_storage
+  specializations: [backend]
+  topic: security
+  skills: [appsec, cryptography]
+  kind: single_choice
+  irt: {a: 1.2, b: -0.6}
+  params:
+    app: {choice: [интернет-магазина, личного кабинета, корпоративного портала, мобильного банка]}
+  stem_variants:
+    - "Как следует хранить пароли пользователей {{app}} в базе данных?"
+    - "Какой способ хранения паролей пользователей {{app}} соответствует современным рекомендациям (OWASP)?"
+  options:
+    correct: ["Хешем специальной медленной функции с солью: Argon2id, scrypt или bcrypt"]
+    wrong:
+      - "Хешем SHA-256 от пароля"
+      - "Шифровать AES-ключом из конфигурации приложения"
+      - "Хешем MD5 с единой солью для всех пользователей"
+      - "В Base64, чтобы пароль не был виден при просмотре таблицы"
+
+- id: be.sec.csrf
+  specializations: [backend]
+  topic: security
+  skills: [appsec, owasp]
+  kind: single_choice
+  irt: {a: 1.2, b: 0.2}
+  params:
+    site: {choice: [bank.example, shop.example, crm.example, portal.example]}
+    action: {choice: [/transfer, /change-email, /delete-account, /orders/cancel]}
+  stem: >-
+    Сайт {{site}} хранит сессию в cookie. Страница злоумышленника на другом домене автоматически отправляет форму
+    POST на https://{{site}}{{action}}, и браузер жертвы прикладывает её cookie. Как называется атака и чем от неё защищаются?
+  options:
+    correct: ["CSRF; CSRF-токен в форме и/или cookie сессии с атрибутом SameSite=Lax или Strict"]
+    wrong:
+      - "XSS; флаг HttpOnly у cookie сессии"
+      - "CSRF; перевод сайта на HTTPS"
+      - "SQL-инъекция; параметризованные запросы"
+      - "Clickjacking; заголовок Access-Control-Allow-Origin"
+
+- id: be.sec.jwt_facts
+  specializations: [backend]
+  topic: security
+  skills: [appsec, iam, oauth]
+  kind: multi_choice
+  irt: {a: 1.2, b: 0.5}
+  n_options: 5
+  params:
+    svc: {choice: [API заказов, сервис профилей, шлюз платежей, внутренний сервис отчётов]}
+  stem: "{{svc}} принимает access token в формате JWT, подписанный по JWS. Какие утверждения верны?"
+  options:
+    correct:
+      - "Payload подписан, но не зашифрован: его может прочитать любой, у кого есть токен"
+      - "Нужно проверять подпись с ожидаемым алгоритмом и не принимать alg=none"
+      - "Нужно проверять срок действия (exp) и, как правило, издателя и аудиторию (iss, aud)"
+    wrong:
+      - "Внутри доверенной сети подпись можно не проверять — достаточно декодировать payload"
+      - "Отзыв токена до истечения exp работает сам по себе, без дополнительного хранилища или списка"
+      - "Payload зашифрован секретом сервера, поэтому в нём можно хранить пароль"
+      - "Подпись гарантирует, что токен не был перехвачен"
+
+- id: be.sec.cors
+  specializations: [backend]
+  topic: security
+  skills: [appsec, http]
+  kind: single_choice
+  irt: {a: 1.2, b: 0.6}
+  params:
+    api: {choice: [api.shop.example, api.bank.example, api.crm.example]}
+    front: {choice: [app.shop.example, lk.bank.example, admin.crm.example]}
+  stem: >-
+    Фронтенд на https://{{front}} обращается к https://{{api}}, и разработчики настраивают CORS. Какое утверждение о CORS верно?
+  options:
+    correct:
+      - "Это механизм браузера: без разрешающих заголовков Access-Control-Allow-* скрипт страницы с другого origin не сможет прочитать ответ"
+    wrong:
+      - "CORS защищает API от любых запросов с чужих серверов, в том числе от curl"
+      - "Access-Control-Allow-Origin: * разрешает запросы с cookie с любого origin"
+      - "Перед каждым GET-запросом браузер отправляет preflight-запрос OPTIONS"
+      - "CORS шифрует запросы между разными доменами"
+
+- id: be.sec.idor
+  specializations: [backend]
+  topic: security
+  skills: [appsec, owasp]
+  kind: single_choice
+  irt: {a: 1.3, b: 0.9}
+  params:
+    res: {choice: [invoices, documents, orders, medical-records]}
+    id: {int: [1000, 99999]}
+  stem: >-
+    Аутентифицированный пользователь меняет в запросе GET /api/{{res}}/{{id}} число в пути и получает чужие данные.
+    Какое исправление устраняет уязвимость (Broken Object Level Authorization, OWASP API Top 10)?
+  options:
+    correct: ["Проверять на сервере, что запрошенный объект принадлежит текущему пользователю или доступен ему"]
+    wrong:
+      - "Заменить последовательные числовые id на UUID — этого достаточно"
+      - "Передавать id в теле POST-запроса вместо пути"
+      - "Добавить ограничение частоты запросов"
+      - "Проверять в запросе заголовок Referer"
+
+- id: be.sec.ssrf
+  specializations: [backend]
+  topic: security
+  skills: [appsec, owasp]
+  kind: multi_choice
+  irt: {a: 1.2, b: 1.4}
+  n_options: 5
+  params:
+    feature: {choice: [превью ссылок в чате, загрузку аватара по URL, вебхуки на адрес клиента, импорт фида по ссылке]}
+  stem: "Сервис реализует {{feature}}: сервер сам скачивает URL, указанный пользователем. Какие утверждения о рисках SSRF и защите верны?"
+  options:
+    correct:
+      - "Злоумышленник может заставить сервер обратиться к внутренним адресам: localhost, 169.254.169.254, сервисам внутренней сети"
+      - "Проверять нужно IP-адрес после DNS-резолвинга, и повторно — при каждом редиректе"
+      - "Исходящие запросы стоит пускать через выделенный egress-прокси со списком разрешённых адресов"
+    wrong:
+      - "Достаточно проверить, что URL начинается с https://"
+      - "Достаточно запретить в URL строку «localhost»"
+      - "Если сервер скачивает URL методом POST, а не GET, риск исчезает"
+      - "SSRF опасна только для серверов без файрвола на входящие соединения"

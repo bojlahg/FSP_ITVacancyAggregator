@@ -25,3 +25,157 @@
     - Маршрутизатор выбирает обработчик по пути и методу
     - Разрешаются зависимости и валидируются параметры запроса
     - Выполняется обработчик и формируется ответ
+
+- id: be.py.slicing
+  specializations: [backend]
+  topic: stack
+  stack_module: python
+  skills: [python]
+  kind: code_output
+  irt: {a: 1.1, b: -1.0}
+  generator: backend.python_slicing
+
+- id: be.py.context_managers
+  specializations: [backend]
+  topic: stack
+  stack_module: python
+  skills: [python]
+  kind: code_output
+  irt: {a: 1.1, b: -0.2}
+  time_limit_sec: 120
+  generator: backend.python_context_managers
+
+- id: be.py.list_multiply_alias
+  specializations: [backend]
+  topic: stack
+  stack_module: python
+  skills: [python]
+  kind: code_output
+  irt: {a: 1.3, b: 0.1}
+  generator: backend.python_list_multiply_alias
+
+- id: be.py.gil_cpu_bound
+  specializations: [backend]
+  topic: stack
+  stack_module: python
+  skills: [python, concurrency]
+  kind: single_choice
+  irt: {a: 1.2, b: 0.3}
+  params:
+    cores: {choice: [4, 8, 16, 32]}
+    task: {choice: [пересчёт хешей паролей, обработка изображений на чистом Python, численное моделирование в циклах, разбор и агрегация больших логов]}
+  stem: >-
+    В стандартной сборке CPython (с GIL) нужно ускорить CPU-bound задачу — {{task}} — на сервере с {{cores}} ядрами.
+    Код написан на чистом Python. Что даст реальное параллельное ускорение?
+  options:
+    correct: ["Запуск в нескольких процессах: multiprocessing или ProcessPoolExecutor"]
+    wrong:
+      - "ThreadPoolExecutor с max_workers={{cores}}"
+      - "asyncio.gather для запуска вычислений одновременно"
+      - "threading.Thread на каждый кусок данных"
+      - "Уменьшить sys.setswitchinterval, чтобы потоки чаще переключались"
+
+- id: be.py.generator_exhaust
+  specializations: [backend]
+  topic: stack
+  stack_module: python
+  skills: [python]
+  kind: code_output
+  irt: {a: 1.2, b: 0.5}
+  generator: backend.python_generator_exhaust
+
+- id: be.py.sqlalchemy_eager_loading
+  specializations: [backend]
+  topic: stack
+  stack_module: python
+  skills: [python, sqlalchemy]
+  kind: single_choice
+  irt: {a: 1.1, b: 0.5}
+  params:
+    parent: {choice: [Order, Author, Project, Customer]}
+    child: {choice: [items, books, tasks, addresses]}
+  stem: >-
+    В SQLAlchemy 2 загружается список {{parent}}, затем в цикле читается {{parent}}.{{child}} — связь настроена
+    по умолчанию (lazy="select"), и выполняется N+1 запрос. Как загрузить связанные объекты заранее, малым числом запросов?
+  options:
+    correct:
+      - "select({{parent}}).options(selectinload({{parent}}.{{child}}))"
+      - "select({{parent}}).options(joinedload({{parent}}.{{child}}))"
+    wrong:
+      - "Вызвать session.flush() перед циклом"
+      - "Вызвать session.expire_all() перед циклом"
+      - "Добавить индекс на внешний ключ связи {{child}}"
+      - "select({{parent}}).options(lazyload({{parent}}.{{child}}))"
+
+- id: be.py.async_blocking_call
+  specializations: [backend]
+  topic: stack
+  stack_module: python
+  skills: [python, fastapi]
+  kind: single_choice
+  irt: {a: 1.2, b: 0.6}
+  params:
+    path: {choice: [/report, /sync, /export, /weather]}
+    call: {choice: ["time.sleep(2)", "requests.get(UPSTREAM_URL, timeout=5)", "psycopg2.connect(DSN).cursor().execute(SQL)"]}
+  stem: "Под нагрузкой этот эндпоинт FastAPI задерживает ответы всем клиентам, а не только своим. В чём причина и как исправить?"
+  code: |
+    @app.get("{{path}}")
+    async def handler():
+        {{call}}
+        return {"ok": True}
+  code_language: python
+  options:
+    correct:
+      - "Блокирующий вызов внутри async def останавливает весь event loop; заменить его асинхронным аналогом или вынести в поток (asyncio.to_thread)"
+      - "Блокирующий вызов внутри async def останавливает event loop; объявить обработчик через обычный def — FastAPI выполнит его в пуле потоков"
+    wrong:
+      - "FastAPI выполняет async-обработчики в пуле потоков, поэтому причина в нехватке потоков — увеличить пул"
+      - "Не хватает await перед return — без него ответ не отправляется вовремя"
+      - "Добавить @lru_cache на обработчик — блокировка исчезнет"
+      - "Uvicorn запускает каждый запрос в отдельном процессе, поэтому причина в медленном старте процессов"
+
+- id: be.py.late_binding
+  specializations: [backend]
+  topic: stack
+  stack_module: python
+  skills: [python]
+  kind: code_output
+  irt: {a: 1.3, b: 1.0}
+  generator: backend.python_late_binding
+
+- id: be.py.gather_exception
+  specializations: [backend]
+  topic: stack
+  stack_module: python
+  skills: [python, concurrency]
+  kind: single_choice
+  irt: {a: 1.2, b: 1.3}
+  params:
+    a: {choice: [fetch_user, load_prices, get_stock]}
+    b: {choice: [fetch_orders, load_rates, get_reviews]}
+    c: {choice: [send_metrics, warm_cache, sync_profile]}
+  stem: >-
+    Код выполняет await asyncio.gather({{a}}(), {{b}}(), {{c}}()) с параметрами по умолчанию
+    (return_exceptions=False). {{a}}() быстро выбрасывает исключение. Что происходит с {{b}}() и {{c}}()?
+  options:
+    correct: ["Продолжают выполняться: gather сразу пробрасывает первое исключение, но не отменяет остальные задачи"]
+    wrong:
+      - "Автоматически отменяются, как в asyncio.TaskGroup"
+      - "gather дожидается их завершения и выбрасывает ExceptionGroup со всеми ошибками"
+      - "Исключение подавляется, и gather возвращает результаты остальных корутин"
+      - "Event loop останавливается, и все корутины прерываются"
+
+- id: be.py.immutable_types
+  specializations: [backend]
+  topic: stack
+  stack_module: python
+  skills: [python]
+  kind: multi_choice
+  irt: {a: 1.0, b: -1.3}
+  n_options: 5
+  params:
+    use: {choice: [ключ словаря кеша, элемент множества, значение по умолчанию аргумента функции, поле замороженного dataclass]}
+  stem: "Объект будет использоваться как {{use}}, поэтому важно, чтобы он был неизменяемым. Какие встроенные типы Python неизменяемые?"
+  options:
+    correct: [tuple, str, frozenset, bytes, int]
+    wrong: [list, dict, set, bytearray]

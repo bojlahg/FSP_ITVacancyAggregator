@@ -1,0 +1,98 @@
+# Backend · тестирование (§10.2). Формат: content/templates/README.md
+
+- id: be.test.pyramid
+  specializations: [backend]
+  topic: testing
+  skills: [unit_testing]
+  kind: single_choice
+  irt: {a: 1.0, b: -1.3}
+  params:
+    product: {choice: [сервиса заказов, платёжного шлюза, API каталога, сервиса авторизации]}
+  stem_variants:
+    - "Команда строит набор автотестов для {{product}} по классической пирамиде тестирования. Каких тестов в ней должно быть больше всего?"
+    - "Какой уровень находится в основании пирамиды тестирования и составляет большинство автотестов {{product}}?"
+  options:
+    correct: ["Модульные (unit) тесты"]
+    wrong: ["End-to-end тесты через UI", "Интеграционные тесты с реальной БД", "Ручные регрессионные проверки", "Нагрузочные тесты"]
+
+- id: be.test.mock_double
+  specializations: [backend]
+  topic: testing
+  skills: [unit_testing]
+  kind: single_choice
+  irt: {a: 1.1, b: -0.5}
+  params:
+    svc: {choice: [CheckoutService, RegistrationService, RefundService, ReminderService]}
+    dep: {choice: [EmailClient, SmsGateway, AuditLog, PushSender]}
+    method: {choice: [send, notify, write, publish]}
+  stem: >-
+    В модульном тесте {{svc}} нужно проверить, что при успешной операции у зависимости {{dep}} ровно один раз вызван
+    метод {{method}}() с нужными аргументами. Какой вид тестового двойника предназначен именно для проверки
+    таких взаимодействий?
+  options:
+    correct: ["Mock"]
+    wrong: ["Stub", "Dummy", "Fake", "Fixture"]
+
+- id: be.test.flaky_causes
+  specializations: [backend]
+  topic: testing
+  skills: [unit_testing, test_automation]
+  kind: multi_choice
+  irt: {a: 1.1, b: 0.4}
+  n_options: 5
+  params:
+    name: {choice: [test_create_order, test_refund_flow, test_daily_report, test_user_search]}
+  stem: "Тест {{name}} то проходит, то падает в CI без изменений кода. Какие причины типичны для таких «мигающих» тестов?"
+  options:
+    correct:
+      - "Зависимость от текущего времени, даты или часового пояса"
+      - "Зависимость от порядка выполнения тестов и общего состояния между ними"
+      - "Фиксированный sleep вместо ожидания условия при асинхронных операциях"
+      - "Проверка порядка строк из БД, когда в запросе нет ORDER BY"
+    wrong:
+      - "Слишком много assert в одном тесте"
+      - "Использование параметризованных тестов"
+      - "Тест написан до кода (TDD)"
+      - "Высокое покрытие кода тестами"
+
+- id: be.test.sqlite_instead_of_pg
+  specializations: [backend]
+  topic: testing
+  skills: [unit_testing, postgresql]
+  kind: multi_choice
+  irt: {a: 1.1, b: 0.9}
+  n_options: 5
+  params:
+    repo: {choice: [OrderRepository, UserRepository, PaymentRepository, ReportRepository]}
+  stem: >-
+    Тесты {{repo}} гоняют на SQLite в памяти, а в проде PostgreSQL. Какие ошибки такие тесты могут пропустить?
+  options:
+    correct:
+      - "Запросы с синтаксисом или функциями, специфичными для PostgreSQL (JSONB-операторы, массивы, расширения)"
+      - "Различия в типах и их проверке: SQLite по умолчанию позволяет записать строку в INTEGER-столбец"
+      - "Поведение конкурентных транзакций, блокировок строк и уровней изоляции"
+    wrong:
+      - "Любые ошибки в транзакциях, так как SQLite не поддерживает транзакции"
+      - "Ошибки в запросах с JOIN, так как SQLite их не поддерживает"
+      - "Ошибки миграций, потому что SQLite не умеет создавать индексы"
+      - "Ошибки в запросах с подзапросами, так как SQLite их не поддерживает"
+
+- id: be.test.contract_testing
+  specializations: [backend]
+  topic: testing
+  skills: [api_testing, microservices]
+  kind: single_choice
+  irt: {a: 1.2, b: 1.2}
+  params:
+    a: {choice: [orders, checkout, mobile-bff]}
+    b: {choice: [pricing, inventory, profile]}
+  stem: >-
+    Сервис {{a}} вызывает API сервиса {{b}}, их разрабатывают разные команды и деплоят независимо. Нужно ловить
+    ломающие изменения API {{b}} до деплоя, не поднимая полное end-to-end окружение. Какой подход для этого предназначен?
+  options:
+    correct: ["Контрактные тесты, управляемые потребителем (consumer-driven contracts, например Pact)"]
+    wrong:
+      - "Нагрузочные тесты {{b}}"
+      - "Модульные тесты {{b}} с замоканной базой данных"
+      - "Мутационное тестирование кода {{a}}"
+      - "Snapshot-тесты пользовательского интерфейса"
