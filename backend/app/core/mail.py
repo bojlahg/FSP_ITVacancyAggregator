@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import smtplib
+import ssl
 from dataclasses import dataclass
 from email.message import EmailMessage
 from typing import Protocol
@@ -32,19 +33,29 @@ class ConsoleSender:
 
 
 class SmtpSender:
-    """Для Mailpit в dev. На VDS исходящие SMTP-порты закрыты хостером."""
+    """SMTP: Mailpit в dev; в проде — почтовый ящик через SSL (465) или STARTTLS (587) с логином."""
 
     def __init__(self, settings: Settings):
         self._settings = settings
 
     def _send_sync(self, mail: Mail) -> None:
+        settings = self._settings
         message = EmailMessage()
-        message["From"] = f"{self._settings.email_from_name} <{self._settings.email_from}>"
+        message["From"] = f"{settings.email_from_name} <{settings.email_from}>"
         message["To"] = mail.to
         message["Subject"] = mail.subject
         message.set_content(mail.text)
         message.add_alternative(mail.html, subtype="html")
-        with smtplib.SMTP(self._settings.smtp_host, self._settings.smtp_port, timeout=10) as smtp:
+        context = ssl.create_default_context()
+        if settings.smtp_security == "ssl":
+            smtp = smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, timeout=15, context=context)
+        else:
+            smtp = smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=15)
+        with smtp:
+            if settings.smtp_security == "starttls":
+                smtp.starttls(context=context)
+            if settings.smtp_user:
+                smtp.login(settings.smtp_user, settings.smtp_password)
             smtp.send_message(message)
 
     async def send(self, mail: Mail) -> None:

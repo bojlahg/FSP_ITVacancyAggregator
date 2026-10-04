@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     email_from_name: str = "ITScout"
     smtp_host: str = "localhost"
     smtp_port: int = 1025
+    # none — Mailpit в dev; ssl — порт 465; starttls — порт 587
+    smtp_security: Literal["none", "ssl", "starttls"] = "none"
+    smtp_user: str = ""
+    smtp_password: str = ""
     unisender_api_url: str = ""
     unisender_api_key: str = ""
 
