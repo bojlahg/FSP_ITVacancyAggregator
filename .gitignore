@@ -1,0 +1,37 @@
+# secrets
+.env
+.env.*
+!.env.example
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# node / frontend
+node_modules/
+frontend/dist/
+*.tsbuildinfo
+
+# e2e
+e2e/test-results/
+e2e/playwright-report/
+playwright/.cache/
+
+# validation outputs (report.md и графики коммитим, сырые данные — нет)
+validation/out/raw/
+
+# uploads / runtime
+backend/uploads/
+*.log
+
+# os / ide
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
