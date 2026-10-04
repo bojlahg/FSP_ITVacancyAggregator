@@ -1,4 +1,4 @@
-"""Модель движка тестирования (§10). Чистый Python: без БД и FastAPI — движок используют backend и validation/."""
+"""Модель движка тестирования (§10). Чистый Python без БД и FastAPI: его используют backend и validation/."""
 
 from dataclasses import dataclass, field
 from typing import Any, Literal
