@@ -98,3 +98,15 @@ def test_422_documented_as_unified_error():
     assert "HTTPValidationError" not in spec["components"]["schemas"]
     response = spec["paths"]["/api/v1/auth/login"]["post"]["responses"]["422"]
     assert response["content"]["application/json"]["schema"]["$ref"].endswith("/ErrorResponse")
+
+
+async def test_invalid_email_message_is_russian(client):
+    response = await client.post(f"{API}/auth/login", json={"email": "x", "password": "1"})
+    assert response.json()["error"]["details"][0]["msg"] == "Некорректный email"
+
+
+def test_own_validator_message_is_kept():
+    from app.core.errors import _validation_message
+
+    error = {"type": "value_error", "msg": "Value error, salary_from не может быть больше salary_to"}
+    assert _validation_message(error) == "salary_from не может быть больше salary_to"

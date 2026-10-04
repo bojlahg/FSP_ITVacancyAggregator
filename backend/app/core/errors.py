@@ -1,3 +1,4 @@
+import re
 from typing import Any
 
 from fastapi import FastAPI, Request
@@ -47,10 +48,13 @@ VALIDATION_MESSAGES = {
 
 
 def _validation_message(error: dict) -> str:
+    message = str(error.get("msg", "")).removeprefix("Value error, ")
     if error["type"] == "value_error":
-        # Наши model_validator пишут понятный русский текст — его и показываем
-        message = str(error.get("msg", ""))
-        return message.removeprefix("Value error, ") or VALIDATION_MESSAGES["value_error"]
+        # Наши model_validator пишут по-русски — их текст показываем; английский от библиотек заменяем
+        if re.search("[а-яА-ЯёЁ]", message):
+            return message
+        if "email" in message.lower():
+            return "Некорректный email"
     return VALIDATION_MESSAGES.get(error["type"], "Некорректное значение")
 
 
