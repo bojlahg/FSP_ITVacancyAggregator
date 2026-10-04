@@ -618,7 +618,9 @@ candidate_search_index(candidate_id, specialization, grade, theta, percentile, v
 
 ## 15. API (префикс `/api/v1`, Swagger на `/api/docs`)
 
-Ответы об ошибках имеют единый формат `{error: {code, message, details}}`. Коды: 400 (валидация), 401, 403, 404, 409 (конфликт, например интервал смены грейда), 422, 429.
+Ответы об ошибках имеют единый формат `{error: {code, message, details}}`. Коды: 400, 401, 403, 404, 409 (конфликт, например интервал смены грейда), 422 (валидация), 429, 501 (заглушка ещё не реализована).
+
+**Полный контракт — `backend/openapi.json`** (генерируется из кода, проверяется в CI) и Swagger на `/api/docs`. Ниже — обзор.
 
 ```text
 # auth
@@ -626,6 +628,7 @@ POST /auth/register            {email, password, role, consents}
 POST /auth/verify-email        {token}
 POST /auth/resend-verification
 POST /auth/login | /auth/refresh | /auth/logout
+POST /auth/demo-login           {persona} — только DEMO_MODE
 GET  /me
 
 # справочники
@@ -636,17 +639,17 @@ GET|PUT /candidates/me
 PUT  /candidates/me/privacy | /candidates/me/consents
 POST /candidates/me/resume                 multipart PDF → предзаполнение
 GET  /candidates/me/profile.pdf?variant=full|public
-GET  /survey/questions ; POST /survey/responses → рекомендованные специализации
+GET  /survey/questions ; POST /survey/responses → рекомендованные специализации ; POST /survey/specialization
 GET  /candidates/me/grade-status           текущая категория, история, следующие доступные действия и даты
 POST /tests/attempts                       {specialization, grade_target, purpose} → 409 при интервале
 GET  /tests/attempts/{id}/current          текущее задание (без ключа)
 POST /tests/attempts/{id}/answer           {item_id, response}
 GET  /tests/attempts/{id}/result
-POST /candidates/me/fsp/link               {fsp_id, consent}      ручная привязка
+GET  /candidates/me/fsp ; POST /candidates/me/fsp/link   {fsp_id, consent}   ручная привязка
 GET  /fsp/oidc/start ; GET /fsp/oidc/callback                     OIDC (P1)
 DELETE /candidates/me/fsp
 GET  /candidates/me/invitations ; POST /invitations/{id}/view|accept|decline
-GET  /vacancies?match=true ; POST /vacancies/{id}/apply ; GET /candidates/me/applications
+GET  /vacancies?match=true ; GET /vacancies/{id} ; POST /vacancies/{id}/apply ; GET /candidates/me/applications
 GET  /candidates/me/tasks ; POST /tasks/assignments/{id}/submit
 
 # работодатель
@@ -664,7 +667,7 @@ GET  /talent/candidates/{id}/profile.pdf
 POST /invitations ; GET /employers/me/invitations ; POST /invitations/{id}/withdraw
 GET  /employers/me/decline-stats
 POST /vacancy-tests/preview  {raw_text | need_id} → blueprint + примеры заданий + черновики LLM
-POST /employer-tasks ; GET /employer-tasks/{id}/submissions
+GET|POST /employer-tasks ; GET /employer-tasks/{id}/submissions ; POST /employer-tasks/{id}/submissions/{aid}/rate
 
 # служебное
 GET  /health
@@ -758,10 +761,10 @@ POST /admin/reseed ; POST /admin/demo/reset-cooldowns     только при DE
 ## 20. Деплой и CI/CD
 
 - **compose:** `infra/docker-compose.yml` — сервисы `caddy`, `frontend` (сборка Vite, статика в volume для Caddy), `backend`, `db`, `fsp-mock`; профиль `fsp` добавляет `keycloak`. `docker-compose.dev.yml` добавляет `mailpit` и hot reload.
-- **CI** (на каждый push): ruff, pytest, сборка фронта, проверка, что `openapi.json` актуален.
-- **Deploy** (push в `master`): rsync репозитория на сервер → `docker compose up -d --build` → миграции → smoke-тест `/health` и Playwright по демо-сценарию.
+- **CI** (`.github/workflows/ci.yml`, на каждый push): ruff, миграции с нуля + `alembic check`, pytest, актуальность `openapi.json` и сгенерированного клиента, lint/typecheck/build фронта.
+- **Deploy** (push в `master`, после зелёного CI): rsync репозитория в `/opt/itscout/app` → `docker compose up -d --build` (backend сам применяет миграции при старте) → smoke-тест `/api/v1/health` (позже — Playwright). Единственный секрет GitHub — `DEPLOY_SSH_KEY` (отдельный ключ деплоя). Остальные секреты — в `/opt/itscout/app/.env` на сервере (права 600).
 - **HTTPS:** после появления A-записи `itscout.ru` в `Caddyfile` включается блок домена.
-- **Почта:** Unisender Go, отправитель `noreply@itscout.ru`, домен подтверждён записями SPF, DKIM и DMARC. Ключ `UNISENDER_API_KEY` хранится в GitHub Secrets, CI пишет его в `.env` на сервере. VDSina блокирует исходящие 25/465/587, поэтому только HTTPS API.
+- **Почта:** Unisender Go, отправитель `noreply@itscout.ru`, домен подтверждён записями SPF, DKIM и DMARC. Ключ `UNISENDER_API_KEY` хранится в `.env` на сервере. VDSina блокирует исходящие 25/465/587, поэтому только HTTPS API.
 - **Запуск с нуля:** `docs/deploy.md` — `cp .env.example .env && docker compose up -d` поднимает всё, включая seed.
 
 ---
@@ -819,7 +822,7 @@ POST /admin/reseed ; POST /admin/demo/reset-cooldowns     только при DE
 
 | Вопрос | Нужно для | Срок |
 |---|---|---|
-| ~~Почтовый провайдер~~ — Unisender Go (HTTPS API); пользователь подтверждает домен и кладёт ключ в GitHub Secrets | T03 | решено |
+| ~~Почтовый провайдер~~ — Unisender Go (HTTPS API); пользователь подтверждает домен, ключ кладётся в `.env` на сервере; до этого `EMAIL_VERIFICATION_REQUIRED=false` | T03 | решено |
 | A-запись `itscout.ru` → `94.103.87.151` | HTTPS | 5.10 |
 | Ключ Yandex AI Studio: берём из DealDojo или заводим новый | T08 | 6.10 |
 | ~~GitHub-репозиторий~~ — `bojlahg/FSP_ITVacancyAggregator`, приватный до конца разработки. Делаем публичным **11.10 перед отправкой ссылки**. С первого коммита — ни одного секрета в истории | T01 | решено |

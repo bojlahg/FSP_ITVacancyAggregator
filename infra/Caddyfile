@@ -1,12 +1,21 @@
 (site) {
 	encode zstd gzip
+
+	handle /api/* {
+		reverse_proxy backend:8000
+	}
+
 	handle /health {
 		respond "ok" 200
 	}
+
 	handle {
 		root * /srv/site
+		try_files {path} /index.html
 		file_server
 	}
+
+	header /assets/* Cache-Control "public, max-age=31536000, immutable"
 }
 
 # Доступ по IP (и любой хост) по HTTP — работает без DNS.

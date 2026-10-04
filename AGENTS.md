@@ -74,7 +74,7 @@ infra/                       compose, Caddyfile, keycloak realm, заглушк�
 
 ## Команды
 
-Цели `Makefile` создаёт задача T01. Пока какой-то цели нет, используй прямую команду. Если меняешь или добавляешь цель — обнови таблицу.
+Цели `Makefile` — для Linux, WSL и CI. На Windows-машине разработчика `make` нет, а `uv` вызывается как `python -m uv` — используй прямые команды из скобок. Если меняешь или добавляешь цель — обнови таблицу.
 
 | Действие | Команда |
 |---|---|
@@ -84,6 +84,7 @@ infra/                       compose, Caddyfile, keycloak realm, заглушк�
 | Фронт: проверка и сборка | `cd frontend && npm run lint && npm run typecheck && npm run build` |
 | Обновить OpenAPI и клиент | `make openapi` (выгрузить `openapi.json` → `npm run gen:api`) |
 | Миграция | `cd backend && uv run alembic revision --autogenerate -m "..."` |
+| Проверка миграции | `uv run alembic upgrade head && uv run alembic check` (нужен Postgres, см. ниже) |
 | Демо-данные | `make reseed` |
 | Валидация | `make validate` |
 | e2e | `make e2e` |
@@ -101,7 +102,9 @@ infra/                       compose, Caddyfile, keycloak realm, заглушк�
 - Ошибки — через доменные исключения, они превращаются в единый формат `{error: {code, message, details}}` (см. `docs/implementation.md §15`).
 - У каждого эндпоинта есть `response_model`, `summary` и описанные коды ошибок — Swagger является частью сдачи.
 - Аннотации типов везде. Формат и линт — `ruff`.
-- Изменение моделей → миграция Alembic в том же коммите.
+- Изменение моделей → миграция Alembic в том же коммите. После autogenerate просмотри файл миграции глазами.
+- Enum-колонки — только через `enum_type()` из `app/core/types.py`: это VARCHAR, а ровно один CHECK на колонку добавляет `add_enum_checks()`. Встроенный CHECK у `sa.Enum` не включай: Alembic его дублирует.
+- Новую модель импортируй в `app/models.py`, иначе Alembic её не увидит.
 - `testing/engine` детерминирован по seed и не импортирует БД и FastAPI: его использует `validation/`.
 
 **Frontend:**
@@ -137,7 +140,7 @@ infra/                       compose, Caddyfile, keycloak realm, заглушк�
 
 ## Сервер
 
-- Прод: `ssh itscout` (root@94.103.87.151, Ubuntu 26.04, 2 vCPU, 3,3 ГБ RAM). Приложение — `/opt/itscout`.
+- Прод: `ssh itscout` (root@94.103.87.151, Ubuntu 26.04, 2 vCPU, 3,3 ГБ RAM). Приложение — `/opt/itscout/app` (туда rsync'ает CI), секреты — `/opt/itscout/app/.env` (права 600, в git нет).
 - Docker Hub с сервера работает только через зеркало `mirror.gcr.io` (настроено в `/etc/docker/daemon.json`).
 - Деплой — только через CI/CD или файлы из `infra/`. Ручные правки на сервере не делаем: следующий деплой их затрёт. Если без ручного вмешательства не обойтись — повтори его в `infra/` и в `docs/deploy.md`.
 - Не выполнять на проде без подтверждения пользователя: удаление volume'ов и БД, `docker system prune`, изменение `ufw` и `sshd_config`.
@@ -145,4 +148,14 @@ infra/                       compose, Caddyfile, keycloak realm, заглушк�
 
 ## Среда разработки
 
-Машина разработчика — Windows с Git Bash и PowerShell, сервер — Linux. Окончания строк в репозитории — LF (`.gitattributes`). Пути в скриптах — с прямыми слешами. Shell-скрипты должны работать в Linux-контейнере.
+Машина разработчика — Windows с Git Bash и PowerShell, сервер — Linux. Docker Desktop локально может быть не запущен. Тогда для миграций и тестов с БД поднимай временный Postgres на сервере, доступный только через SSH-туннель:
+
+```bash
+ssh itscout 'docker run -d --rm --name itscout-devpg -e POSTGRES_USER=dev -e POSTGRES_PASSWORD=dev -e POSTGRES_DB=dev -p 127.0.0.1:55432:5432 postgres:16-alpine'
+ssh -N -L 55432:127.0.0.1:55432 itscout   # в фоне
+DATABASE_URL=postgresql+psycopg://dev:dev@127.0.0.1:55432/dev python -m uv run alembic upgrade head
+```
+
+После работы останови контейнер: `ssh itscout docker stop itscout-devpg`. psycopg в async-режиме на Windows требует SelectorEventLoop: в `migrations/env.py` это уже учтено.
+
+Окончания строк в репозитории — LF (`.gitattributes`). Пути в скриптах — с прямыми слешами. Shell-скрипты должны работать в Linux-контейнере.

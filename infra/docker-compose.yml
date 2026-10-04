@@ -1,17 +1,65 @@
+name: itscout
+
 services:
-  caddy:
-    image: caddy:2-alpine
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-itscout}
+      POSTGRES_USER: ${POSTGRES_USER:-itscout}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?задайте POSTGRES_PASSWORD в .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build: ../backend
+    restart: unless-stopped
+    env_file:
+      - path: ../.env
+        required: false
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-itscout}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-itscout}
+      FSP_API_URL: http://fsp-mock:8001/fsp-api/v1
+      UPLOAD_DIR: /data/uploads
+    volumes:
+      - uploads:/data/uploads
+      - fspdata:/data/fsp
+    depends_on:
+      db:
+        condition: service_healthy
+
+  fsp-mock:
+    build: ../fsp-mock
+    restart: unless-stopped
+    environment:
+      FSP_API_KEY: ${FSP_API_KEY:-dev-fsp-key}
+      FSP_DATA_PATH: /data/fsp/fsp.json
+    volumes:
+      - fspdata:/data/fsp:ro
+
+  web:
+    build:
+      context: ..
+      dockerfile: frontend/Dockerfile
     restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
       - "443:443/udp"
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - ./site:/srv/site:ro
       - caddy_data:/data
       - caddy_config:/config
+    depends_on:
+      - backend
 
 volumes:
+  pgdata:
+  uploads:
+  fspdata:
   caddy_data:
   caddy_config:
