@@ -1,0 +1,126 @@
+# DevOps · безопасность (§10.2). Формат: content/templates/README.md
+
+- id: ops.sec.ssh_key_permissions
+  specializations: [devops]
+  topic: security
+  skills: [linux, linux_cli]
+  kind: single_choice
+  irt: {a: 1.1, b: -1.2}
+  params:
+    alg: {choice: [ed25519, rsa, ecdsa]}
+    host: {choice: [bastion, deploy-01, db-replica, build-agent]}
+  stem: >-
+    ssh {{host}} отказывается использовать ключ: «WARNING: UNPROTECTED PRIVATE KEY FILE! Permissions 0644 for
+    '~/.ssh/id_{{alg}}' are too open». Какую команду выполнить?
+  options:
+    correct: ["chmod 600 ~/.ssh/id_{{alg}}"]
+    wrong:
+      - "chmod 644 ~/.ssh/id_{{alg}}.pub"
+      - "chmod 640 ~/.ssh/id_{{alg}}"
+      - "chmod 755 ~/.ssh/id_{{alg}}"
+      - "chmod 666 ~/.ssh/id_{{alg}}"
+
+- id: ops.sec.leaked_secret
+  specializations: [devops]
+  topic: security
+  skills: [devsecops, git]
+  kind: single_choice
+  irt: {a: 1.1, b: -0.6}
+  params:
+    secret: {choice: [Ключ доступа к облаку, Токен бота, Пароль от БД, Токен деплоя]}
+    minutes: {int: [5, 30], step: 5}
+    repo: {choice: [публичный репозиторий на GitHub, общий репозиторий компании, открытый форк проекта]}
+  stem: >-
+    {{secret}} случайно закоммитили и запушили в {{repo}}. Через {{minutes}} минут коммит убрали из истории
+    через force-push. Что нужно сделать обязательно?
+  options:
+    correct:
+      - "Отозвать и перевыпустить секрет: он считается скомпрометированным"
+    wrong:
+      - "Ничего: после force-push коммит недоступен"
+      - "Сделать репозиторий приватным"
+      - "Удалить ветку и создать её заново из чистого коммита"
+      - "Добавить файл с секретом в .gitignore"
+
+- id: ops.sec.container_hardening
+  specializations: [devops]
+  topic: security
+  skills: [docker, kubernetes, devsecops]
+  kind: multi_choice
+  irt: {a: 1.2, b: 0.0}
+  n_options: 5
+  params:
+    app: {choice: [веб-приложения, воркера очереди, API-шлюза, сервиса отчётов]}
+  stem: "Какие меры уменьшают последствия взлома контейнера {{app}}? Отметьте все верные."
+  options:
+    correct:
+      - "Запускать процесс от непривилегированного пользователя (USER в Dockerfile, runAsNonRoot)"
+      - "Сделать корневую файловую систему контейнера доступной только для чтения"
+      - "Отбросить все Linux capabilities и добавить только необходимые"
+      - "Не запускать контейнер с флагом --privileged"
+    wrong:
+      - "Смонтировать /var/run/docker.sock, чтобы контейнер мог следить за соседями"
+      - "Отключить seccomp-профиль ради совместимости"
+      - "Использовать тег latest, чтобы образ всегда был свежим"
+
+- id: ops.sec.tls_chain
+  specializations: [devops]
+  topic: security
+  skills: [cryptography, nginx]
+  kind: single_choice
+  irt: {a: 1.3, b: 0.6}
+  params:
+    host: {choice: [api.shop.example, pay.corp.example, itscout.test, lk.media.example]}
+    client: {choice: [curl, "сервис на Python (requests)"]}
+  stem: >-
+    https://{{host}} открывается в браузерах без предупреждений, но {{client}} падает с ошибкой проверки
+    сертификата «unable to get local issuer certificate». Системное хранилище корневых сертификатов на
+    клиенте актуальное. Какая причина наиболее вероятна?
+  options:
+    correct:
+      - "Сервер отдаёт только конечный сертификат без промежуточного; нужно настроить полную цепочку (fullchain)"
+    wrong:
+      - "В сертификате нет SAN, а клиент, в отличие от браузеров, проверяет только CN"
+      - "Сервер не поддерживает TLS 1.3"
+      - "Сертификат самоподписанный"
+      - "Срок действия сертификата истёк"
+
+- id: ops.sec.k8s_rbac
+  specializations: [devops]
+  topic: security
+  skills: [kubernetes, iam]
+  kind: single_choice
+  irt: {a: 1.2, b: 0.9}
+  params:
+    ns: {choice: [billing, orders, reports, search]}
+    sa: {choice: [config-reader, app, watcher, sync-agent]}
+  stem: "ServiceAccount {{sa}} в namespace {{ns}} должен только читать ConfigMap в своём namespace. Как выдать права по принципу наименьших привилегий?"
+  options:
+    correct:
+      - "Role в {{ns}} с verbs get, list, watch на configmaps и RoleBinding этой Role на {{sa}}"
+    wrong:
+      - "ClusterRole с verbs get, list, watch на configmaps и ClusterRoleBinding на {{sa}}"
+      - "Role в {{ns}} с нужными правами и ClusterRoleBinding, ссылающийся на эту Role"
+      - "RoleBinding в {{ns}} на встроенную ClusterRole admin"
+      - "Добавить {{sa}} в группу system:masters"
+
+- id: ops.sec.k8s_secrets
+  specializations: [devops]
+  topic: security
+  skills: [kubernetes, devsecops]
+  kind: multi_choice
+  irt: {a: 1.2, b: 1.2}
+  n_options: 5
+  params:
+    ns: {choice: [billing, payments, auth, core]}
+  stem: "В namespace {{ns}} хранятся Secret с паролями БД. Какие утверждения о Kubernetes Secret верны (стандартная установка без дополнительной настройки)? Отметьте все верные."
+  options:
+    correct:
+      - "Данные Secret хранятся в etcd в base64 без шифрования; шифрование at rest включается через EncryptionConfiguration или KMS"
+      - "Право get или list на secrets в namespace позволяет прочитать содержимое этих секретов"
+      - "Тот, кто может создавать поды в namespace, может прочитать любой Secret этого namespace, смонтировав его в под"
+    wrong:
+      - "base64 в Secret — это шифрование, ключ которого хранится в kube-apiserver"
+      - "Secret доступен поду из любого namespace, если знать его имя"
+      - "ConfigMap с immutable: true защищает пароли лучше, чем Secret"
+      - "Смонтированный Secret записывается на диск ноды и остаётся там после удаления пода"

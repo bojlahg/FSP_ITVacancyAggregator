@@ -1,0 +1,128 @@
+# DevOps · мониторинг и логирование (§10.2). Формат: content/templates/README.md
+
+- id: ops.obs.metric_type
+  specializations: [devops]
+  topic: observability
+  skills: [prometheus]
+  kind: single_choice
+  irt: {a: 1.1, b: -1.0}
+  generator: devops.prometheus_metric_type
+
+- id: ops.obs.golden_signals
+  specializations: [devops]
+  topic: observability
+  skills: [prometheus, grafana]
+  kind: multi_choice
+  irt: {a: 1.0, b: -0.6}
+  n_options: 5
+  params:
+    service: {choice: [платёжного API, сервиса поиска, API-шлюза, сервиса авторизации]}
+  stem_variants:
+    - "Вы строите дашборд {{service}} по «четырём золотым сигналам» из книги Google SRE. Какие сигналы к ним относятся?"
+    - "Какие из перечисленных метрик входят в четыре золотых сигнала мониторинга (Google SRE), по которым стоит наблюдать за {{service}}?"
+  options:
+    correct:
+      - "Задержка (latency)"
+      - "Трафик (traffic)"
+      - "Ошибки (errors)"
+      - "Насыщение (saturation)"
+    wrong:
+      - "Покрытие кода тестами"
+      - "Число деплоев в день"
+      - "Аптайм сервера в днях"
+      - "Число строк в логах"
+
+- id: ops.obs.slo_error_budget
+  specializations: [devops]
+  topic: observability
+  skills: [prometheus]
+  kind: numeric
+  irt: {a: 1.3, b: 0.0}
+  time_limit_sec: 120
+  params:
+    slo: {choice: [99, 99.5, 99.9, 99.95, 99.99]}
+    days: {choice: [7, 28, 30]}
+  stem: >-
+    Для сервиса задан SLO доступности {{slo}}% на скользящем окне {{days}} дней. Сколько минут полной
+    недоступности допускает бюджет ошибок за это окно? Округлите до десятых.
+  answer:
+    expr: "round({{days}} * 24 * 60 * (100 - {{slo}}) / 100, 1)"
+    tolerance: 0.1
+
+- id: ops.obs.promql_rate
+  specializations: [devops]
+  topic: observability
+  skills: [prometheus]
+  kind: single_choice
+  irt: {a: 1.3, b: 0.2}
+  params:
+    m: {choice: [http_requests_total, grpc_server_handled_total, api_calls_total, orders_processed_total]}
+    w: {choice: [1m, 5m, 10m]}
+  stem: "{{m}} — счётчик (counter) с метками pod и code. Каким PromQL-запросом получить суммарное число событий в секунду по всем подам, усреднённое за окно {{w}}?"
+  options:
+    correct: ["sum(rate({{m}}[{{w}}]))"]
+    wrong:
+      - "sum(increase({{m}}[{{w}}]))"
+      - "sum(delta({{m}}[{{w}}]))"
+      - "rate(sum({{m}})[{{w}}:])"
+      - "sum(avg_over_time({{m}}[{{w}}]))"
+
+- id: ops.obs.burn_rate_hours
+  specializations: [devops]
+  topic: observability
+  skills: [prometheus]
+  kind: numeric
+  irt: {a: 1.2, b: 1.0}
+  time_limit_sec: 150
+  params:
+    slo: {choice: [99, 99.5, 99.9]}
+    days: {choice: [28, 30]}
+    err: {choice: [2, 3, 5, 6]}
+  stem: >-
+    SLO: {{slo}}% успешных запросов на окне {{days}} дней. Бюджет ошибок окна пока не тронут, трафик
+    равномерный, а доля ошибочных запросов стабильно держится на {{err}}%. Через сколько часов при таком темпе
+    будет исчерпан весь бюджет ошибок окна? Округлите до десятых.
+  answer:
+    # burn rate = err / (100 − slo); бюджет кончится за окно / burn rate
+    expr: "round({{days}} * 24 * (100 - {{slo}}) / {{err}}, 1)"
+    tolerance: 0.5
+
+- id: ops.obs.histogram_quantile
+  specializations: [devops]
+  topic: observability
+  skills: [prometheus]
+  kind: single_choice
+  irt: {a: 1.3, b: 1.3}
+  params:
+    m: {choice: [http_request_duration_seconds, rpc_latency_seconds, checkout_duration_seconds]}
+    q: {choice: ["0.9", "0.95", "0.99"]}
+  stem: "Метрика {{m}} — histogram с метками pod и le. Каким запросом получить {{q}}-квантиль латентности по всем подам сервиса за последние 5 минут?"
+  options:
+    correct: ["histogram_quantile({{q}}, sum by (le) (rate({{m}}_bucket[5m])))"]
+    wrong:
+      - "histogram_quantile({{q}}, sum by (pod) (rate({{m}}_bucket[5m])))"
+      - "histogram_quantile({{q}}, sum by (le) ({{m}}_bucket))"
+      - "quantile({{q}}, rate({{m}}_sum[5m]))"
+      - "max(histogram_quantile({{q}}, {{m}}_bucket))"
+
+- id: ops.obs.latency_investigation
+  specializations: [devops]
+  topic: observability
+  skills: [prometheus, grafana, kubernetes]
+  kind: open_approach
+  irt: {a: 1.0, b: 1.0}
+  time_limit_sec: 600
+  params:
+    before: {int: [80, 200], step: 20}
+    after: {int: [900, 3000], step: 100}
+    service: {choice: [сервиса заказов, платёжного API, API-шлюза, сервиса поиска]}
+  stem: >-
+    После очередного релиза p99 латентности {{service}} выросла с {{before}} до {{after}} мс, ошибок почти
+    нет. Сервис работает в Kubernetes и ходит в PostgreSQL и во внешний API. Опишите, как вы будете искать
+    причину и что сделаете, чтобы быстро восстановить сервис.
+  rubric:
+    - Сначала снижает влияние на пользователей (откат релиза или переключение трафика), а потом расследует
+    - Сопоставляет начало деградации с релизом и другими изменениями по метрикам и графикам
+    - Локализует проблему по зависимостям (БД, внешний API) с помощью трейсинга или метрик латентности вызовов
+    - Проверяет насыщение ресурсов (CPU throttling, память, пул соединений, очереди)
+    - Предлагает меры от повторения (алерт на SLO или burn rate, канареечный выкат, регрессионный нагрузочный тест)

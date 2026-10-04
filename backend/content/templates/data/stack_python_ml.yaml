@@ -1,0 +1,93 @@
+# Data Science · стек-модуль python_ml (§10.2). Формат: content/templates/README.md
+# Вывод кода вычисляется генераторами data.* в чистом Python, код не исполняется.
+
+- id: ds.py.groupby_agg
+  specializations: [data]
+  topic: stack
+  stack_module: python_ml
+  skills: [pandas, python]
+  kind: code_output
+  irt: {a: 1.2, b: -0.8}
+  time_limit_sec: 120
+  generator: data.pandas_groupby_agg
+
+- id: ds.py.scaler_on_test
+  specializations: [data]
+  topic: stack
+  stack_module: python_ml
+  skills: [scikit_learn, python]
+  kind: single_choice
+  irt: {a: 1.2, b: -0.6}
+  params:
+    scaler: {choice: [StandardScaler, MinMaxScaler, RobustScaler]}
+    var: {choice: [scaler, prep, norm]}
+  stem: "Как правильно преобразовать тестовую выборку после такого кода?"
+  code: |-
+    {{var}} = {{scaler}}()
+    X_train_s = {{var}}.fit_transform(X_train)
+    model.fit(X_train_s, y_train)
+  code_language: python
+  options:
+    correct: ["X_test_s = {{var}}.transform(X_test)"]
+    wrong:
+      - "X_test_s = {{var}}.fit_transform(X_test)"
+      - "X_test_s = {{scaler}}().fit_transform(X_test)"
+      - "X_test_s = {{var}}.fit(X_test).transform(X_train)"
+      - "X_test_s = X_test: модель уже обучена"
+
+- id: ds.py.numpy_reduce_shape
+  specializations: [data]
+  topic: stack
+  stack_module: python_ml
+  skills: [numpy, python]
+  kind: code_output
+  irt: {a: 1.2, b: -0.4}
+  generator: data.numpy_reduce_shape
+
+- id: ds.py.loc_iloc_slice
+  specializations: [data]
+  topic: stack
+  stack_module: python_ml
+  skills: [pandas, python]
+  kind: code_output
+  irt: {a: 1.3, b: 0.3}
+  generator: data.loc_iloc_slice
+
+- id: ds.py.numpy_broadcast
+  specializations: [data]
+  topic: stack
+  stack_module: python_ml
+  skills: [numpy, python]
+  kind: code_output
+  irt: {a: 1.3, b: 0.6}
+  generator: data.numpy_broadcast
+
+- id: ds.py.groupby_count_nan
+  specializations: [data]
+  topic: stack
+  stack_module: python_ml
+  skills: [pandas, python]
+  kind: code_output
+  irt: {a: 1.2, b: 0.8}
+  time_limit_sec: 120
+  generator: data.pandas_count_nan
+
+- id: ds.py.merge_duplicates
+  specializations: [data]
+  topic: stack
+  stack_module: python_ml
+  skills: [pandas, python]
+  kind: code_output
+  irt: {a: 1.3, b: 1.1}
+  time_limit_sec: 150
+  generator: data.pandas_merge_rows
+
+- id: ds.py.numpy_view_copy
+  specializations: [data]
+  topic: stack
+  stack_module: python_ml
+  skills: [numpy, python]
+  kind: code_output
+  irt: {a: 1.3, b: 1.2}
+  time_limit_sec: 120
+  generator: data.numpy_view_copy

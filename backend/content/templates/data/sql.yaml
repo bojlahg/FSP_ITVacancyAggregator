@@ -1,0 +1,94 @@
+# Data Science · SQL (§10.2). Формат: content/templates/README.md
+# Результаты запросов вычисляются генераторами data.sql_* (семантика PostgreSQL / стандарта SQL).
+
+- id: ds.sql.join_all_customers
+  specializations: [data]
+  topic: sql
+  skills: [sql]
+  kind: single_choice
+  irt: {a: 1.0, b: -1.2}
+  params:
+    left: {choice: [customers, users, stores, drivers]}
+    right: {choice: [orders, payments, deliveries]}
+  stem: "Нужен отчёт по всем строкам {{left}} с числом связанных {{right}}, включая тех, у кого {{right}} нет совсем. Какое соединение использовать?"
+  options:
+    correct: ["{{left}} LEFT JOIN {{right}}"]
+    wrong: ["{{left}} INNER JOIN {{right}}", "{{left}} RIGHT JOIN {{right}}", "{{left}} CROSS JOIN {{right}}", "{{right}} LEFT JOIN {{left}}"]
+
+- id: ds.sql.group_having
+  specializations: [data]
+  topic: sql
+  skills: [sql, sql_analytics]
+  kind: code_output
+  irt: {a: 1.2, b: -0.9}
+  time_limit_sec: 150
+  generator: data.sql_group_having
+
+- id: ds.sql.count_null
+  specializations: [data]
+  topic: sql
+  skills: [sql]
+  kind: code_output
+  irt: {a: 1.2, b: -0.6}
+  time_limit_sec: 120
+  generator: data.sql_count_null
+
+- id: ds.sql.not_equal_null
+  specializations: [data]
+  topic: sql
+  skills: [sql]
+  kind: numeric
+  irt: {a: 1.3, b: 0.2}
+  time_limit_sec: 120
+  generator: data.sql_not_equal_null
+
+- id: ds.sql.left_join_count
+  specializations: [data]
+  topic: sql
+  skills: [sql, sql_analytics]
+  kind: code_output
+  irt: {a: 1.3, b: 0.3}
+  time_limit_sec: 150
+  generator: data.sql_left_join_count
+
+- id: ds.sql.window_rank
+  specializations: [data]
+  topic: sql
+  skills: [sql, sql_analytics]
+  kind: code_output
+  irt: {a: 1.3, b: 0.7}
+  time_limit_sec: 150
+  generator: data.sql_window_rank
+
+- id: ds.sql.left_join_where
+  specializations: [data]
+  topic: sql
+  skills: [sql, sql_analytics]
+  kind: code_output
+  irt: {a: 1.3, b: 1.1}
+  time_limit_sec: 180
+  generator: data.sql_left_join_where
+
+- id: ds.sql.running_total_ties
+  specializations: [data]
+  topic: sql
+  skills: [sql, sql_analytics, postgresql]
+  kind: single_choice
+  irt: {a: 1.2, b: 1.3}
+  params:
+    table: {choice: [payments, sales, deposits]}
+    day: {choice: [day, paid_on, sale_date]}
+  stem: "Нарастающий итог считают так. У двух строк с одинаковым {{day}} в столбце running получилось одинаковое значение. Почему?"
+  code: |-
+    SELECT {{day}}, amount,
+           SUM(amount) OVER (ORDER BY {{day}}) AS running
+    FROM {{table}};
+  code_language: sql
+  options:
+    correct:
+      - "При ORDER BY без явной рамки используется RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW, и строки с равным {{day}} входят в рамку вместе"
+    wrong:
+      - "Оконная функция сначала схлопывает строки с равным {{day}}, как GROUP BY"
+      - "По умолчанию рамка — ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW, а равные {{day}} сортируются случайно"
+      - "Без PARTITION BY оконная SUM возвращает сумму по всей таблице"
+      - "Это ошибка данных: оконная функция не может вернуть одинаковые значения в разных строках"

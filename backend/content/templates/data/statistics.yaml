@@ -1,0 +1,152 @@
+# Data Science · статистика (§10.2). Формат: content/templates/README.md
+
+- id: ds.stat.median
+  specializations: [data]
+  topic: statistics
+  skills: [statistics]
+  kind: numeric
+  irt: {a: 1.1, b: -1.3}
+  generator: data.median
+
+- id: ds.stat.skewed_center
+  specializations: [data]
+  topic: statistics
+  skills: [statistics]
+  kind: single_choice
+  irt: {a: 1.0, b: -1.0}
+  params:
+    staff: {int: [50, 400], step: 10}
+    what: {choice: [зарплат сотрудников, доходов клиентов банка, стоимости квартир в районе]}
+  stem: "Распределение {{what}} ({{staff}} наблюдений) сильно скошено вправо: единичные значения в десятки раз превышают остальные. Какая мера лучше описывает типичное значение?"
+  options:
+    correct: ["Медиана"]
+    wrong: ["Среднее арифметическое", "Размах", "Стандартное отклонение", "Максимум"]
+
+- id: ds.stat.expected_value
+  specializations: [data]
+  topic: statistics
+  skills: [statistics]
+  kind: numeric
+  irt: {a: 1.1, b: -0.8}
+  params:
+    p: {choice: [10, 20, 25, 40]}
+    win: {int: [200, 2000], step: 100}
+    loss: {int: [50, 500], step: 50}
+  stem: >-
+    Промоакция: с вероятностью {{p}}% клиент приносит компании {{win}} ₽ прибыли, иначе компания теряет {{loss}} ₽.
+    Каково математическое ожидание прибыли на одного клиента в рублях? Отрицательное значение указывайте со
+    знаком минус, округлите до сотых.
+  answer:
+    expr: "round({{p}} / 100 * {{win}} - (100 - {{p}}) / 100 * {{loss}}, 2)"
+    tolerance: 0.01
+
+- id: ds.stat.standard_error
+  specializations: [data]
+  topic: statistics
+  skills: [statistics]
+  kind: numeric
+  irt: {a: 1.2, b: -0.2}
+  params:
+    sigma: {int: [6, 60], step: 6}
+    n: {choice: [16, 25, 36, 64, 100, 144, 400]}
+  stem: >-
+    Стандартное отклонение признака в генеральной совокупности σ = {{sigma}}. По случайной выборке из {{n}}
+    наблюдений считают выборочное среднее. Чему равна его стандартная ошибка? Округлите до сотых.
+  answer:
+    expr: "round({{sigma}} / {{n}} ** 0.5, 2)"
+    tolerance: 0.01
+
+- id: ds.stat.p_value_meaning
+  specializations: [data]
+  topic: statistics
+  skills: [statistics, ab_testing]
+  kind: single_choice
+  irt: {a: 1.3, b: 0.0}
+  params:
+    p: {choice: ["0.01", "0.02", "0.03", "0.04"]}
+    test: {choice: [A/B-тест новой формы оплаты, сравнение среднего чека двух регионов, тест новой рекомендательной модели]}
+  stem: "{{test}} дал p-value = {{p}}. Какая интерпретация верна?"
+  options:
+    correct:
+      - "Если нулевая гипотеза верна, результат такой же или более экстремальный получался бы с вероятностью {{p}}"
+    wrong:
+      - "Вероятность того, что нулевая гипотеза верна, равна {{p}}"
+      - "С вероятностью 1 − {{p}} альтернативная гипотеза верна"
+      - "Вероятность того, что наблюдаемый эффект возник случайно, равна {{p}}"
+      - "Мощность теста равна 1 − {{p}}"
+
+- id: ds.stat.zero_correlation
+  specializations: [data]
+  topic: statistics
+  skills: [statistics]
+  kind: single_choice
+  irt: {a: 1.2, b: 0.4}
+  params:
+    x: {choice: [температура воздуха, время суток, возраст клиента, скорость ветра]}
+    y: {choice: [нагрузка на сервис, число заказов, расход энергии]}
+    n: {int: [500, 5000], step: 500}
+  stem: "По {{n}} наблюдениям коэффициент корреляции Пирсона между признаками «{{x}}» и «{{y}}» практически равен 0. Что можно утверждать?"
+  options:
+    correct:
+      - "Линейной связи нет, но возможна сильная нелинейная зависимость (например, вида Y = X²)"
+    wrong:
+      - "Признаки статистически независимы"
+      - "Признак «{{y}}» нельзя предсказать по признаку «{{x}}» никакой моделью"
+      - "Коэффициент корреляции Спирмена тоже обязательно равен 0"
+      - "Выборка слишком мала, чтобы оценить корреляцию"
+
+- id: ds.stat.ci_sample_size
+  specializations: [data]
+  topic: statistics
+  skills: [statistics, ab_testing]
+  kind: numeric
+  irt: {a: 1.2, b: 0.5}
+  params:
+    n0: {int: [100, 900], step: 100}
+    k: {choice: [2, 3, 4]}
+  stem: >-
+    95%-й доверительный интервал для среднего, построенный по {{n0}} наблюдениям, слишком широкий. Сколько
+    наблюдений понадобится, чтобы ширина интервала стала равна 1/{{k}} от текущей при той же дисперсии? Отличием t- и z-квантилей
+    пренебрегите.
+  answer:
+    # ширина интервала ∝ 1/√n
+    expr: "{{n0}} * {{k}} ** 2"
+    tolerance: 0
+
+- id: ds.stat.fwer
+  specializations: [data]
+  topic: statistics
+  skills: [statistics, ab_testing]
+  kind: numeric
+  irt: {a: 1.2, b: 0.9}
+  time_limit_sec: 150
+  params:
+    m: {int: [3, 20]}
+    alpha: {choice: [0.05, 0.01]}
+  stem: >-
+    В эксперименте независимо проверяется несколько метрик (всего {{m}}), каждая на уровне значимости {{alpha}} без поправок. На
+    самом деле ни одна метрика не изменилась. С какой вероятностью хотя бы одна метрика окажется «значимой»?
+    Ответ в процентах, округлите до десятых.
+  answer:
+    expr: "round(100 * (1 - (1 - {{alpha}}) ** {{m}}), 1)"
+    tolerance: 0.2
+
+- id: ds.stat.bayes_test
+  specializations: [data]
+  topic: statistics
+  skills: [statistics]
+  kind: numeric
+  irt: {a: 1.3, b: 1.1}
+  time_limit_sec: 180
+  params:
+    prev: {choice: [0.5, 1, 2]}
+    sens: {choice: [90, 95, 99]}
+    fpr: {choice: [2, 5, 10]}
+  stem: >-
+    Заболеванием страдает {{prev}}% обследуемых. Тест выявляет болезнь у {{sens}}% больных и даёт
+    ложноположительный результат у {{fpr}}% здоровых. Какова вероятность, что человек с положительным тестом
+    действительно болен? Ответ в процентах, округлите до десятых.
+  answer:
+    # формула Байеса: P(Б|+) = P(+|Б)P(Б) / (P(+|Б)P(Б) + P(+|З)P(З))
+    expr: "round(100 * {{prev}} * {{sens}} / ({{prev}} * {{sens}} + (100 - {{prev}}) * {{fpr}}), 1)"
+    tolerance: 0.2

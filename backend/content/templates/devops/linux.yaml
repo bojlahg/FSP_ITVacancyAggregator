@@ -1,0 +1,143 @@
+# DevOps · Linux (§10.2). Формат: content/templates/README.md
+
+- id: ops.linux.chmod_octal
+  specializations: [devops]
+  topic: linux
+  skills: [linux, linux_cli]
+  kind: numeric
+  irt: {a: 1.2, b: -1.3}
+  generator: devops.chmod_octal
+
+- id: ops.linux.uncatchable_signal
+  specializations: [devops]
+  topic: linux
+  skills: [linux]
+  kind: single_choice
+  irt: {a: 1.1, b: -0.9}
+  params:
+    proc: {choice: [nginx, postgres, java, python3, node, gunicorn]}
+  stem_variants:
+    - "Какой сигнал процесс {{proc}} не может ни перехватить, ни проигнорировать?"
+    - "Процесс {{proc}} установил обработчики для всех сигналов, какие смог. Какой из перечисленных сигналов он всё равно не сможет перехватить или проигнорировать?"
+  options:
+    correct: [SIGKILL, SIGSTOP]
+    wrong: [SIGTERM, SIGINT, SIGHUP, SIGQUIT, SIGUSR1, SIGTSTP]
+
+- id: ops.linux.top_ip_pipeline
+  specializations: [devops]
+  topic: linux
+  skills: [linux_cli, bash]
+  kind: code_output
+  irt: {a: 1.2, b: -0.7}
+  time_limit_sec: 120
+  generator: devops.top_ip_pipeline
+
+- id: ops.linux.inode_exhaustion
+  specializations: [devops]
+  topic: linux
+  skills: [linux]
+  kind: single_choice
+  irt: {a: 1.3, b: 0.2}
+  params:
+    free: {int: [25, 60], step: 5}
+    mount: {choice: [/var, /data, /srv, /home]}
+    app: {choice: [кэш сессий PHP, очередь писем, генератор миниатюр, сборщик логов]}
+  stem_variants:
+    - "Запись в {{mount}} падает с ошибкой «No space left on device», хотя df -h показывает {{free}}% свободного места. В каталоге работает {{app}}, создающий множество мелких файлов. Какая причина наиболее вероятна?"
+    - "Процесс «{{app}}» не может создать файл в {{mount}}: «No space left on device». При этом df -h сообщает, что свободно {{free}}% объёма. Что проверить в первую очередь?"
+  options:
+    correct:
+      - "Закончились inode: проверить df -i"
+    wrong:
+      - "Файловая система смонтирована только для чтения"
+      - "У процесса нет прав на запись в каталог"
+      - "Превышен лимит открытых файлов (ulimit -n)"
+      - "Удалённый файл всё ещё открыт процессом и занимает место"
+      - "df -h показывает устаревшие данные: нужно выполнить sync"
+
+- id: ops.linux.uniq_without_sort
+  specializations: [devops]
+  topic: linux
+  skills: [linux_cli, bash]
+  kind: code_output
+  irt: {a: 1.3, b: 0.3}
+  time_limit_sec: 120
+  generator: devops.uniq_without_sort
+
+- id: ops.linux.deleted_open_file
+  specializations: [devops]
+  topic: linux
+  skills: [linux, linux_cli]
+  kind: single_choice
+  irt: {a: 1.3, b: 0.6}
+  params:
+    app: {choice: [billing, orders, gateway, worker, auth]}
+    size: {int: [20, 90], step: 5}
+  stem_variants:
+    - "Диск заполнен. Вы удалили лог /var/log/{{app}}.log размером {{size}} ГБ через rm, но df показывает, что место не освободилось, а du его уже не видит. Почему и что делать?"
+    - "После rm /var/log/{{app}}.log ({{size}} ГБ) свободного места по df не прибавилось. Сервис {{app}} продолжает работать. В чём причина?"
+  options:
+    correct:
+      - "Процесс {{app}} держит удалённый файл открытым; найти его через lsof +L1 и перезапустить процесс или заставить переоткрыть лог"
+    wrong:
+      - "Файл перемещён в корзину; нужно очистить ~/.local/share/Trash"
+      - "Место освободится только после перезагрузки сервера"
+      - "Нужно выполнить sync, чтобы сбросить кэш страниц на диск"
+      - "Блоки освобождаются только после fsck при следующем монтировании"
+
+- id: ops.linux.load_average_io
+  specializations: [devops]
+  topic: linux
+  skills: [linux]
+  kind: single_choice
+  irt: {a: 1.2, b: 1.0}
+  params:
+    cores: {choice: [4, 8, 16]}
+    la: {choice: [24.5, 31.2, 40.8, 52.1]}
+    cpu: {int: [5, 15]}
+  stem_variants:
+    - "Сервер с {{cores}} ядрами: load average {{la}}, при этом CPU занят на {{cpu}}% и почти всё время простаивает в iowait. Что наиболее вероятно даёт высокий load average?"
+    - "top показывает load average {{la}} на машине с {{cores}} ядрами, но загрузка CPU всего {{cpu}}%, высокий wa. Чем объясняется такой load average в Linux?"
+  options:
+    correct:
+      - "Много процессов в состоянии D (непрерываемое ожидание, обычно дискового или сетевого I/O): Linux учитывает их в load average"
+    wrong:
+      - "Большое число процессов-зомби"
+      - "Много процессов в состоянии S, ожидающих событий"
+      - "Load average в Linux — это загрузка CPU в процентах, делённая на 10"
+      - "Большое число открытых TCP-соединений"
+
+- id: ops.linux.d_state_kill
+  specializations: [devops]
+  topic: linux
+  skills: [linux]
+  kind: single_choice
+  irt: {a: 1.1, b: 1.4}
+  params:
+    proc: {choice: [rsync, postgres, java, tar, dd]}
+    mount: {choice: [NFS-шара, iSCSI-том, CIFS-шара, сетевое хранилище]}
+  stem_variants:
+    - "Процесс {{proc}}, работавший с ресурсом «{{mount}}», висит в состоянии D, и kill -9 на него не действует. Почему?"
+    - "ps показывает процесс {{proc}} в состоянии D после того, как ресурс «{{mount}}» перестал отвечать. Почему SIGKILL не завершает его?"
+  options:
+    correct:
+      - "Процесс находится в непрерываемом сне внутри системного вызова ядра; сигнал будет обработан, только когда операция ввода-вывода завершится или прервётся"
+    wrong:
+      - "Процесс стал зомби: его код завершения не прочитал родитель"
+      - "Процесс перехватил SIGKILL и игнорирует его"
+      - "kill -9 отправляет SIGTERM, нужно использовать kill -15"
+      - "У пользователя нет прав: нужно повторить kill -9 через sudo"
+
+- id: ops.linux.systemd_restart
+  specializations: [devops]
+  topic: linux
+  skills: [linux]
+  kind: single_choice
+  status: pilot
+  irt: {a: 1.0, b: -0.5}
+  params:
+    unit: {choice: [billing.service, worker.service, exporter.service, gateway.service]}
+  stem: "Сервис {{unit}} иногда падает с ненулевым кодом. Какая директива в секции [Service] юнита заставит systemd автоматически перезапускать его после сбоя?"
+  options:
+    correct: ["Restart=on-failure"]
+    wrong: ["RestartSec=on-failure", "Type=on-failure", "ExecReload=always", "RemainAfterExit=yes", "WantedBy=on-failure"]

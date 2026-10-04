@@ -1,0 +1,134 @@
+# Data Science · инженерия данных (§10.2). Формат: content/templates/README.md
+
+- id: ds.de.elt_meaning
+  specializations: [data]
+  topic: data_engineering
+  skills: [etl, dbt]
+  kind: single_choice
+  irt: {a: 1.0, b: -1.0}
+  params:
+    dwh: {choice: [ClickHouse, Greenplum, BigQuery, Snowflake]}
+  stem: "Команда переходит от ETL к ELT с хранилищем {{dwh}}. Что это означает?"
+  options:
+    correct:
+      - "Сырые данные сначала загружаются в {{dwh}}, а трансформации выполняются уже внутри хранилища (например, SQL-моделями dbt)"
+    wrong:
+      - "Данные трансформируются на отдельном сервере до загрузки в {{dwh}}"
+      - "Данные загружаются в {{dwh}} без каких-либо трансформаций, витрины не строятся"
+      - "Трансформации выполняются в системе-источнике до извлечения"
+      - "Из процесса убирается шаг извлечения: {{dwh}} сам читает источники в реальном времени"
+
+- id: ds.de.columnar_format
+  specializations: [data]
+  topic: data_engineering
+  skills: [etl, spark]
+  kind: single_choice
+  irt: {a: 1.1, b: -0.8}
+  params:
+    k: {int: [3, 6]}
+    n: {int: [80, 300], step: 20}
+  stem: "Аналитические запросы читают {{k}} из {{n}} колонок широкой таблицы событий за большой период. Какой формат хранения файлов в озере данных подойдёт лучше всего?"
+  options:
+    correct: ["Parquet"]
+    wrong: ["CSV", "JSON Lines", "Avro", "XML"]
+
+- id: ds.de.idempotent_reload
+  specializations: [data]
+  topic: data_engineering
+  skills: [etl, airflow]
+  kind: single_choice
+  irt: {a: 1.2, b: 0.0}
+  params:
+    date: {choice: ["2026-03-14", "2026-07-01", "2026-09-30", "2026-11-11"]}
+    table: {choice: [events, payments, sessions, clicks]}
+  stem: "Ежедневная задача Airflow загружает {{table}} за {{date}} в таблицу, партиционированную по дате. Задачу иногда перезапускают за ту же дату, и в таблице появляются дубли. Как сделать загрузку идемпотентной?"
+  options:
+    correct:
+      - "Перезаписывать партицию за обрабатываемую дату целиком (overwrite или DELETE + INSERT в одной транзакции)"
+    wrong:
+      - "Добавлять данные через INSERT, а дубли раз в месяц чистить отдельной задачей"
+      - "Отключить retries у задачи"
+      - "Определять дату партиции через datetime.now() внутри задачи"
+      - "Увеличить execution_timeout, чтобы задача не перезапускалась"
+
+- id: ds.de.spark_actions
+  specializations: [data]
+  topic: data_engineering
+  skills: [spark]
+  kind: multi_choice
+  irt: {a: 1.2, b: 0.4}
+  n_options: 5
+  params:
+    df: {choice: [events, orders, clicks, sessions]}
+  stem: "Spark вычисляет лениво. Какие вызовы над DataFrame {{df}} в PySpark являются действиями (actions) и запускают фактическое вычисление? Отметьте все."
+  options:
+    correct:
+      - "{{df}}.count()"
+      - "{{df}}.collect()"
+      - "{{df}}.show()"
+      - "{{df}}.write.parquet(path)"
+    wrong:
+      - "{{df}}.filter(...)"
+      - "{{df}}.select(...)"
+      - "{{df}}.withColumn(...)"
+      - "{{df}}.groupBy(...).agg(...)"
+
+- id: ds.de.scd_type2
+  specializations: [data]
+  topic: data_engineering
+  skills: [etl, sql_analytics]
+  kind: single_choice
+  irt: {a: 1.1, b: 0.5}
+  params:
+    attr: {choice: [адрес клиента, тарифный план абонента, регион магазина, должность сотрудника]}
+  stem: "В хранилище есть измерение, где меняется атрибут «{{attr}}». Отчёты должны показывать значение, действовавшее на дату факта. Какой тип медленно меняющегося измерения (SCD) выбрать?"
+  options:
+    correct:
+      - "SCD Type 2: новая строка на каждую версию с периодом действия (valid_from / valid_to) или флагом актуальности"
+    wrong:
+      - "SCD Type 1: перезаписывать значение в существующей строке"
+      - "SCD Type 0: запретить изменение атрибута"
+      - "SCD Type 3: отдельный столбец под каждое прошлое значение, хранится вся история"
+      - "Хранить историю только в логах ETL-процесса"
+
+- id: ds.de.spark_shuffle
+  specializations: [data]
+  topic: data_engineering
+  skills: [spark]
+  kind: multi_choice
+  irt: {a: 1.2, b: 1.0}
+  n_options: 5
+  params:
+    df: {choice: [events, orders, clicks, sessions]}
+    n: {choice: [200, 400, 800]}
+  stem: "Какие операции над большим DataFrame {{df}} в Spark вызывают shuffle — перераспределение данных между партициями по сети? Отметьте все."
+  options:
+    correct:
+      - "{{df}}.groupBy(\"user_id\").agg(...)"
+      - "{{df}}.repartition({{n}})"
+      - "{{df}}.distinct()"
+      - "Join {{df}} с другой большой таблицей через sort-merge join"
+    wrong:
+      - "{{df}}.filter(...)"
+      - "{{df}}.withColumn(...)"
+      - "{{df}}.coalesce(10) для уменьшения числа партиций"
+      - "{{df}}.select(...)"
+
+- id: ds.de.kafka_at_least_once
+  specializations: [data]
+  topic: data_engineering
+  skills: [kafka, etl]
+  kind: single_choice
+  irt: {a: 1.2, b: 1.2}
+  params:
+    sink: {choice: [PostgreSQL, ClickHouse, S3, Elasticsearch]}
+    topic: {choice: [payments, clicks, orders, events]}
+  stem: "Консьюмер читает сообщение из топика {{topic}}, пишет результат в {{sink}} и только после этого коммитит offset. Процесс упал после записи в {{sink}}, но до коммита. Что произойдёт после перезапуска?"
+  options:
+    correct:
+      - "Сообщение будет обработано повторно (at-least-once), поэтому запись в {{sink}} должна быть идемпотентной"
+    wrong:
+      - "Сообщение будет потеряно (at-most-once)"
+      - "Повтора не будет: Kafka по умолчанию гарантирует exactly-once для любых консьюмеров"
+      - "Повтор невозможен: Kafka удаляет сообщение из топика сразу после чтения"
+      - "Консьюмер начнёт читать топик {{topic}} с самого начала"

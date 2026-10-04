@@ -1,0 +1,118 @@
+# DevOps · контейнеры и оркестрация (§10.2). Формат: content/templates/README.md
+
+- id: ops.cont.layer_cache_order
+  specializations: [devops]
+  topic: containers
+  skills: [docker]
+  kind: single_choice
+  irt: {a: 1.2, b: -1.0}
+  params:
+    base: {choice: ["python:3.12-slim", "python:3.13-slim"]}
+    deps: {choice: [requirements.txt, requirements.lock]}
+    workdir: {choice: [/app, /srv/app, /opt/service]}
+  stem_variants:
+    - "При любом изменении исходников docker build заново выполняет установку зависимостей, и сборка занимает много минут. Как это исправить?"
+    - "Сборка образа по этому Dockerfile медленная: правка одной строки кода приводит к повторному pip install. Что нужно изменить?"
+  code: |-
+    FROM {{base}}
+    WORKDIR {{workdir}}
+    COPY . .
+    RUN pip install --no-cache-dir -r {{deps}}
+    CMD ["python", "main.py"]
+  code_language: dockerfile
+  options:
+    correct:
+      - "Сначала скопировать только {{deps}} и установить зависимости, а COPY . . перенести после RUN pip install"
+    wrong:
+      - "Добавить флаг --no-cache к docker build"
+      - "Заменить COPY . . на ADD . ."
+      - "Объединить все инструкции в одну строку RUN через &&"
+      - "Использовать базовый образ с тегом latest"
+
+- id: ops.cont.exit_code_signal
+  specializations: [devops]
+  topic: containers
+  skills: [docker, linux]
+  kind: single_choice
+  irt: {a: 1.2, b: -0.7}
+  generator: devops.exit_code_signal
+
+- id: ops.k8s.probe_types
+  specializations: [devops]
+  topic: containers
+  skills: [kubernetes]
+  kind: single_choice
+  irt: {a: 1.3, b: -0.2}
+  generator: devops.k8s_probe
+
+- id: ops.cont.entrypoint_cmd
+  specializations: [devops]
+  topic: containers
+  skills: [docker]
+  kind: code_output
+  irt: {a: 1.3, b: 0.2}
+  time_limit_sec: 120
+  generator: devops.entrypoint_cmd
+
+- id: ops.k8s.requests_capacity
+  specializations: [devops]
+  topic: containers
+  skills: [kubernetes]
+  kind: numeric
+  irt: {a: 1.2, b: 0.4}
+  time_limit_sec: 150
+  params:
+    node_cpu: {choice: [3800, 7600, 15600]}
+    node_mem: {choice: [12, 24, 28, 56]}
+    req_cpu: {choice: [250, 400, 500, 750]}
+    req_mem: {choice: [512, 768, 1024, 1536]}
+    lim_cpu: {choice: [1000, 1500, 2000]}
+    lim_mem: {choice: [2048, 3072, 4096]}
+  stem: >-
+    На пустой ноде Kubernetes allocatable — {{node_cpu}}m CPU и {{node_mem}}Gi памяти; других подов и
+    DaemonSet'ов нет. Под приложения задаёт requests: cpu {{req_cpu}}m, memory {{req_mem}}Mi; limits: cpu
+    {{lim_cpu}}m, memory {{lim_mem}}Mi. Сколько таких подов планировщик сможет разместить на ноде?
+  answer:
+    # планировщик сравнивает сумму requests с allocatable, limits не учитываются
+    expr: "min({{node_cpu}} // {{req_cpu}}, {{node_mem}} * 1024 // {{req_mem}})"
+    tolerance: 0
+
+- id: ops.k8s.qos_class
+  specializations: [devops]
+  topic: containers
+  skills: [kubernetes]
+  kind: single_choice
+  irt: {a: 1.2, b: 0.7}
+  n_options: 3
+  generator: devops.k8s_qos
+
+- id: ops.k8s.pending_requests
+  specializations: [devops]
+  topic: containers
+  skills: [kubernetes]
+  kind: single_choice
+  irt: {a: 1.3, b: 1.0}
+  params:
+    nodes: {int: [3, 9]}
+    used: {int: [30, 55], step: 5}
+    app: {choice: [billing, orders, gateway, reports, search]}
+  stem_variants:
+    - "Под {{app}} висит в Pending с событием «0/{{nodes}} nodes are available: {{nodes}} Insufficient memory». При этом kubectl top nodes показывает, что на нодах занято лишь около {{used}}% памяти. Почему под не планируется?"
+    - "В кластере из {{nodes}} нод фактическое потребление памяти около {{used}}%, но новый под {{app}} не может запланироваться: Insufficient memory. Что объясняет ситуацию?"
+  options:
+    correct:
+      - "Планировщик сравнивает с allocatable сумму memory requests подов на ноде, а не фактическое потребление"
+    wrong:
+      - "kubectl top показывает данные с задержкой, нужно подождать обновления metrics-server"
+      - "Планировщик учитывает limits подов, а они превышают объём памяти ноды"
+      - "Не хватает swap: Kubernetes требует swap размером с запрошенную память"
+      - "Под ждёт, пока kubelet освободит page cache на нодах"
+
+- id: ops.k8s.rolling_update
+  specializations: [devops]
+  topic: containers
+  skills: [kubernetes]
+  kind: numeric
+  irt: {a: 1.2, b: 1.3}
+  time_limit_sec: 150
+  generator: devops.k8s_rolling_update

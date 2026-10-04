@@ -1,0 +1,130 @@
+# DevOps · сети (§10.2). Формат: content/templates/README.md
+
+- id: ops.net.service_port
+  specializations: [devops]
+  topic: networking
+  skills: [networking]
+  kind: single_choice
+  irt: {a: 0.9, b: -1.5}
+  generator: devops.service_port
+
+- id: ops.net.request_lifecycle
+  specializations: [devops]
+  topic: networking
+  skills: [networking, http]
+  kind: ordering
+  irt: {a: 1.0, b: -0.9}
+  params:
+    host: {choice: [api.shop.example, itscout.test, status.corp.example, cdn.media.example]}
+    path: {choice: [health, api/v1/orders, login, metrics]}
+  stem: >-
+    Выполняется команда curl https://{{host}}/{{path}} (без прокси, DNS-кэш пуст, используется HTTP/1.1
+    или HTTP/2). Расположите этапы в порядке их выполнения.
+  order_items:
+    - "Разрешение имени {{host}} в IP-адрес через DNS"
+    - "TCP-рукопожатие (SYN, SYN-ACK, ACK) с портом 443"
+    - "TLS-рукопожатие и проверка сертификата {{host}}"
+    - "Отправка HTTP-запроса GET /{{path}}"
+    - "Получение HTTP-ответа от сервера"
+
+- id: ops.net.cidr_hosts
+  specializations: [devops]
+  topic: networking
+  skills: [networking]
+  kind: numeric
+  irt: {a: 1.2, b: -0.8}
+  params:
+    p: {int: [20, 29]}
+    a: {int: [0, 255]}
+  stem_variants:
+    - "Сколько адресов можно назначить хостам в сети 10.{{a}}.0.0/{{p}}? Сетевой и широковещательный адреса не считаются."
+    - "Для сегмента выделена подсеть 10.{{a}}.0.0/{{p}}. Сколько в ней адресов, пригодных для хостов (без адреса сети и broadcast)?"
+  answer:
+    expr: "2 ** (32 - {{p}}) - 2"
+    tolerance: 0
+
+- id: ops.net.dns_record_type
+  specializations: [devops]
+  topic: networking
+  skills: [networking]
+  kind: single_choice
+  irt: {a: 1.1, b: -0.3}
+  generator: devops.dns_record_type
+
+- id: ops.net.connect_error
+  specializations: [devops]
+  topic: networking
+  skills: [networking]
+  kind: single_choice
+  irt: {a: 1.2, b: 0.2}
+  generator: devops.connect_error
+
+- id: ops.net.subnet_broadcast
+  specializations: [devops]
+  topic: networking
+  skills: [networking]
+  kind: single_choice
+  irt: {a: 1.3, b: 0.4}
+  time_limit_sec: 150
+  generator: devops.subnet_broadcast
+
+- id: ops.net.time_wait
+  specializations: [devops]
+  topic: networking
+  skills: [networking]
+  kind: single_choice
+  irt: {a: 1.2, b: 1.0}
+  params:
+    app: {choice: [nginx, HAProxy, сервис заказов, API-шлюз]}
+    count: {int: [8, 40], step: 4}
+  stem_variants:
+    - "На хосте ({{app}}) netstat показывает около {{count}} 000 TCP-соединений в состоянии TIME_WAIT. Какая сторона TCP-соединения попадает в TIME_WAIT?"
+    - "Мониторинг хоста ({{app}}) показывает около {{count}} 000 сокетов в TIME_WAIT. Для какой стороны соединения характерно это состояние?"
+  options:
+    correct:
+      - "Для стороны, которая первой закрыла соединение (активное закрытие, первой отправила FIN)"
+    wrong:
+      - "Для стороны, которая первой получила FIN"
+      - "Всегда для сервера, принимающего соединения"
+      - "Всегда для клиента, открывшего соединение"
+      - "Для стороны, которая отправила RST"
+
+- id: ops.net.cname_apex
+  specializations: [devops]
+  topic: networking
+  skills: [networking]
+  kind: single_choice
+  irt: {a: 1.1, b: 1.1}
+  params:
+    domain: {choice: [shop.example, itscout.test, media.example, corp.example]}
+    lb: {choice: [lb-1234.cloud.example, edge.cdn.example, ingress.k8s.example]}
+  stem: "Почему для вершины зоны {{domain}} нельзя создать запись CNAME на {{lb}}, а для www.{{domain}} — можно?"
+  options:
+    correct:
+      - "CNAME не может сосуществовать с другими записями того же имени, а у вершины зоны обязательно есть записи SOA и NS"
+    wrong:
+      - "CNAME может указывать только на IP-адрес, а не на имя"
+      - "CNAME запрещён для доменов второго уровня регистратором"
+      - "Для вершины зоны допустимы только записи A и AAAA"
+      - "CNAME на вершине зоны создаёт цикл при разрешении имени"
+
+- id: ops.net.close_wait
+  specializations: [devops]
+  topic: networking
+  skills: [networking, linux]
+  kind: single_choice
+  irt: {a: 1.2, b: 1.4}
+  params:
+    app: {choice: [сервис заказов, воркер отчётов, API-шлюз, сервис уведомлений]}
+    dep: {choice: [PostgreSQL, Redis, внешнему API банка, Elasticsearch]}
+  stem: >-
+    У процесса «{{app}}» копятся тысячи соединений к {{dep}} в состоянии CLOSE_WAIT, и со временем
+    заканчиваются файловые дескрипторы. Что это означает?
+  options:
+    correct:
+      - "Удалённая сторона закрыла соединение (прислала FIN), а приложение не закрывает свой сокет — утечка соединений в коде"
+    wrong:
+      - "Это нормальное ожидание 2×MSL после активного закрытия соединения"
+      - "Нужно уменьшить net.ipv4.tcp_fin_timeout, и ядро само закроет эти сокеты"
+      - "Удалённая сторона не отвечает на SYN, и ядро повторяет попытки"
+      - "Пакеты теряются, и соединения ждут повторной передачи данных"

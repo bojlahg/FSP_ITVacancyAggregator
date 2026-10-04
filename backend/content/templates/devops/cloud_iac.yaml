@@ -1,0 +1,130 @@
+# DevOps · облака и IaC (§10.2). Формат: content/templates/README.md
+
+- id: ops.iac.terraform_workflow
+  specializations: [devops]
+  topic: cloud_iac
+  skills: [terraform]
+  kind: ordering
+  irt: {a: 1.0, b: -1.1}
+  params:
+    env: {choice: [prod, staging, dev, sandbox]}
+    plan: {choice: [tfplan, plan.out, release.tfplan]}
+  stem: "В свежем клоне репозитория нужно применить изменения окружения {{env}}. Расположите команды Terraform в правильном порядке."
+  order_items:
+    - "cd envs/{{env}}"
+    - "terraform init"
+    - "terraform validate"
+    - "terraform plan -out={{plan}}"
+    - "terraform apply {{plan}}"
+
+- id: ops.iac.multi_az
+  specializations: [devops]
+  topic: cloud_iac
+  skills: [yandex_cloud, aws, system_design]
+  kind: single_choice
+  irt: {a: 1.0, b: -0.9}
+  params:
+    service: {choice: [Интернет-магазин, Личный кабинет, API для партнёров, Сервис бронирования]}
+    count: {int: [3, 9]}
+  stem: "{{service}} работает на {{count}} ВМ в облаке. Требование: сервис должен пережить отказ целой зоны доступности. Что нужно сделать?"
+  options:
+    correct:
+      - "Разместить ВМ минимум в двух зонах доступности за балансировщиком, распределяющим трафик между зонами"
+    wrong:
+      - "Разместить все ВМ в одной зоне, но на разных физических хостах"
+      - "Делать снапшоты дисков раз в сутки"
+      - "Увеличить размер каждой ВМ вдвое"
+      - "Включить автомасштабирование группы ВМ внутри одной зоны"
+
+- id: ops.iac.remote_state
+  specializations: [devops]
+  topic: cloud_iac
+  skills: [terraform]
+  kind: single_choice
+  irt: {a: 1.2, b: -0.6}
+  params:
+    people: {int: [3, 12]}
+    cloud: {choice: [Yandex Cloud, AWS, VK Cloud, Google Cloud]}
+  stem: "Инфраструктуру в {{cloud}} через Terraform меняют CI и команда из {{people}} человек. Где хранить state?"
+  options:
+    correct:
+      - "В удалённом бэкенде (например, в объектном хранилище) с блокировкой state на время изменений"
+    wrong:
+      - "В git-репозитории рядом с кодом, чтобы видеть историю"
+      - "Локально у каждого инженера, синхронизируя через terraform refresh"
+      - "Нигде: Terraform каждый раз строит state заново по облаку"
+      - "В переменной окружения CI в виде строки"
+
+- id: ops.iac.ansible_idempotency
+  specializations: [devops]
+  topic: cloud_iac
+  skills: [ansible]
+  kind: single_choice
+  irt: {a: 1.2, b: 0.0}
+  params:
+    line: {choice: ["vm.swappiness=10", "net.core.somaxconn=4096", "fs.file-max=2097152"]}
+    n: {choice: [два раза, три раза, пять раз]}
+  stem: "Плейбук запускают на одном сервере {{n}} подряд. Что будет с файлом и как сделать задачу идемпотентной?"
+  code: |-
+    - name: Tune kernel
+      hosts: app
+      become: true
+      tasks:
+        - name: Add sysctl setting
+          ansible.builtin.shell: echo '{{line}}' >> /etc/sysctl.conf
+  code_language: yaml
+  options:
+    correct:
+      - "Строка допишется при каждом запуске (всего {{n}}); нужен модуль, проверяющий текущее состояние (lineinfile или sysctl), вместо shell"
+    wrong:
+      - "Строка добавится один раз: Ansible идемпотентен для любых задач"
+      - "Начиная со второго запуска задача упадёт с ошибкой"
+      - "Строка добавится один раз, потому что Ansible кэширует результат shell между запусками"
+      - "Строка допишется при каждом запуске, и это исправляется только флагом --check"
+
+- id: ops.iac.terraform_import
+  specializations: [devops]
+  topic: cloud_iac
+  skills: [terraform]
+  kind: single_choice
+  irt: {a: 1.2, b: 0.6}
+  params:
+    resource: {choice: [бакет объектного хранилища, VPC-сеть, кластер managed PostgreSQL, группу безопасности]}
+  stem: "Коллега создал {{resource}} вручную в консоли облака. Нужно начать управлять этим ресурсом через Terraform без его пересоздания. Что сделать?"
+  options:
+    correct:
+      - "Описать ресурс в конфигурации и импортировать его в state (terraform import или блок import), затем добиться пустого plan"
+    wrong:
+      - "Описать ресурс и выполнить apply: Terraform сам найдёт существующий ресурс по имени"
+      - "Выполнить terraform refresh: он добавит ресурс в state"
+      - "Выполнить terraform taint для этого ресурса"
+      - "Удалить ресурс в консоли и создать заново через Terraform"
+
+- id: ops.iac.create_before_destroy
+  specializations: [devops]
+  topic: cloud_iac
+  skills: [terraform]
+  kind: single_choice
+  irt: {a: 1.1, b: 0.9}
+  params:
+    resource: {choice: [TLS-сертификат балансировщика, шаблон группы ВМ, группу безопасности, целевую группу балансировщика]}
+  stem: >-
+    Изменение аргумента вынуждает Terraform пересоздать {{resource}}. По умолчанию старый ресурс удаляется
+    до создания нового, и сервис ненадолго недоступен. Как изменить порядок замены?
+  options:
+    correct:
+      - "Добавить в ресурс lifecycle { create_before_destroy = true }"
+    wrong:
+      - "Добавить в ресурс lifecycle { prevent_destroy = true }"
+      - "Добавить в ресурс lifecycle { ignore_changes = all }"
+      - "Указать depends_on на ресурс, который его использует"
+      - "Запускать terraform apply с флагом -parallelism=1"
+
+- id: ops.iac.count_shift
+  specializations: [devops]
+  topic: cloud_iac
+  skills: [terraform]
+  kind: single_choice
+  irt: {a: 1.2, b: 1.2}
+  time_limit_sec: 150
+  generator: devops.terraform_count_shift

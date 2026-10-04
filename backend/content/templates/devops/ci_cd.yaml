@@ -1,0 +1,133 @@
+# DevOps · CI/CD (§10.2). Формат: content/templates/README.md
+
+- id: ops.ci.pipeline_order
+  specializations: [devops]
+  topic: ci_cd
+  skills: [ci_cd]
+  kind: ordering
+  irt: {a: 1.0, b: -1.0}
+  time_limit_sec: 120
+  params:
+    sha: {choice: [3f2a9c1, 9b07de4, c41e8a2, 7d5f013, e2a66b9]}
+    image: {choice: [billing, orders, gateway, catalog]}
+    registry: {choice: [GitLab Container Registry, Harbor, Yandex Container Registry, Docker Hub]}
+    stage_env: {choice: [staging, stage, pre-prod]}
+  stem: >-
+    Расположите этапы пайплайна в правильном порядке. Быстрые проверки должны выполняться до сборки
+    артефакта (fail fast), а в production выкатывается тот же образ, который прошёл {{stage_env}}.
+  order_items:
+    - "Checkout кода коммита {{sha}}"
+    - "Линтер и юнит-тесты"
+    - "Сборка образа {{image}}:{{sha}}"
+    - "Публикация образа в {{registry}}"
+    - "Деплой образа {{image}}:{{sha}} на {{stage_env}}"
+    - "Smoke- и интеграционные тесты на {{stage_env}}"
+    - "Деплой того же образа в production"
+
+- id: ops.ci.cache_or_artifacts
+  specializations: [devops]
+  topic: ci_cd
+  skills: [ci_cd, gitlab_ci]
+  kind: single_choice
+  irt: {a: 1.1, b: -0.7}
+  generator: devops.ci_cache_or_artifacts
+
+- id: ops.ci.deploy_strategy
+  specializations: [devops]
+  topic: ci_cd
+  skills: [ci_cd, kubernetes]
+  kind: single_choice
+  irt: {a: 1.1, b: -0.3}
+  generator: devops.deploy_strategy
+
+- id: ops.ci.secrets_practices
+  specializations: [devops]
+  topic: ci_cd
+  skills: [ci_cd, devsecops]
+  kind: multi_choice
+  irt: {a: 1.2, b: 0.2}
+  n_options: 5
+  params:
+    ci: {choice: [GitLab CI, GitHub Actions, Jenkins, TeamCity]}
+    secret: {choice: [токен деплоя в Kubernetes, ключ доступа к облаку, пароль от production-БД, токен реестра образов]}
+  stem: "Пайплайну в {{ci}} нужен {{secret}}. Какие практики работы с этим секретом правильные? Отметьте все верные."
+  options:
+    correct:
+      - "Хранить секрет в защищённых маскированных переменных CI или во внешнем хранилище (например, Vault)"
+      - "Делать production-секреты доступными только защищённым веткам и окружениям"
+      - "Использовать короткоживущие учётные данные (например, OIDC-токен пайплайна) вместо долгоживущих ключей"
+    wrong:
+      - "Хранить .env с секретом в репозитории, раз репозиторий приватный"
+      - "Передавать секрет в docker build через ARG: в образ он не попадёт"
+      - "Закодировать секрет в base64: этого достаточно, чтобы его нельзя было прочитать из логов"
+      - "Выводить секрет в лог job для отладки, а затем удалять пайплайн"
+
+- id: ops.ci.dora_metrics
+  specializations: [devops]
+  topic: ci_cd
+  skills: [ci_cd]
+  kind: multi_choice
+  irt: {a: 1.0, b: 0.5}
+  n_options: 5
+  params:
+    team: {choice: [Платформенная команда, Команда платежей, Команда мобильного API, Команда поиска]}
+  stem_variants:
+    - "{{team}} хочет измерять эффективность поставки по четырём ключевым метрикам DORA. Какие из перечисленных метрик к ним относятся?"
+    - "Руководитель просит отчёт по метрикам DORA для подразделения «{{team}}». Отметьте метрики, которые входят в четыре ключевые метрики DORA."
+  options:
+    correct:
+      - "Частота деплоев (deployment frequency)"
+      - "Время от коммита до production (lead time for changes)"
+      - "Доля изменений, приводящих к сбоям (change failure rate)"
+      - "Время восстановления после сбоя (time to restore service)"
+    wrong:
+      - "Покрытие кода тестами"
+      - "Число коммитов на разработчика в день"
+      - "Среднее время выполнения пайплайна"
+      - "Число закрытых story points за спринт"
+
+- id: ops.ci.reproducible_build
+  specializations: [devops]
+  topic: ci_cd
+  skills: [ci_cd, docker]
+  kind: multi_choice
+  irt: {a: 1.2, b: 0.9}
+  n_options: 5
+  params:
+    days: {int: [3, 30]}
+    stack: {choice: [Python, Node.js, Go, Java]}
+  stem: >-
+    Образ {{stack}}-сервиса, собранный в CI из одного и того же коммита сегодня и {{days}} дн. назад,
+    ведёт себя по-разному. Какие меры делают сборку воспроизводимой? Отметьте все верные.
+  options:
+    correct:
+      - "Закрепить базовый образ по digest (FROM image@sha256:…)"
+      - "Устанавливать зависимости строго по lock-файлу"
+      - "Зафиксировать версии инструментов сборки вместо latest"
+    wrong:
+      - "Включить кэширование слоёв Docker в CI"
+      - "Всегда собирать с --no-cache, чтобы получать свежие пакеты"
+      - "Увеличить число параллельных раннеров"
+      - "Использовать тег latest для базового образа, чтобы всегда получать патчи"
+
+- id: ops.ci.merge_queue
+  specializations: [devops]
+  topic: ci_cd
+  skills: [ci_cd, git]
+  kind: single_choice
+  irt: {a: 1.1, b: 1.2}
+  params:
+    mrs: {int: [30, 120], step: 10}
+    devs: {int: [25, 80], step: 5}
+  stem: >-
+    Команда из {{devs}} разработчиков вливает в main около {{mrs}} MR в день. Пайплайн каждого MR зелёный, но main
+    регулярно ломается: два MR по отдельности проходят тесты, а вместе — нет. Что решает проблему без
+    постоянных ручных rebase?
+  options:
+    correct:
+      - "Очередь слияния (merge queue / merge train): перед вливанием пайплайн проверяет результат слияния с актуальной main и MR, стоящими в очереди раньше"
+    wrong:
+      - "Запускать пайплайн только на исходной ветке MR, но с полным набором тестов"
+      - "Требовать два одобрения от ревьюеров перед слиянием"
+      - "Ночная сборка main с автоматическим откатом сломавших коммитов"
+      - "Squash всех коммитов MR в один при слиянии"
