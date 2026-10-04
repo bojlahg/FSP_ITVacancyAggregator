@@ -1,0 +1,137 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/*
+ * Токены темы по брендбуку ФСП (docs/brandook, docs/implementation.md §16).
+ * Компоненты используют только эти токены — произвольные hex в компонентах запрещены.
+ */
+:root {
+  /* Палитра брендбука */
+  --brand-blue: #402fff;
+  --brand-blue-soft: #7063ff;
+  --brand-blue-pale: #a097ff;
+  --brand-red: #ec1d35;
+  --brand-ink: #1b1c21;
+  --brand-gray: #ededed;
+  --brand-gray-strong: #c8c9ca;
+  --brand-white: #ffffff;
+  /* Приглушённый текст, производный от ink: контраст 6.2:1 на белом и 5.3:1 на #EDEDED (WCAG AA) */
+  --brand-ink-muted: #5f606a;
+
+  --radius: 0.625rem;
+
+  /* Семантические переменные в нотации shadcn/ui */
+  --background: var(--brand-white);
+  --foreground: var(--brand-ink);
+  --card: var(--brand-white);
+  --card-foreground: var(--brand-ink);
+  --popover: var(--brand-white);
+  --popover-foreground: var(--brand-ink);
+  --primary: var(--brand-blue);
+  --primary-foreground: var(--brand-white);
+  --primary-soft: var(--brand-blue-soft);
+  --primary-pale: var(--brand-blue-pale);
+  --primary-tint: color-mix(in oklab, var(--brand-blue) 8%, var(--brand-white));
+  --secondary: var(--brand-gray);
+  --secondary-foreground: var(--brand-ink);
+  --muted: var(--brand-gray);
+  --muted-foreground: var(--brand-ink-muted);
+  --accent: var(--primary-tint);
+  --accent-foreground: var(--brand-blue);
+  /* Красный — только точечно: статусы, точки, предупреждения */
+  --destructive: var(--brand-red);
+  --destructive-foreground: var(--brand-white);
+  --destructive-tint: color-mix(in oklab, var(--brand-red) 8%, var(--brand-white));
+  /* Красный для мелкого текста ошибок: затемнён до контраста AA (≥4.5:1) */
+  --destructive-strong: color-mix(in oklab, var(--brand-red) 78%, var(--brand-ink));
+  --border: var(--brand-gray-strong);
+  --border-subtle: var(--brand-gray);
+  --input: var(--brand-gray-strong);
+  --ring: var(--brand-blue);
+  --ink: var(--brand-ink);
+  --ink-foreground: var(--brand-white);
+
+  --chart-1: var(--brand-blue);
+  --chart-2: var(--brand-blue-soft);
+  --chart-3: var(--brand-blue-pale);
+  --chart-4: var(--brand-ink);
+  --chart-5: var(--brand-red);
+}
+
+@theme inline {
+  --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", Consolas, monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-pale: var(--primary-pale);
+  --color-primary-tint: var(--primary-tint);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-tint: var(--destructive-tint);
+  --color-destructive-strong: var(--destructive-strong);
+  --color-border: var(--border);
+  --color-border-subtle: var(--border-subtle);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ink: var(--ink);
+  --color-ink-foreground: var(--ink-foreground);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --animate-pulse-dot: pulse-dot 1.6s ease-in-out infinite;
+
+  @keyframes pulse-dot {
+    50% {
+      opacity: 0.25;
+    }
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    color-scheme: light;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-mono tracking-tight;
+  }
+  code,
+  kbd,
+  pre {
+    @apply font-mono;
+  }
+  ::selection {
+    @apply bg-primary text-primary-foreground;
+  }
+}
