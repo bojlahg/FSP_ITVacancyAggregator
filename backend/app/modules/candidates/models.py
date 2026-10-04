@@ -38,6 +38,8 @@ class Candidate(TimestampMixin, Base):
     fsp_id: Mapped[str | None] = mapped_column(String(64), index=True)
     fsp_link_method: Mapped[FspLinkMethod | None] = mapped_column(enum_type(FspLinkMethod))
     fsp_linked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # DEMO_MODE: попытки до этой отметки не учитываются в ограничениях смены грейда
+    grade_rules_reset_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class CandidateExperience(Base):

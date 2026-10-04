@@ -52,6 +52,10 @@ class Settings(BaseSettings):
 
     upload_dir: str = "/data/uploads"
 
+    # full — полный тест (§10.3), short — сокращённый для демо жюри
+    test_mode: Literal["full", "short"] = "full"
+    answer_grace_seconds: int = 5
+
     # Правила грейда и подбора — см. docs/implementation.md §6.3, §8.6
     grade_change_cooldown_days: int = 90
     failed_grade_retry_days: int = 30

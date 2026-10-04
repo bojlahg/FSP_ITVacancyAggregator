@@ -1,7 +1,9 @@
 from fastapi import APIRouter
 
 from app.core.deps import CurrentCandidate, DbSession
-from app.core.errors import NotImplementedApiError, error_responses
+from app.core.errors import error_responses
+from app.modules.candidates import service as candidates_service
+from app.modules.categories import service
 from app.modules.categories.schemas import GradeStatus
 
 router = APIRouter(prefix="/candidates/me", tags=["candidate: testing"])
@@ -14,4 +16,5 @@ router = APIRouter(prefix="/candidates/me", tags=["candidate: testing"])
     responses=error_responses(401, 403),
 )
 async def get_grade_status(user: CurrentCandidate, db: DbSession) -> GradeStatus:
-    raise NotImplementedApiError()
+    candidate = await candidates_service.get_by_user(db, user.id)
+    return await service.grade_status(db, candidate)

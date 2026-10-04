@@ -1,0 +1,120 @@
+# Опрос по отрасли и специализации — docs/implementation.md §6.2.
+# weights у варианта — вклад в баллы специализаций; рекомендация = нормированная сумма.
+# Ответы также заполняют профиль (стаж, роли, отрасли, формат, город, ожидания, заявленные навыки).
+
+questions:
+  - id: daily_work
+    text: Чем вы занимаетесь большую часть рабочего времени?
+    kind: multi
+    options:
+      - {id: api, label: Пишу серверную логику и API, weights: {backend: 1.0, fullstack: 0.5}}
+      - {id: ui, label: Делаю интерфейсы веб-приложений, weights: {frontend: 1.0, fullstack: 0.5}}
+      - {id: mobile, label: Разрабатываю мобильные приложения, weights: {mobile: 1.0}}
+      - {id: testing, label: Тестирую продукт и пишу автотесты, weights: {qa: 1.0}}
+      - {id: infra, label: Настраиваю инфраструктуру, CI/CD и мониторинг, weights: {devops: 1.0, backend: 0.2}}
+      - {id: models, label: Анализирую данные и обучаю модели, weights: {data: 1.0}}
+      - {id: requirements, label: Собираю требования и проектирую решения, weights: {analyst: 1.0}}
+      - {id: games, label: Разрабатываю игры, weights: {gamedev: 1.0}}
+
+  - id: favorite_tasks
+    text: Какие задачи вам интереснее всего?
+    kind: multi
+    options:
+      - {id: scale, label: Масштабирование и производительность сервисов, weights: {backend: 0.7, devops: 0.4}}
+      - {id: ux, label: Удобный и быстрый интерфейс, weights: {frontend: 0.8, mobile: 0.4}}
+      - {id: quality, label: Поиск дефектов и качество релизов, weights: {qa: 0.8}}
+      - {id: automation, label: Автоматизация и надёжность, weights: {devops: 0.7, qa: 0.3}}
+      - {id: insights, label: Выводы из данных и ML-модели, weights: {data: 0.8}}
+      - {id: domain, label: Разбор предметной области и процессов, weights: {analyst: 0.8}}
+      - {id: fullcycle, label: Фича целиком — от базы до интерфейса, weights: {fullstack: 0.8, backend: 0.2, frontend: 0.2}}
+
+  - id: main_language
+    text: Основной язык программирования
+    kind: single
+    options:
+      - {id: python, label: Python, weights: {backend: 0.3, data: 0.4, qa: 0.1}}
+      - {id: java, label: Java, weights: {backend: 0.4, qa: 0.1}}
+      - {id: kotlin, label: Kotlin, weights: {backend: 0.2, mobile: 0.4}}
+      - {id: go, label: Go, weights: {backend: 0.4, devops: 0.2}}
+      - {id: csharp, label: "C#", weights: {backend: 0.3, gamedev: 0.3}}
+      - {id: javascript, label: JavaScript, weights: {frontend: 0.4, fullstack: 0.2}}
+      - {id: typescript, label: TypeScript, weights: {frontend: 0.4, fullstack: 0.3}}
+      - {id: swift, label: Swift, weights: {mobile: 0.5}}
+      - {id: cpp, label: "C++", weights: {gamedev: 0.3, backend: 0.1}}
+      - {id: sql_only, label: В основном SQL, weights: {analyst: 0.3, data: 0.2}}
+      - {id: none, label: Не программирую регулярно, weights: {analyst: 0.3, qa: 0.2}}
+
+  - id: stack
+    text: Технологии, с которыми вы работали за последний год
+    kind: skills
+
+  - id: experience_years
+    text: Сколько лет коммерческого опыта в ИТ?
+    kind: number
+
+  - id: roles
+    text: Ваши роли в команде
+    kind: multi
+    source: team_roles
+    required: false
+
+  - id: industries_exp
+    text: В каких отраслях был опыт
+    kind: multi
+    source: industries
+    required: false
+
+  - id: industries_pref
+    text: Какие отрасли вам интересны
+    kind: multi
+    source: industries
+    required: false
+
+  - id: work_formats
+    text: Подходящий формат работы
+    kind: multi
+    options:
+      - {id: office, label: Офис}
+      - {id: hybrid, label: Гибрид}
+      - {id: remote, label: Удалённо}
+
+  - id: city
+    text: Город
+    kind: text
+    required: false
+
+  - id: relocation
+    text: Готовы к переезду?
+    kind: single
+    options:
+      - {id: "yes", label: Да}
+      - {id: "no", label: Нет}
+
+  - id: salary
+    text: Ожидания по зарплате, ₽ в месяц
+    kind: salary_range
+
+# Подсказка грейда по стажу (кандидат выбирает сам, §6.2)
+grade_hint:
+  - {max_years: 0.5, grade: intern}
+  - {max_years: 1, grade: junior}
+  - {max_years: 3, grade: middle}
+  - {max_years: 100, grade: senior}
+
+# Какие стек-модули теста включать: основной язык или навыки → модуль специализации
+stack_modules:
+  backend:
+    python: [python, fastapi, django, flask]
+    java: [java, kotlin, spring, spring_boot]
+    go: [go, gin]
+    csharp: [csharp, aspnet]
+    nodejs: [nodejs, express, nestjs, javascript, typescript]
+  frontend:
+    react: [react, nextjs, redux, react_native]
+    vue: [vue, nuxt]
+    angular: [angular]
+  data:
+    python_ml: [python, pandas, numpy, scikit_learn, pytorch, tensorflow]
+  qa:
+    qa_automation_python: [python, pytest, playwright, selenium]
+    qa_automation_java: [java, kotlin, junit, selenium]

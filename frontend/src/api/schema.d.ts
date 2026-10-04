@@ -373,8 +373,25 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Отправить ответы: рекомендуемые специализации и подсказка грейда */
+        /** Отправить ответы: рекомендуемые специализации, подсказка грейда, стек-модули теста */
         post: operations["submit_survey_api_v1_survey_responses_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/survey/responses/latest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Последний результат опроса (null, если опрос не пройден) */
+        get: operations["latest_survey_api_v1_survey_responses_latest_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -390,7 +407,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Подтвердить специализацию */
+        /** Подтвердить специализацию (409 — закреплена действующей категорией или нет опроса) */
         post: operations["confirm_specialization_api_v1_survey_specialization_post"];
         delete?: never;
         options?: never;
@@ -1195,7 +1212,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Сбросить ограничения смены грейда для текущего пользователя (только DEMO_MODE) */
+        /** Сбросить ограничения смены грейда для текущего кандидата (только DEMO_MODE) */
         post: operations["reset_cooldowns_api_v1_admin_demo_reset_cooldowns_post"];
         delete?: never;
         options?: never;
@@ -1381,7 +1398,10 @@ export interface components {
             category: components["schemas"]["CategoryRef"] | null;
             /** Topic Scores */
             topic_scores: components["schemas"]["TopicScore"][];
-            /** Verified Skills */
+            /**
+             * Verified Skills
+             * @description id навыков из /catalog/skills, проверенных тестом
+             */
             verified_skills: string[];
             /** Approach Score */
             approach_score?: number | null;
@@ -1589,7 +1609,7 @@ export interface components {
             profile_completeness: number;
             /**
              * Onboarding Step
-             * @description survey | grade | test | done
+             * @description survey | specialization | grade | test | done
              */
             onboarding_step: string;
             /**
@@ -4070,6 +4090,44 @@ export interface operations {
             };
         };
     };
+    latest_survey_api_v1_survey_responses_latest_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SurveyResult"] | null;
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     confirm_specialization_api_v1_survey_specialization_post: {
         parameters: {
             query?: never;
@@ -4090,6 +4148,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            /** @description Некорректный запрос */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Требуется вход */
@@ -7036,6 +7103,15 @@ export interface operations {
             };
             /** @description Требуется вход */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

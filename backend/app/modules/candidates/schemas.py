@@ -77,7 +77,7 @@ class CandidateProfileOut(CandidateProfileBase):
     fsp_id: str | None
     fsp_link_method: FspLinkMethod | None
     profile_completeness: float = Field(ge=0, le=1)
-    onboarding_step: str = Field(description="survey | grade | test | done")
+    onboarding_step: str = Field(description="survey | specialization | grade | test | done")
     updated_at: datetime
 
 

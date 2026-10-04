@@ -1,7 +1,9 @@
 from fastapi import APIRouter
 
 from app.core.deps import CurrentCandidate, DbSession
-from app.core.errors import NotImplementedApiError, error_responses
+from app.core.errors import error_responses
+from app.modules.candidates import service as candidates_service
+from app.modules.testing import service
 from app.modules.testing.schemas import (
     AnswerAck,
     AnswerRequest,
@@ -22,7 +24,8 @@ router = APIRouter(prefix="/tests/attempts", tags=["candidate: testing"])
     responses=error_responses(401, 403, 409, 422),
 )
 async def start_attempt(body: AttemptCreate, user: CurrentCandidate, db: DbSession) -> AttemptOut:
-    raise NotImplementedApiError()
+    candidate = await candidates_service.get_by_user(db, user.id)
+    return await service.start(db, candidate, body)
 
 
 @router.get(
@@ -32,7 +35,8 @@ async def start_attempt(body: AttemptCreate, user: CurrentCandidate, db: DbSessi
     responses=error_responses(401, 403, 404),
 )
 async def get_attempt(attempt_id: int, user: CurrentCandidate, db: DbSession) -> AttemptOut:
-    raise NotImplementedApiError()
+    candidate = await candidates_service.get_by_user(db, user.id)
+    return await service.get_attempt(db, candidate, attempt_id)
 
 
 @router.get(
@@ -42,7 +46,8 @@ async def get_attempt(attempt_id: int, user: CurrentCandidate, db: DbSession) ->
     responses=error_responses(401, 403, 404),
 )
 async def get_current_item(attempt_id: int, user: CurrentCandidate, db: DbSession) -> CurrentItem:
-    raise NotImplementedApiError()
+    candidate = await candidates_service.get_by_user(db, user.id)
+    return await service.current_item(db, candidate, attempt_id)
 
 
 @router.post(
@@ -54,7 +59,8 @@ async def get_current_item(attempt_id: int, user: CurrentCandidate, db: DbSessio
 async def answer_item(
     attempt_id: int, body: AnswerRequest, user: CurrentCandidate, db: DbSession
 ) -> AnswerAck:
-    raise NotImplementedApiError()
+    candidate = await candidates_service.get_by_user(db, user.id)
+    return await service.answer(db, candidate, attempt_id, body)
 
 
 @router.get(
@@ -64,4 +70,5 @@ async def answer_item(
     responses=error_responses(401, 403, 404, 409),
 )
 async def get_result(attempt_id: int, user: CurrentCandidate, db: DbSession) -> AttemptResultOut:
-    raise NotImplementedApiError()
+    candidate = await candidates_service.get_by_user(db, user.id)
+    return await service.result(db, candidate, attempt_id)

@@ -1158,7 +1158,7 @@
         "tags": [
           "candidate: onboarding"
         ],
-        "summary": "Отправить ответы: рекомендуемые специализации и подсказка грейда",
+        "summary": "Отправить ответы: рекомендуемые специализации, подсказка грейда, стек-модули теста",
         "operationId": "submit_survey_api_v1_survey_responses_post",
         "requestBody": {
           "content": {
@@ -1219,12 +1219,66 @@
         ]
       }
     },
+    "/api/v1/survey/responses/latest": {
+      "get": {
+        "tags": [
+          "candidate: onboarding"
+        ],
+        "summary": "Последний результат опроса (null, если опрос не пройден)",
+        "operationId": "latest_survey_api_v1_survey_responses_latest_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SurveyResult"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Latest Survey Api V1 Survey Responses Latest Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Требуется вход",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Недостаточно прав",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/survey/specialization": {
       "post": {
         "tags": [
           "candidate: onboarding"
         ],
-        "summary": "Подтвердить специализацию",
+        "summary": "Подтвердить специализацию (409 — закреплена действующей категорией или нет опроса)",
         "operationId": "confirm_specialization_api_v1_survey_specialization_post",
         "requestBody": {
           "content": {
@@ -1243,6 +1297,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Некорректный запрос",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -5533,7 +5597,7 @@
         "tags": [
           "service"
         ],
-        "summary": "Сбросить ограничения смены грейда для текущего пользователя (только DEMO_MODE)",
+        "summary": "Сбросить ограничения смены грейда для текущего кандидата (только DEMO_MODE)",
         "operationId": "reset_cooldowns_api_v1_admin_demo_reset_cooldowns_post",
         "responses": {
           "200": {
@@ -5548,6 +5612,16 @@
           },
           "401": {
             "description": "Требуется вход",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Недостаточно прав",
             "content": {
               "application/json": {
                 "schema": {
@@ -6034,7 +6108,8 @@
               "type": "string"
             },
             "type": "array",
-            "title": "Verified Skills"
+            "title": "Verified Skills",
+            "description": "id навыков из /catalog/skills, проверенных тестом"
           },
           "approach_score": {
             "anyOf": [
@@ -6741,7 +6816,7 @@
           "onboarding_step": {
             "type": "string",
             "title": "Onboarding Step",
-            "description": "survey | grade | test | done"
+            "description": "survey | specialization | grade | test | done"
           },
           "updated_at": {
             "type": "string",

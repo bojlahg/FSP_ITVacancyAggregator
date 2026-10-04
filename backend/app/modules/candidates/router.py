@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.core.deps import CurrentCandidate, DbSession
 from app.core.errors import NotImplementedApiError, error_responses
 from app.core.schemas import MessageResponse
+from app.modules.candidates import service
 from app.modules.candidates.schemas import (
     CandidateProfileOut,
     CandidateProfileUpdate,
@@ -18,7 +19,7 @@ AUTH_ERRORS = error_responses(401, 403)
 
 @router.get("", response_model=CandidateProfileOut, summary="Свой профиль", responses=AUTH_ERRORS)
 async def get_my_profile(user: CurrentCandidate, db: DbSession) -> CandidateProfileOut:
-    raise NotImplementedApiError()
+    return await service.profile_out(db, await service.get_by_user(db, user.id))
 
 
 @router.put(
@@ -30,7 +31,7 @@ async def get_my_profile(user: CurrentCandidate, db: DbSession) -> CandidateProf
 async def update_my_profile(
     body: CandidateProfileUpdate, user: CurrentCandidate, db: DbSession
 ) -> CandidateProfileOut:
-    raise NotImplementedApiError()
+    return await service.update_profile(db, await service.get_by_user(db, user.id), body)
 
 
 @router.put(

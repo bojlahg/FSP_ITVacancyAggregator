@@ -243,3 +243,12 @@ async def get_user(db: AsyncSession, user_id: int) -> User:
 
 async def me(db: AsyncSession, user_id: int) -> UserOut:
     return _user_out(await get_user(db, user_id))
+
+
+async def has_active_consent(db: AsyncSession, user_id: int, kind: ConsentKind) -> bool:
+    consent = await db.scalar(
+        select(Consent.id).where(
+            Consent.user_id == user_id, Consent.kind == kind, Consent.revoked_at.is_(None)
+        )
+    )
+    return consent is not None

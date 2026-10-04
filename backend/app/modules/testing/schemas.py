@@ -94,7 +94,7 @@ class AttemptResultOut(ApiModel):
     percentile: float | None = Field(description="Перцентиль в категории, 0..1")
     category: CategoryRef | None = Field(description="Присвоенная или сохранённая категория")
     topic_scores: list[TopicScore]
-    verified_skills: list[str]
+    verified_skills: list[str] = Field(description="id навыков из /catalog/skills, проверенных тестом")
     approach_score: float | None = None
     next_actions: list[NextAction]
 
