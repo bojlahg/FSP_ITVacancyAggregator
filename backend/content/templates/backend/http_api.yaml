@@ -1,0 +1,68 @@
+# Backend · HTTP и API — шаблоны заданий (§10.2). Формат: content/templates/README.md
+
+- id: be.http.idempotent_method
+  specializations: [backend]
+  topic: http_api
+  skills: [rest]
+  kind: single_choice
+  irt: {a: 1.1, b: -1.2}
+  params:
+    resource: {choice: [заказ, платёж, профиль пользователя, корзину, подписку]}
+  stem_variants:
+    - "Клиент повторяет запрос на изменение ресурса «{{resource}}» после таймаута. Какой метод по RFC 9110 идемпотентен и подходит для полной замены ресурса?"
+    - "Нужно полностью заменить {{resource}}, и запрос может быть отправлен повторно. Какой HTTP-метод идемпотентен и предназначен для этого?"
+  options:
+    correct: [PUT]
+    wrong: [POST, PATCH, CONNECT, OPTIONS]
+
+- id: be.http.status_codes_conflict
+  specializations: [backend]
+  topic: http_api
+  skills: [rest]
+  kind: single_choice
+  irt: {a: 1.3, b: -0.3}
+  params:
+    entity: {choice: [пользователя с таким email, заказ с таким номером, товар с таким артикулом]}
+  stem: "API получает запрос на создание сущности, но {{entity}} уже существует. Какой код ответа наиболее точен?"
+  options:
+    correct: ["409 Conflict"]
+    wrong: ["400 Bad Request", "404 Not Found", "500 Internal Server Error", "422 Unprocessable Content"]
+
+- id: be.http.retry_budget
+  specializations: [backend]
+  topic: http_api
+  skills: [rest, system_design]
+  kind: numeric
+  irt: {a: 1.2, b: 0.6}
+  params:
+    rps: {int: [200, 1200], step: 100}
+    retries: {int: [1, 3]}
+    error_pct: {choice: [10, 20, 50]}
+  stem: >-
+    Сервис получает {{rps}} запросов в секунду. Из-за сбоя зависимости {{error_pct}}% запросов к ней
+    падают, и клиент делает до {{retries}} повторов на каждый упавший запрос (повторы тоже падают с той же
+    вероятностью). Сколько запросов в секунду в среднем получит зависимость? Округлите до целого.
+  answer:
+    # первый вызов + повторы: rps · (1 + p + … + p^retries) = rps · (1 − p^(r+1)) / (1 − p)
+    expr: "round({{rps}} * (1 - ({{error_pct}} / 100) ** ({{retries}} + 1)) / (1 - {{error_pct}} / 100))"
+    tolerance: 1
+
+- id: be.http.design_rate_limit
+  specializations: [backend]
+  topic: http_api
+  skills: [rest, system_design, redis]
+  kind: open_approach
+  status: active
+  irt: {a: 1.0, b: 0.8}
+  time_limit_sec: 600
+  params:
+    limit: {int: [10, 100], step: 10}
+  stem: >-
+    Нужно ограничить публичный API до {{limit}} запросов в минуту на ключ клиента. Сервис работает в
+    нескольких экземплярах за балансировщиком. Опишите подход: где хранить счётчики, какой алгоритм
+    выбрать и что вернуть клиенту при превышении.
+  rubric:
+    - Счётчики хранятся в общем хранилище (Redis и т.п.), а не в памяти экземпляра
+    - Назван алгоритм (token bucket, sliding window, fixed window) и его компромисс
+    - Атомарность обновления счётчика (INCR с TTL, Lua-скрипт, транзакция)
+    - Ответ 429 Too Many Requests и заголовок Retry-After или лимиты в заголовках

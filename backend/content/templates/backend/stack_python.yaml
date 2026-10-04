@@ -1,0 +1,27 @@
+# Backend · стек-модуль python (§10.2). Формат: content/templates/README.md
+
+- id: be.py.mutable_default
+  specializations: [backend]
+  topic: stack
+  stack_module: python
+  skills: [python]
+  kind: code_output
+  irt: {a: 1.4, b: -0.4}
+  generator: backend.python_mutable_default
+
+- id: be.py.request_lifecycle_order
+  specializations: [backend]
+  topic: stack
+  stack_module: python
+  skills: [python, fastapi]
+  kind: ordering
+  irt: {a: 1.0, b: 0.4}
+  params:
+    framework: {choice: [FastAPI, Starlette]}
+  stem: "Расположите этапы обработки HTTP-запроса в приложении на {{framework}} в правильном порядке."
+  order_items:
+    - ASGI-сервер (uvicorn) принимает соединение и формирует scope
+    - Запрос проходит через middleware
+    - Маршрутизатор выбирает обработчик по пути и методу
+    - Разрешаются зависимости и валидируются параметры запроса
+    - Выполняется обработчик и формируется ответ

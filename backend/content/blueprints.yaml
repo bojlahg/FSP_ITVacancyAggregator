@@ -1,0 +1,69 @@
+# Blueprint'ы тестов и параметры шкалы — docs/implementation.md §10.3–10.4.
+# Числа стартовые; проверяются процедурой валидации (§12). Сумма topics на специализацию = stage1 + stage2.
+
+scale:
+  # Пороги грейдов на IRT-шкале специализации (логиты). Окончательные — по modified Angoff (§10.4).
+  cuts: {intern: -1.8, junior: -0.8, middle: 0.2, senior: 1.2}
+  # Маршрут второго этапа: θ̂ выше cut_G + split — блок у следующего порога; ниже cut_G − split — блок ниже.
+  stage_split: 0.3
+
+modes:
+  full:
+    stage1_items: 9
+    stage2_items: 9
+    extra_items_max: 4
+    pilot_slots: 2
+  # TEST_MODE=short — сокращённый тест для демо жюри
+  short:
+    stage1_items: 4
+    stage2_items: 4
+    extra_items_max: 2
+    pilot_slots: 0
+
+selection:
+  window: 0.6            # стартовое окно сложности |b − цель|, расширяется при нехватке шаблонов
+  exposure_cap: 0.25     # шаблоны с долей показов выше — временно исключаются
+verify_skill: {min_items: 2, min_share: 0.7}
+open_approach_from_grade: middle
+
+topic_names:
+  http_api: HTTP и API
+  databases: Базы данных
+  concurrency: Конкурентность
+  architecture: Архитектура
+  stack: Язык и фреймворк
+  algorithms: Алгоритмы и структуры данных
+  testing: Тестирование
+  security: Безопасность
+  web_platform: Веб-платформа (HTML, CSS, браузер)
+  javascript: JavaScript и TypeScript
+  performance: Производительность
+  test_design: Тест-дизайн
+  api_testing: Тестирование API
+  sql: SQL
+  process: Процессы и документация
+  performance_testing: Нагрузочное тестирование
+  web_mobile: Веб и мобильные клиенты
+  linux: Linux
+  containers: Контейнеры и оркестрация
+  ci_cd: CI/CD
+  networking: Сети
+  observability: Мониторинг и логирование
+  cloud_iac: Облака и IaC
+  statistics: Статистика
+  ml_theory: Машинное обучение
+  data_engineering: Инженерия данных
+  evaluation: Метрики и эксперименты
+  approach: Подход к решению
+
+specializations:
+  backend:
+    topics: {http_api: 3, databases: 3, concurrency: 2, architecture: 2, stack: 4, algorithms: 2, testing: 1, security: 1}
+  frontend:
+    topics: {web_platform: 3, javascript: 3, stack: 4, http_api: 2, performance: 2, testing: 1, architecture: 1, algorithms: 2}
+  qa:
+    topics: {test_design: 4, api_testing: 3, stack: 3, sql: 2, process: 2, performance_testing: 2, web_mobile: 2}
+  devops:
+    topics: {linux: 3, containers: 3, ci_cd: 3, networking: 3, observability: 2, cloud_iac: 2, security: 2}
+  data:
+    topics: {statistics: 3, ml_theory: 4, stack: 3, sql: 3, data_engineering: 2, evaluation: 3}

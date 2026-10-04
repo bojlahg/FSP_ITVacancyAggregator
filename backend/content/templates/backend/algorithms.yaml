@@ -1,0 +1,29 @@
+# Backend · алгоритмы (§10.2). Формат: content/templates/README.md
+
+- id: be.algo.binary_search_steps
+  specializations: [backend]
+  topic: algorithms
+  skills: [algorithms]
+  kind: numeric
+  irt: {a: 1.1, b: -0.6}
+  generator: backend.binary_search_steps
+
+- id: be.algo.hash_lookup_complexity
+  specializations: [backend]
+  topic: algorithms
+  skills: [algorithms, data_structures]
+  kind: multi_choice
+  irt: {a: 1.2, b: 0.1}
+  params:
+    n: {choice: ["10 тысяч", "1 миллион", "100 миллионов"]}
+  stem: "Есть {{n}} записей. Какие утверждения о средней сложности операций верны?"
+  options:
+    correct:
+      - Поиск по ключу в хеш-таблице — O(1)
+      - Поиск в сбалансированном дереве поиска — O(log n)
+      - Поиск в несортированном массиве — O(n)
+    wrong:
+      - Вставка в конец динамического массива — O(n) в среднем
+      - Поиск по ключу в хеш-таблице — O(log n)
+      - Бинарный поиск в несортированном массиве — O(log n)
+  n_options: 5
