@@ -1,0 +1,22 @@
+# Числовые константы формулы силы результата ФСП — docs/implementation.md §9.2.
+# strength = percentile × level_weight × 0.5^(возраст_в_годах / recency_half_life_years)
+# competency = 1 − Π(1 − strength_i); для связи по роли strength × role_link_factor
+# competency = max(competency, rank_floor[разряд])
+
+fsp:
+  level_weight:
+    international: 1.0
+    national: 0.9
+    interregional: 0.75
+    regional: 0.6
+    municipal: 0.4
+  recency_half_life_years: 3
+  role_link_factor: 0.7
+  rank_floor:
+    "МС": 0.95
+    "КМС": 0.85
+    "I": 0.70
+    "II": 0.55
+    "III": 0.40
+    "юношеский": 0.25
+  rank_order: ["юношеский", "III", "II", "I", "КМС", "МС"]

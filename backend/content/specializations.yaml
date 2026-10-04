@@ -1,0 +1,67 @@
+# Специализации — docs/implementation.md §5.1 (стек-модули — §5.3, §10.8).
+# has_test: есть ли тестовый банк на MVP; без теста — «скоро».
+# adjacent — смежные специализации (slug из этого же файла).
+# stack_modules — id стек-модулей теста (набор шаблонов по языку/фреймворку), не id навыков.
+
+- slug: backend
+  name: Backend-разработка
+  has_test: true
+  adjacent: [fullstack, devops]
+  description: Серверная часть приложений, API, базы данных, интеграции и производительность.
+  stack_modules: [python, java, go, csharp, nodejs]
+
+- slug: frontend
+  name: Frontend-разработка
+  has_test: true
+  adjacent: [fullstack, mobile]
+  description: Клиентская часть веб-приложений, интерфейсы, работа с API и состоянием.
+  stack_modules: [react, vue, angular]
+
+- slug: qa
+  name: Тестирование (QA)
+  has_test: true
+  adjacent: []
+  description: Ручное и автоматизированное тестирование, тест-дизайн, тестирование API и нагрузки.
+  stack_modules: [qa_manual, qa_automation_python, qa_automation_java]
+
+- slug: devops
+  name: DevOps / SRE
+  has_test: true
+  adjacent: [backend]
+  description: Инфраструктура, CI/CD, контейнеризация, мониторинг и надёжность сервисов.
+  stack_modules: [linux, kubernetes_ci]
+
+- slug: data
+  name: Data Science / ML
+  has_test: true
+  adjacent: [backend]
+  description: Анализ данных, машинное обучение, статистика и подготовка данных для моделей.
+  stack_modules: [python_ml]
+
+- slug: fullstack
+  name: Fullstack-разработка
+  has_test: false
+  adjacent: [backend, frontend]
+  description: Разработка и серверной, и клиентской части приложения.
+  stack_modules: []
+
+- slug: mobile
+  name: Мобильная разработка
+  has_test: false
+  adjacent: [frontend]
+  description: Приложения для iOS и Android, нативные и кроссплатформенные.
+  stack_modules: []
+
+- slug: analyst
+  name: Системный и бизнес-анализ
+  has_test: false
+  adjacent: [data]
+  description: Сбор и формализация требований, моделирование процессов, проектирование интеграций.
+  stack_modules: []
+
+- slug: gamedev
+  name: Разработка игр
+  has_test: false
+  adjacent: []
+  description: Игровая логика, движки, графика и инструменты для разработки игр.
+  stack_modules: []

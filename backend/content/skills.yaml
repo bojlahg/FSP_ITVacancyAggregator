@@ -1,0 +1,1021 @@
+# Онтология навыков — docs/implementation.md §5.3 (формат из docs/early сохранён).
+# Поля: id (snake_case, уникален), name, family, parent (id навыка или null), aliases.
+# family ∈ {language, backend, frontend, mobile, data, ml, devops, qa, database,
+#           messaging, architecture, security, tools, analysis, gamedev}
+# parent даёт частичный кредит при матчинге: «фреймворк → его язык», «диалект → sql»,
+#   «инструмент → общий навык» (FastAPI требуется, у кандидата только Python).
+# aliases — в нижнем регистре, уникальны по всему файлу и не совпадают с id других
+#   навыков; включают name в нижнем регистре, русские написания и сокращения.
+
+# --- Языки (language) ---
+- id: python
+  name: Python
+  family: language
+  parent: null
+  aliases: [python, python3, питон, пайтон, py]
+
+- id: java
+  name: Java
+  family: language
+  parent: null
+  aliases: [java, джава, ява]
+
+- id: go
+  name: Go
+  family: language
+  parent: null
+  aliases: [go, golang, го, голанг]
+
+- id: csharp
+  name: "C#"
+  family: language
+  parent: null
+  aliases: ["c#", csharp, c sharp, си шарп, шарп]
+
+- id: javascript
+  name: JavaScript
+  family: language
+  parent: null
+  aliases: [javascript, js, жс, джаваскрипт, ecmascript, es6]
+
+- id: typescript
+  name: TypeScript
+  family: language
+  parent: javascript
+  aliases: [typescript, ts, тайпскрипт]
+
+- id: kotlin
+  name: Kotlin
+  family: language
+  parent: null
+  aliases: [kotlin, котлин]
+
+- id: swift
+  name: Swift
+  family: language
+  parent: null
+  aliases: [swift, свифт]
+
+- id: cpp
+  name: "C++"
+  family: language
+  parent: null
+  aliases: ["c++", cpp, си плюс плюс, плюсы]
+
+- id: c
+  name: C
+  family: language
+  parent: null
+  aliases: [c, си, язык c]
+
+- id: rust
+  name: Rust
+  family: language
+  parent: null
+  aliases: [rust, раст]
+
+- id: php
+  name: PHP
+  family: language
+  parent: null
+  aliases: [php, пхп]
+
+- id: ruby
+  name: Ruby
+  family: language
+  parent: null
+  aliases: [ruby, руби, ruby on rails, rails]
+
+- id: scala
+  name: Scala
+  family: language
+  parent: null
+  aliases: [scala, скала]
+
+- id: sql
+  name: SQL
+  family: language
+  parent: null
+  aliases: [sql, скуль, ansi sql]
+
+- id: bash
+  name: Bash
+  family: language
+  parent: null
+  aliases: [bash, shell, sh, баш, shell-скрипты]
+
+- id: dart
+  name: Dart
+  family: language
+  parent: null
+  aliases: [dart, дарт]
+
+- id: r
+  name: R
+  family: language
+  parent: null
+  aliases: [r, язык r, r lang, rstudio]
+
+
+# --- Backend-фреймворки и библиотеки (backend) ---
+- id: nodejs
+  name: Node.js
+  family: backend
+  parent: javascript
+  aliases: [node.js, nodejs, node, нода]
+
+- id: fastapi
+  name: FastAPI
+  family: backend
+  parent: python
+  aliases: [fastapi, fast api, фастапи]
+
+- id: django
+  name: Django
+  family: backend
+  parent: python
+  aliases: [django, джанго, drf, django rest framework]
+
+- id: flask
+  name: Flask
+  family: backend
+  parent: python
+  aliases: [flask, фласк]
+
+- id: sqlalchemy
+  name: SQLAlchemy
+  family: backend
+  parent: python
+  aliases: [sqlalchemy, алхимия]
+
+- id: celery
+  name: Celery
+  family: backend
+  parent: python
+  aliases: [celery, селери]
+
+- id: spring
+  name: Spring
+  family: backend
+  parent: java
+  aliases: [spring, spring framework, спринг]
+
+- id: spring_boot
+  name: Spring Boot
+  family: backend
+  parent: spring
+  aliases: [spring boot, springboot]
+
+- id: hibernate
+  name: Hibernate
+  family: backend
+  parent: java
+  aliases: [hibernate, jpa, хибернейт]
+
+- id: dotnet
+  name: ".NET"
+  family: backend
+  parent: csharp
+  aliases: [".net", dotnet, ".net core", дотнет]
+
+- id: aspnet
+  name: ASP.NET Core
+  family: backend
+  parent: dotnet
+  aliases: [asp.net core, aspnet, asp.net]
+
+- id: express
+  name: Express
+  family: backend
+  parent: nodejs
+  aliases: [express, express.js, expressjs]
+
+- id: nestjs
+  name: NestJS
+  family: backend
+  parent: nodejs
+  aliases: [nestjs, nest.js, nest]
+
+- id: gin
+  name: Gin
+  family: backend
+  parent: go
+  aliases: [gin, gin-gonic]
+
+- id: laravel
+  name: Laravel
+  family: backend
+  parent: php
+  aliases: [laravel, ларавел]
+
+
+# --- Frontend (frontend) ---
+- id: html
+  name: HTML
+  family: frontend
+  parent: null
+  aliases: [html, html5, хтмл]
+
+- id: css
+  name: CSS
+  family: frontend
+  parent: null
+  aliases: [css, css3]
+
+- id: sass
+  name: Sass
+  family: frontend
+  parent: css
+  aliases: [sass, scss, less]
+
+- id: tailwind
+  name: Tailwind CSS
+  family: frontend
+  parent: css
+  aliases: [tailwind css, tailwind, tailwindcss]
+
+- id: react
+  name: React
+  family: frontend
+  parent: javascript
+  aliases: [react, react.js, reactjs, реакт]
+
+- id: redux
+  name: Redux
+  family: frontend
+  parent: react
+  aliases: [redux, redux toolkit, rtk, редакс]
+
+- id: nextjs
+  name: Next.js
+  family: frontend
+  parent: react
+  aliases: [next.js, nextjs, next]
+
+- id: tanstack_query
+  name: TanStack Query
+  family: frontend
+  parent: react
+  aliases: [tanstack query, react query, react-query]
+
+- id: vue
+  name: Vue
+  family: frontend
+  parent: javascript
+  aliases: [vue, vue.js, vuejs, вью]
+
+- id: nuxt
+  name: Nuxt
+  family: frontend
+  parent: vue
+  aliases: [nuxt, nuxt.js, nuxtjs]
+
+- id: angular
+  name: Angular
+  family: frontend
+  parent: typescript
+  aliases: [angular, ангуляр, angularjs]
+
+- id: webpack
+  name: Webpack
+  family: frontend
+  parent: javascript
+  aliases: [webpack, вебпак]
+
+- id: vite
+  name: Vite
+  family: frontend
+  parent: javascript
+  aliases: [vite, вайт]
+
+
+# --- Мобильная разработка (mobile) ---
+- id: android
+  name: Android
+  family: mobile
+  parent: kotlin
+  aliases: [android, андроид, android sdk]
+
+- id: jetpack_compose
+  name: Jetpack Compose
+  family: mobile
+  parent: android
+  aliases: [jetpack compose, compose]
+
+- id: ios
+  name: iOS
+  family: mobile
+  parent: swift
+  aliases: [ios, айос, ios sdk, uikit]
+
+- id: swiftui
+  name: SwiftUI
+  family: mobile
+  parent: ios
+  aliases: [swiftui]
+
+- id: flutter
+  name: Flutter
+  family: mobile
+  parent: dart
+  aliases: [flutter, флаттер]
+
+- id: react_native
+  name: React Native
+  family: mobile
+  parent: react
+  aliases: [react native, react-native, rn]
+
+
+# --- Базы данных (database) ---
+- id: postgresql
+  name: PostgreSQL
+  family: database
+  parent: sql
+  aliases: [postgresql, postgres, pg, постгрес, постгре, psql]
+
+- id: mysql
+  name: MySQL
+  family: database
+  parent: sql
+  aliases: [mysql, мускул, mariadb]
+
+- id: sqlite
+  name: SQLite
+  family: database
+  parent: sql
+  aliases: [sqlite]
+
+- id: oracle
+  name: Oracle Database
+  family: database
+  parent: sql
+  aliases: [oracle database, oracle, оракл, "pl/sql"]
+
+- id: mssql
+  name: Microsoft SQL Server
+  family: database
+  parent: sql
+  aliases: [microsoft sql server, mssql, ms sql, sql server, t-sql]
+
+- id: clickhouse
+  name: ClickHouse
+  family: database
+  parent: sql
+  aliases: [clickhouse, кликхаус]
+
+- id: mongodb
+  name: MongoDB
+  family: database
+  parent: null
+  aliases: [mongodb, mongo, монга, монго]
+
+- id: redis
+  name: Redis
+  family: database
+  parent: null
+  aliases: [redis, редис]
+
+- id: elasticsearch
+  name: Elasticsearch
+  family: database
+  parent: null
+  aliases: [elasticsearch, elastic, эластик, opensearch]
+
+
+# --- Брокеры сообщений (messaging) ---
+- id: kafka
+  name: Apache Kafka
+  family: messaging
+  parent: null
+  aliases: [apache kafka, kafka, кафка]
+
+- id: rabbitmq
+  name: RabbitMQ
+  family: messaging
+  parent: null
+  aliases: [rabbitmq, rabbit, кролик, amqp]
+
+- id: nats
+  name: NATS
+  family: messaging
+  parent: null
+  aliases: [nats, nats streaming, jetstream]
+
+
+# --- DevOps и инфраструктура (devops) ---
+- id: docker
+  name: Docker
+  family: devops
+  parent: null
+  aliases: [docker, докер]
+
+- id: docker_compose
+  name: Docker Compose
+  family: devops
+  parent: docker
+  aliases: [docker compose, docker-compose, компоуз]
+
+- id: kubernetes
+  name: Kubernetes
+  family: devops
+  parent: null
+  aliases: [kubernetes, k8s, кубернетес, кубер]
+
+- id: helm
+  name: Helm
+  family: devops
+  parent: kubernetes
+  aliases: [helm, хелм, helm charts]
+
+- id: argocd
+  name: Argo CD
+  family: devops
+  parent: kubernetes
+  aliases: [argo cd, argocd, argo]
+
+- id: terraform
+  name: Terraform
+  family: devops
+  parent: null
+  aliases: [terraform, терраформ]
+
+- id: ansible
+  name: Ansible
+  family: devops
+  parent: null
+  aliases: [ansible, ансибл]
+
+- id: ci_cd
+  name: "CI/CD"
+  family: devops
+  parent: null
+  aliases: ["ci/cd", cicd, ci cd, непрерывная интеграция]
+
+- id: gitlab_ci
+  name: GitLab CI
+  family: devops
+  parent: ci_cd
+  aliases: [gitlab ci, "gitlab ci/cd", gitlab-ci]
+
+- id: github_actions
+  name: GitHub Actions
+  family: devops
+  parent: ci_cd
+  aliases: [github actions, gh actions]
+
+- id: jenkins
+  name: Jenkins
+  family: devops
+  parent: ci_cd
+  aliases: [jenkins, дженкинс]
+
+- id: nginx
+  name: Nginx
+  family: devops
+  parent: null
+  aliases: [nginx, энджинкс, нджинкс]
+
+- id: prometheus
+  name: Prometheus
+  family: devops
+  parent: null
+  aliases: [prometheus, прометеус]
+
+- id: grafana
+  name: Grafana
+  family: devops
+  parent: null
+  aliases: [grafana, графана]
+
+- id: linux
+  name: Linux
+  family: devops
+  parent: null
+  aliases: [linux, линукс, unix, администрирование linux]
+
+- id: aws
+  name: AWS
+  family: devops
+  parent: null
+  aliases: [aws, amazon web services]
+
+- id: yandex_cloud
+  name: Yandex Cloud
+  family: devops
+  parent: null
+  aliases: [yandex cloud, яндекс облако, яндекс клауд, yc]
+
+- id: networking
+  name: Компьютерные сети
+  family: devops
+  parent: null
+  aliases: [компьютерные сети, networking, сети, "tcp/ip", dns]
+
+
+# --- Данные и аналитика (data) ---
+- id: pandas
+  name: pandas
+  family: data
+  parent: python
+  aliases: [pandas, пандас]
+
+- id: numpy
+  name: NumPy
+  family: data
+  parent: python
+  aliases: [numpy, нампай]
+
+- id: spark
+  name: Apache Spark
+  family: data
+  parent: null
+  aliases: [apache spark, spark, pyspark, спарк]
+
+- id: airflow
+  name: Apache Airflow
+  family: data
+  parent: null
+  aliases: [apache airflow, airflow, эйрфлоу]
+
+- id: dbt
+  name: dbt
+  family: data
+  parent: sql
+  aliases: [dbt, data build tool]
+
+- id: statistics
+  name: Статистика
+  family: data
+  parent: null
+  aliases: [статистика, statistics, математическая статистика, матстат]
+
+- id: sql_analytics
+  name: SQL-аналитика
+  family: data
+  parent: sql
+  aliases: [sql-аналитика, sql для аналитики, аналитический sql]
+
+- id: etl
+  name: ETL
+  family: data
+  parent: null
+  aliases: [etl, elt, etl-пайплайны]
+
+- id: ab_testing
+  name: "A/B-тестирование"
+  family: data
+  parent: statistics
+  aliases: ["a/b-тестирование", "a/b testing", ab testing, "a/b тесты", аб тесты]
+
+- id: data_visualization
+  name: Визуализация данных
+  family: data
+  parent: null
+  aliases: [визуализация данных, data visualization, dataviz]
+
+- id: power_bi
+  name: Power BI
+  family: data
+  parent: null
+  aliases: [power bi, powerbi]
+
+
+# --- Машинное обучение (ml) ---
+- id: machine_learning
+  name: Машинное обучение
+  family: ml
+  parent: null
+  aliases: [машинное обучение, machine learning, ml, мл]
+
+- id: deep_learning
+  name: Глубокое обучение
+  family: ml
+  parent: machine_learning
+  aliases: [глубокое обучение, deep learning, dl, нейросети, нейронные сети]
+
+- id: scikit_learn
+  name: scikit-learn
+  family: ml
+  parent: python
+  aliases: [scikit-learn, sklearn, scikit learn, склерн]
+
+- id: pytorch
+  name: PyTorch
+  family: ml
+  parent: python
+  aliases: [pytorch, torch, пайторч]
+
+- id: tensorflow
+  name: TensorFlow
+  family: ml
+  parent: python
+  aliases: [tensorflow, tf, keras]
+
+- id: catboost
+  name: CatBoost
+  family: ml
+  parent: python
+  aliases: [catboost, катбуст]
+
+- id: mlflow
+  name: MLflow
+  family: ml
+  parent: null
+  aliases: [mlflow]
+
+- id: mlops
+  name: MLOps
+  family: ml
+  parent: machine_learning
+  aliases: [mlops]
+
+- id: nlp
+  name: NLP
+  family: ml
+  parent: machine_learning
+  aliases: [nlp, обработка естественного языка, natural language processing]
+
+- id: llm
+  name: LLM
+  family: ml
+  parent: nlp
+  aliases: [llm, large language models, большие языковые модели, языковые модели]
+
+- id: rag
+  name: RAG
+  family: ml
+  parent: llm
+  aliases: [rag, retrieval augmented generation]
+
+- id: transformers
+  name: Hugging Face Transformers
+  family: ml
+  parent: pytorch
+  aliases: [hugging face transformers, transformers, hugging face, huggingface]
+
+- id: computer_vision
+  name: Компьютерное зрение
+  family: ml
+  parent: deep_learning
+  aliases: [компьютерное зрение, computer vision, cv, opencv]
+
+- id: recsys
+  name: Рекомендательные системы
+  family: ml
+  parent: machine_learning
+  aliases: [рекомендательные системы, recsys, recommender systems]
+
+
+# --- Тестирование (qa) ---
+- id: manual_testing
+  name: Ручное тестирование
+  family: qa
+  parent: null
+  aliases: [ручное тестирование, manual testing, мануальное тестирование, manual qa]
+
+- id: test_design
+  name: Тест-дизайн
+  family: qa
+  parent: null
+  aliases: [тест-дизайн, test design, техники тест-дизайна]
+
+- id: api_testing
+  name: Тестирование API
+  family: qa
+  parent: null
+  aliases: [тестирование api, api testing]
+
+- id: load_testing
+  name: Нагрузочное тестирование
+  family: qa
+  parent: null
+  aliases: [нагрузочное тестирование, load testing, performance testing, нт]
+
+- id: test_automation
+  name: Автоматизация тестирования
+  family: qa
+  parent: null
+  aliases: [автоматизация тестирования, test automation, автотесты, aqa]
+
+- id: unit_testing
+  name: Юнит-тестирование
+  family: qa
+  parent: null
+  aliases: [юнит-тестирование, unit testing, unit-тесты, модульное тестирование]
+
+- id: selenium
+  name: Selenium
+  family: qa
+  parent: test_automation
+  aliases: [selenium, селениум, selenide, webdriver]
+
+- id: playwright
+  name: Playwright
+  family: qa
+  parent: test_automation
+  aliases: [playwright, плейрайт]
+
+- id: appium
+  name: Appium
+  family: qa
+  parent: test_automation
+  aliases: [appium, аппиум]
+
+- id: allure
+  name: Allure
+  family: qa
+  parent: test_automation
+  aliases: [allure, allure testops, аллюр]
+
+- id: pytest
+  name: pytest
+  family: qa
+  parent: python
+  aliases: [pytest]
+
+- id: junit
+  name: JUnit
+  family: qa
+  parent: java
+  aliases: [junit, junit5, testng]
+
+- id: jest
+  name: Jest
+  family: qa
+  parent: javascript
+  aliases: [jest, vitest]
+
+- id: cypress
+  name: Cypress
+  family: qa
+  parent: javascript
+  aliases: [cypress, сайпрес]
+
+- id: postman
+  name: Postman
+  family: qa
+  parent: api_testing
+  aliases: [postman, постман]
+
+- id: jmeter
+  name: JMeter
+  family: qa
+  parent: load_testing
+  aliases: [jmeter, apache jmeter, джиметр]
+
+
+# --- Архитектура и фундамент (architecture) ---
+- id: algorithms
+  name: Алгоритмы
+  family: architecture
+  parent: null
+  aliases: [алгоритмы, algorithms, алгосы]
+
+- id: data_structures
+  name: Структуры данных
+  family: architecture
+  parent: null
+  aliases: [структуры данных, data structures]
+
+- id: oop
+  name: ООП
+  family: architecture
+  parent: null
+  aliases: [ооп, oop, объектно-ориентированное программирование]
+
+- id: solid
+  name: SOLID
+  family: architecture
+  parent: oop
+  aliases: [solid]
+
+- id: design_patterns
+  name: Паттерны проектирования
+  family: architecture
+  parent: null
+  aliases: [паттерны проектирования, design patterns, gof, паттерны]
+
+- id: clean_architecture
+  name: Чистая архитектура
+  family: architecture
+  parent: null
+  aliases: [чистая архитектура, clean architecture, гексагональная архитектура]
+
+- id: ddd
+  name: DDD
+  family: architecture
+  parent: null
+  aliases: [ddd, domain-driven design, предметно-ориентированное проектирование]
+
+- id: system_design
+  name: System Design
+  family: architecture
+  parent: null
+  aliases: [system design, проектирование систем, системный дизайн]
+
+- id: microservices
+  name: Микросервисы
+  family: architecture
+  parent: null
+  aliases: [микросервисы, microservices, микросервисная архитектура]
+
+- id: event_driven
+  name: Событийная архитектура
+  family: architecture
+  parent: null
+  aliases: [событийная архитектура, event-driven, eda, event-driven architecture]
+
+- id: http
+  name: HTTP
+  family: architecture
+  parent: null
+  aliases: [http, https, протокол http]
+
+- id: rest
+  name: REST API
+  family: architecture
+  parent: null
+  aliases: [rest api, rest, restful]
+
+- id: grpc
+  name: gRPC
+  family: architecture
+  parent: null
+  aliases: [grpc, protobuf]
+
+- id: graphql
+  name: GraphQL
+  family: architecture
+  parent: null
+  aliases: [graphql]
+
+- id: concurrency
+  name: Многопоточность и асинхронность
+  family: architecture
+  parent: null
+  aliases: [многопоточность и асинхронность, concurrency, многопоточность, асинхронность, конкурентность]
+
+- id: caching
+  name: Кэширование
+  family: architecture
+  parent: null
+  aliases: [кэширование, caching, кеширование, кэш]
+
+
+# --- Безопасность (security) ---
+- id: appsec
+  name: Безопасность приложений
+  family: security
+  parent: null
+  aliases: [безопасность приложений, appsec, application security]
+
+- id: owasp
+  name: OWASP Top 10
+  family: security
+  parent: appsec
+  aliases: [owasp top 10, owasp]
+
+- id: devsecops
+  name: DevSecOps
+  family: security
+  parent: appsec
+  aliases: [devsecops, sast, dast]
+
+- id: pentest
+  name: Пентест
+  family: security
+  parent: null
+  aliases: [пентест, pentest, тестирование на проникновение, penetration testing]
+
+- id: ctf
+  name: CTF
+  family: security
+  parent: null
+  aliases: [ctf, capture the flag]
+
+- id: cryptography
+  name: Криптография
+  family: security
+  parent: null
+  aliases: [криптография, cryptography, шифрование]
+
+- id: iam
+  name: "Управление доступом (IAM)"
+  family: security
+  parent: null
+  aliases: ["управление доступом (iam)", iam, identity and access management, управление доступом]
+
+- id: oauth
+  name: "OAuth 2.0 / OIDC"
+  family: security
+  parent: iam
+  aliases: ["oauth 2.0 / oidc", oauth, oauth2, openid connect, oidc, jwt]
+
+
+# --- Инструменты (tools) ---
+- id: git
+  name: Git
+  family: tools
+  parent: null
+  aliases: [git, гит]
+
+- id: linux_cli
+  name: Командная строка Linux
+  family: tools
+  parent: null
+  aliases: [командная строка linux, linux cli, терминал, cli]
+
+- id: jira
+  name: Jira
+  family: tools
+  parent: null
+  aliases: [jira, джира]
+
+- id: confluence
+  name: Confluence
+  family: tools
+  parent: null
+  aliases: [confluence, конфлюенс]
+
+- id: figma
+  name: Figma
+  family: tools
+  parent: null
+  aliases: [figma, фигма]
+
+
+# --- Анализ (analysis) ---
+- id: requirements
+  name: Работа с требованиями
+  family: analysis
+  parent: null
+  aliases: [работа с требованиями, requirements, требования, сбор требований]
+
+- id: user_stories
+  name: User Stories
+  family: analysis
+  parent: requirements
+  aliases: [user stories, user story, пользовательские истории, юзер стори]
+
+- id: system_analysis
+  name: Системный анализ
+  family: analysis
+  parent: null
+  aliases: [системный анализ, system analysis]
+
+- id: business_analysis
+  name: Бизнес-анализ
+  family: analysis
+  parent: null
+  aliases: [бизнес-анализ, business analysis]
+
+- id: bpmn
+  name: BPMN
+  family: analysis
+  parent: null
+  aliases: [bpmn, bpmn 2.0]
+
+- id: uml
+  name: UML
+  family: analysis
+  parent: null
+  aliases: [uml, диаграммы uml]
+
+- id: openapi_spec
+  name: "OpenAPI / Swagger"
+  family: analysis
+  parent: rest
+  aliases: ["openapi / swagger", openapi, swagger]
+
+
+# --- Разработка игр (gamedev) ---
+- id: unity
+  name: Unity
+  family: gamedev
+  parent: csharp
+  aliases: [unity, юнити, unity3d]
+
+- id: unreal
+  name: Unreal Engine
+  family: gamedev
+  parent: cpp
+  aliases: [unreal engine, unreal, ue, ue5, анрил]
+
+- id: godot
+  name: Godot
+  family: gamedev
+  parent: null
+  aliases: [godot, годо]
+
+- id: shaders
+  name: Шейдеры
+  family: gamedev
+  parent: null
+  aliases: [шейдеры, shaders, hlsl, glsl]
+
+- id: game_design
+  name: Геймдизайн
+  family: gamedev
+  parent: null
+  aliases: [геймдизайн, game design, гейм-дизайн]

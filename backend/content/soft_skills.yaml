@@ -1,0 +1,55 @@
+# Софт-скиллы — docs/implementation.md §5.3: фиксированный список из 15–20 пунктов.
+
+- slug: communication
+  name: Коммуникация
+
+- slug: teamwork
+  name: Работа в команде
+
+- slug: mentoring
+  name: Наставничество
+
+- slug: responsibility
+  name: Ответственность
+
+- slug: self_organization
+  name: Самоорганизация
+
+- slug: critical_thinking
+  name: Критическое мышление
+
+- slug: time_management
+  name: Тайм-менеджмент
+
+- slug: presenting_results
+  name: Презентация результатов
+
+- slug: negotiation
+  name: Ведение переговоров
+
+- slug: adaptability
+  name: Адаптивность
+
+- slug: leadership
+  name: Лидерство
+
+- slug: handling_uncertainty
+  name: Работа с неопределённостью
+
+- slug: customer_focus
+  name: Клиентоориентированность
+
+- slug: learnability
+  name: Обучаемость
+
+- slug: attention_to_detail
+  name: Внимание к деталям
+
+- slug: problem_solving
+  name: Решение проблем
+
+- slug: written_communication
+  name: Письменная коммуникация
+
+- slug: feedback
+  name: Умение давать и принимать обратную связь

@@ -1,0 +1,22 @@
+# Грейды — docs/implementation.md §5.2; подсказка по стажу — §6.2.
+# order задаёт порядок для сравнения и цепочек тестов (§6.3). lead — после MVP.
+
+- slug: intern
+  name: Стажёр
+  order: 0
+  experience_hint: без коммерческого опыта
+
+- slug: junior
+  name: Junior
+  order: 1
+  experience_hint: до года опыта
+
+- slug: middle
+  name: Middle
+  order: 2
+  experience_hint: от 1 до 3 лет опыта
+
+- slug: senior
+  name: Senior
+  order: 3
+  experience_hint: больше 3 лет опыта

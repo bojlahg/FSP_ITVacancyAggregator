@@ -1,0 +1,31 @@
+# Дисциплины ФСП → компетенции — docs/implementation.md §9.1–9.2.
+# ВНИМАНИЕ: список дисциплин и их состав нужно сверить с экспертами ФСП.
+# direct — компетенции, которые даёт любой результат в дисциплине.
+# by_role — компетенции по роли участника в команде (Result.team_role); их strength
+#   умножается на role_link_factor из rules.yaml. supports_family — семейство навыков
+#   из skills.yaml, которые роль может отметить как «подтверждено ФСП» (не «проверено»).
+
+algorithmic:
+  name: Алгоритмическое программирование
+  direct: [algorithms]
+
+product:
+  name: Продуктовое программирование
+  direct: [product_team_dev]
+  by_role:
+    backend: { competencies: [backend_dev], supports_family: backend }
+    frontend: { competencies: [frontend_dev], supports_family: frontend }
+    ml: { competencies: [ml_dev], supports_family: ml }
+    lead: { competencies: [team_lead] }
+
+infosec:
+  name: Информационная безопасность
+  direct: [infosec_ctf]
+
+drones:
+  name: Программирование беспилотных авиационных систем
+  direct: [drone_programming]
+
+robotics:
+  name: Программирование робототехники
+  direct: [robotics_programming]

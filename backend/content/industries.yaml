@@ -1,0 +1,31 @@
+# Отрасли — docs/implementation.md §5.3 (опрос §6.2: опыт и интересные отрасли).
+
+- slug: fintech
+  name: Финтех
+
+- slug: ecommerce
+  name: E-commerce
+
+- slug: govtech
+  name: Госсектор
+
+- slug: telecom
+  name: Телеком
+
+- slug: medtech
+  name: Медтех
+
+- slug: gamedev
+  name: Геймдев
+
+- slug: industry
+  name: Промышленность
+
+- slug: edtech
+  name: EdTech
+
+- slug: media
+  name: Медиа
+
+- slug: other
+  name: Другое

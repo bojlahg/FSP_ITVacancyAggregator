@@ -1,0 +1,31 @@
+# Роли в команде — docs/implementation.md §6.2 (вопрос опроса «роли в команде»).
+
+- slug: developer
+  name: Разработчик
+
+- slug: tech_lead
+  name: Техлид
+
+- slug: team_lead
+  name: Тимлид
+
+- slug: architect
+  name: Архитектор
+
+- slug: mentor
+  name: Наставник
+
+- slug: qa_engineer
+  name: Инженер по тестированию
+
+- slug: devops_engineer
+  name: DevOps-инженер
+
+- slug: analyst
+  name: Аналитик
+
+- slug: data_scientist
+  name: Data Scientist
+
+- slug: product_minded_engineer
+  name: Продуктовый инженер

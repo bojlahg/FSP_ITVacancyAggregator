@@ -1,0 +1,74 @@
+# Связь компетенций ФСП со специализациями — docs/implementation.md §9.2.
+# specialization slug → {competency id: вес 0..1}. Отсутствующая компетенция = 0.
+# Ключи — все специализации из specializations.yaml; id — из competencies.yaml.
+
+backend:
+  algorithms: 0.8
+  product_team_dev: 0.7
+  backend_dev: 1.0
+  team_lead: 0.4
+  infosec_ctf: 0.6
+  drone_programming: 0.3
+  robotics_programming: 0.3
+
+frontend:
+  algorithms: 0.8
+  product_team_dev: 0.7
+  frontend_dev: 1.0
+  team_lead: 0.4
+  drone_programming: 0.3
+  robotics_programming: 0.3
+
+qa:
+  algorithms: 0.5
+  team_lead: 0.4
+  infosec_ctf: 0.5
+  drone_programming: 0.3
+  robotics_programming: 0.3
+
+devops:
+  algorithms: 0.5
+  backend_dev: 0.4
+  team_lead: 0.4
+  infosec_ctf: 1.0
+  drone_programming: 0.3
+  robotics_programming: 0.3
+
+data:
+  algorithms: 0.6
+  product_team_dev: 0.7
+  backend_dev: 0.4
+  ml_dev: 1.0
+  team_lead: 0.4
+  drone_programming: 0.3
+  robotics_programming: 0.3
+
+fullstack:
+  algorithms: 0.8
+  product_team_dev: 0.7
+  backend_dev: 0.6
+  frontend_dev: 0.6
+  team_lead: 0.4
+  drone_programming: 0.3
+  robotics_programming: 0.3
+
+mobile:
+  algorithms: 0.8
+  product_team_dev: 0.7
+  frontend_dev: 0.4
+  team_lead: 0.4
+  drone_programming: 0.3
+  robotics_programming: 0.3
+
+analyst:
+  algorithms: 0.5
+  team_lead: 0.4
+  drone_programming: 0.3
+  robotics_programming: 0.3
+
+gamedev:
+  algorithms: 0.8
+  product_team_dev: 0.7
+  team_lead: 0.4
+  drone_programming: 0.3
+  robotics_programming: 0.3
