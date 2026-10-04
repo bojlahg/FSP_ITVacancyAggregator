@@ -24,13 +24,5 @@ const nav: CabinetNavItem[] = [
 ];
 
 export default function EmployerLayout() {
-  // TODO: заменить на данные GET /me + GET /employers/me и защитить маршрут.
-  return (
-    <CabinetLayout
-      homePath="/employer"
-      roleLabel="Работодатель"
-      nav={nav}
-      user={{ name: "Мария Рекрутер", caption: "Демо Банк" }}
-    />
-  );
+  return <CabinetLayout homePath="/employer" roleLabel="Работодатель" nav={nav} />;
 }

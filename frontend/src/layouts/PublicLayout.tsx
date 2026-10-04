@@ -1,10 +1,12 @@
 import { Link, Outlet, useLocation } from "react-router";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
+import { homePathFor, useAuth } from "@/lib/auth";
 
 export default function PublicLayout() {
   const { pathname } = useLocation();
   const isLanding = pathname === "/";
+  const { user } = useAuth();
 
   return (
     <div className="relative flex min-h-dvh flex-col overflow-hidden px-4 py-6 sm:px-8 lg:px-16 lg:py-8">
@@ -16,10 +18,16 @@ export default function PublicLayout() {
           <span className="hidden font-mono text-xs tracking-wide text-muted-foreground md:inline">
             Лидеры цифровой трансформации 2026 · спецтрек ФСП
           </span>
-          {pathname !== "/login" && (
+          {user ? (
             <Button asChild variant={isLanding ? "outline" : "ghost"} size="sm">
-              <Link to="/login">Войти</Link>
+              <Link to={homePathFor(user.role)}>В кабинет</Link>
             </Button>
+          ) : (
+            pathname !== "/login" && (
+              <Button asChild variant={isLanding ? "outline" : "ghost"} size="sm">
+                <Link to="/login">Войти</Link>
+              </Button>
+            )
           )}
         </div>
       </header>

@@ -1,13 +1,16 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Building2, LogIn, UserRound } from "lucide-react";
+import { Building2, Loader2, LogIn, UserRound } from "lucide-react";
 import { useForm } from "react-hook-form";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { z } from "zod";
+import { FormAlert } from "@/components/FormAlert";
 import { FormField } from "@/components/FormField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { authStore, type UserRole } from "@/lib/auth";
+import { apiError } from "@/lib/api-error";
+import { postLoginPath, type TokenResponse, type UserRole } from "@/lib/auth";
+import { useDemoLogin, useLogin } from "@/lib/auth-queries";
 import { AuthCard } from "./AuthCard";
 
 const loginSchema = z.object({
@@ -17,28 +20,58 @@ const loginSchema = z.object({
 
 type LoginValues = z.infer<typeof loginSchema>;
 
+function loginErrorMessage(err: unknown): string {
+  const { status, message } = apiError(err);
+  if (status === 401) return "Неверный email или пароль";
+  if (status === 429) return "Слишком много попыток, попробуйте позже";
+  return message;
+}
+
+function demoErrorMessage(err: unknown): string {
+  const { status, message } = apiError(err);
+  if (status === 404) return "Демо-вход на этом сервере выключен";
+  return message;
+}
+
 export default function LoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const next = searchParams.get("next");
+  const login = useLogin();
+  const demoLogin = useDemoLogin();
+
   const {
     register,
     handleSubmit,
+    setError,
+    clearErrors,
     formState: { errors, isSubmitting },
   } = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "" },
   });
 
-  const onSubmit = (values: LoginValues) => {
-    // TODO: POST /auth/login → access-токен в authStore, refresh — httpOnly cookie; редирект по роли из GET /me.
-    console.info("[login] TODO: POST /auth/login", { email: values.email });
+  const goToCabinet = ({ user }: TokenResponse) => {
+    void navigate(postLoginPath(user.role, next), { replace: true });
   };
 
-  const demoLogin = (role: UserRole) => {
-    // TODO: демо-вход через backend (seed-аккаунты Анна / «Демо Банк»). Пока только переход в кабинет.
-    console.info("[login] TODO: demo login", role);
-    authStore.set({ role });
-    navigate(role === "candidate" ? "/candidate" : "/employer");
+  const onSubmit = async (values: LoginValues) => {
+    demoLogin.reset();
+    try {
+      goToCabinet(await login.mutateAsync(values));
+    } catch (err) {
+      setError("root.server", { message: loginErrorMessage(err) });
+    }
   };
+
+  const onDemo = (persona: UserRole) => {
+    login.reset();
+    clearErrors("root");
+    demoLogin.mutate(persona, { onSuccess: goToCabinet });
+  };
+
+  const busy = isSubmitting || demoLogin.isPending;
+  const formError = errors.root?.server?.message ?? (demoLogin.error ? demoErrorMessage(demoLogin.error) : null);
 
   return (
     <AuthCard title="Вход" description="Войдите, чтобы продолжить работу в кабинете.">
@@ -62,8 +95,9 @@ export default function LoginPage() {
             {...register("password")}
           />
         </FormField>
-        <Button type="submit" disabled={isSubmitting} className="mt-2">
-          <LogIn /> Войти
+        <FormAlert message={formError} />
+        <Button type="submit" disabled={busy} className="mt-2">
+          {isSubmitting ? <Loader2 className="animate-spin" /> : <LogIn />} Войти
         </Button>
       </form>
 
@@ -74,11 +108,21 @@ export default function LoginPage() {
       </div>
 
       <div className="grid gap-2 sm:grid-cols-2">
-        <Button type="button" variant="outline" onClick={() => demoLogin("candidate")}>
-          <UserRound /> Кандидат
+        <Button type="button" variant="outline" disabled={busy} onClick={() => onDemo("candidate")}>
+          {demoLogin.isPending && demoLogin.variables === "candidate" ? (
+            <Loader2 className="animate-spin" />
+          ) : (
+            <UserRound />
+          )}
+          Кандидат
         </Button>
-        <Button type="button" variant="outline" onClick={() => demoLogin("employer")}>
-          <Building2 /> Работодатель
+        <Button type="button" variant="outline" disabled={busy} onClick={() => onDemo("employer")}>
+          {demoLogin.isPending && demoLogin.variables === "employer" ? (
+            <Loader2 className="animate-spin" />
+          ) : (
+            <Building2 />
+          )}
+          Работодатель
         </Button>
       </div>
 

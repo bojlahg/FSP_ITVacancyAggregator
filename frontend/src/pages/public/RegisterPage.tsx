@@ -1,13 +1,16 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Building2, UserRound } from "lucide-react";
+import { Building2, Loader2, UserRound } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { z } from "zod";
+import { FormAlert } from "@/components/FormAlert";
 import { FormField } from "@/components/FormField";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { apiError, applyValidationErrors } from "@/lib/api-error";
 import type { UserRole } from "@/lib/auth";
+import { useRegister } from "@/lib/auth-queries";
 import { cn } from "@/lib/utils";
 import { AuthCard } from "./AuthCard";
 
@@ -15,7 +18,7 @@ import { AuthCard } from "./AuthCard";
 const registerSchema = z
   .object({
     email: z.email("Введите корректный email"),
-    password: z.string().min(8, "Минимум 8 символов"),
+    password: z.string().min(8, "Минимум 8 символов").max(128, "Не длиннее 128 символов"),
     role: z.enum(["candidate", "employer"]),
     consentPersonalData: z.boolean().refine((value) => value, "Без этого согласия регистрация невозможна"),
     consentPublishProfile: z.boolean(),
@@ -27,6 +30,21 @@ const registerSchema = z
 
 type RegisterValues = z.infer<typeof registerSchema>;
 
+// Поля RegisterRequest → поля формы, для раскладки ошибок 422 по последнему элементу loc.
+const apiFieldMap = {
+  email: "email",
+  password: "password",
+  role: "role",
+  consent_pd_processing: "consentPersonalData",
+  consent_profile_publication: "consentPublishProfile",
+} as const;
+
+// Куда вести после регистрации: кандидата — в онбординг, работодателя — заполнять компанию.
+const afterRegisterPath: Record<UserRole, string> = {
+  candidate: "/candidate/onboarding",
+  employer: "/employer/company",
+};
+
 const roles: { value: UserRole; label: string; icon: typeof UserRound }[] = [
   { value: "candidate", label: "Я кандидат", icon: UserRound },
   { value: "employer", label: "Я работодатель", icon: Building2 },
@@ -35,6 +53,7 @@ const roles: { value: UserRole; label: string; icon: typeof UserRound }[] = [
 export default function RegisterPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const registerUser = useRegister();
   const initialRole: UserRole = searchParams.get("role") === "employer" ? "employer" : "candidate";
 
   const {
@@ -42,6 +61,7 @@ export default function RegisterPage() {
     handleSubmit,
     control,
     setValue,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<RegisterValues>({
     resolver: zodResolver(registerSchema),
@@ -56,10 +76,27 @@ export default function RegisterPage() {
 
   const role = useWatch({ control, name: "role" });
 
-  const onSubmit = (values: RegisterValues) => {
-    // TODO: POST /auth/register {email, password, role, consents}.
-    console.info("[register] TODO: POST /auth/register", { role: values.role });
-    navigate("/verify-email", { state: { email: values.email } });
+  const onSubmit = async (values: RegisterValues) => {
+    try {
+      const { user } = await registerUser.mutateAsync({
+        email: values.email,
+        password: values.password,
+        role: values.role,
+        consent_pd_processing: values.consentPersonalData,
+        consent_profile_publication: values.role === "candidate" && values.consentPublishProfile,
+      });
+      const target = user.role === "candidate" || user.role === "employer" ? afterRegisterPath[user.role] : "/";
+      void navigate(target, { replace: true });
+    } catch (err) {
+      const { status, message } = apiError(err);
+      if (status === 409) {
+        setError("email", { type: "server", message: "Этот email уже зарегистрирован" });
+      } else if (!(status === 422 && applyValidationErrors(err, setError, apiFieldMap))) {
+        setError("root.server", {
+          message: status === 429 ? "Слишком много попыток, попробуйте позже" : message,
+        });
+      }
+    }
   };
 
   return (
@@ -146,7 +183,10 @@ export default function RegisterPage() {
           )}
         </fieldset>
 
+        <FormAlert message={errors.root?.server?.message ?? (errors.role ? errors.role.message : null)} />
+
         <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting && <Loader2 className="animate-spin" />}
           Зарегистрироваться
         </Button>
       </form>

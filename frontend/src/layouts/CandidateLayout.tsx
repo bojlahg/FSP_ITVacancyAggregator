@@ -24,13 +24,5 @@ const nav: CabinetNavItem[] = [
 ];
 
 export default function CandidateLayout() {
-  // TODO: заменить на данные GET /me и защитить маршрут (redirect на /login без сессии).
-  return (
-    <CabinetLayout
-      homePath="/candidate"
-      roleLabel="Кандидат"
-      nav={nav}
-      user={{ name: "Анна Кузнецова", caption: "Backend · Middle" }}
-    />
-  );
+  return <CabinetLayout homePath="/candidate" roleLabel="Кандидат" nav={nav} />;
 }

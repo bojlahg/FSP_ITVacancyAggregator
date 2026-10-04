@@ -1,10 +1,13 @@
 import type { LucideIcon } from "lucide-react";
-import { LogOut, Menu, X } from "lucide-react";
+import { Loader2, LogOut, Menu, X } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router";
+import { EmailVerificationBanner } from "@/components/EmailVerificationBanner";
 import { ProductMark } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
-import { authStore } from "@/lib/auth";
+import { authStore, useAuth } from "@/lib/auth";
+import { useLogout } from "@/lib/auth-queries";
 import { cn } from "@/lib/utils";
 
 export interface CabinetNavItem {
@@ -19,24 +22,25 @@ interface CabinetLayoutProps {
   homePath: string;
   roleLabel: string;
   nav: CabinetNavItem[];
-  user: { name: string; caption: string };
 }
 
-export function CabinetLayout({ homePath, roleLabel, nav, user }: CabinetLayoutProps) {
+export function CabinetLayout({ homePath, roleLabel, nav }: CabinetLayoutProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const logout = useLogout();
 
-  const logout = () => {
-    // TODO: POST /auth/logout, затем очистка кэша TanStack Query.
+  const onLogout = async () => {
+    await logout.mutateAsync();
+    // Сначала уходим из кабинета, потом чистим сессию — иначе guard кабинета отправит на /login.
+    await navigate("/", { replace: true });
     authStore.clear();
-    navigate("/");
+    queryClient.removeQueries();
   };
 
-  const initials = user.name
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2);
+  const email = user?.email ?? "";
+  const initials = email.slice(0, 2).toUpperCase();
 
   return (
     <div className="flex min-h-dvh bg-background">
@@ -101,11 +105,20 @@ export function CabinetLayout({ homePath, roleLabel, nav, user }: CabinetLayoutP
             {initials}
           </div>
           <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-medium">{user.name}</div>
-            <div className="truncate text-xs text-muted-foreground">{user.caption}</div>
+            <div className="truncate text-sm font-medium" title={email}>
+              {email}
+            </div>
+            <div className="truncate text-xs text-muted-foreground">{roleLabel}</div>
           </div>
-          <Button variant="ghost" size="icon-sm" onClick={logout} aria-label="Выйти" title="Выйти">
-            <LogOut />
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => void onLogout()}
+            disabled={logout.isPending}
+            aria-label="Выйти"
+            title="Выйти"
+          >
+            {logout.isPending ? <Loader2 className="animate-spin" /> : <LogOut />}
           </Button>
         </div>
       </aside>
@@ -121,6 +134,7 @@ export function CabinetLayout({ homePath, roleLabel, nav, user }: CabinetLayoutP
           <span className="w-8" aria-hidden />
         </header>
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
+          <EmailVerificationBanner />
           <Outlet />
         </main>
       </div>
