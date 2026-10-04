@@ -29,3 +29,34 @@ export function formatDaysAgo(days: number): string {
   if (days === 1) return "вчера";
   return `${days} ${plural(days, ["день", "дня", "дней"])} назад`;
 }
+
+const dateFormatter = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", year: "numeric" });
+const dateTimeFormatter = new Intl.DateTimeFormat("ru-RU", {
+  day: "numeric",
+  month: "long",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+/** ISO-дата → «12 октября 2026 г.» */
+export function formatDate(iso: string): string {
+  return dateFormatter.format(new Date(iso));
+}
+
+/** ISO-дата → «12 октября, 14:30» */
+export function formatDateTime(iso: string): string {
+  return dateTimeFormatter.format(new Date(iso));
+}
+
+/** Доля 0..1 → целые проценты. */
+export function toPercent(share: number): number {
+  return Math.round(Math.min(1, Math.max(0, share)) * 100);
+}
+
+/** Секунды → «мм:сс» */
+export function formatTimer(totalSeconds: number): string {
+  const safe = Math.max(0, totalSeconds);
+  const minutes = Math.floor(safe / 60);
+  const seconds = safe % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}

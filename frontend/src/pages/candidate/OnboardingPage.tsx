@@ -1,52 +1,146 @@
-import { ArrowLeft, ArrowRight, Check, Clock, Upload } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { ArrowRight, Award, Check, PlayCircle } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
+import { CategoryBadge } from "@/components/CategoryBadge";
+import { ErrorState } from "@/components/ErrorState";
 import { PageHeader } from "@/components/PageHeader";
-import { Badge } from "@/components/ui/badge";
+import { SkeletonCards } from "@/components/SkeletonCards";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { GRADE_LABELS, SPECIALIZATION_FULL_LABELS } from "@/lib/labels";
+import { apiError } from "@/lib/api-error";
+import {
+  type CandidateProfile,
+  type Grade,
+  purposeFor,
+  queryKeys,
+  type SurveyResult,
+  useCandidateMe,
+  useGrades,
+  useGradeStatus,
+} from "@/lib/testing-queries";
 import { cn } from "@/lib/utils";
+import { BeforeTestStep } from "./onboarding/BeforeTestStep";
+import { GradeStep } from "./onboarding/GradeStep";
+import { SpecializationStep } from "./onboarding/SpecializationStep";
+import { SurveyStep } from "./onboarding/SurveyStep";
 
-const steps = ["Опрос", "Специализация", "Грейд", "Тест"] as const;
+const steps = ["Опрос", "Специализация", "Грейд", "Перед тестом"] as const;
 
-// MOCK: варианты ответа придут из GET /survey/questions
-const dailyActivities = [
-  "Пишу серверную логику и API",
-  "Верстаю интерфейсы и работаю с UI-фреймворками",
-  "Настраиваю CI/CD, инфраструктуру и мониторинг",
-  "Пишу автотесты и проверяю качество",
-  "Анализирую данные и обучаю модели",
-];
-
-// MOCK: топ-2 из POST /survey/responses
-const recommended = [
-  { slug: "backend", weight: 0.71 },
-  { slug: "fullstack", weight: 0.22 },
-];
-
-const gradeHints: Record<string, string> = {
-  intern: "Учёба или первые проекты",
-  junior: "Опыт меньше года",
-  middle: "Опыт 1–3 года",
-  senior: "Опыт больше 3 лет",
-};
+// onboarding_step из GET /candidates/me → шаг мастера. "test" и "done" обрабатываются отдельно.
+const stepIndexByOnboarding: Record<string, number> = { survey: 0, specialization: 1, grade: 2 };
 
 export default function OnboardingPage() {
-  const [step, setStep] = useState(0);
-  const [specialization, setSpecialization] = useState("backend");
-  const [grade, setGrade] = useState("middle");
+  const me = useCandidateMe();
 
   return (
     <>
       <PageHeader
         eyebrow="Онбординг"
         title="Получите категорию"
-        description="Четыре шага: короткий опрос, подтверждение специализации, выбор грейда и адаптивный тест. Категорию определяет только тест."
+        description="Короткий опрос, подтверждение специализации, выбор грейда и адаптивный тест. Категорию определяет только тест."
       />
+      {me.isPending && <SkeletonCards count={1} />}
+      {me.isError && (
+        <ErrorState
+          title="Не удалось загрузить профиль"
+          description={apiError(me.error).message}
+          onRetry={() => void me.refetch()}
+        />
+      )}
+      {me.isSuccess && <OnboardingFlow me={me.data} />}
+    </>
+  );
+}
 
+/** Режим фиксируется по onboarding_step при входе: последующие обновления профиля не перескакивают шаги. */
+function OnboardingFlow({ me }: { me: CandidateProfile }) {
+  const [mode] = useState(me.onboarding_step);
+  if (mode === "test") return <ResumeAttempt />;
+  if (mode === "done") return <OnboardingDone me={me} />;
+  return <Wizard me={me} initialStep={stepIndexByOnboarding[mode] ?? 0} />;
+}
+
+function ResumeAttempt() {
+  const status = useGradeStatus();
+  const attempt = status.data?.attempts.find((item) => item.status === "in_progress");
+
+  if (status.isPending) return <SkeletonCards count={1} />;
+  if (status.isError) {
+    return <ErrorState description={apiError(status.error).message} onRetry={() => void status.refetch()} />;
+  }
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <PlayCircle className="size-5 text-primary" aria-hidden /> У вас есть незаконченный тест
+        </CardTitle>
+        <CardDescription>
+          Продолжите с того вопроса, на котором остановились. Таймер текущего вопроса продолжает идти.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {attempt ? (
+          <Button asChild size="lg">
+            <Link to={`/candidate/test/${attempt.id}`}>
+              Продолжить тест <ArrowRight />
+            </Link>
+          </Button>
+        ) : (
+          <Button asChild variant="outline">
+            <Link to="/candidate/grade">Открыть «Категория и грейд»</Link>
+          </Button>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function OnboardingDone({ me }: { me: CandidateProfile }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardDescription className="flex items-center gap-2">
+          <Award className="size-4 text-primary" aria-hidden /> Онбординг пройден
+        </CardDescription>
+        {me.category && (
+          <CategoryBadge specialization={me.category.specialization} grade={me.category.grade} variant="solid" size="lg" />
+        )}
+      </CardHeader>
+      <CardContent className="space-y-4 text-sm text-muted-foreground">
+        <p>Категория получена, работодатели видят вас в поиске. Сменить грейд можно на экране «Категория и грейд».</p>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild>
+            <Link to="/candidate/grade">
+              Категория и грейд <ArrowRight />
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link to="/candidate">В кабинет</Link>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function Wizard({ me, initialStep }: { me: CandidateProfile; initialStep: number }) {
+  const queryClient = useQueryClient();
+  const gradeStatus = useGradeStatus();
+  const grades = useGrades();
+  const [step, setStep] = useState(initialStep);
+  // Результат опроса есть только в ответе POST /survey/responses — после перезагрузки страницы его нет.
+  const [surveyResult, setSurveyResult] = useState<SurveyResult | null>(
+    () => queryClient.getQueryData<SurveyResult>(queryKeys.surveyResult) ?? null,
+  );
+  const [specialization, setSpecialization] = useState<string | null>(me.specialization);
+  const [grade, setGrade] = useState<Grade | null>(surveyResult?.suggested_grade ?? me.category?.grade ?? null);
+
+  const currentGrade = me.category?.grade ?? null;
+
+  return (
+    <>
       <ol className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4" aria-label="Шаги онбординга">
         {steps.map((label, index) => (
           <li
@@ -73,127 +167,58 @@ export default function OnboardingPage() {
           </li>
         ))}
       </ol>
-      <Progress value={((step + 1) / steps.length) * 100} className="mb-6" />
+      <Progress value={((step + 1) / steps.length) * 100} className="mb-6" aria-label="Прогресс онбординга" />
 
       <Card>
         {step === 0 && (
-          <>
-            <CardHeader>
-              <CardTitle>Чем вы занимаетесь каждый день?</CardTitle>
-              <CardDescription>Вопрос 1 из 9 · можно выбрать несколько вариантов</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-2">
-              {dailyActivities.map((activity) => (
-                <label key={activity} className="flex items-center gap-3 rounded-lg border px-4 py-3 text-sm hover:bg-muted">
-                  <Checkbox /> {activity}
-                </label>
-              ))}
-              <div className="mt-3 flex items-center gap-3 rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
-                <Upload className="size-4 text-primary" aria-hidden />
-                Необязательно: загрузите PDF-резюме, чтобы предзаполнить профиль.
-              </div>
-            </CardContent>
-          </>
+          <SurveyStep
+            onDone={(result) => {
+              setSurveyResult(result);
+              setGrade((current) => current ?? result.suggested_grade);
+              setStep(1);
+            }}
+          />
         )}
-
         {step === 1 && (
-          <>
-            <CardHeader>
-              <CardTitle>Мы предлагаем специализацию</CardTitle>
-              <CardDescription>Рассчитано по ответам опроса. Подтвердите или выберите другую.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-3 sm:grid-cols-2">
-              {recommended.map((option) => (
-                <button
-                  key={option.slug}
-                  type="button"
-                  onClick={() => setSpecialization(option.slug)}
-                  aria-pressed={specialization === option.slug}
-                  className={cn(
-                    "rounded-xl border p-4 text-left transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40",
-                    specialization === option.slug ? "border-primary bg-primary-tint" : "hover:bg-muted",
-                  )}
-                >
-                  <div className="font-mono font-bold">{SPECIALIZATION_FULL_LABELS[option.slug]}</div>
-                  <div className="mt-2 flex items-center gap-2">
-                    <Progress value={option.weight * 100} className="h-1.5" />
-                    <span className="font-mono text-xs tabular-nums">{Math.round(option.weight * 100)}%</span>
-                  </div>
-                </button>
-              ))}
-            </CardContent>
-          </>
+          <SpecializationStep
+            surveyResult={surveyResult}
+            current={specialization}
+            onBack={() => setStep(0)}
+            onSurveyRequired={() => setStep(0)}
+            onConfirmed={(slug) => {
+              setSpecialization(slug);
+              setStep(2);
+            }}
+          />
         )}
-
         {step === 2 && (
-          <>
-            <CardHeader>
-              <CardTitle>Выберите грейд для теста</CardTitle>
-              <CardDescription>
-                Подсказка по вашему стажу (2 года): <b>Middle</b>. Если тест не пройден — предложим грейд ниже.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-3 sm:grid-cols-4">
-              {Object.entries(GRADE_LABELS).map(([slug, label]) => (
-                <button
-                  key={slug}
-                  type="button"
-                  onClick={() => setGrade(slug)}
-                  aria-pressed={grade === slug}
-                  className={cn(
-                    "rounded-xl border p-4 text-left transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40",
-                    grade === slug ? "border-primary bg-primary-tint" : "hover:bg-muted",
-                  )}
-                >
-                  <div className="font-mono text-lg font-extrabold">{label}</div>
-                  <div className="text-xs text-muted-foreground">{gradeHints[slug]}</div>
-                </button>
-              ))}
-            </CardContent>
-          </>
+          <GradeStep
+            selected={grade}
+            suggested={surveyResult?.suggested_grade ?? null}
+            currentGrade={currentGrade}
+            cooldownDays={gradeStatus.data?.cooldown_days ?? null}
+            onSelect={setGrade}
+            onBack={() => setStep(1)}
+            onNext={() => setStep(3)}
+          />
         )}
-
-        {step === 3 && (
-          <>
-            <CardHeader>
-              <CardTitle>Перед тестом</CardTitle>
-              <CardDescription>
-                {SPECIALIZATION_FULL_LABELS[specialization]} · {GRADE_LABELS[grade]}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <div className="flex flex-wrap gap-2">
-                <Badge variant="soft">
-                  <Clock /> ~25 минут
-                </Badge>
-                <Badge variant="muted">по одному вопросу на экран</Badge>
-                <Badge variant="muted">вернуться назад нельзя</Badge>
-              </div>
-              <p className="text-muted-foreground">
-                Задания подбираются адаптивно: все кандидаты специализации оцениваются на одной шкале, поэтому результаты
-                сопоставимы. Время ответа считает сервер. Повтор на тот же грейд — не раньше чем через 30 дней.
-              </p>
-            </CardContent>
-          </>
+        {step === 3 && specialization && grade && (
+          <BeforeTestStep
+            specialization={specialization}
+            grade={grade}
+            purpose={purposeFor(grade, gradeStatus.data, grades.data, currentGrade)}
+            onBack={() => setStep(2)}
+          />
         )}
-
-        <CardFooter className="justify-between gap-2 border-t border-border-subtle pt-5">
-          <Button variant="ghost" onClick={() => setStep((current) => Math.max(0, current - 1))} disabled={step === 0}>
-            <ArrowLeft /> Назад
-          </Button>
-          {step < steps.length - 1 ? (
-            <Button onClick={() => setStep((current) => current + 1)}>
-              Далее <ArrowRight />
-            </Button>
-          ) : (
-            // TODO: POST /tests/attempts {specialization, grade_target, purpose} → переход на попытку
-            <Button asChild>
-              <Link to="/candidate/test/demo">
-                Начать тест <ArrowRight />
-              </Link>
-            </Button>
-          )}
-        </CardFooter>
+        {step === 3 && !(specialization && grade) && (
+          <CardContent>
+            <ErrorState
+              title="Не хватает данных для теста"
+              description="Подтвердите специализацию и выберите грейд."
+              onRetry={() => setStep(specialization ? 2 : 1)}
+            />
+          </CardContent>
+        )}
       </Card>
     </>
   );

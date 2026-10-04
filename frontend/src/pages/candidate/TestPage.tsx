@@ -1,107 +1,301 @@
-import { Clock } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { AlertTriangle, Clock, EyeOff, Loader2, Send } from "lucide-react";
+import { useEffect, useRef, useState, type ClipboardEvent, type MouseEvent } from "react";
+import { Link, Navigate, useNavigate, useParams } from "react-router";
+import { CategoryBadge } from "@/components/CategoryBadge";
+import { ItemAnswerInput } from "@/components/candidate/ItemAnswerInput";
+import { ErrorState } from "@/components/ErrorState";
+import { FormAlert } from "@/components/FormAlert";
+import { SkeletonCards } from "@/components/SkeletonCards";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { apiError } from "@/lib/api-error";
+import { formatTimer } from "@/lib/format";
+import { type AnswerDraft, emptyDraft, isDraftEmpty, toPayload } from "@/lib/test-answer";
+import {
+  type AnswerPayload,
+  type CurrentItem,
+  queryKeys,
+  useAttempt,
+  useCurrentItem,
+  useSubmitAnswer,
+} from "@/lib/testing-queries";
 import { cn } from "@/lib/utils";
-// MOCK: заменить на GET /tests/attempts/{id}/current (без ключа ответа)
-import { mockTestQuestion } from "@/mocks/candidate";
 
-// Отображение таймера на клиенте; реальное время ответа считает сервер (docs/implementation.md §10).
-const DEMO_DURATION_SEC = 25 * 60;
+// Автоотправка срабатывает на секунду раньше серверного дедлайна, чтобы ответ успел дойти и не стал «поздним».
+const AUTO_SUBMIT_LEAD_MS = 1000;
+const TICK_MS = 250;
+// Последние секунды таймер подсвечивается.
+const WARN_SECONDS = 15;
 
-function formatTimer(totalSeconds: number): string {
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+/**
+ * Считает уходы со вкладки (visibilitychange → hidden и blur окна). Одно переключение вкладки
+ * вызывает оба события — считаем его один раз, пока пользователь не вернётся.
+ */
+function useFocusLossCounter() {
+  const [count, setCount] = useState(0);
+  const awayRef = useRef(false);
+
+  useEffect(() => {
+    const leave = () => {
+      if (awayRef.current) return;
+      awayRef.current = true;
+      setCount((current) => current + 1);
+    };
+    const back = () => {
+      awayRef.current = false;
+    };
+    const onVisibility = () => (document.visibilityState === "hidden" ? leave() : back());
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("blur", leave);
+    window.addEventListener("focus", back);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("blur", leave);
+      window.removeEventListener("focus", back);
+    };
+  }, []);
+
+  return { count, reset: () => setCount(0) };
 }
 
 export default function TestPage() {
-  const { attemptId } = useParams();
+  const params = useParams();
+  const attemptId = Number(params.attemptId);
   const navigate = useNavigate();
-  const [selected, setSelected] = useState<number | null>(null);
-  const [secondsLeft, setSecondsLeft] = useState(DEMO_DURATION_SEC);
-  const question = mockTestQuestion;
+  const queryClient = useQueryClient();
+  const attempt = useAttempt(attemptId);
+  const current = useCurrentItem(attemptId);
+  const answer = useSubmitAnswer(attemptId);
+  const focus = useFocusLossCounter();
+  const [lateNotice, setLateNotice] = useState(false);
 
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setSecondsLeft((current) => Math.max(0, current - 1));
-    }, 1000);
-    return () => window.clearInterval(timer);
-  }, []);
+  if (!Number.isFinite(attemptId)) return <Navigate to="/candidate/grade" replace />;
 
-  const submit = () => {
-    // TODO: POST /tests/attempts/{id}/answer {item_id, response}; после последнего — на экран результата.
-    console.info("[test] TODO: submit answer", { attemptId, selected });
-    navigate(`/candidate/test/${attemptId}/result`);
+  const resultPath = `/candidate/test/${attemptId}/result`;
+
+  /** true — ответ принят; false — ошибка, можно отправить ещё раз. */
+  const submit = async (itemId: number, payload: AnswerPayload): Promise<boolean> => {
+    try {
+      const ack = await answer.mutateAsync({ itemId, response: payload, focusLostCount: focus.count });
+      focus.reset();
+      setLateNotice(ack.late);
+      if (ack.finished) {
+        // Профиль и grade-status (ключи под ["candidates", "me"]) изменились: новая категория, история.
+        void queryClient.invalidateQueries({ queryKey: queryKeys.me });
+        void navigate(resultPath, { replace: true });
+      } else {
+        await queryClient.invalidateQueries({ queryKey: queryKeys.currentItem(attemptId) });
+      }
+      return true;
+    } catch (err) {
+      // Задание уже сменилось (ответ из другой вкладки или по дедлайну) — просто берём актуальное.
+      if (apiError(err).code === "not_current_item") {
+        answer.reset();
+        await queryClient.invalidateQueries({ queryKey: queryKeys.currentItem(attemptId) });
+        return true;
+      }
+      return false;
+    }
   };
+
+  if (current.isPending) {
+    return (
+      <div className="mx-auto max-w-3xl">
+        <SkeletonCards count={1} />
+      </div>
+    );
+  }
+  if (current.isError) {
+    const { status, message } = apiError(current.error);
+    return (
+      <div className="mx-auto max-w-3xl space-y-4">
+        <ErrorState
+          title={status === 404 ? "Попытка не найдена" : "Не удалось загрузить вопрос"}
+          description={message}
+          onRetry={status === 404 ? undefined : () => void current.refetch()}
+        />
+        <Button asChild variant="ghost">
+          <Link to="/candidate/grade">К категории и грейду</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  const { item, localDeadlineMs } = current.data;
+  if (item.finished) return <Navigate to={resultPath} replace />;
+
+  const position = item.position ?? (attempt.data ? attempt.data.answered + 1 : null);
+  const total = item.total_estimate ?? attempt.data?.total_estimate ?? null;
+  const busy = answer.isPending || current.isFetching;
 
   return (
     <div className="mx-auto max-w-3xl">
       <h1 className="sr-only">Прохождение теста</h1>
-      <div className="mb-6 space-y-3">
-        <div className="flex items-center justify-between gap-4">
-          <span className="font-mono text-sm font-medium">
-            Вопрос {question.index} из {question.total}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        {attempt.data ? (
+          <CategoryBadge specialization={attempt.data.specialization} grade={attempt.data.grade_target} />
+        ) : (
+          <span />
+        )}
+        {position !== null && (
+          <span className="font-mono text-sm font-medium tabular-nums">
+            Вопрос {position}
+            {total !== null && ` из ~${Math.max(total, position)}`}
           </span>
-          <span
-            className={cn(
-              "inline-flex items-center gap-2 rounded-full border px-3 py-1 font-mono text-sm font-bold tabular-nums",
-              secondsLeft < 120 ? "border-destructive" : "border-border",
-            )}
-            aria-label="Осталось времени"
-          >
-            <Clock className="size-4 text-primary" aria-hidden />
-            {formatTimer(secondsLeft)}
-          </span>
-        </div>
-        <Progress value={(question.index / question.total) * 100} />
+        )}
       </div>
+      {position !== null && total !== null && (
+        <Progress value={(position / Math.max(total, position)) * 100} className="mb-6" aria-label="Прогресс теста" />
+      )}
 
-      <Card>
-        <CardHeader>
-          <Badge variant="soft">{question.topic}</Badge>
-          <CardTitle className="mt-2 text-xl">{question.text}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <pre className="overflow-x-auto rounded-lg bg-ink p-4 text-sm leading-relaxed text-ink-foreground">
-            <code>{question.code}</code>
-          </pre>
-          <div role="radiogroup" aria-label="Варианты ответа" className="grid gap-2">
-            {question.options.map((option, index) => (
-              <button
-                key={option}
-                type="button"
-                role="radio"
-                aria-checked={selected === index}
-                onClick={() => setSelected(index)}
+      {lateNotice && (
+        <div role="status" className="mb-4 flex items-start gap-2 rounded-lg bg-destructive-tint px-4 py-3 text-sm">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden />
+          Ответ на прошлый вопрос пришёл после окончания времени и засчитан как неверный.
+        </div>
+      )}
+
+      <ItemScreen
+        // Новое задание — новый экземпляр: черновик ответа, таймер и защита от повторной отправки сбрасываются.
+        key={`${item.item_id}:${current.dataUpdatedAt}`}
+        item={item}
+        localDeadlineMs={localDeadlineMs}
+        busy={busy}
+        loadingNext={current.isFetching && !answer.isPending}
+        error={answer.isError ? apiError(answer.error).message : null}
+        focusLost={focus.count}
+        onSubmit={submit}
+      />
+    </div>
+  );
+}
+
+interface ItemScreenProps {
+  item: CurrentItem;
+  localDeadlineMs: number | null;
+  busy: boolean;
+  loadingNext: boolean;
+  error: string | null;
+  focusLost: number;
+  onSubmit: (itemId: number, payload: AnswerPayload) => Promise<boolean>;
+}
+
+const blockCopy = (event: ClipboardEvent | MouseEvent) => event.preventDefault();
+
+function ItemScreen({ item, localDeadlineMs, busy, loadingNext, error, focusLost, onSubmit }: ItemScreenProps) {
+  const kind = item.kind ?? "single_choice";
+  const [draft, setDraft] = useState<AnswerDraft>(() => emptyDraft(item));
+  const [now, setNow] = useState(() => Date.now());
+  const submittedRef = useRef(false);
+  const autoTriedRef = useRef(false);
+
+  const deadline = localDeadlineMs === null ? null : localDeadlineMs - AUTO_SUBMIT_LEAD_MS;
+
+  useEffect(() => {
+    if (deadline === null) return;
+    const timer = window.setInterval(() => setNow(Date.now()), TICK_MS);
+    return () => window.clearInterval(timer);
+  }, [deadline]);
+
+  const remainingSec = deadline === null ? null : Math.max(0, Math.ceil((deadline - now) / 1000));
+  const expired = remainingSec === 0;
+  const limitSec = item.time_limit_sec ?? null;
+
+  const send = async () => {
+    if (submittedRef.current || item.item_id == null) return;
+    submittedRef.current = true;
+    const ok = await onSubmit(item.item_id, toPayload(kind, draft));
+    if (!ok) submittedRef.current = false;
+  };
+
+  // Время вышло — отправляем то, что успели выбрать (или пустой ответ). Автоматически — один раз;
+  // если запрос упал, кандидат может отправить вручную.
+  useEffect(() => {
+    if (!expired || autoTriedRef.current) return;
+    autoTriedRef.current = true;
+    void send();
+  });
+
+  const canSubmit = !busy && (expired || !isDraftEmpty(kind, draft));
+
+  return (
+    <Card>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (canSubmit) void send();
+        }}
+        className="flex flex-col gap-5"
+      >
+        <CardHeader className="gap-3">
+          <div className="flex items-center justify-between gap-3">
+            {kind === "open_approach" ? <Badge variant="soft">Открытый вопрос</Badge> : <span />}
+            {remainingSec !== null && (
+              <span
+                role="timer"
+                aria-label="Осталось времени на вопрос"
                 className={cn(
-                  "flex items-center gap-3 rounded-lg border px-4 py-3 text-left font-mono text-sm transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40",
-                  selected === index ? "border-primary bg-primary-tint text-primary" : "hover:bg-muted",
+                  "inline-flex items-center gap-2 rounded-full border px-3 py-1 font-mono text-sm font-bold tabular-nums",
+                  remainingSec <= WARN_SECONDS ? "border-destructive text-destructive-strong" : "border-border",
                 )}
               >
-                <span
-                  className={cn(
-                    "flex size-6 shrink-0 items-center justify-center rounded-full border text-xs font-bold",
-                    selected === index ? "border-primary bg-primary text-primary-foreground" : "border-border",
-                  )}
-                >
-                  {String.fromCharCode(65 + index)}
-                </span>
-                {option}
-              </button>
-            ))}
+                <Clock className="size-4 text-primary" aria-hidden />
+                {formatTimer(remainingSec)}
+              </span>
+            )}
           </div>
+          {remainingSec !== null && limitSec && (
+            <Progress
+              value={(remainingSec / limitSec) * 100}
+              className="h-1"
+              indicatorClassName={cn(remainingSec <= WARN_SECONDS && "bg-destructive", "duration-300")}
+              aria-label="Оставшееся время"
+            />
+          )}
+        </CardHeader>
+
+        {/* Копирование и контекстное меню в тексте вопроса отключены (§10.6). */}
+        <CardContent className="space-y-4">
+          <div className="space-y-4 select-none" onCopy={blockCopy} onCut={blockCopy} onContextMenu={blockCopy}>
+            <p className="font-mono text-lg leading-snug font-bold whitespace-pre-line">{item.stem}</p>
+            {item.code && (
+              <div className="overflow-hidden rounded-lg bg-ink text-ink-foreground">
+                {item.code_language && (
+                  <div className="border-b border-ink-foreground/15 px-4 py-1.5 font-mono text-xs opacity-70">
+                    {item.code_language}
+                  </div>
+                )}
+                <pre className="overflow-x-auto p-4 font-mono text-sm leading-relaxed">
+                  <code>{item.code}</code>
+                </pre>
+              </div>
+            )}
+          </div>
+          <div onContextMenu={blockCopy}>
+            <ItemAnswerInput item={item} kind={kind} draft={draft} onChange={setDraft} disabled={busy || expired} />
+          </div>
+          <FormAlert message={error} />
         </CardContent>
-        <CardFooter className="justify-between gap-3 border-t border-border-subtle pt-5">
-          <span className="text-xs text-muted-foreground">Вернуться к предыдущему вопросу нельзя</span>
-          <Button onClick={submit} disabled={selected === null}>
-            Ответить
+
+        <CardFooter className="flex-wrap justify-between gap-3 border-t border-border-subtle pt-5">
+          <span className="flex flex-col gap-1 text-xs text-muted-foreground">
+            <span>Вернуться к предыдущему вопросу нельзя</span>
+            {focusLost > 0 && (
+              <span className="inline-flex items-center gap-1.5">
+                <EyeOff className="size-3.5" aria-hidden /> Уходов со вкладки на этом вопросе: {focusLost} — отмечается,
+                но не штрафуется
+              </span>
+            )}
+          </span>
+          <Button type="submit" disabled={!canSubmit}>
+            {busy ? <Loader2 className="animate-spin" aria-hidden /> : <Send aria-hidden />}
+            {loadingNext ? "Загружаем следующий…" : expired && busy ? "Время вышло, отправляем…" : "Ответить"}
           </Button>
         </CardFooter>
-      </Card>
-    </div>
+      </form>
+    </Card>
   );
 }

@@ -45,3 +45,23 @@ export function specializationLabel(slug: string): string {
 export function gradeLabel(slug: string): string {
   return GRADE_LABELS[slug] ?? slug;
 }
+
+export const ATTEMPT_PURPOSE_LABELS: Record<string, string> = {
+  calibration: "Калибровка",
+  upgrade: "Повышение",
+  downgrade: "Понижение",
+  vacancy_preview: "Проверка под вакансию",
+};
+
+export const ATTEMPT_STATUS_LABELS: Record<string, string> = {
+  in_progress: "Идёт",
+  completed: "Завершена",
+  abandoned: "Прервана",
+  expired: "Истекла",
+};
+
+export const ATTEMPT_RESULT_LABELS: Record<string, string> = {
+  fail: "Не пройден",
+  pass: "Пройден",
+  confident_pass: "Пройден уверенно",
+};
