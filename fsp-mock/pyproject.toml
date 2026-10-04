@@ -1,0 +1,25 @@
+[project]
+name = "itscout-fsp-mock"
+version = "0.1.0"
+description = "Mock реестра ФСП: участники, результаты соревнований, разряды (наша модель данных, §9.1)"
+requires-python = ">=3.12,<3.13"
+license = { text = "MIT" }
+dependencies = [
+    "fastapi[standard]>=0.142.2",
+    "pydantic-settings>=2.15.0",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.16.10",
+]
