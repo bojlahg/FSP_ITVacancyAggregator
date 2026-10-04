@@ -64,10 +64,14 @@ def _error(status: int, code: str, message: str, details: Any = None) -> JSONRes
     return JSONResponse(status_code=status, content=body.model_dump())
 
 
+def app_error_response(exc: AppError) -> JSONResponse:
+    return _error(exc.status_code, exc.code, exc.message, exc.details)
+
+
 def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
     async def app_error_handler(_: Request, exc: AppError) -> JSONResponse:
-        return _error(exc.status_code, exc.code, exc.message, exc.details)
+        return app_error_response(exc)
 
     @app.exception_handler(RequestValidationError)
     async def validation_error_handler(_: Request, exc: RequestValidationError) -> JSONResponse:

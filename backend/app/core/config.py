@@ -20,6 +20,18 @@ class Settings(BaseSettings):
     jwt_secret: str = DEV_JWT_SECRET
     jwt_access_ttl_minutes: int = 15
     refresh_ttl_days: int = 30
+    refresh_cookie_name: str = "itscout_refresh"
+    # Secure-cookie включаем, когда прод работает по HTTPS
+    cookie_secure: bool = False
+    email_token_ttl_hours: int = 24
+    policy_version: str = "2026-10-05"
+
+    # Ограничение частоты на /auth/*: запросов в окне на один IP
+    auth_rate_limit: int = 20
+    auth_rate_window_seconds: int = 60
+
+    demo_candidate_email: str = "demo-candidate@itscout.ru"
+    demo_employer_email: str = "demo-employer@itscout.ru"
 
     email_backend: Literal["console", "smtp", "unisender"] = "console"
     email_verification_required: bool = False

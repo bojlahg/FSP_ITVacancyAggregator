@@ -30,7 +30,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Регистрация по email */
+        /** Регистрация по email: согласия, письмо подтверждения, сразу выдаётся сессия */
         post: operations["register_api_v1_auth_register_post"];
         delete?: never;
         options?: never;
@@ -115,7 +115,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Новый access-токен по refresh cookie (с ротацией) */
+        /** Новый access-токен по refresh cookie (с ротацией; повторное использование отзывает все сессии) */
         post: operations["refresh_api_v1_auth_refresh_post"];
         delete?: never;
         options?: never;
@@ -234,6 +234,23 @@ export interface paths {
         };
         /** Справочник софт-скиллов */
         get: operations["list_soft_skills_api_v1_catalog_soft_skills_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/team-roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Роли в команде */
+        get: operations["list_team_roles_api_v1_catalog_team_roles_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2190,6 +2207,8 @@ export interface components {
             name: string;
             /** Order */
             order: number;
+            /** Experience Hint */
+            experience_hint: string;
         };
         /** GradeStatus */
         GradeStatus: {
@@ -2809,6 +2828,10 @@ export interface components {
             has_test: boolean;
             /** Adjacent */
             adjacent: string[];
+            /** Description */
+            description: string;
+            /** Stack Modules */
+            stack_modules: string[];
         };
         /** SpecializationScore */
         SpecializationScore: {
@@ -2935,6 +2958,13 @@ export interface components {
         /** TaskSubmit */
         TaskSubmit: {
             response: components["schemas"]["AnswerPayload"];
+        };
+        /** TeamRoleOut */
+        TeamRoleOut: {
+            /** Slug */
+            slug: string;
+            /** Name */
+            name: string;
         };
         /**
          * TemplateStatus
@@ -3127,6 +3157,15 @@ export interface operations {
                     "application/json": components["schemas"]["TokenResponse"];
                 };
             };
+            /** @description Некорректный запрос */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Конфликт состояния */
             409: {
                 headers: {
@@ -3189,6 +3228,15 @@ export interface operations {
             };
             /** @description Ошибка валидации данных */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Слишком много запросов */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3327,6 +3375,15 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            /** @description Слишком много запросов */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
         };
     };
     refresh_api_v1_auth_refresh_post: {
@@ -3356,6 +3413,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
     };
     logout_api_v1_auth_logout_post: {
@@ -3374,6 +3440,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -3516,6 +3591,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SoftSkillOut"][];
+                };
+            };
+        };
+    };
+    list_team_roles_api_v1_catalog_team_roles_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamRoleOut"][];
                 };
             };
         };

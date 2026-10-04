@@ -12,6 +12,7 @@ from app.modules.auth.router import me_router
 from app.modules.auth.router import router as auth_router
 from app.modules.candidates.router import router as candidates_router
 from app.modules.catalog.router import router as catalog_router
+from app.modules.catalog.service import get_catalog
 from app.modules.categories.router import router as categories_router
 from app.modules.employers.router import router as employers_router
 from app.modules.fsp.router import router as fsp_router
@@ -55,6 +56,7 @@ class HealthOut(ApiModel):
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    get_catalog()  # битые справочники должны ронять старт, а не первый запрос
     app = FastAPI(
         title="ITScout API",
         version="0.1.0",

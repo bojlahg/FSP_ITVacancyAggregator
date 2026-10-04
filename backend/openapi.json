@@ -32,7 +32,7 @@
         "tags": [
           "auth"
         ],
-        "summary": "Регистрация по email",
+        "summary": "Регистрация по email: согласия, письмо подтверждения, сразу выдаётся сессия",
         "operationId": "register_api_v1_auth_register_post",
         "requestBody": {
           "content": {
@@ -51,6 +51,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Некорректный запрос",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -128,6 +138,16 @@
           },
           "422": {
             "description": "Ошибка валидации данных",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Слишком много запросов",
             "content": {
               "application/json": {
                 "schema": {
@@ -284,6 +304,16 @@
               }
             }
           },
+          "429": {
+            "description": "Слишком много запросов",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -302,7 +332,7 @@
         "tags": [
           "auth"
         ],
-        "summary": "Новый access-токен по refresh cookie (с ротацией)",
+        "summary": "Новый access-токен по refresh cookie (с ротацией; повторное использование отзывает все сессии)",
         "operationId": "refresh_api_v1_auth_refresh_post",
         "responses": {
           "200": {
@@ -324,6 +354,16 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
         }
       }
@@ -342,6 +382,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -549,6 +599,31 @@
                   },
                   "type": "array",
                   "title": "Response List Soft Skills Api V1 Catalog Soft Skills Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/catalog/team-roles": {
+      "get": {
+        "tags": [
+          "catalog"
+        ],
+        "summary": "Роли в команде",
+        "operationId": "list_team_roles_api_v1_catalog_team_roles_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TeamRoleOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Team Roles Api V1 Catalog Team Roles Get"
                 }
               }
             }
@@ -8551,13 +8626,18 @@
           "order": {
             "type": "integer",
             "title": "Order"
+          },
+          "experience_hint": {
+            "type": "string",
+            "title": "Experience Hint"
           }
         },
         "type": "object",
         "required": [
           "slug",
           "name",
-          "order"
+          "order",
+          "experience_hint"
         ],
         "title": "GradeOut"
       },
@@ -10254,6 +10334,17 @@
             },
             "type": "array",
             "title": "Adjacent"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "stack_modules": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stack Modules"
           }
         },
         "type": "object",
@@ -10261,7 +10352,9 @@
           "slug",
           "name",
           "has_test",
-          "adjacent"
+          "adjacent",
+          "description",
+          "stack_modules"
         ],
         "title": "SpecializationOut"
       },
@@ -10619,6 +10712,24 @@
           "response"
         ],
         "title": "TaskSubmit"
+      },
+      "TeamRoleOut": {
+        "properties": {
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "slug",
+          "name"
+        ],
+        "title": "TeamRoleOut"
       },
       "TemplateStatus": {
         "type": "string",
