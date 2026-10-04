@@ -56,7 +56,7 @@
 | Frontend | React 19, Vite, TypeScript, React Router, TanStack Query, react-hook-form + zod, Tailwind и shadcn/ui, Recharts |
 | Контракт API | OpenAPI из FastAPI → `openapi-typescript` и `openapi-fetch` на фронте |
 | LLM | Yandex AI Studio (OpenAI-совместимый endpoint, ключ как в DealDojo); откат на словарь |
-| Почта | SMTP; в dev — Mailpit |
+| Почта | Unisender Go через HTTPS API (исходящие SMTP-порты на VDS закрыты хостером); в dev — Mailpit через SMTP. Интерфейс `EmailSender` с реализациями `unisender`, `smtp`, `console` |
 | Инфраструктура | Docker Compose, Caddy (HTTPS), GitHub Actions → деплой по SSH |
 | Тесты | pytest, Playwright (e2e) |
 | Лицензия | MIT |
@@ -88,7 +88,7 @@
         └───────┬───────────────────────┬────────────────────┘        │  результаты,     │
                 │                       │                             │  разряды)        │
           PostgreSQL 16          Yandex AI Studio (LLM)               └──────────────────┘
-                                 SMTP                                  keycloak realm "fsp" (P1)
+                                 Unisender Go (HTTPS)                  keycloak realm "fsp" (P1)
 ```
 
 - **Модульный монолит.** Каждый модуль — папка с `router.py`, `service.py`, `models.py`, `schemas.py`. Модули вызывают чужие `service`, но не трогают чужие модели напрямую.
@@ -761,7 +761,7 @@ POST /admin/reseed ; POST /admin/demo/reset-cooldowns     только при DE
 - **CI** (на каждый push): ruff, pytest, сборка фронта, проверка, что `openapi.json` актуален.
 - **Deploy** (push в `master`): rsync репозитория на сервер → `docker compose up -d --build` → миграции → smoke-тест `/health` и Playwright по демо-сценарию.
 - **HTTPS:** после появления A-записи `itscout.ru` в `Caddyfile` включается блок домена.
-- **Почта:** SMTP-ящик `noreply@itscout.ru`, записи SPF/DKIM в DNS. Провайдер — открытый вопрос (раздел 23).
+- **Почта:** Unisender Go, отправитель `noreply@itscout.ru`, домен подтверждён записями SPF, DKIM и DMARC. Ключ `UNISENDER_API_KEY` хранится в GitHub Secrets, CI пишет его в `.env` на сервере. VDSina блокирует исходящие 25/465/587, поэтому только HTTPS API.
 - **Запуск с нуля:** `docs/deploy.md` — `cp .env.example .env && docker compose up -d` поднимает всё, включая seed.
 
 ---
@@ -794,7 +794,7 @@ POST /admin/reseed ; POST /admin/demo/reset-cooldowns     только при DE
 |---|---|---|---|---|
 | T01 | Каркас репо, Dockerfile'ы, compose (prod и dev), Caddy, CI/CD на сервер, `/health` | — | 1 | push в master разворачивает сборку на сервере |
 | T02 | Схема БД (раздел 14), модели, миграции, Pydantic-схемы и заглушки роутеров всего API (раздел 15) | — | 3 | `openapi.json` покрывает все эндпоинты; миграции применяются с нуля |
-| T03 | Auth: регистрация с согласиями, подтверждение почты, JWT и refresh, роли, ограничение частоты, SMTP и Mailpit | T02 | 2 | тесты на неподтверждённый email, refresh, роли |
+| T03 | Auth: регистрация с согласиями, подтверждение почты, JWT и refresh, роли, ограничение частоты, `EmailSender` (Unisender Go API, SMTP для Mailpit, console) | T02 | 2 | тесты на неподтверждённый email, refresh, роли |
 | T04 | `testing/engine`: загрузка шаблонов, генераторы, blueprint, MST, экспозиция, EAP, решение о грейде, подсчёты по темам и навыкам + API попыток | T02 | 3 | unit-тесты; в симуляции точность грейда ≥ 80% на синтетике |
 | T05 | Справочники YAML: специализации, грейды, онтология (~150), отрасли, софт-скиллы, компетенции ФСП | — | 1 | ревью человеком |
 | T06 | Опрос → специализация; правила грейда и интервалы (6.3); категории и перцентили; `candidate_search_index` | T04 | 2 | тесты на все переходы из таблицы 6.3 |
@@ -819,10 +819,10 @@ POST /admin/reseed ; POST /admin/demo/reset-cooldowns     только при DE
 
 | Вопрос | Нужно для | Срок |
 |---|---|---|
-| SMTP-провайдер для `noreply@itscout.ru`: Яндекс 360, Mail.ru для бизнеса или Unisender Go | T03 | 5.10 |
+| ~~Почтовый провайдер~~ — Unisender Go (HTTPS API); пользователь подтверждает домен и кладёт ключ в GitHub Secrets | T03 | решено |
 | A-запись `itscout.ru` → `94.103.87.151` | HTTPS | 5.10 |
 | Ключ Yandex AI Studio: берём из DealDojo или заводим новый | T08 | 6.10 |
-| ~~GitHub-репозиторий~~ — `bojlahg/FSP_ITVacancyAggregator`, приватный до конца разработки. Открыть или дать доступ жюри **до отправки ссылки 11.10**. С первого коммита — ни одного секрета в истории | T01 | решено |
+| ~~GitHub-репозиторий~~ — `bojlahg/FSP_ITVacancyAggregator`, приватный до конца разработки. Делаем публичным **11.10 перед отправкой ссылки**. С первого коммита — ни одного секрета в истории | T01 | решено |
 | Поднимаем ли Keycloak на проде (около 700 МБ RAM) — по умолчанию да, профиль `fsp` | T17 | 8.10 |
 | **У экспертов ФСП:** дисциплины, есть ли роль в команде, как устроены разряды, какие поля ФСП ID будут в токене | раздел 9 | в течение недели |
 | Кто из команды размечает 100 пар для экспертной валидации | 12.2 | 9.10 |
