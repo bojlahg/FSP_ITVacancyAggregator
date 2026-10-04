@@ -42,6 +42,18 @@ services:
     volumes:
       - fspdata:/data/fsp:ro
 
+  # Только отправка почты от noreply@itscout.ru с подписью DKIM (порт 25 у VDSina открыт по запросу)
+  mail:
+    image: boky/postfix:latest
+    restart: unless-stopped
+    environment:
+      HOSTNAME: itscout.ru
+      ALLOWED_SENDER_DOMAINS: itscout.ru
+      DKIM_AUTOGENERATE: "true"
+      DKIM_SELECTOR: mail
+    volumes:
+      - dkim:/etc/opendkim/keys
+
   web:
     build:
       context: ..
@@ -63,3 +75,4 @@ volumes:
   fspdata:
   caddy_data:
   caddy_config:
+  dkim:

@@ -23,8 +23,7 @@
 	import site
 }
 
-# Блок с доменом включаем, когда A-запись itscout.ru укажет на сервер:
-# Caddy сам выпустит сертификат Let's Encrypt и включит редирект на HTTPS.
-# itscout.ru, www.itscout.ru {
-# 	import site
-# }
+# Домен: Caddy сам выпускает сертификат Let's Encrypt и редиректит HTTP → HTTPS. www добавить после A-записи.
+itscout.ru {
+	import site
+}
