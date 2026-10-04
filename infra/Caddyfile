@@ -1,0 +1,21 @@
+(site) {
+	encode zstd gzip
+	handle /health {
+		respond "ok" 200
+	}
+	handle {
+		root * /srv/site
+		file_server
+	}
+}
+
+# Доступ по IP (и любой хост) по HTTP — работает без DNS.
+:80 {
+	import site
+}
+
+# Блок с доменом включаем, когда A-запись itscout.ru укажет на сервер:
+# Caddy сам выпустит сертификат Let's Encrypt и включит редирект на HTTPS.
+# itscout.ru, www.itscout.ru {
+# 	import site
+# }
