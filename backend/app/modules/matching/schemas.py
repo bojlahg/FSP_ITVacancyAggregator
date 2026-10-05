@@ -80,11 +80,23 @@ class SalaryBucket(ApiModel):
     count: int
 
 
+class SalaryMarketCheck(ApiModel):
+    verdict: Literal["ok", "below_market", "suspicious_high", "unknown"] = Field(
+        description="ok — в рынке; below_market — покрывает мало ожиданий категории; "
+        "suspicious_high — нижняя граница намного выше медианы ожиданий (признак вакансии-приманки); "
+        "unknown — мало данных"
+    )
+    coverage: float | None = Field(description="Доля ожиданий категории, которые покрывает верхняя граница")
+    median_expectation: int | None
+    message: str
+
+
 class SalaryCoverage(ApiModel):
     category: CategoryRef
     coverage: float = Field(description="Доля кандидатов категории с ожиданиями ≤ верхней границы вилки")
     median_expectation: int | None
     histogram: list[SalaryBucket]
+    market: SalaryMarketCheck
 
 
 class CategoryCatalogItem(ApiModel):

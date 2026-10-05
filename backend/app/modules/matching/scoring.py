@@ -24,6 +24,7 @@ class MatchingRules(BaseModel):
     conditions: dict[str, float]
     freshness: dict[str, float]
     vps_weights: dict[str, float]
+    market: dict[str, float]
     recommendations: dict[str, int]
 
 
@@ -48,6 +49,32 @@ def vps(percentile: float | None, fsp: float, fresh: float, approach: float | No
         + w["approach"] * (approach or 0.0)
     )
     return round(value, 4)
+
+
+MarketVerdict = Literal["ok", "below_market", "suspicious_high", "unknown"]
+
+
+@dataclass(frozen=True)
+class SalaryMarket:
+    verdict: MarketVerdict
+    coverage: float | None
+    median: int | None
+
+
+def salary_market(expectations: list[int], salary_from: int, salary_to: int) -> SalaryMarket:
+    """Вилка против ожиданий категории: доля покрытых ожиданий и медиана (§24, фиктивные вакансии)."""
+    rules = get_rules().market
+    known = sorted(s for s in expectations if s)
+    if len(known) < rules["min_candidates"]:
+        return SalaryMarket("unknown", None, None)
+    coverage = round(sum(s <= salary_to for s in known) / len(known), 3)
+    middle = len(known) // 2
+    median = known[middle] if len(known) % 2 else (known[middle - 1] + known[middle]) // 2
+    if salary_from >= rules["high_ratio"] * median:
+        return SalaryMarket("suspicious_high", coverage, median)
+    if coverage < rules["low_coverage"]:
+        return SalaryMarket("below_market", coverage, median)
+    return SalaryMarket("ok", coverage, median)
 
 
 @dataclass(frozen=True)
@@ -164,11 +191,27 @@ def topic_fit(facts: CandidateFacts, need: NeedSpec) -> float:
     return sum(scores) / len(scores) if scores else 0.0
 
 
+def overqualification(facts: CandidateFacts, need: NeedSpec) -> float:
+    """Насколько θ за порогом следующего грейда: max(0, 2·Φ((θ − cut_{G+1})/scale) − 1); 0 для верхнего."""
+    blueprints = get_blueprints()
+    higher = blueprints.next_grade(need.grade)
+    if higher is None:
+        return 0.0
+    # Только за порогом: до cut_{G+1} более сильный остаётся выше (требование ТЗ к порядку внутри категории)
+    over = normal_cdf((facts.theta - blueprints.cut(higher)) / get_rules().strength["scale"])
+    return max(0.0, 2 * over - 1)
+
+
 def strength_component(facts: CandidateFacts, need: NeedSpec) -> float:
-    """0.7·Φ((θ − cut_целевого_грейда)/0.6) + 0.3·topic_fit — θ на общей шкале специализации (§8.3)."""
+    """§8.3: 0.7·ability + 0.3·topic_fit; ability = Φ((θ − cut_G)/0.6) − λ·overqualification.
+
+    Внутри грейда более сильный выше (требование ТЗ), а кандидат, по тесту уже переросший нужный грейд,
+    получает штраф λ: работодатель ищет этот грейд, а не следующий.
+    """
     rules = get_rules().strength
     cut = get_blueprints().cut(need.grade)
     ability = normal_cdf((facts.theta - cut) / rules["scale"])
+    ability = max(0.0, ability - rules["overqualified_penalty"] * overqualification(facts, need))
     return rules["ability_share"] * ability + (1 - rules["ability_share"]) * topic_fit(facts, need)
 
 
@@ -241,6 +284,13 @@ def explain(
             "adjacent_both": "смежная специализация и соседний грейд",
         }[fit]
         lines.append(_line("neutral", "category", f"{category} — {reason}{percentile}"))
+
+    # Та же величина, что штрафует ability в strength_component: объяснение совпадает со score
+    if get_rules().strength["overqualified_penalty"] > 0 and overqualification(facts, need) >= 0.3:
+        higher = get_blueprints().next_grade(need.grade) or ""
+        name = next((g.name for g in get_catalog().grades if g.slug.value == higher), higher)
+        text = f"По тесту уже ближе к уровню {name} — задачи и ожидания могут быть выше"
+        lines.append(_line("warning", "test", text))
 
     for skill, required, _value, status in details:
         name = labels.get(skill, skill)

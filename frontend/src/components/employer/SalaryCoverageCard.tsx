@@ -1,6 +1,7 @@
 import { Wallet } from "lucide-react";
 import { ErrorState } from "@/components/ErrorState";
 import { SalaryRange } from "@/components/SalaryRange";
+import { SalaryMarketNote } from "@/components/SalaryMarketNote";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -40,12 +41,15 @@ export function SalaryCoverageCard({ need }: { need: Need }) {
             onRetry={() => void coverage.refetch()}
           />
         ) : (
-          <CoverageBody
-            coverage={coverage.data.coverage}
-            median={coverage.data.median_expectation}
-            histogram={coverage.data.histogram}
-            salaryTo={need.salary_to}
-          />
+          <>
+            <CoverageBody
+              coverage={coverage.data.coverage}
+              median={coverage.data.median_expectation}
+              histogram={coverage.data.histogram}
+              salaryTo={need.salary_to}
+            />
+            <SalaryMarketNote market={coverage.data.market} className="mt-4" />
+          </>
         )}
       </CardContent>
     </Card>

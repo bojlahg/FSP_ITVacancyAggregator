@@ -6,7 +6,7 @@ from app.core.enums import DeclineReason, InvitationStatus
 from app.core.schemas import ApiModel, Explanation, SalaryRange
 from app.modules.candidates.schemas import Contacts
 from app.modules.employers.schemas import CompanyPublic
-from app.modules.matching.schemas import CandidateBrief
+from app.modules.matching.schemas import CandidateBrief, SalaryMarketCheck
 
 
 class ContactMethod(ApiModel):
@@ -43,6 +43,9 @@ class InvitationForCandidate(ApiModel):
     contact_method: ContactMethod | None = Field(description="Контакт рекрутера — после принятия приглашения")
     why_you: Explanation = Field(
         description="Почему выбрали именно вас — тот же расчёт, что видит работодатель"
+    )
+    salary_market: SalaryMarketCheck | None = Field(
+        default=None, description="Вилка против ожиданий вашей категории: в рынке, ниже или выше рынка"
     )
     status: InvitationStatus
     created_at: datetime

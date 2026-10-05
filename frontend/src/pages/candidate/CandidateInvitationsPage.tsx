@@ -9,6 +9,7 @@ import { ExplanationList } from "@/components/ExplanationList";
 import { FormAlert } from "@/components/FormAlert";
 import { FormField } from "@/components/FormField";
 import { PageHeader } from "@/components/PageHeader";
+import { SalaryMarketBadge, SalaryMarketNote } from "@/components/SalaryMarketNote";
 import { SalaryRange } from "@/components/SalaryRange";
 import { SkeletonCards } from "@/components/SkeletonCards";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -163,6 +164,7 @@ function InvitationCard({ invitation, open, onToggle, accepting, onAccept, onDec
           </span>
           <span className="flex items-center gap-3 md:flex-col md:items-end">
             <SalaryRange from={invitation.salary_from} to={invitation.salary_to} className="text-xl text-primary md:text-2xl" />
+            {invitation.salary_market && <SalaryMarketBadge market={invitation.salary_market} />}
             <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
               {open ? "Свернуть" : "Подробнее"}
               <ChevronDown className={cn("size-4 transition-transform", open && "rotate-180")} aria-hidden />
@@ -188,6 +190,7 @@ function InvitationCard({ invitation, open, onToggle, accepting, onAccept, onDec
           <CardContent id={detailsId} className="grid gap-5 md:grid-cols-2">
             <div className="space-y-4">
               <p className="text-sm leading-relaxed whitespace-pre-line">{invitation.message}</p>
+              {invitation.salary_market && <SalaryMarketNote market={invitation.salary_market} />}
               <ContactBlock invitation={invitation} />
               <CompanyBlock invitation={invitation} />
             </div>

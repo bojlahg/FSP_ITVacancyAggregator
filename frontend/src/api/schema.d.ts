@@ -2501,6 +2501,8 @@ export interface components {
             contact_method: components["schemas"]["ContactMethod"] | null;
             /** @description Почему выбрали именно вас — тот же расчёт, что видит работодатель */
             why_you: components["schemas"]["Explanation"];
+            /** @description Вилка против ожиданий вашей категории: в рынке, ниже или выше рынка */
+            salary_market?: components["schemas"]["SalaryMarketCheck"] | null;
             status: components["schemas"]["InvitationStatus"];
             /**
              * Created At
@@ -2988,6 +2990,25 @@ export interface components {
             median_expectation: number | null;
             /** Histogram */
             histogram: components["schemas"]["SalaryBucket"][];
+            market: components["schemas"]["SalaryMarketCheck"];
+        };
+        /** SalaryMarketCheck */
+        SalaryMarketCheck: {
+            /**
+             * Verdict
+             * @description ok — в рынке; below_market — покрывает мало ожиданий категории; suspicious_high — нижняя граница намного выше медианы ожиданий (признак вакансии-приманки); unknown — мало данных
+             * @enum {string}
+             */
+            verdict: "ok" | "below_market" | "suspicious_high" | "unknown";
+            /**
+             * Coverage
+             * @description Доля ожиданий категории, которые покрывает верхняя граница
+             */
+            coverage: number | null;
+            /** Median Expectation */
+            median_expectation: number | null;
+            /** Message */
+            message: string;
         };
         /**
          * SearchStatus

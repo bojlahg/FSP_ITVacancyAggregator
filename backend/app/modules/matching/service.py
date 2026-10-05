@@ -35,6 +35,7 @@ from app.modules.matching.schemas import (
     RecommendationsOut,
     SalaryBucket,
     SalaryCoverage,
+    SalaryMarketCheck,
     TalentSearchOut,
 )
 from app.modules.needs.models import HiringNeed
@@ -437,20 +438,82 @@ def _category_cards(by_category: dict, spec: scoring.NeedSpec) -> list[CategoryR
     return sorted(cards, key=lambda card: (FIT_ORDER[card.fit], -card.candidates_count))
 
 
-async def salary_coverage(db: AsyncSession, user_id: int, need_id: int) -> SalaryCoverage:
-    from app.modules.needs import service as needs_service
+MARKET_MESSAGES = {
+    "employer": {
+        "ok": (
+            "Вилка в рынке: покрывает ожидания {coverage}% кандидатов категории, "
+            "медиана ожиданий — {median} ₽."
+        ),
+        "below_market": (
+            "Вилка ниже рынка: покрывает ожидания только {coverage}% кандидатов категории "
+            "(медиана {median} ₽). Принятых приглашений и откликов будет мало."
+        ),
+        "suspicious_high": (
+            "Нижняя граница вилки вдвое выше медианы ожиданий категории ({median} ₽). Проверьте сумму: "
+            "кандидаты увидят пометку «вилка выше рынка — уточните условия»."
+        ),
+        "unknown": "Пока мало данных об ожиданиях в категории, чтобы сравнить вилку с рынком.",
+    },
+    "candidate": {
+        "ok": "Вилка в рынке: покрывает ожидания {coverage}% кандидатов вашей категории.",
+        "below_market": (
+            "Вилка ниже рынка: покрывает ожидания только {coverage}% кандидатов вашей категории "
+            "(медиана {median} ₽)."
+        ),
+        "suspicious_high": (
+            "Вилка заметно выше рынка вашей категории (медиана ожиданий {median} ₽) — "
+            "уточните условия до собеседования."
+        ),
+        "unknown": "Сравнить вилку с рынком вашей категории пока не на чем.",
+    },
+}
 
-    need = await needs_service.get_own_need(db, user_id, need_id)
-    salaries = list(
+
+async def category_expectations(db: AsyncSession, specialization: str, grade: str) -> list[int]:
+    return list(
         await db.scalars(
             select(CandidateSearchIndex.salary_min).where(
                 CandidateSearchIndex.visible.is_(True),
-                CandidateSearchIndex.specialization == need.specialization,
-                CandidateSearchIndex.grade == need.grade,
+                CandidateSearchIndex.specialization == specialization,
+                CandidateSearchIndex.grade == grade,
                 CandidateSearchIndex.salary_min.is_not(None),
             )
         )
     )
+
+
+def market_check(
+    expectations: list[int], salary_from: int, salary_to: int, audience: str
+) -> SalaryMarketCheck:
+    result = scoring.salary_market(expectations, salary_from, salary_to)
+    message = MARKET_MESSAGES[audience][result.verdict].format(
+        coverage=round((result.coverage or 0) * 100),
+        median=f"{result.median or 0:,}".replace(",", " "),
+    )
+    return SalaryMarketCheck(
+        verdict=result.verdict,
+        coverage=result.coverage,
+        median_expectation=result.median,
+        message=message,
+    )
+
+
+async def salary_market_for_candidate(
+    db: AsyncSession, candidate_id: int, salary_from: int, salary_to: int
+) -> SalaryMarketCheck | None:
+    """Вилка приглашения против ожиданий категории кандидата — пометка в приглашении."""
+    row = await db.get(CandidateSearchIndex, candidate_id)
+    if row is None:
+        return None
+    expectations = await category_expectations(db, row.specialization, row.grade)
+    return market_check(expectations, salary_from, salary_to, "candidate")
+
+
+async def salary_coverage(db: AsyncSession, user_id: int, need_id: int) -> SalaryCoverage:
+    from app.modules.needs import service as needs_service
+
+    need = await needs_service.get_own_need(db, user_id, need_id)
+    salaries = await category_expectations(db, need.specialization, need.grade)
     buckets = Counter((salary // SALARY_BUCKET) * SALARY_BUCKET for salary in salaries)
     return SalaryCoverage(
         category=categories_service.category_ref(need.specialization, need.grade.value),
@@ -460,6 +523,7 @@ async def salary_coverage(db: AsyncSession, user_id: int, need_id: int) -> Salar
             SalaryBucket(salary_from=bucket, salary_to=bucket + SALARY_BUCKET, count=count)
             for bucket, count in sorted(buckets.items())
         ],
+        market=market_check(salaries, need.salary_from, need.salary_to, "employer"),
     )
 
 

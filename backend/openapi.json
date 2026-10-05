@@ -9659,6 +9659,17 @@
             "$ref": "#/components/schemas/Explanation",
             "description": "Почему выбрали именно вас — тот же расчёт, что видит работодатель"
           },
+          "salary_market": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SalaryMarketCheck"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Вилка против ожиданий вашей категории: в рынке, ниже или выше рынка"
+          },
           "status": {
             "$ref": "#/components/schemas/InvitationStatus"
           },
@@ -10987,6 +10998,9 @@
             },
             "type": "array",
             "title": "Histogram"
+          },
+          "market": {
+            "$ref": "#/components/schemas/SalaryMarketCheck"
           }
         },
         "type": "object",
@@ -10994,9 +11008,60 @@
           "category",
           "coverage",
           "median_expectation",
-          "histogram"
+          "histogram",
+          "market"
         ],
         "title": "SalaryCoverage"
+      },
+      "SalaryMarketCheck": {
+        "properties": {
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "below_market",
+              "suspicious_high",
+              "unknown"
+            ],
+            "title": "Verdict",
+            "description": "ok — в рынке; below_market — покрывает мало ожиданий категории; suspicious_high — нижняя граница намного выше медианы ожиданий (признак вакансии-приманки); unknown — мало данных"
+          },
+          "coverage": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coverage",
+            "description": "Доля ожиданий категории, которые покрывает верхняя граница"
+          },
+          "median_expectation": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median Expectation"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "verdict",
+          "coverage",
+          "median_expectation",
+          "message"
+        ],
+        "title": "SalaryMarketCheck"
       },
       "SearchStatus": {
         "type": "string",

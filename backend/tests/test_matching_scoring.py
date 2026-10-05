@@ -138,3 +138,34 @@ def test_vps_golden():
     assert sum(get_rules().vps_weights.values()) == pytest.approx(1.0)
     assert vps(0.8, 0.5, 1.0, 0.4) == pytest.approx(0.48 + 0.075 + 0.15 + 0.04)
     assert vps(None, 0.0, 0.0, None) == 0.0
+
+
+def test_stronger_within_grade_but_overqualified_drops():
+    """§8.3: внутри грейда сильнее — выше; за порогом следующего грейда — штраф и предупреждение."""
+    middle_strong = facts(1, theta=1.1)  # порог Senior — 1,2
+    middle_weak = facts(2, theta=0.4)
+    overqualified = facts(3, theta=2.2)
+    assert score(middle_strong) > score(middle_weak)
+    assert score(middle_strong) > score(overqualified)
+    texts = [line["text"] for line in evaluate(overqualified, NEED, LABELS).lines]
+    assert any("ближе к уровню Senior" in text for text in texts)
+    assert not any("ближе к уровню" in line["text"] for line in evaluate(middle_strong, NEED, LABELS).lines)
+
+
+def test_top_grade_has_no_overqualification():
+    senior_need = NeedSpec(**{**NEED.__dict__, "grade": "senior"})
+    strong = evaluate(facts(1, grade="senior", theta=2.5), senior_need, LABELS)
+    weaker = evaluate(facts(2, grade="senior", theta=1.5), senior_need, LABELS)
+    assert strong.score > weaker.score
+
+
+def test_salary_market_verdicts_golden():
+    """§24: вилка против ожиданий категории — в рынке, ниже рынка, подозрительно выше, мало данных."""
+    from app.modules.matching.scoring import salary_market
+
+    expectations = [180_000, 200_000, 220_000, 250_000, 260_000, 300_000]  # медиана 235 000
+    ok = salary_market(expectations, 200_000, 260_000)
+    assert (ok.verdict, ok.coverage, ok.median) == ("ok", 0.833, 235_000)
+    assert salary_market(expectations, 100_000, 150_000).verdict == "below_market"  # покрывает 0%
+    assert salary_market(expectations, 500_000, 600_000).verdict == "suspicious_high"  # от ≥ 2 × медианы
+    assert salary_market(expectations[:4], 200_000, 260_000).verdict == "unknown"  # меньше 5 ожиданий

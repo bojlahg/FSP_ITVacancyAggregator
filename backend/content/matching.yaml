@@ -1,8 +1,8 @@
 # Веса и пороги ранжирования — docs/implementation.md §8.3. Проверяются процедурой валидации (§12).
 
 weights:          # match = 100 × Σ weight·component
-  skills: 0.30
-  strength: 0.30
+  skills: 0.40     # полнота стека важнее силы профиля: валидация, P@5 0,65 → 0,69 (docs/validation/report.md)
+  strength: 0.20
   category: 0.15
   fsp: 0.10
   fresh: 0.05
@@ -28,6 +28,8 @@ optional_weight: 0.3
 strength:
   ability_share: 0.7     # 0.7·Φ((θ − cut_грейда)/scale) + 0.3·topic_fit
   scale: 0.6
+  # Штраф за «перерос грейд»: λ·max(0, 2·Φ((θ − cut_следующего_грейда)/scale) − 1) вычитается из ability
+  overqualified_penalty: 1.5
 
 # Свежесть: fresh = 0.5^(дней с последнего проверенного действия / half_life_days)
 freshness:
@@ -45,6 +47,13 @@ conditions:
   salary_share: 0.6
   format_share: 0.4
   salary_tolerance: 0.3  # ожидания выше вилки на 30% — salary_fit = 0 и жёсткий фильтр
+
+# Адекватность вилки рынку категории (§24, защита от фиктивных вакансий): по ожиданиям кандидатов
+# категории в индексе выдачи. Меньше min_candidates ожиданий — вердикт не выносится.
+market:
+  min_candidates: 5
+  low_coverage: 0.2      # верхняя граница покрывает ожидания меньше 20% кандидатов — «ниже рынка»
+  high_ratio: 2.0        # нижняя граница вдвое выше медианы ожиданий — «подозрительно высокая»
 
 recommendations:
   default_limit: 50

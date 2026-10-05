@@ -119,6 +119,9 @@ async def _for_candidate(db: AsyncSession, item: Invitation) -> InvitationForCan
         if item.status == InvitationStatus.accepted
         else None,
         why_you=_explanation(item.match_snapshot) or Explanation(lines=[]),
+        salary_market=await matching_service.salary_market_for_candidate(
+            db, item.candidate_id, item.salary_from, item.salary_to
+        ),
         status=item.status,
         created_at=item.created_at,
         viewed_at=item.viewed_at,

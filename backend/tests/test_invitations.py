@@ -239,3 +239,27 @@ async def test_decline_stats_hint(client, session):
     assert stats["acceptance_rate"] == 0.25
     assert stats["by_reason"]["salary"] == 2 and stats["top_reason"] == "salary"
     assert stats["hint"] == "2 из 3 отказов — зарплата"
+
+
+async def test_salary_market_check_for_employer_and_candidate(client, session):
+    """Вилка ниже рынка категории видна работодателю в покрытии вилки и кандидату в приглашении (§24)."""
+    employer = await signup(client, "hr@bank.ru")
+    candidate, cid = await make_candidate(client, session, "anna@example.com", salary_min=260000)
+    for index in range(5):
+        await make_candidate(client, session, f"peer{index}@example.com", salary_min=300000 + index * 10000)
+    low = NEED | {"salary_from": 120000, "salary_to": 150000}
+    need = (await client.post(f"{API}/needs", json=low, headers=employer)).json()
+
+    coverage = (await client.get(f"{API}/needs/{need['id']}/salary-coverage", headers=employer)).json()
+    assert coverage["market"]["verdict"] == "below_market"
+    assert coverage["market"]["message"].startswith("Вилка ниже рынка")
+
+    sent = await client.post(
+        f"{API}/invitations",
+        json=invite(cid, need_id=need["id"], salary_from=120000, salary_to=150000),
+        headers=employer,
+    )
+    assert sent.status_code == 201, sent.text
+    inbox = (await client.get(f"{API}/candidates/me/invitations", headers=candidate)).json()
+    assert inbox[0]["salary_market"]["verdict"] == "below_market"
+    assert "вашей категории" in inbox[0]["salary_market"]["message"]
