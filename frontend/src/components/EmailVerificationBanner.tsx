@@ -19,9 +19,9 @@ export function EmailVerificationBanner() {
       className="mb-6 flex flex-wrap items-center gap-3 rounded-lg border border-primary/30 bg-primary-tint px-4 py-3 text-sm"
     >
       <MailWarning className="size-5 shrink-0 text-primary" aria-hidden />
-      <div className="min-w-0 flex-1">
+      <div className="min-w-[12rem] flex-1">
         <p>
-          Подтвердите почту — письмо отправлено на <b className="font-mono break-all">{user.email}</b>
+          Подтвердите почту — письмо отправлено на <b className="font-mono [overflow-wrap:anywhere]">{user.email}</b>
         </p>
         {resend.isSuccess && <p className="mt-0.5 text-xs text-muted-foreground">Письмо отправлено ещё раз.</p>}
         {resend.isError && (

@@ -117,6 +117,11 @@
   html {
     color-scheme: light;
   }
+  /* Элемент сетки не должен растягивать страницу по самому широкому содержимому:
+     на телефоне длинный текст переносится, а таблицы прокручиваются внутри своего блока */
+  .grid > * {
+    min-width: 0;
+  }
   body {
     @apply bg-background text-foreground font-sans antialiased;
   }

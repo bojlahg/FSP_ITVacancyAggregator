@@ -104,7 +104,7 @@ function VacancyCard({ vacancy, open, onToggle }: { vacancy: Need; open: boolean
 
   return (
     <Card>
-      <CardHeader className="grid-cols-[minmax(0,1fr)_auto] gap-y-2">
+      <CardHeader className="gap-y-3 sm:grid-cols-[minmax(0,1fr)_auto]">
         <div className="min-w-0 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <CategoryBadge specialization={vacancy.category.specialization} grade={vacancy.category.grade} />
@@ -121,7 +121,7 @@ function VacancyCard({ vacancy, open, onToggle }: { vacancy: Need; open: boolean
             {vacancy.published_at && <span>опубликована {formatDate(vacancy.published_at)}</span>}
           </div>
         </div>
-        <div className="flex flex-col items-end gap-2">
+        <div className="flex flex-wrap items-center gap-2 sm:flex-col sm:items-end">
           <Button
             variant={open ? "secondary" : "outline"}
             size="sm"
@@ -261,7 +261,7 @@ function ApplicationRow({ needId, application, open, onToggle, deciding, onDecid
             —
           </span>
         )}
-        <span className="min-w-0 flex-1 space-y-1">
+        <span className="min-w-[11rem] flex-1 space-y-1">
           <span className="flex flex-wrap items-center gap-2">
             <span className="font-medium">{candidate.display_name}</span>
             <CategoryBadge specialization={candidate.category.specialization} grade={candidate.category.grade} />

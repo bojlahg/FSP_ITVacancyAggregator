@@ -111,7 +111,7 @@ export default function RegisterPage() {
               aria-checked={role === value}
               onClick={() => setValue("role", value, { shouldValidate: false })}
               className={cn(
-                "flex items-center justify-center gap-2 rounded-md px-3 py-2 font-mono text-sm font-medium transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40",
+                "flex items-center justify-center gap-2 rounded-md px-3 py-2 font-mono text-sm font-medium whitespace-nowrap transition-colors max-sm:gap-1.5 max-sm:px-2 max-sm:text-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40",
                 role === value ? "bg-background text-primary shadow-sm" : "text-muted-foreground hover:text-foreground",
               )}
             >
