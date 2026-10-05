@@ -111,7 +111,7 @@ function AngoffTaskList({ specialization, grade }: { specialization: string; gra
             {progress.done} / {progress.total}
           </span>
         </div>
-        <Progress value={(progress.done / progress.total) * 100} />
+        <Progress value={(progress.done / progress.total) * 100} aria-label="Оценено заданий" />
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
         {tasks.data.tasks.map((task, index) => (

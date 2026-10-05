@@ -484,10 +484,11 @@ function NeedView({ need }: { need: Need }) {
             </h2>
             <Tabs value={filters.view} onValueChange={(value) => set({ view: value === "none" ? "top" : null })}>
               <TabsList>
-                <TabsTrigger value="category">
+                {/* Переключатель вида без панелей — без aria-controls на несуществующую панель */}
+                <TabsTrigger value="category" aria-controls={undefined}>
                   <Layers /> По категориям
                 </TabsTrigger>
-                <TabsTrigger value="none">
+                <TabsTrigger value="none" aria-controls={undefined}>
                   <ListOrdered /> Общий топ
                 </TabsTrigger>
               </TabsList>
@@ -721,7 +722,7 @@ function CategoryCard({
         {coverage !== null && (
           <div className="flex-1">
             <div className="mb-1 text-right font-mono text-xs font-bold tabular-nums">{coverage}%</div>
-            <Progress value={coverage} className="h-1.5" />
+            <Progress value={coverage} className="h-1.5" aria-label="Покрытие вилки" />
             <div className="mt-1 text-right text-[11px] text-muted-foreground">покрытие вилки</div>
           </div>
         )}
@@ -780,7 +781,11 @@ function NeedSummary({ need, activeInvites, inviteLimit }: { need: Need; activeI
             {activeInvites}
             <span className="text-muted-foreground"> / {inviteLimit}</span>
           </div>
-          <Progress value={inviteLimit > 0 ? (activeInvites / inviteLimit) * 100 : 0} className="h-1.5" />
+          <Progress
+            value={inviteLimit > 0 ? (activeInvites / inviteLimit) * 100 : 0}
+            className="h-1.5"
+            aria-label="Использовано приглашений"
+          />
           <div className="text-xs text-muted-foreground">активных слотов — приглашайте адресно</div>
         </div>
       </div>

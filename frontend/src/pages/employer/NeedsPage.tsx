@@ -86,7 +86,7 @@ export default function NeedsPage() {
                       <div className="text-xs text-muted-foreground">
                         Приглашения <span className="font-mono">{active} / {limit}</span>
                       </div>
-                      <Progress value={limit > 0 ? (active / limit) * 100 : 0} className="h-1.5" />
+                      <Progress value={limit > 0 ? (active / limit) * 100 : 0} className="h-1.5" aria-label="Использовано приглашений" />
                     </div>
                   </div>
                 </CardContent>

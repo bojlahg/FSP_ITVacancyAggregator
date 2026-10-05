@@ -183,7 +183,7 @@ export default function CandidateCardPage() {
                           </span>
                         </span>
                       </div>
-                      <Progress value={toPercent(topic.score)} />
+                      <Progress value={toPercent(topic.score)} aria-label={`${topic.name}: ${toPercent(topic.score)}%`} />
                     </div>
                   ))}
                 </div>
@@ -461,7 +461,7 @@ function FspCard({ fsp }: { fsp: CandidateCard["fsp"] }) {
                           {competency.evidence_count}
                         </span>
                       </div>
-                      <Progress value={toPercent(competency.score)} className="h-1.5" />
+                      <Progress value={toPercent(competency.score)} className="h-1.5" aria-label={competency.name} />
                     </div>
                   ))}
                 </div>

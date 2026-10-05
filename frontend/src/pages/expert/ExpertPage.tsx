@@ -110,7 +110,7 @@ function LabelingTab() {
             {progress.done} / {progress.total}
           </span>
         </div>
-        <Progress value={(progress.done / progress.total) * 100} />
+        <Progress value={(progress.done / progress.total) * 100} aria-label="Размечено пар" />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -200,7 +200,7 @@ function BlindCandidate({ card }: { card: NonNullable<ExpertTask["candidate"]> }
                   <span>{topic.name}</span>
                   <span className="font-mono font-bold tabular-nums">{toPercent(topic.score)}%</span>
                 </div>
-                <Progress value={toPercent(topic.score)} className="h-1.5" />
+                <Progress value={toPercent(topic.score)} className="h-1.5" aria-label={topic.name} />
               </div>
             ))}
           </div>
@@ -342,7 +342,7 @@ function SummaryTab() {
                   </span>
                 </span>
               </div>
-              <Progress value={ranker.precision_at_5 == null ? 0 : ranker.precision_at_5 * 100} />
+              <Progress value={ranker.precision_at_5 == null ? 0 : ranker.precision_at_5 * 100} aria-label={ranker.name} />
             </div>
           ))}
         </CardContent>

@@ -257,7 +257,7 @@ function TemplatesSection({
           {instances.isError ? (
             <ErrorState title="Не удалось сгенерировать задания" onRetry={() => void instances.refetch()} />
           ) : !instances.data ? (
-            <div className="grid gap-4 md:grid-cols-3" aria-busy="true" aria-label="Загрузка">
+            <div className="grid gap-4 md:grid-cols-3" role="status" aria-busy="true" aria-label="Загрузка">
               {Array.from({ length: count }, (_, index) => (
                 <Skeleton key={index} className="h-64 rounded-xl" />
               ))}
@@ -578,7 +578,7 @@ export default function HowItWorksPage() {
       </section>
 
       {overview.isPending ? (
-        <div className="space-y-4 pb-16" aria-busy="true" aria-label="Загрузка">
+        <div className="space-y-4 pb-16" role="status" aria-busy="true" aria-label="Загрузка">
           <Skeleton className="h-10 w-full max-w-lg" />
           <Skeleton className="h-64 w-full rounded-xl" />
         </div>

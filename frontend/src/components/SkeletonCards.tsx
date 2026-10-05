@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 /** Состояние загрузки для списков карточек. */
 export function SkeletonCards({ count = 3, className }: { count?: number; className?: string }) {
   return (
-    <div className={cn("grid gap-4", className)} aria-busy="true" aria-label="Загрузка">
+    <div className={cn("grid gap-4", className)} role="status" aria-busy="true" aria-label="Загрузка">
       {Array.from({ length: count }, (_, index) => (
         <Card key={index}>
           <CardHeader>

@@ -29,7 +29,7 @@ export function SalaryCoverageCard({ need }: { need: Need }) {
       </CardHeader>
       <CardContent>
         {coverage.isPending ? (
-          <div className="grid gap-3" aria-busy="true" aria-label="Загрузка">
+          <div className="grid gap-3" role="status" aria-busy="true" aria-label="Загрузка">
             <Skeleton className="h-6 w-1/2" />
             <Skeleton className="h-24 w-full" />
           </div>

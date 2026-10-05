@@ -86,7 +86,8 @@ export default function EmployerInvitationsPage() {
           <Tabs value={tab} onValueChange={(value) => set({ tab: value === "all" ? null : value })}>
             <TabsList className="max-w-full">
               {TABS.map((item) => (
-                <TabsTrigger key={item.value} value={item.value}>
+                // Вкладки здесь — фильтр списка без отдельных панелей: ссылка на несуществующую панель нарушает ARIA
+                <TabsTrigger key={item.value} value={item.value} aria-controls={undefined}>
                   {item.label}
                   {invitations.data && (
                     <span className="font-mono text-xs text-muted-foreground tabular-nums">{countOf(item.value)}</span>
@@ -166,7 +167,10 @@ function InvitationRow({ invitation, needTitle, withdrawing, onWithdraw }: Invit
               <span className="text-muted-foreground">
                 {" "}
                 ·{" "}
-                <Link to={`/employer/needs/${invitation.need_id}`} className="hover:text-primary hover:underline">
+                <Link
+                  to={`/employer/needs/${invitation.need_id}`}
+                  className="underline decoration-border underline-offset-2 hover:text-primary hover:decoration-primary"
+                >
                   {needTitle}
                 </Link>
               </span>
@@ -297,7 +301,7 @@ function DeclineStatsCard({ needId }: { needId: number | null }) {
                   <span>Доля принятых</span>
                   <span className="font-mono font-bold">{toPercent(stats.data.acceptance_rate)}%</span>
                 </div>
-                <Progress value={toPercent(stats.data.acceptance_rate)} />
+                <Progress value={toPercent(stats.data.acceptance_rate)} aria-label="Доля принятых приглашений" />
               </div>
             )}
             {Object.keys(stats.data.by_reason).length > 0 && (
@@ -315,6 +319,7 @@ function DeclineStatsCard({ needId }: { needId: number | null }) {
                       <Progress
                         value={stats.data.declined > 0 ? (count / stats.data.declined) * 100 : 0}
                         indicatorClassName={reason === stats.data.top_reason ? "bg-destructive" : undefined}
+                        aria-label={DECLINE_REASON_LABELS[reason] ?? reason}
                       />
                     </div>
                   ))}
