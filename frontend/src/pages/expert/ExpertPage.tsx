@@ -15,7 +15,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiError } from "@/lib/api-error";
 import { type ExpertTask, useExpertSummary, useExpertTask, useLabelPair } from "@/lib/expert-queries";
-import { formatNumber, plural, toPercent } from "@/lib/format";
+import { formatExperience, formatNumber, plural, toPercent } from "@/lib/format";
 import { SKILL_STATUS_LABELS, WORK_FORMAT_LABELS, workFormatsLabel } from "@/lib/labels";
 import { AngoffTab } from "@/pages/expert/AngoffTab";
 
@@ -188,7 +188,7 @@ function BlindCandidate({ card }: { card: NonNullable<ExpertTask["candidate"]> }
         </CardTitle>
         <CardDescription>
           {brief.percentile != null && `${toPercent(brief.percentile)}-й перцентиль в категории · `}
-          {card.experience_years != null ? `${card.experience_years} лет опыта` : "опыт не указан"}
+          {card.experience_years != null ? `опыт ${formatExperience(card.experience_years)}` : "опыт не указан"}
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4 text-sm">

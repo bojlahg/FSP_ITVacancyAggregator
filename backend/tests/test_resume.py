@@ -462,3 +462,15 @@ async def test_candidate_pdf_access_rules(client, session):
     assert hidden.status_code == 200
     blocked = await client.get(f"{API}/talent/candidates/{candidate}/profile.pdf", headers=employer_headers)
     assert blocked.status_code == 404
+
+
+def test_experience_years_in_pdf_are_years_and_months():
+    from app.modules.resume.pdf import _years
+
+    assert _years(4.08) == "4 года 1 мес."
+    assert _years(1) == "1 год"
+    assert _years(5.5) == "5 лет 6 мес."
+    assert _years(0.4) == "5 мес."
+    assert _years(0.01) == "меньше месяца"
+    assert _years(21) == "21 год"
+    assert _years(None) == ""

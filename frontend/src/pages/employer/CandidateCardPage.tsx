@@ -31,7 +31,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { apiError } from "@/lib/api-error";
 import { type CandidateCard, parseId, useCandidateCard, useNeed } from "@/lib/employer-queries";
-import { daysSince, formatDate, formatDaysAgo, formatNumber, plural, toPercent } from "@/lib/format";
+import { daysSince, formatDate, formatDaysAgo, formatExperience, formatNumber, plural, toPercent } from "@/lib/format";
 import { FSP_LEVEL_LABELS, SKILL_STATUS_LABELS, workFormatsLabel } from "@/lib/labels";
 
 type SkillStatus = CandidateCard["skills"][number]["status"];
@@ -200,7 +200,7 @@ export default function CandidateCardPage() {
               <CardHeader>
                 <CardTitle>Опыт</CardTitle>
                 <CardDescription>
-                  {data.experience_years != null && `${data.experience_years} лет опыта. `}
+                  {data.experience_years != null && `Опыт — ${formatExperience(data.experience_years)}. `}
                   {!data.contacts_unlocked && "Названия компаний скрыты до принятия приглашения."}
                 </CardDescription>
               </CardHeader>

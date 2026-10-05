@@ -158,20 +158,26 @@ def _format_period(item: ExperienceItem) -> str:
     return f"{start} — {end}"
 
 
+def _plural(count: int, one: str, few: str, many: str) -> str:
+    if count % 10 == 1 and count % 100 != 11:
+        return one
+    if 2 <= count % 10 <= 4 and not 12 <= count % 100 <= 14:
+        return few
+    return many
+
+
 def _years(value: float | None) -> str:
+    """Стаж «3 года 5 мес.»: дробные годы из опроса и резюме показываем в годах и месяцах."""
     if value is None:
         return ""
-    number = int(value) if float(value).is_integer() else value
-    whole = int(value)
-    if not float(value).is_integer():
-        word = "года"
-    elif whole % 10 == 1 and whole % 100 != 11:
-        word = "год"
-    elif 2 <= whole % 10 <= 4 and not 12 <= whole % 100 <= 14:
-        word = "года"
-    else:
-        word = "лет"
-    return f"{number} {word}".replace(".", ",")
+    months = round(float(value) * 12)
+    years, rest = divmod(months, 12)
+    parts = []
+    if years:
+        parts.append(f"{years} {_plural(years, 'год', 'года', 'лет')}")
+    if rest:
+        parts.append(f"{rest} мес.")
+    return " ".join(parts) or "меньше месяца"
 
 
 @lru_cache

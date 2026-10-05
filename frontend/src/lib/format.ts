@@ -23,6 +23,17 @@ export function plural(count: number, forms: [one: string, few: string, many: st
   return forms[2];
 }
 
+/** Стаж «3 года 5 мес.»: дробные годы показываем в годах и месяцах. */
+export function formatExperience(years: number): string {
+  const months = Math.round(years * 12);
+  const whole = Math.floor(months / 12);
+  const rest = months % 12;
+  const parts = [];
+  if (whole > 0) parts.push(`${whole} ${plural(whole, ["год", "года", "лет"])}`);
+  if (rest > 0) parts.push(`${rest} мес.`);
+  return parts.length > 0 ? parts.join(" ") : "меньше месяца";
+}
+
 /** «12 дней назад», «сегодня» */
 export function formatDaysAgo(days: number): string {
   if (days <= 0) return "сегодня";
