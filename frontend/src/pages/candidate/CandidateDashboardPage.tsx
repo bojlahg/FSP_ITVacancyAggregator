@@ -1,6 +1,7 @@
 import { ArrowRight, CalendarClock, ListChecks, Mail, Target, UserRound } from "lucide-react";
 import { Link } from "react-router";
 import { CategoryBadge } from "@/components/CategoryBadge";
+import { MarketCard } from "@/components/candidate/MarketCard";
 import { EmptyState } from "@/components/EmptyState";
 import { PageHeader } from "@/components/PageHeader";
 import { SalaryRange } from "@/components/SalaryRange";
@@ -65,6 +66,8 @@ export default function CandidateDashboardPage() {
                 </Button>
               </CardContent>
             </Card>
+
+            {me.data.category && <MarketCard className="lg:col-span-3" />}
           </>
         )}
 
