@@ -50,9 +50,18 @@ class Settings(BaseSettings):
     yandex_api_key: str = ""
     yandex_folder_id: str = ""
     yandex_model: str = "yandexgpt/latest"
+    # Бюджет LLM: при app_env=test сеть не вызывается никогда; выключатель — LLM_PROVIDER=none
+    llm_max_input_chars: int = 6000
+    llm_max_output_tokens: int = 800
+    llm_daily_call_limit: int = 40
+    llm_daily_token_limit: int = 60000
+    llm_user_hourly_limit: int = 5
+    llm_state_dir: str = "/data/uploads/llm"
 
     fsp_api_url: str = "http://fsp-mock:8001/fsp-api/v1"
     fsp_api_key: str = "dev-fsp-key"
+    # Файл данных fsp-mock; генератор демо-данных пишет его в общий volume
+    fsp_data_path: str = "/data/fsp/fsp.json"
 
     upload_dir: str = "/data/uploads"
 
