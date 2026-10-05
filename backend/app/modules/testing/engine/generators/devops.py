@@ -4,6 +4,7 @@ import ipaddress
 import math
 import random
 from collections import Counter
+from fractions import Fraction
 
 from app.modules.testing.engine.generators import generator
 from app.modules.testing.engine.model import Generated
@@ -962,3 +963,285 @@ def ci_matrix_jobs(rng: random.Random) -> Generated:
         code_language="yaml",
         number=float(answer),
     )
+
+
+# --- Senior: HPA, планирование, DAG пайплайна, DNS ndots, ссылки, cidrsubnet, бюджет ошибок ------
+
+
+@generator("devops.hpa_desired_replicas")
+def hpa_desired_replicas(rng: random.Random) -> Generated:
+    """HPA: utilization считается от requests; desired = ceil(current · текущая/целевая), без изменений
+    в пределах допуска 0,1; затем ограничение maxReplicas."""
+    while True:
+        current = rng.randint(2, 10)
+        request = rng.choice([200, 250, 400, 500])
+        limit = request * rng.choice([2, 4])
+        target = rng.choice([50, 60, 70, 75, 80])
+        usage = rng.randrange(request // 4, request + request // 2, 10)
+        ratio = Fraction(usage * 100, request * target)
+        if abs(ratio - 1) <= Fraction(1, 10):
+            desired = current
+        elif Fraction(11, 10) < ratio <= 2:
+            desired = math.ceil(current * ratio)
+        else:
+            continue
+        if abs(abs(ratio - 1) - Fraction(1, 10)) < Fraction(2, 100):
+            continue
+        if (current * ratio).denominator == 1 and desired != current:
+            continue
+        break
+    max_replicas = rng.choice([desired + rng.randint(1, 5), max(current, desired - rng.randint(1, 2))])
+    answer = min(desired, max_replicas)
+    app = rng.choice(APPS)
+    stem = (
+        f"Deployment {app}: готовых подов — {current}, у контейнера resources.requests.cpu = {request}m, "
+        f"limits.cpu = {limit}m. HPA (autoscaling/v2): цель — средняя утилизация CPU {target}%, "
+        f"minReplicas = 1, maxReplicas = {max_replicas}, допуск по умолчанию (0,1). Метрики есть у всех "
+        "подов, "
+        f"средняя фактическая загрузка — {usage}m CPU на под. Какое число реплик рассчитает HPA на этом шаге "
+        "(политики behavior не ограничивают)?"
+    )
+    return Generated(stem=stem, number=float(answer), tolerance=0)
+
+
+@generator("devops.schedulable_pods")
+def schedulable_pods(rng: random.Random) -> Generated:
+    """Планировщик учитывает requests, а не limits и не фактическое потребление; нужен ресурс и по CPU,
+    и по памяти."""
+    while True:
+        alloc_cpu = rng.choice([1900, 3800, 7800])
+        alloc_mem = rng.choice([7, 14, 30]) * 1024
+        pods = []
+        for _ in range(rng.randint(3, 5)):
+            req_cpu = rng.randrange(100, 1000, 50)
+            req_mem = rng.randrange(256, 4096, 128)
+            pods.append((req_cpu, req_mem, req_cpu // rng.randint(2, 4), req_mem // rng.randint(2, 3)))
+        free_cpu = alloc_cpu - sum(p[0] for p in pods)
+        free_mem = alloc_mem - sum(p[1] for p in pods)
+        if free_cpu <= 0 or free_mem <= 0:
+            continue
+        new_cpu = rng.randrange(100, 800, 50)
+        new_mem = rng.randrange(256, 2048, 128)
+        by_cpu, by_mem = free_cpu // new_cpu, free_mem // new_mem
+        if by_cpu != by_mem and 1 <= min(by_cpu, by_mem) <= 12:
+            break
+    rows = ["под        | requests cpu / mem | фактически cpu / mem"]
+    for index, (rc, rm, uc, um) in enumerate(pods, start=1):
+        rows.append(f"pod-{index}      | {rc}m / {rm}Mi        | {uc}m / {um}Mi")
+    stem = (
+        f"Узел Kubernetes: allocatable cpu = {alloc_cpu}m, memory = {alloc_mem}Mi. На нём уже работают поды "
+        "(включая DaemonSet), см. таблицу. Новый Deployment: requests cpu = "
+        f"{new_cpu}m, memory = {new_mem}Mi; limits вдвое больше. Других узлов, taints и affinity нет. "
+        "Сколько подов нового Deployment планировщик сможет разместить на этом узле?"
+    )
+    return Generated(
+        stem=stem, code="\n".join(rows), code_language="text", number=float(min(by_cpu, by_mem)), tolerance=0
+    )
+
+
+@generator("devops.ci_needs_dag")
+def ci_needs_dag(rng: random.Random) -> Generated:
+    """GitLab CI: job с needs стартует сразу после перечисленных job; job без needs ждёт все job
+    предыдущих стадий; needs: [] — старт сразу."""
+    stages = [
+        ("build", ["build-api", "build-web"]),
+        ("test", ["unit", "integration", "lint"]),
+        ("deploy", ["deploy-stage", "smoke"]),
+    ]
+    durations = {job: rng.randint(2, 12) for _, jobs in stages for job in jobs}
+    needs: dict[str, list[str] | None] = {
+        "build-api": [],
+        "build-web": [],
+        "unit": ["build-api"],
+        "integration": ["build-api", "build-web"],
+        "lint": rng.choice([[], None]),
+        "deploy-stage": rng.choice([["unit", "integration"], None]),
+        "smoke": ["deploy-stage"],
+    }
+    if needs["lint"] is not None and needs["deploy-stage"] is not None:
+        needs[rng.choice(["lint", "deploy-stage"])] = None
+    if needs["lint"] is None and needs["deploy-stage"] is None:
+        needs["deploy-stage"] = ["unit", "integration"]
+    stage_of = {job: index for index, (_, jobs) in enumerate(stages) for job in jobs}
+    finish: dict[str, int] = {}
+    for _, jobs in stages:
+        for job in jobs:
+            deps = needs[job]
+            if deps is None:
+                deps = [j for j in durations if stage_of[j] < stage_of[job]]
+            start = max((finish[d] for d in deps), default=0)
+            finish[job] = start + durations[job]
+    total = max(finish.values())
+    lines = ["stages: [build, test, deploy]", ""]
+    for stage, jobs in stages:
+        for job in jobs:
+            lines.append(f"{job}:  # {durations[job]} мин")
+            lines.append(f"  stage: {stage}")
+            deps = needs[job]
+            if deps is not None:
+                lines.append(f"  needs: [{', '.join(deps)}]")
+            lines.append("")
+    stem = (
+        "Пайплайн GitLab CI (длительность job — в комментариях). Runners достаточно, все job успешны, "
+        "накладные "
+        "расходы не учитываем. Через сколько минут после старта завершится пайплайн?"
+    )
+    return Generated(
+        stem=stem, code="\n".join(lines).rstrip(), code_language="yaml", number=float(total), tolerance=0
+    )
+
+
+@generator("devops.dns_ndots_queries")
+def dns_ndots_queries(rng: random.Random) -> Generated:
+    """resolv.conf: имя с числом точек меньше ndots сначала пробуется с каждым суффиксом из search,
+    затем как абсолютное; имя с точкой на конце — сразу абсолютное."""
+    namespace = rng.choice(["shop", "billing", "default", "payments", "web"])
+    extra = rng.choice([[], ["ru-central1.internal"], ["corp.local"]])
+    search = [f"{namespace}.svc.cluster.local", "svc.cluster.local", "cluster.local", *extra]
+    ndots = 5
+    kind = rng.choice(["external", "external", "fqdn", "other_ns", "many_dots"])
+    if kind == "external":
+        name = rng.choice(
+            ["api.partner.com", "pay.example.org", "s3.storage.net", "ya.ru", "hooks.slack.com"]
+        )
+        answer = len(search) + 1
+    elif kind == "fqdn":
+        name = rng.choice(["api.partner.com.", "pay.example.org.", "hooks.slack.com."])
+        answer = 1
+    elif kind == "many_dots":
+        name = rng.choice(["a.b.c.d.e.example.com", "x1.edge.eu.west.cdn.partner.net"])
+        answer = 1
+    else:
+        other = rng.choice(
+            [ns for ns in ["shop", "billing", "default", "payments", "web"] if ns != namespace]
+        )
+        name = f"{rng.choice(['orders', 'auth', 'redis', 'kafka'])}.{other}"
+        answer = 2
+    code = (
+        f"# /etc/resolv.conf в поде\nnameserver 10.96.0.10\nsearch {' '.join(search)}\noptions ndots:{ndots}"
+    )
+    tail = (
+        "Service с таким именем существует в указанном namespace, все прочие варианты дают NXDOMAIN."
+        if kind == "other_ns"
+        else "Внешнее имя существует, а все варианты с суффиксами из search дают NXDOMAIN."
+    )
+    stem = (
+        f"Приложение в поде (glibc-резолвер) обращается к «{name}». {tail} Сколько A-запросов (AAAA не "
+        "считаем) "
+        "уйдёт к DNS до первого успешного ответа, включая его?"
+    )
+    return Generated(stem=stem, code=code, code_language="text", number=float(answer), tolerance=0)
+
+
+LINK_WORDS = ["alpha", "bravo", "delta", "echo", "lima", "oscar", "tango", "zulu"]
+
+
+@generator("devops.links_after_change")
+def links_after_change(rng: random.Random) -> Generated:
+    """Жёсткая ссылка указывает на inode, символическая — на имя; sed -i и rm+создание дают новый inode,
+    а перезапись через > — тот же."""
+    old, new = rng.sample(LINK_WORDS, 2)
+    target, hard, soft = rng.choice(
+        [("a.txt", "h.txt", "s.txt"), ("app.conf", "backup.conf", "current.conf")]
+    )
+    action = rng.choice(["rm", "recreate", "truncate", "mv", "sed"])
+    missing = f"cat: {soft}: No such file or directory"
+    commands = {
+        "rm": [f"rm {target}"],
+        "recreate": [f"rm {target}", f'echo "{new}" > {target}'],
+        "truncate": [f'echo "{new}" > {target}'],
+        "mv": [f"mv {target} moved.txt"],
+        "sed": [f"sed -i 's/{old}/{new}/' {target}"],
+    }[action]
+    outcome = {
+        "rm": (old, missing, 1),
+        "recreate": (old, new, 1),
+        "truncate": (new, new, 2),
+        "mv": (old, missing, 2),
+        "sed": (old, new, 1),
+    }[action]
+    code = "\n".join(
+        [
+            f'echo "{old}" > {target}',
+            f"ln {target} {hard}",
+            f"ln -s {target} {soft}",
+            *commands,
+            f"cat {hard}; cat {soft}; stat -c %h {hard}",
+        ]
+    )
+
+    def show(values: tuple[str, str, int]) -> str:
+        return " | ".join(str(v) for v in values)
+
+    variants = {(a, b, c) for a in (old, new) for b in (old, new, missing) for c in (1, 2)}
+    variants.discard(outcome)
+    plausible = sorted(
+        variants, key=lambda v: (v[0] != outcome[0]) + (v[1] != outcome[1]) + (v[2] != outcome[2])
+    )
+    wrong = [show(v) for v in plausible[:8]]
+    rng.shuffle(wrong)
+    return Generated(
+        stem="Команды выполняются в пустом каталоге на ext4 (GNU coreutils, GNU sed). Что будет выведено? "
+        "Строки вывода разделены знаком |.",
+        code=code,
+        code_language="bash",
+        correct=(show(outcome),),
+        wrong=tuple(wrong),
+    )
+
+
+@generator("devops.terraform_cidrsubnet")
+def terraform_cidrsubnet(rng: random.Random) -> Generated:
+    """cidrsubnet(prefix, newbits, netnum): длина префикса растёт на newbits, netnum — номер подсети."""
+    second = rng.randint(0, 250)
+    base_len = rng.choice([16, 16, 20])
+    base = ipaddress.ip_network(f"10.{second}.0.0/{base_len}", strict=False)
+    newbits = rng.choice([4, 6, 8])
+    netnum = rng.randint(3, 2**newbits - 1)
+    subnets = list(base.subnets(new_prefix=base_len + newbits))
+    correct = str(subnets[netnum])
+    wrong = [
+        str(subnets[netnum - 1]),
+        str(subnets[(netnum + 1) % len(subnets)]),
+        f"{subnets[netnum].network_address}/{newbits}",
+        str(
+            ipaddress.ip_network(f"{base.network_address + netnum * 256}/{base_len + newbits}", strict=False)
+        ),
+        str(ipaddress.ip_network(f"{base.network_address + netnum}/{base_len + newbits}", strict=False)),
+    ]
+    code = f'cidrsubnet("{base}", {newbits}, {netnum})'
+    return Generated(
+        stem="Что вернёт функция Terraform?",
+        code=code,
+        code_language="hcl",
+        correct=(correct,),
+        wrong=tuple(dict.fromkeys(w for w in wrong if w != correct)),
+    )
+
+
+@generator("devops.error_budget_left")
+def error_budget_left(rng: random.Random) -> Generated:
+    """Request-based SLO: бюджет = (1 − SLO) · окно; инцидент с долей ошибок e на m минут тратит m · e
+    минут."""
+    slo, budget = rng.choice([(99.9, 43.2), (99.5, 216.0), (99.95, 21.6)])
+    scale = budget / 43.2
+    partial_min = round(rng.randint(10, 60) * scale)
+    partial_pct = rng.choice([5, 10, 20, 25])
+    outage_min = max(1, round(rng.randint(2, 15) * scale))
+    consumed = partial_min * partial_pct / 100 + outage_min
+    if consumed >= budget:
+        outage_min = max(1, int(budget - partial_min * partial_pct / 100) - 2)
+        consumed = partial_min * partial_pct / 100 + outage_min
+    left = 100 * (1 - consumed / budget)
+    stem = (
+        f"SLO доступности {_ru(slo)}% по запросам за скользящие 30 дней, трафик равномерный. За окно было "
+        "два "
+        f"инцидента: {partial_min} мин ошибками отвечали {partial_pct}% запросов и {outage_min} мин сервис "
+        "был "
+        "недоступен полностью. Какой процент бюджета ошибок остался? Ответ округлите до целого."
+    )
+    return Generated(stem=stem, number=round(left, 1), tolerance=1)
+
+
+def _ru(value: float) -> str:
+    return str(value).replace(".", ",")

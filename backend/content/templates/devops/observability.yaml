@@ -241,3 +241,39 @@
   answer:
     expr: "{{minutes}} * 60 / {{interval}}"
     tolerance: 0
+
+# --- Senior: бюджет ошибок и burn rate ---
+
+- id: ops.obs.error_budget_left
+  specializations: [devops]
+  topic: observability
+  skills: [prometheus, grafana]
+  kind: numeric
+  irt: {a: 1.3, b: 1.4}
+  time_limit_sec: 150
+  generator: devops.error_budget_left
+
+- id: ops.obs.burn_rate_error_ratio
+  specializations: [devops]
+  topic: observability
+  skills: [prometheus]
+  kind: numeric
+  irt: {a: 1.4, b: 1.7}
+  time_limit_sec: 150
+  params:
+    slo: {choice: [99.9, 99.5, 99.95, 99.0]}
+    share: {choice: [2, 5, 10]}
+    window: {choice: [1, 2, 6, 24]}
+  stem_variants:
+    - >-
+      SLO доступности {{slo}}% за 30 дней (по запросам). Нужен алерт: «за последние {{window}} ч израсходовано
+      {{share}}% месячного бюджета ошибок». Какую долю ошибок (в процентах от запросов), усреднённую за эти
+      {{window}} ч, должно проверять правило? Ответ округлите до сотых.
+    - >-
+      Многооконный алерт по burn rate для SLO {{slo}}% (окно SLO — 30 дней): срабатывать, когда за {{window}} ч
+      сгорело {{share}}% бюджета ошибок. Каков порог доли ошибочных запросов за {{window}} ч, в процентах? Точность
+      — сотые.
+  answer:
+    # burn rate = доля бюджета · (720 ч / окно алерта); порог ошибок = burn rate · (100 − SLO)
+    expr: "{{share}} / 100 * 720 / {{window}} * (100 - {{slo}})"
+    tolerance: 0.01

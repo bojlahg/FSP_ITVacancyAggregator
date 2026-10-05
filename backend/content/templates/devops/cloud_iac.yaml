@@ -200,3 +200,42 @@
       - "Выполнить terraform refresh: Terraform сопоставит ресурсы по атрибутам"
       - "Добавить lifecycle { prevent_destroy = true }: plan станет пустым"
       - "Ничего: при apply Terraform поймёт, что это тот же ресурс, и только обновит state"
+
+# --- Senior ---
+
+- id: ops.iac.state_operations
+  specializations: [devops]
+  topic: cloud_iac
+  skills: [terraform]
+  kind: multi_choice
+  irt: {a: 1.4, b: 1.5}
+  time_limit_sec: 120
+  n_options: 5
+  params:
+    res: {choice: [yandex_compute_instance.web, aws_s3_bucket.logs, yandex_vpc_subnet.private, aws_db_instance.main]}
+  stem_variants:
+    - >-
+      Ресурс {{res}} описан в коде Terraform и есть в state. Коллега поменял его атрибут вручную в консоли облака.
+      Какие утверждения о работе Terraform верны?
+    - >-
+      Разбираемся с дрейфом: {{res}} управляется Terraform, но часть настроек изменили руками в облаке. Что верно?
+  options:
+    correct:
+      - "terraform plan обнаружит расхождение и предложит вернуть атрибут к значению из кода (обновлением или пересозданием)"
+      - "terraform state rm {{res}} убирает ресурс только из state: в облаке он остаётся, а следующий plan предложит создать его заново"
+      - "lifecycle { ignore_changes = [...] } заставляет Terraform не предлагать изменения перечисленных атрибутов"
+      - "Блок moved позволяет переименовать адрес ресурса в коде без его пересоздания"
+    wrong:
+      - "terraform apply -refresh-only вернёт инфраструктуру к состоянию, описанному в коде"
+      - "terraform state rm {{res}} удаляет ресурс в облаке"
+      - "Блокировка state (state locking) защищает ресурсы от ручных изменений в консоли"
+      - "terraform plan по умолчанию не обращается к API провайдера и сравнивает код только со state"
+
+- id: ops.iac.cidrsubnet
+  specializations: [devops]
+  topic: cloud_iac
+  skills: [terraform, networking]
+  kind: code_output
+  irt: {a: 1.4, b: 1.5}
+  time_limit_sec: 150
+  generator: devops.terraform_cidrsubnet

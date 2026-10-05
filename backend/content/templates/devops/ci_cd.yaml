@@ -257,3 +257,68 @@
   kind: numeric
   irt: {a: 1.0, b: -1.8}
   generator: devops.ci_matrix_jobs
+
+# --- Senior: DAG, OIDC, миграции без простоя ---
+
+- id: ops.ci.needs_dag
+  specializations: [devops]
+  topic: ci_cd
+  skills: [ci_cd, gitlab_ci]
+  kind: numeric
+  irt: {a: 1.3, b: 1.4}
+  time_limit_sec: 180
+  generator: devops.ci_needs_dag
+
+- id: ops.ci.oidc_federation
+  specializations: [devops]
+  topic: ci_cd
+  skills: [ci_cd, github_actions, iam]
+  kind: multi_choice
+  irt: {a: 1.4, b: 1.5}
+  time_limit_sec: 120
+  n_options: 5
+  params:
+    cloud: {choice: [AWS, Yandex Cloud, GCP, Azure]}
+    repo: {choice: [shop/backend, bank/payments, crm/core, team/infra]}
+  stem_variants:
+    - >-
+      Деплой из GitHub Actions (репозиторий {{repo}}) в {{cloud}} переводят со статического ключа на OIDC: workflow
+      получает токен GitHub и обменивает его на временные учётные данные. Какие утверждения верны?
+    - >-
+      В {{repo}} настраивают вход GitHub Actions в {{cloud}} по OIDC (workload identity federation) вместо
+      ключа в секретах. Что верно?
+  options:
+    correct:
+      - "Workflow нужен permissions: id-token: write, иначе он не получит OIDC-токен"
+      - "В доверительной политике облака нужно ограничить claim sub (репозиторий и ветку или environment), а не только aud"
+      - "Долгоживущий ключ облака больше не хранится в секретах: токен обменивается на короткоживущие учётные данные"
+    wrong:
+      - "Достаточно проверять aud: он уникален для каждого репозитория"
+      - "permissions: id-token: write даёт workflow право пушить в репозиторий"
+      - "OIDC-токен GitHub сам по себе является ключом доступа к API облака"
+      - "Выданный токен действует бессрочно, пока его не отзовут вручную"
+
+- id: ops.ci.expand_contract
+  specializations: [devops]
+  topic: ci_cd
+  skills: [ci_cd, postgresql]
+  kind: ordering
+  irt: {a: 1.4, b: 1.5}
+  time_limit_sec: 150
+  params:
+    table: {choice: [users, orders, payments, accounts, tickets]}
+    old: {choice: [phone, address, full_name, status, region]}
+  stem_variants:
+    - >-
+      Нужно без простоя и с возможностью отката на каждом шаге заменить колонку {{table}}.{{old}} на {{old}}_v2
+      (rolling-деплой, старая и новая версии работают одновременно). Расположите шаги в правильном порядке.
+    - >-
+      Миграция «expand → contract»: в {{table}} колонка {{old}} заменяется на {{old}}_v2, сервис обновляется
+      rolling-деплоем без даунтайма. Упорядочьте шаги.
+  order_items:
+    - "Добавить nullable-колонку {{old}}_v2, код её пока не использует"
+    - "Выкатить версию, которая пишет в {{old}} и {{old}}_v2, а читает {{old}}"
+    - "Перенести исторические данные из {{old}} в {{old}}_v2 (backfill)"
+    - "Выкатить версию, которая читает {{old}}_v2 и всё ещё пишет в обе колонки"
+    - "Выкатить версию, которая больше не пишет в {{old}}"
+    - "Удалить колонку {{old}}"

@@ -283,3 +283,44 @@
   kind: numeric
   irt: {a: 1.0, b: -2.0}
   generator: devops.glob_wc_count
+
+# --- Senior ---
+
+- id: ops.linux.links_after_change
+  specializations: [devops]
+  topic: linux
+  skills: [linux, linux_cli, bash]
+  kind: code_output
+  irt: {a: 1.4, b: 1.5}
+  time_limit_sec: 150
+  generator: devops.links_after_change
+
+- id: ops.linux.df_du_gap
+  specializations: [devops]
+  topic: linux
+  skills: [linux, linux_cli]
+  kind: multi_choice
+  irt: {a: 1.3, b: 1.4}
+  time_limit_sec: 120
+  n_options: 5
+  params:
+    mount: {choice: [/var, /data, /srv, /opt]}
+    size: {choice: [50, 100, 200, 500]}
+    pct: {int: [30, 70]}
+  stem_variants:
+    - >-
+      df -h показывает, что {{mount}} ({{size}} ГБ) заполнен на 100%, а du -sh {{mount}} насчитывает лишь около
+      {{pct}}% от этого объёма. Какие причины могут объяснить расхождение?
+    - >-
+      Приложение получает «No space left on device» на {{mount}}: df — 100% из {{size}} ГБ, а du по этому
+      каталогу — примерно {{pct}}%. Чем это может объясняться?
+  options:
+    correct:
+      - "Удалённый файл (например, ротированный лог) всё ещё открыт процессом: место освободится после закрытия дескриптора"
+      - "Файлы лежат в каталоге, поверх которого смонтирована другая ФС: du их не видит, а место они занимают"
+      - "du запущен не от root и не смог прочитать часть каталогов (Permission denied), поэтому занизил итог"
+    wrong:
+      - "du не учитывает скрытые файлы, имена которых начинаются с точки"
+      - "Исчерпаны inode, и поэтому df -h показывает 100%"
+      - "Кеш страниц (page cache) занимает место на диске"
+      - "df учитывает раздел подкачки (swap) как занятое место"
