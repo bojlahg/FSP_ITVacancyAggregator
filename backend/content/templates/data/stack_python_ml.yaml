@@ -1,6 +1,42 @@
 # Data Science · стек-модуль python_ml (§10.2). Формат: content/templates/README.md
 # Вывод кода вычисляется генераторами data.* в чистом Python, код не исполняется.
 
+- id: ds.py.df_shape
+  specializations: [data]
+  topic: stack
+  stack_module: python_ml
+  skills: [pandas, python]
+  kind: code_output
+  irt: {a: 1.0, b: -1.8}
+  generator: data.pandas_shape
+
+- id: ds.py.value_counts
+  specializations: [data]
+  topic: stack
+  stack_module: python_ml
+  skills: [pandas, python]
+  kind: code_output
+  irt: {a: 1.0, b: -1.5}
+  generator: data.pandas_value_counts
+
+- id: ds.py.split_sizes
+  specializations: [data]
+  topic: stack
+  stack_module: python_ml
+  skills: [scikit_learn, python]
+  kind: code_output
+  irt: {a: 1.0, b: -1.2}
+  generator: data.split_sizes
+
+- id: ds.py.bool_filter
+  specializations: [data]
+  topic: stack
+  stack_module: python_ml
+  skills: [pandas, python]
+  kind: code_output
+  irt: {a: 1.1, b: -1.1}
+  generator: data.pandas_bool_filter
+
 - id: ds.py.groupby_agg
   specializations: [data]
   topic: stack
@@ -19,13 +55,16 @@
   kind: single_choice
   irt: {a: 1.2, b: -0.6}
   params:
-    scaler: {choice: [StandardScaler, MinMaxScaler, RobustScaler]}
-    var: {choice: [scaler, prep, norm]}
-  stem: "Как правильно преобразовать тестовую выборку после такого кода?"
+    scaler: {choice: [StandardScaler, MinMaxScaler, RobustScaler, MaxAbsScaler]}
+    var: {choice: [scaler, prep, norm, sc, transformer]}
+    model: {choice: [model, clf, reg, estimator]}
+  stem_variants:
+    - "Как правильно преобразовать тестовую выборку после такого кода?"
+    - "Модель обучена на отмасштабированных данных. Какая строка корректно готовит X_test для предсказания?"
   code: |-
     {{var}} = {{scaler}}()
     X_train_s = {{var}}.fit_transform(X_train)
-    model.fit(X_train_s, y_train)
+    {{model}}.fit(X_train_s, y_train)
   code_language: python
   options:
     correct: ["X_test_s = {{var}}.transform(X_test)"]
@@ -33,7 +72,9 @@
       - "X_test_s = {{var}}.fit_transform(X_test)"
       - "X_test_s = {{scaler}}().fit_transform(X_test)"
       - "X_test_s = {{var}}.fit(X_test).transform(X_train)"
-      - "X_test_s = X_test: модель уже обучена"
+      - "X_test_s = X_test: модель {{model}} уже обучена"
+      - "X_test_s = {{var}}.fit(X_test).transform(X_test)"
+      - "X_test_s = {{var}}.inverse_transform(X_test)"
 
 - id: ds.py.numpy_reduce_shape
   specializations: [data]
@@ -44,6 +85,16 @@
   irt: {a: 1.2, b: -0.4}
   generator: data.numpy_reduce_shape
 
+- id: ds.py.dropna_rows
+  specializations: [data]
+  topic: stack
+  stack_module: python_ml
+  skills: [pandas, python]
+  kind: code_output
+  irt: {a: 1.2, b: 0.0}
+  time_limit_sec: 120
+  generator: data.pandas_dropna
+
 - id: ds.py.loc_iloc_slice
   specializations: [data]
   topic: stack
@@ -52,6 +103,16 @@
   kind: code_output
   irt: {a: 1.3, b: 0.3}
   generator: data.loc_iloc_slice
+
+- id: ds.py.groupby_transform
+  specializations: [data]
+  topic: stack
+  stack_module: python_ml
+  skills: [pandas, python]
+  kind: code_output
+  irt: {a: 1.2, b: 0.5}
+  time_limit_sec: 120
+  generator: data.groupby_transform
 
 - id: ds.py.numpy_broadcast
   specializations: [data]
@@ -91,3 +152,12 @@
   irt: {a: 1.3, b: 1.2}
   time_limit_sec: 120
   generator: data.numpy_view_copy
+
+- id: ds.py.numpy_int_assign
+  specializations: [data]
+  topic: stack
+  stack_module: python_ml
+  skills: [numpy, python]
+  kind: code_output
+  irt: {a: 1.2, b: 1.4}
+  generator: data.numpy_int_assign

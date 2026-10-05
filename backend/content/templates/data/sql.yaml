@@ -1,6 +1,22 @@
 # Data Science · SQL (§10.2). Формат: content/templates/README.md
 # Результаты запросов вычисляются генераторами data.sql_* (семантика PostgreSQL / стандарта SQL).
 
+- id: ds.sql.where_count
+  specializations: [data]
+  topic: sql
+  skills: [sql]
+  kind: code_output
+  irt: {a: 1.0, b: -1.8}
+  generator: data.sql_where_count
+
+- id: ds.sql.order_limit
+  specializations: [data]
+  topic: sql
+  skills: [sql]
+  kind: code_output
+  irt: {a: 1.0, b: -1.4}
+  generator: data.sql_order_limit
+
 - id: ds.sql.join_all_customers
   specializations: [data]
   topic: sql
@@ -8,12 +24,28 @@
   kind: single_choice
   irt: {a: 1.0, b: -1.2}
   params:
-    left: {choice: [customers, users, stores, drivers]}
-    right: {choice: [orders, payments, deliveries]}
-  stem: "Нужен отчёт по всем строкам {{left}} с числом связанных {{right}}, включая тех, у кого {{right}} нет совсем. Какое соединение использовать?"
+    left: {choice: [customers, users, stores, drivers, couriers, sellers]}
+    right: {choice: [orders, payments, deliveries, reviews, tickets]}
+  stem_variants:
+    - "Нужен отчёт по всем строкам {{left}} с числом связанных {{right}}, включая тех, у кого {{right}} нет совсем. Какое соединение использовать?"
+    - "Отчёт должен вывести каждую запись из {{left}} и количество её {{right}}; записи без {{right}} должны попасть в отчёт с нулём. Какой JOIN нужен?"
+    - "Аналитик соединил {{left}} и {{right}}, и из отчёта пропали {{left}} без {{right}}. Каким соединением сохранить все строки {{left}}?"
   options:
     correct: ["{{left}} LEFT JOIN {{right}}"]
-    wrong: ["{{left}} INNER JOIN {{right}}", "{{left}} RIGHT JOIN {{right}}", "{{left}} CROSS JOIN {{right}}", "{{right}} LEFT JOIN {{left}}"]
+    wrong:
+      - "{{left}} INNER JOIN {{right}}"
+      - "{{left}} RIGHT JOIN {{right}}"
+      - "{{left}} CROSS JOIN {{right}}"
+      - "{{right}} LEFT JOIN {{left}}"
+      - "{{right}} INNER JOIN {{left}}"
+
+- id: ds.sql.group_rows
+  specializations: [data]
+  topic: sql
+  skills: [sql]
+  kind: numeric
+  irt: {a: 1.0, b: -1.1}
+  generator: data.sql_group_rows
 
 - id: ds.sql.group_having
   specializations: [data]
@@ -33,6 +65,15 @@
   time_limit_sec: 120
   generator: data.sql_count_null
 
+- id: ds.sql.union_dedup
+  specializations: [data]
+  topic: sql
+  skills: [sql]
+  kind: code_output
+  irt: {a: 1.2, b: -0.2}
+  time_limit_sec: 120
+  generator: data.sql_union
+
 - id: ds.sql.not_equal_null
   specializations: [data]
   topic: sql
@@ -50,6 +91,15 @@
   irt: {a: 1.3, b: 0.3}
   time_limit_sec: 150
   generator: data.sql_left_join_count
+
+- id: ds.sql.avg_null
+  specializations: [data]
+  topic: sql
+  skills: [sql, sql_analytics]
+  kind: numeric
+  irt: {a: 1.2, b: 0.4}
+  time_limit_sec: 120
+  generator: data.sql_avg_null
 
 - id: ds.sql.window_rank
   specializations: [data]
@@ -76,19 +126,33 @@
   kind: single_choice
   irt: {a: 1.2, b: 1.3}
   params:
-    table: {choice: [payments, sales, deposits]}
-    day: {choice: [day, paid_on, sale_date]}
-  stem: "Нарастающий итог считают так. У двух строк с одинаковым {{day}} в столбце running получилось одинаковое значение. Почему?"
+    table: {choice: [payments, sales, deposits, orders, refunds]}
+    day: {choice: [day, paid_on, sale_date, created_on, op_date]}
+    amount: {choice: [amount, total, sum_rub]}
+  stem_variants:
+    - "Нарастающий итог считают так. У двух строк с одинаковым {{day}} в столбце running получилось одинаковое значение. Почему?"
+    - "В результате этого запроса строки с равным {{day}} получают одно и то же значение running, хотя {{amount}} у них разный. В чём причина?"
   code: |-
-    SELECT {{day}}, amount,
-           SUM(amount) OVER (ORDER BY {{day}}) AS running
+    SELECT {{day}}, {{amount}},
+           SUM({{amount}}) OVER (ORDER BY {{day}}) AS running
     FROM {{table}};
   code_language: sql
   options:
     correct:
       - "При ORDER BY без явной рамки используется RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW, и строки с равным {{day}} входят в рамку вместе"
+      - "Рамка по умолчанию — RANGE, а не ROWS: все строки-«соседи» с тем же {{day}} считаются текущими и суммируются вместе"
     wrong:
       - "Оконная функция сначала схлопывает строки с равным {{day}}, как GROUP BY"
       - "По умолчанию рамка — ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW, а равные {{day}} сортируются случайно"
-      - "Без PARTITION BY оконная SUM возвращает сумму по всей таблице"
+      - "Без PARTITION BY оконная SUM возвращает сумму по всей таблице {{table}}"
       - "Это ошибка данных: оконная функция не может вернуть одинаковые значения в разных строках"
+      - "SUM в окне пропускает дубликаты {{day}}, как SUM(DISTINCT {{amount}})"
+
+- id: ds.sql.not_in_null
+  specializations: [data]
+  topic: sql
+  skills: [sql, postgresql]
+  kind: code_output
+  irt: {a: 1.2, b: 1.6}
+  time_limit_sec: 150
+  generator: data.sql_not_in_null

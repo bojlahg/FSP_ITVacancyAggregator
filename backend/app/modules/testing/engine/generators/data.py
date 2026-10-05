@@ -3,6 +3,7 @@
 Результаты запросов и кода вычисляются в чистом Python — код кандидата не исполняется.
 """
 
+import math
 import random
 import statistics
 from collections import Counter
@@ -317,33 +318,70 @@ def f1_score(rng: random.Random) -> Generated:
 @generator("data.metric_choice")
 def metric_choice(rng: random.Random) -> Generated:
     """Выбор метрики под цену ошибок."""
-    disease = rng.choice(["диабет", "пневмонию", "редкое генетическое заболевание"])
-    target = rng.choice(["время доставки", "стоимость ремонта", "длительность поездки"])
+    disease = rng.choice(
+        ["диабет", "пневмонию", "редкое генетическое заболевание", "туберкулёз", "меланому", "гепатит C"]
+    )
+    target = rng.choice(
+        [
+            "время доставки",
+            "стоимость ремонта",
+            "длительность поездки",
+            "время ответа поддержки",
+            "цену подержанного автомобиля",
+            "срок выполнения заказа",
+        ]
+    )
+    blocked = rng.choice(["аккаунты", "банковские карты", "объявления", "отзывы", "платежи"])
+    defect = rng.choice(["двигателей", "микросхем", "сварных швов", "подшипников"])
+    goods = rng.choice(["товаров в магазинах", "SKU на складах", "позиций меню в ресторанах"])
     cases = [
         (
             f"Модель для скрининга на {disease}: пропустить больного намного хуже, чем отправить здорового "
             "на дополнительное обследование. Какую метрику важнее всего максимизировать?",
             "Recall (полнота)",
-            ["Precision (точность)", "Accuracy", "Specificity (специфичность)"],
+            [
+                "Precision (точность)",
+                "Accuracy",
+                "Specificity (специфичность)",
+                "Доля предсказанных положительных",
+            ],
         ),
         (
-            "Модель автоматически блокирует аккаунты подозрительных пользователей. Каждая ошибочная "
-            "блокировка честного пользователя очень дорога, а пропуск части нарушителей допустим. Какую "
-            "метрику важнее всего максимизировать?",
+            f"Модель ищет брак {defect} на конвейере; каждую найденную деталь затем проверяет "
+            "человек, а пропущенный брак уходит клиенту и стоит очень дорого. Какую метрику "
+            "важнее всего максимизировать?",
+            "Recall (полнота)",
+            ["Precision (точность)", "Accuracy", "Specificity (специфичность)", "ROC AUC"],
+        ),
+        (
+            f"Модель автоматически блокирует {blocked} без ручной проверки. Каждая ошибочная блокировка "
+            "очень дорога, а пропуск части нарушителей допустим. Какую метрику важнее всего максимизировать?",
             "Precision (точность)",
-            ["Recall (полнота)", "Accuracy", "Доля предсказанных положительных"],
+            ["Recall (полнота)", "Accuracy", "Доля предсказанных положительных", "F1 на обучающей выборке"],
         ),
         (
             f"Регрессия на {target}: в данных есть редкие выбросы, и крупные ошибки на них не должны "
             "непропорционально влиять на оценку модели. Какую метрику выбрать?",
             "MAE",
-            ["RMSE", "MSE", "R²"],
+            ["RMSE", "MSE", "R²", "Максимальная абсолютная ошибка"],
         ),
         (
             f"Регрессия на {target}: крупные ошибки особенно дороги, их нужно штрафовать сильнее, чем "
             "несколько мелких с той же суммой. Какую метрику выбрать?",
             "RMSE",
-            ["MAE", "MAPE", "Медианная абсолютная ошибка"],
+            ["MAE", "MAPE", "Медианная абсолютная ошибка", "R²"],
+        ),
+        (
+            f"Прогноз продаж {goods}: объёмы различаются на порядки, и бизнесу важна ошибка в процентах "
+            "от факта, а не в штуках. Нулевых продаж в данных нет. Какую метрику выбрать?",
+            "MAPE",
+            ["MAE", "RMSE", "MSE", "Accuracy"],
+        ),
+        (
+            f"Классификатор для {blocked}: по предсказанной вероятности считают ожидаемые потери в рублях, "
+            "поэтому вероятности должны быть хорошо откалиброваны. Какая метрика это оценивает?",
+            "Log loss (логистическая функция потерь)",
+            ["ROC AUC", "Accuracy", "Recall (полнота)", "Precision (точность)"],
         ),
     ]
     stem, correct, wrong = rng.choice(cases)
@@ -354,16 +392,29 @@ def metric_choice(rng: random.Random) -> Generated:
 def task_type(rng: random.Random) -> Generated:
     """Тип задачи машинного обучения по постановке."""
     city = rng.choice(CITIES)
+    n = rng.choice([50, 100, 300, 500, 1000])
     cases = [
         (f"Предсказать цену квартиры в городе {city} по площади, этажу и району.", "Регрессия"),
         (f"Предсказать, сколько заказов поступит завтра в магазин в городе {city}.", "Регрессия"),
+        (f"Оценить, сколько минут займёт доставка заказа в городе {city}.", "Регрессия"),
         ("Определить по тексту письма, спам это или нет, по размеченной выборке.", "Классификация"),
         ("Распознать рукописную цифру от 0 до 9 на изображении по размеченной выборке.", "Классификация"),
+        (
+            f"По истории платежей клиентов из города {city} предсказать, уйдёт ли клиент в следующем месяце; "
+            "есть разметка за прошлые периоды.",
+            "Классификация",
+        ),
         (
             f"Разбить клиентов магазина в городе {city} на группы со схожим поведением; разметки нет.",
             "Кластеризация",
         ),
-        ("Сжать 300 признаков до 2, чтобы визуализировать данные на плоскости.", "Понижение размерности"),
+        (f"Сгруппировать {n} новостных статей по сходству текста; заранее темы неизвестны.", "Кластеризация"),
+        (f"Сжать {n} признаков до 2, чтобы визуализировать данные на плоскости.", "Понижение размерности"),
+        (
+            "Агент управляет ценой в онлайн-игре, получает награду за выручку и учится на последствиях "
+            "своих действий.",
+            "Обучение с подкреплением",
+        ),
     ]
     stem, answer = rng.choice(cases)
     kinds = [
@@ -373,8 +424,15 @@ def task_type(rng: random.Random) -> Generated:
         "Понижение размерности",
         "Обучение с подкреплением",
     ]
+    lead = rng.choice(
+        [
+            "К какому типу задач машинного обучения относится постановка?",
+            "Какой это тип задачи машинного обучения?",
+            "Как называется такой тип задачи в машинном обучении?",
+        ]
+    )
     return Generated(
-        stem=f"К какому типу задач машинного обучения относится постановка? {stem}",
+        stem=f"{lead} {stem}",
         correct=(answer,),
         wrong=tuple(k for k in kinds if k != answer),
     )
@@ -653,4 +711,542 @@ def numpy_view_copy(rng: random.Random) -> Generated:
         code_language="python",
         correct=(str(answer),),
         wrong=tuple(sorted(wrong)),
+    )
+
+
+PRODUCTS = ["kettle", "lamp", "chair", "mouse", "phone", "table", "drill", "scale", "radio"]
+
+
+@generator("data.normal_rule")
+def normal_rule(rng: random.Random) -> Generated:
+    """Правило 68–95–99,7: доля нормального распределения в пределах 1, 2 и 3 σ от среднего."""
+    k, share = rng.choice([(1, 68.0), (2, 95.0), (3, 99.7)])
+    mean = rng.randrange(300, 1001, 10)
+    sd = rng.randrange(5, 65, 5)
+    what = rng.choice(
+        [
+            "Время ответа сервиса (мс)",
+            "Рост взрослых мужчин в выборке (мм)",
+            "Вес упаковки на линии фасовки (г)",
+            "Дневная выручка кофейни (сотни ₽)",
+            "Балл за экзамен",
+        ]
+    )
+    return Generated(
+        stem=f"{what} распределено нормально со средним {mean} и стандартным отклонением {sd}. "
+        f"Какая доля значений приблизительно лежит в интервале от {mean - k * sd} до {mean + k * sd}? "
+        "Ответ в процентах.",
+        number=share,
+        tolerance=1.0,
+    )
+
+
+@generator("data.sample_variance")
+def sample_variance(rng: random.Random) -> Generated:
+    """Несмещённая выборочная дисперсия: сумма квадратов отклонений от среднего, делённая на n − 1."""
+    size = rng.choice([4, 5, 6])
+    values = [rng.randint(1, 20) for _ in range(size)]
+    noun = rng.choice(["заказов в день", "минут на задачу", "ошибок в сборке", "звонков в час"])
+    return Generated(
+        stem=f"Выборка ({noun}): {', '.join(map(str, values))}. Чему равна несмещённая выборочная "
+        "дисперсия (с делителем n − 1)? Округлите до сотых.",
+        number=round(statistics.variance(values), 2),
+        tolerance=0.01,
+    )
+
+
+SIMPSON_RIGHT = (
+    "В каждом сегменте B лучше, а в сумме хуже из-за разного состава групп по сегментам (парадокс "
+    "Симпсона): сравнивать нужно внутри сегментов и выяснить, почему при рандомизации состав групп разошёлся",
+    "Это парадокс Симпсона: в группе B больше доля сегмента с низкой конверсией, поэтому общий итог "
+    "искажён; выводы делать по сегментам и проверить сплит",
+)
+SIMPSON_WRONG = (
+    "B хуже: для решения важна только общая конверсия, сегменты не имеют значения",
+    "В таблице ошибка: если B лучше в каждом сегменте, то в сумме B тоже обязательно лучше",
+    "B лучше только для одного сегмента, поэтому эффект нужно считать незначимым",
+    "Надо сложить разницы конверсий по сегментам и сравнить сумму с общей разницей",
+    "Результат объясняется малым размером выборки в каждом сегменте, а не составом групп",
+)
+
+
+@generator("data.simpson")
+def simpson(rng: random.Random) -> Generated:
+    """Парадокс Симпсона: эффект внутри каждого сегмента противоположен эффекту в сумме."""
+    segments = rng.choice([("desktop", "mobile"), ("новые", "вернувшиеся"), ("Москва", "регионы")])
+    while True:
+        high = rng.uniform(0.10, 0.16)
+        low = rng.uniform(0.02, 0.05)
+        lift = rng.uniform(0.004, 0.012)
+        big, small = rng.randrange(6000, 9001, 100), rng.randrange(1000, 2501, 100)
+        groups = {"A": (big, small), "B": (small, big)}
+        table = {}
+        for group, (n_high, n_low) in groups.items():
+            delta = lift if group == "B" else 0.0
+            table[group] = [
+                (n_high, round(n_high * (high + delta))),
+                (n_low, round(n_low * (low + delta))),
+            ]
+        rate = {g: [c / n for n, c in rows] for g, rows in table.items()}
+        total = {g: sum(c for _, c in rows) / sum(n for n, _ in rows) for g, rows in table.items()}
+        if all(rate["B"][i] > rate["A"][i] for i in range(2)) and total["B"] < total["A"]:
+            break
+    lines = ["Группа  Сегмент        Пользователей  Покупок  Конверсия"]
+    for group, rows in table.items():
+        for segment, (n, c) in zip(segments, rows, strict=True):
+            lines.append(f"{group:<7} {segment:<14} {n:<14} {c:<8} {100 * c / n:.1f}%")
+    for group, rows in table.items():
+        n, c = sum(r[0] for r in rows), sum(r[1] for r in rows)
+        lines.append(f"{group:<7} {'всего':<14} {n:<14} {c:<8} {100 * c / n:.1f}%")
+    return Generated(
+        stem="Результаты A/B-теста по сегментам и в сумме приведены в таблице. Какой вывод верный?",
+        code="\n".join(lines),
+        code_language="text",
+        correct=(rng.choice(SIMPSON_RIGHT),),
+        wrong=SIMPSON_WRONG,
+    )
+
+
+@generator("data.knn_regression")
+def knn_regression(rng: random.Random) -> Generated:
+    """kNN-регрессия: среднее целевой переменной у k ближайших соседей."""
+    k = rng.choice([3, 4, 5])
+    size = rng.randint(k + 3, k + 5)
+    distances = sorted(rng.sample(range(5, 100), size))
+    targets = [rng.randrange(10, 200, 5) for _ in range(size)]
+    order = list(range(size))
+    rng.shuffle(order)
+    target_name, unit = rng.choice(
+        [("время доставки", "мин"), ("выручка точки", "тыс. ₽"), ("расход топлива", "л на 1000 км")]
+    )
+    lines = ["Сосед  Расстояние  Цель"] + [
+        f"{i + 1:<6} {distances[j] / 10:<11} {targets[j]}" for i, j in enumerate(order)
+    ]
+    value = sum(targets[:k]) / k
+    return Generated(
+        stem=f"kNN-регрессия (k = {k}, равные веса) предсказывает «{target_name}» ({unit}). Для нового "
+        "объекта посчитаны расстояния до объектов обучающей выборки. Какое значение предскажет модель? "
+        "Округлите до сотых.",
+        code="\n".join(lines),
+        code_language="text",
+        number=round(value, 2),
+        tolerance=0.01,
+    )
+
+
+@generator("data.pca_variance")
+def pca_variance(rng: random.Random) -> Generated:
+    """Доля объяснённой дисперсии первых k компонент = сумма их собственных значений / сумма всех."""
+    values = sorted(rng.sample(range(1, 60), 5), reverse=True)
+    k = rng.choice([2, 3])
+    share = 100 * sum(values[:k]) / sum(values)
+    data = rng.choice(["анкет клиентов", "сенсоров станка", "показателей магазинов", "метрик серверов"])
+    return Generated(
+        stem=f"PCA по стандартизованным данным {data}: собственные значения ковариационной матрицы "
+        f"(дисперсии вдоль главных компонент) — {', '.join(map(str, values))}. Какую долю общей дисперсии "
+        f"объясняют первые {k} компоненты? Ответ в процентах, округлите до десятых.",
+        number=round(share, 1),
+        tolerance=0.2,
+    )
+
+
+@generator("data.pandas_shape")
+def pandas_shape(rng: random.Random) -> Generated:
+    """df.shape — кортеж (число строк, число столбцов)."""
+    columns = rng.sample(["city", "price", "qty", "age", "score", "clicks", "segment"], rng.randint(2, 5))
+    rows = rng.choice([n for n in range(3, 8) if n != len(columns)])
+    data = {column: [rng.randint(1, 99) for _ in range(rows)] for column in columns}
+    code = "\n".join(["import pandas as pd", "", _df_literal(data), "", "print(df.shape)"])
+    n, m = rows, len(columns)
+    wrong = {f"({m}, {n})", f"({n},)", str(n * m), f"({n + 1}, {m})", f"({n}, {m + 1})"}
+    return Generated(
+        stem="Что выведет этот код?",
+        code=code,
+        code_language="python",
+        correct=(f"({n}, {m})",),
+        wrong=tuple(sorted(wrong)),
+    )
+
+
+@generator("data.pandas_value_counts")
+def pandas_value_counts(rng: random.Random) -> Generated:
+    """value_counts считает, сколько раз встречается каждое значение."""
+    labels = rng.choice([["web", "ios", "android"], ["A", "B", "C"], ["new", "paid", "cancelled"]])
+    while True:
+        values = [rng.choice(labels) for _ in range(rng.randint(7, 10))]
+        counts = Counter(values)
+        if len(counts) == 3 and len(set(counts.values())) == 3:
+            break
+    target = rng.choice(labels)
+    name = rng.choice(["channel", "status", "group", "s"])
+    literal = "[" + ", ".join(f'"{v}"' for v in values) + "]"
+    code = "\n".join(
+        [
+            "import pandas as pd",
+            "",
+            f"{name} = pd.Series({literal})",
+            f'print({name}.value_counts()["{target}"])',
+        ]
+    )
+    answer = counts[target]
+    wrong = {str(c) for c in counts.values()} | {str(len(values)), str(len(counts)), str(answer + 1)}
+    wrong.discard(str(answer))
+    return Generated(
+        stem="Что выведет этот код?",
+        code=code,
+        code_language="python",
+        correct=(str(answer),),
+        wrong=tuple(sorted(wrong, key=int)),
+    )
+
+
+@generator("data.pandas_bool_filter")
+def pandas_bool_filter(rng: random.Random) -> Generated:
+    """Булева маска df[df[col] > t] оставляет только строки, где условие истинно (строго больше)."""
+    column = rng.choice(["price", "age", "score", "amount"])
+    while True:
+        values = [rng.randrange(10, 100, 5) for _ in range(rng.randint(7, 10))]
+        threshold = rng.choice(values)
+        gt = sum(v > threshold for v in values)
+        ge = sum(v >= threshold for v in values)
+        le = len(values) - gt
+        if gt >= 1 and le >= 2 and len({gt, ge, le, le - 1, len(values)}) == 5:
+            break
+    code = "\n".join(
+        [
+            "import pandas as pd",
+            "",
+            _df_literal({column: values}),
+            "",
+            f'print(len(df[df["{column}"] > {threshold}]))',
+        ]
+    )
+    wrong = {str(ge), str(le), str(len(values)), str(le - 1)}
+    return Generated(
+        stem="Что выведет этот код?",
+        code=code,
+        code_language="python",
+        correct=(str(gt),),
+        wrong=tuple(sorted(wrong, key=int)),
+    )
+
+
+@generator("data.pandas_dropna")
+def pandas_dropna(rng: random.Random) -> Generated:
+    """dropna() по умолчанию (how='any') удаляет строку, если NaN есть хотя бы в одном столбце."""
+    first, second = rng.sample(["age", "income", "city_id", "score", "visits"], 2)
+    while True:
+        size = rng.randint(6, 9)
+        a = [None if rng.random() < 0.3 else rng.randint(1, 99) for _ in range(size)]
+        b = [None if rng.random() < 0.3 else rng.randint(1, 99) for _ in range(size)]
+        both = sum(x is not None and y is not None for x, y in zip(a, b, strict=True))
+        any_value = sum(x is not None or y is not None for x, y in zip(a, b, strict=True))
+        a_ok = sum(x is not None for x in a)
+        b_ok = sum(y is not None for y in b)
+        if len({both, any_value, a_ok, b_ok, size}) == 5:
+            break
+    code = "\n".join(
+        ["import pandas as pd", "", _df_literal({first: a, second: b}), "", "print(len(df.dropna()))"]
+    )
+    wrong = {str(any_value), str(a_ok), str(b_ok), str(size)}
+    return Generated(
+        stem="Что выведет этот код?",
+        code=code,
+        code_language="python",
+        correct=(str(both),),
+        wrong=tuple(sorted(wrong, key=int)),
+    )
+
+
+@generator("data.split_sizes")
+def split_sizes(rng: random.Random) -> Generated:
+    """train_test_split с долей test_size: в тест уходит ceil(test_size · n) строк, остальное — в train."""
+    while True:
+        n = rng.randrange(100, 2001, 20)
+        test = rng.choice([0.1, 0.2, 0.25, 0.3])
+        n_test = math.ceil(test * n)
+        # берём только n, где test_size · n — целое и в float, чтобы не было неоднозначности округления
+        if n_test * 1.0 == test * n:
+            break
+    n_train = n - n_test
+    x = rng.choice(["X", "features", "X_all"])
+    code = "\n".join(
+        [
+            "from sklearn.model_selection import train_test_split",
+            "",
+            f"# {x}.shape == ({n}, {rng.randint(5, 40)})",
+            f"X_train, X_test, y_train, y_test = train_test_split({x}, y, test_size={test}, random_state=0)",
+            "print(len(X_train), len(X_test))",
+        ]
+    )
+    wrong = {f"{n_test} {n_train}", f"{n} {n_test}", f"{n_train} {n}", f"{n_train + 1} {n_test - 1}"}
+    return Generated(
+        stem="Что выведет этот код?",
+        code=code,
+        code_language="python",
+        correct=(f"{n_train} {n_test}",),
+        wrong=tuple(sorted(wrong)),
+    )
+
+
+@generator("data.groupby_transform")
+def groupby_transform(rng: random.Random) -> Generated:
+    """transform возвращает значение для каждой строки исходного DataFrame, агрегат — по одному на группу."""
+    groups = rng.sample(["A", "B", "C", "D"], rng.randint(2, 4))
+    while True:
+        column = [rng.choice(groups) for _ in range(rng.randint(6, 10))]
+        if len(set(column)) == len(groups):
+            break
+    values = [rng.randrange(10, 100, 10) for _ in column]
+    func = rng.choice(["mean", "sum", "max"])
+    key, val = rng.choice([("segment", "amount"), ("city", "sales"), ("team", "score")])
+    code = "\n".join(
+        [
+            "import pandas as pd",
+            "",
+            _df_literal({key: column, val: values}),
+            "",
+            f't = df.groupby("{key}")["{val}"].transform("{func}")',
+            f'a = df.groupby("{key}")["{val}"].{func}()',
+            "print(len(t), len(a))",
+        ]
+    )
+    n, k = len(column), len(groups)
+    wrong = {f"{k} {k}", f"{n} {n}", f"{k} {n}", f"{n} {k + 1}"}
+    return Generated(
+        stem="Что выведет этот код?",
+        code=code,
+        code_language="python",
+        correct=(f"{n} {k}",),
+        wrong=tuple(sorted(wrong)),
+    )
+
+
+@generator("data.numpy_int_assign")
+def numpy_int_assign(rng: random.Random) -> Generated:
+    """Присваивание float в целочисленный массив отбрасывает дробную часть: dtype массива не меняется."""
+    values = [rng.randint(1, 30) for _ in range(rng.randint(4, 6))]
+    index = rng.randrange(len(values))
+    whole = rng.randint(2, 40)
+    new = f"{whole}.{rng.choice([5, 6, 7, 8, 9])}"
+    name = rng.choice(["a", "arr", "counts", "x"])
+    code = "\n".join(
+        [
+            "import numpy as np",
+            "",
+            f"{name} = np.array({values})",
+            f"{name}[{index}] = {new}",
+            f"print({name}[{index}])",
+        ]
+    )
+    wrong = {new, str(whole + 1), f"{whole}.0", "TypeError"}
+    return Generated(
+        stem="Что выведет этот код?",
+        code=code,
+        code_language="python",
+        correct=(str(whole),),
+        wrong=tuple(sorted(wrong)),
+    )
+
+
+@generator("data.sql_where_count")
+def sql_where_count(rng: random.Random) -> Generated:
+    """WHERE price > t — строгое сравнение: строки с ценой ровно t не попадают."""
+    while True:
+        names = rng.sample(PRODUCTS, rng.randint(6, 8))
+        prices = [rng.randrange(100, 1000, 50) for _ in names]
+        threshold = rng.choice(prices)
+        gt = sum(p > threshold for p in prices)
+        ge = sum(p >= threshold for p in prices)
+        lt = sum(p < threshold for p in prices)
+        if gt >= 1 and len({gt, ge, lt, lt + 1, len(prices)}) == 5:
+            break
+    rows = [(i + 1, n, p) for i, (n, p) in enumerate(zip(names, prices, strict=True))]
+    code = (
+        "CREATE TABLE products (id int, name text, price int);\n"
+        f"INSERT INTO products VALUES\n  {_sql_values(rows)};\n\n"
+        f"SELECT COUNT(*) FROM products WHERE price > {threshold};"
+    )
+    wrong = {str(ge), str(lt), str(len(prices)), str(lt + 1)}
+    return Generated(
+        stem="Что вернёт последний запрос?",
+        code=code,
+        code_language="sql",
+        correct=(str(gt),),
+        wrong=tuple(sorted(wrong, key=int)),
+    )
+
+
+@generator("data.sql_order_limit")
+def sql_order_limit(rng: random.Random) -> Generated:
+    """ORDER BY ... DESC/ASC LIMIT n возвращает n первых строк после сортировки."""
+    names = rng.sample(NAMES, rng.randint(5, 7))
+    scores = rng.sample(range(40, 100), len(names))
+    rows = list(zip(names, scores, strict=True))
+    direction = rng.choice(["DESC", "ASC"])
+    limit = rng.choice([1, 2])
+    ranked = sorted(rows, key=lambda r: r[1], reverse=direction == "DESC")
+
+    def show(part: list[tuple[str, int]]) -> str:
+        return "; ".join(name for name, _ in part)
+
+    correct = show(ranked[:limit])
+    wrong = {
+        show(ranked[::-1][:limit]),
+        show(rows[:limit]),
+        show(ranked[1 : limit + 1]),
+        show(ranked[: limit + 1]),
+        show(ranked[-1:]),
+    }
+    wrong.discard(correct)
+    code = (
+        "CREATE TABLE results (name text, score int);\n"
+        f"INSERT INTO results VALUES\n  {_sql_values(rows)};\n\n"
+        f"SELECT name FROM results\nORDER BY score {direction}\nLIMIT {limit};"
+    )
+    return Generated(
+        stem="Что вернёт последний запрос? Строки разделены «;».",
+        code=code,
+        code_language="sql",
+        correct=(correct,),
+        wrong=tuple(sorted(wrong)),
+    )
+
+
+@generator("data.sql_group_rows")
+def sql_group_rows(rng: random.Random) -> Generated:
+    """GROUP BY возвращает по одной строке на каждое различное значение ключа группировки."""
+    while True:
+        cities = rng.sample(CITIES, rng.randint(2, 5))
+        column = [rng.choice(cities) for _ in range(rng.randint(6, 10))]
+        if len(set(column)) == len(cities):
+            break
+    rows = [(i + 1, rng.choice(NAMES), city) for i, city in enumerate(column)]
+    code = (
+        "CREATE TABLE customers (id int, name text, city text);\n"
+        f"INSERT INTO customers VALUES\n  {_sql_values(rows)};\n\n"
+        "SELECT city, COUNT(*) AS n\nFROM customers\nGROUP BY city;"
+    )
+    return Generated(
+        stem="Сколько строк вернёт последний запрос?",
+        code=code,
+        code_language="sql",
+        number=float(len(cities)),
+        tolerance=0,
+    )
+
+
+@generator("data.sql_avg_null")
+def sql_avg_null(rng: random.Random) -> Generated:
+    """AVG пропускает NULL: делит сумму на число непустых значений, а не на число строк."""
+    while True:
+        values = [None if rng.random() < 0.3 else rng.randrange(2, 20) for _ in range(rng.randint(6, 9))]
+        known = [v for v in values if v is not None]
+        if len(known) >= 3 and len(values) - len(known) >= 2:
+            break
+    column, table = rng.choice([("rating", "reviews"), ("score", "exams"), ("delay_min", "flights")])
+    rows = [(i + 1, v) for i, v in enumerate(values)]
+    code = (
+        f"CREATE TABLE {table} (id int, {column} int);\n"
+        f"INSERT INTO {table} VALUES\n  {_sql_values(rows)};\n\n"
+        f"SELECT AVG({column}) FROM {table};"
+    )
+    return Generated(
+        stem="Какое число вернёт последний запрос (PostgreSQL)? Округлите до сотых.",
+        code=code,
+        code_language="sql",
+        number=round(sum(known) / len(known), 2),
+        tolerance=0.01,
+    )
+
+
+@generator("data.sql_union")
+def sql_union(rng: random.Random) -> Generated:
+    """UNION убирает все дубликаты результата, в том числе повторы внутри одной таблицы; UNION ALL — нет."""
+    pool = [f"{n}@mail.ru" for n in NAMES]
+    while True:
+        a = [rng.choice(pool[:7]) for _ in range(rng.randint(3, 5))]
+        b = [rng.choice(pool[3:]) for _ in range(rng.randint(3, 5))]
+        union = len(set(a) | set(b))
+        union_all = len(a) + len(b)
+        naive = len(a) + len(b) - len(set(a) & set(b))
+        if len(set(a)) < len(a) and len({union, union_all, naive}) == 3:
+            break
+    first, second = rng.choice([("subscribers", "customers"), ("leads", "clients"), ("newsletter", "buyers")])
+    code = (
+        f"CREATE TABLE {first} (email text);\n"
+        f"INSERT INTO {first} VALUES\n  {_sql_values([(e,) for e in a])};\n"
+        f"CREATE TABLE {second} (email text);\n"
+        f"INSERT INTO {second} VALUES\n  {_sql_values([(e,) for e in b])};\n\n"
+        f"SELECT COUNT(*) FROM (\n  SELECT email FROM {first}\n  UNION\n  SELECT email FROM {second}\n) t;"
+    )
+    wrong = {str(union_all), str(naive), str(len(set(a)) + len(set(b))), str(union + 1), str(union - 1)}
+    wrong.discard(str(union))
+    return Generated(
+        stem="Что вернёт последний запрос?",
+        code=code,
+        code_language="sql",
+        correct=(str(union),),
+        wrong=tuple(sorted(wrong, key=int)),
+    )
+
+
+@generator("data.sql_not_in_null")
+def sql_not_in_null(rng: random.Random) -> Generated:
+    """x NOT IN (..., NULL) никогда не даёт TRUE: результат FALSE или UNKNOWN, строки отбрасываются."""
+    users = rng.sample(NAMES, rng.randint(5, 7))
+    banned: list[int | None] = list(rng.sample(range(1, len(users) + 1), rng.randint(1, 2)))
+    banned.insert(rng.randrange(len(banned) + 1), None)
+    ban_rows = [(i + 1, uid) for i, uid in enumerate(banned)]
+    user_rows = [(i + 1, name) for i, name in enumerate(users)]
+    table, column = rng.choice([("bans", "user_id"), ("blocked", "user_id"), ("complaints", "author_id")])
+    code = (
+        "CREATE TABLE users (id int, name text);\n"
+        f"INSERT INTO users VALUES\n  {_sql_values(user_rows)};\n"
+        f"CREATE TABLE {table} (id int, {column} int);\n"
+        f"INSERT INTO {table} VALUES\n  {_sql_values(ban_rows)};\n\n"
+        f"SELECT COUNT(*) FROM users\nWHERE id NOT IN (SELECT {column} FROM {table});"
+    )
+    expected = len(users) - (len(banned) - 1)
+    wrong = {str(expected), str(expected - 1), str(len(users)), str(len(banned) - 1)}
+    return Generated(
+        stem="Что вернёт последний запрос (PostgreSQL)?",
+        code=code,
+        code_language="sql",
+        correct=("0",),
+        wrong=tuple(sorted(wrong, key=int)),
+    )
+
+
+@generator("data.accuracy")
+def accuracy(rng: random.Random) -> Generated:
+    """Accuracy = (TP + TN) / все объекты."""
+    tp, fn, fp, task, matrix = _confusion(rng)
+    tn = int(matrix.splitlines()[2].split()[-1])
+    value = (tp + tn) / (tp + tn + fp + fn)
+    return Generated(
+        stem=f"По матрице ошибок {task} (положительный класс — 1) посчитайте accuracy. "
+        "Ответ — десятичная дробь от 0 до 1, округлите до двух знаков.",
+        code=matrix,
+        code_language="text",
+        number=round(value, 2),
+        tolerance=0.01,
+    )
+
+
+@generator("data.mae")
+def mae(rng: random.Random) -> Generated:
+    """MAE — среднее модулей ошибок |y − ŷ|."""
+    size = rng.choice([4, 5, 6])
+    y_true = [rng.randint(10, 90) for _ in range(size)]
+    y_pred = [y + rng.choice([-1, 1]) * rng.randint(1, 15) for y in y_true]
+    what = rng.choice(["время доставки, мин", "спрос, шт.", "число звонков в час", "цена, тыс. ₽"])
+    value = sum(abs(t - p) for t, p in zip(y_true, y_pred, strict=True)) / size
+    code = "\n".join([f"y_true = {y_true}", f"y_pred = {y_pred}"])
+    return Generated(
+        stem=f"Регрессионная модель ({what}) дала прогнозы y_pred. Чему равна MAE? Округлите до сотых.",
+        code=code,
+        code_language="python",
+        number=round(value, 2),
+        tolerance=0.01,
     )
