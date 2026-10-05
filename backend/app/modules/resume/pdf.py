@@ -122,7 +122,8 @@ def skill_groups(skills: list[SkillState]) -> tuple[list[str], list[tuple[str, s
 def fsp_lines(fsp: FspProfileOut | None) -> tuple[list[str], list[str], list[str]]:
     if fsp is None or not fsp.linked:
         return [], [], []
-    ranks = [f"{rank.rank} — {rank.discipline}" for rank in fsp.ranks]
+    disciplines = {slug: item.name for slug, item in get_catalog().disciplines.items()}
+    ranks = [f"{rank.rank} — {disciplines.get(rank.discipline, rank.discipline)}" for rank in fsp.ranks]
     achievements = []
     for item in fsp.achievements[:MAX_FSP_ACHIEVEMENTS]:
         role = f", роль: {item.team_role}" if item.team_role else ""
