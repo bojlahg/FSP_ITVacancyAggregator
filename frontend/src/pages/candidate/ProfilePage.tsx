@@ -363,7 +363,7 @@ function ProfileForm({ profile }: { profile: CandidateProfile }) {
           <CardContent>
             {verified.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Пока нет. Пройдите <Link to="/candidate/grade" className="text-primary underline-offset-4 hover:underline">тест</Link> —
+                Пока нет. Пройдите <Link to="/candidate/grade" className="text-primary underline underline-offset-4">тест</Link> —
                 навыки по его заданиям получат статус «проверено тестом».
               </p>
             ) : (

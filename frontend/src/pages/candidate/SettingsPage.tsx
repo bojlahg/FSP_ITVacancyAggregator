@@ -67,7 +67,7 @@ function ConsentDocLink({ slug }: { slug: LegalSlug | undefined }) {
   return (
     <>
       {" · "}
-      <Link to={legalPath(slug)} className="text-primary underline-offset-4 hover:underline">
+      <Link to={legalPath(slug)} className="text-primary underline underline-offset-4">
         текст
       </Link>
     </>

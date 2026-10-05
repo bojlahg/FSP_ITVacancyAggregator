@@ -42,7 +42,7 @@ export function GradeExplanationCard() {
         </CardTitle>
         <CardDescription>
           Категорию определяет только тест — не резюме, не опрос и не ИИ.{" "}
-          <Link to={legalPath("recommendations")} className="text-primary underline-offset-4 hover:underline">
+          <Link to={legalPath("recommendations")} className="text-primary underline underline-offset-4">
             Правила подбора
           </Link>
         </CardDescription>
@@ -143,7 +143,7 @@ function Decision({ decision }: { decision: GradeDecision }) {
 
       <p className="text-xs text-muted-foreground">
         Результат действует до {formatDate(decision.valid_until)}. Подробно о заданиях и шкале —{" "}
-        <Link to="/how-it-works" className="text-primary underline-offset-4 hover:underline">
+        <Link to="/how-it-works" className="text-primary underline underline-offset-4">
           как работает тест
         </Link>
         .
