@@ -54,8 +54,8 @@ services:
       KC_PROXY_HEADERS: xforwarded
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?задайте KEYCLOAK_ADMIN_PASSWORD в .env}
-      JAVA_OPTS_KC_HEAP: -Xms64m -Xmx320m
-    mem_limit: 700m
+      JAVA_OPTS_KC_HEAP: -Xms64m -Xmx512m
+    mem_limit: 1g
     healthcheck:
       test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /fsp-id/health/ready HTTP/1.0\r\n\r\n' >&3 && grep -q UP <&3"]
       interval: 15s

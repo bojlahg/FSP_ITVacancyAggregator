@@ -6,10 +6,10 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: "status | logs | reseed | restart"
+        description: "status | logs | reseed | restart | swap"
         required: true
         type: choice
-        options: [status, logs, reseed, restart]
+        options: [status, logs, reseed, restart, swap]
       service:
         description: "Сервис для logs/restart"
         required: false
@@ -59,4 +59,7 @@ jobs:
             restart)
               ssh -i ~/.ssh/deploy "root@${DEPLOY_HOST}" "${DC} restart ${SERVICE}"
               sleep 10; curl -fsS "https://itscout.ru/api/v1/health"; echo ;;
+            swap)
+              # Скрипт из checkout, не из /opt/itscout/app: не зависит от того, прошёл ли деплой
+              ssh -i ~/.ssh/deploy "root@${DEPLOY_HOST}" "sh -s" < infra/scripts/setup-swap.sh ;;
           esac

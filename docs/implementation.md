@@ -63,7 +63,7 @@
 
 Точные версии фиксируются в `uv.lock` и `package-lock.json`. Таблица версий для документации генерируется из lock-файлов.
 
-**Память на сервере** (3,3 ГБ): Postgres ~150 МБ, backend ~250 МБ, fsp-mock ~80 МБ, Caddy ~30 МБ, Keycloak (P1) ~700 МБ. Запас достаточный.
+**Память на сервере** (7,25 ГБ + своп 2 ГБ, после апгрейда 05.10; до него было 3,3 ГБ): Postgres ~50–150 МБ, backend ~200–250 МБ, fsp-mock ~80 МБ, Caddy ~60 МБ, Postfix ~100 МБ, Keycloak ~500 МБ (лимит 1 ГБ). Запас достаточный.
 
 **Особенность сервера:** Docker Hub отдаёт образы через зеркало `mirror.gcr.io` (уже настроено в `/etc/docker/daemon.json`). Доступность PyPI и npm с сервера проверить в T01.
 
@@ -822,7 +822,7 @@ POST /admin/reseed (роль admin) ; POST /admin/demo/reset-cooldowns     то�
 
 ## 20. Деплой и CI/CD
 
-- **compose:** `infra/docker-compose.yml` — сервисы `caddy`, `frontend` (сборка Vite, статика в volume для Caddy), `backend`, `db`, `fsp-mock`, `keycloak` (мок IdP «ФСП ID», `-Xmx320m`, `mem_limit: 700m`, около 420 МБ RAM, §9.3). `docker-compose.dev.yml` добавляет `mailpit` и hot reload.
+- **compose:** `infra/docker-compose.yml` — сервисы `caddy`, `frontend` (сборка Vite, статика в volume для Caddy), `backend`, `db`, `fsp-mock`, `keycloak` (мок IdP «ФСП ID», `-Xmx512m`, `mem_limit: 1g`, около 500 МБ RAM, §9.3). `docker-compose.dev.yml` добавляет `mailpit` и hot reload.
 - **CI** (`.github/workflows/ci.yml`, на каждый push): ruff, миграции с нуля + `alembic check`, pytest, актуальность `openapi.json` и сгенерированного клиента, lint/typecheck/build фронта.
 - **Deploy** (push в `master`, после зелёного CI): rsync репозитория в `/opt/itscout/app` → `docker compose up -d --build` (backend сам применяет миграции при старте) → smoke-тест `/api/v1/health` → job `e2e`: Playwright с Chromium гоняет демо-сценарий §18 против `https://itscout.ru`; при падении в артефакт `e2e-report` уходят HTML-отчёт, трейсы, скриншоты и видео. Изменение сида попадает на прод только после `make reseed`. Единственный секрет GitHub — `DEPLOY_SSH_KEY` (отдельный ключ деплоя). Остальные секреты — в `/opt/itscout/app/.env` на сервере (права 600).
 - **HTTPS:** после появления A-записи `itscout.ru` в `Caddyfile` включается блок домена.

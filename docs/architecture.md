@@ -119,11 +119,11 @@ flowchart LR
 | `backend` | Python 3.12, FastAPI, SQLAlchemy 2 async, psycopg 3, numpy/scipy, WeasyPrint | вся бизнес-логика и API `/api/v1`, миграции Alembic при старте | ~250 МБ |
 | `db` | PostgreSQL 16 | 26 таблиц, CHECK-ограничения на вилку и статусы | ~150 МБ |
 | `fsp-mock` | FastAPI | внешняя система «реестр ФСП»: участники, результаты, разряды; данные пишет генератор демо-данных | ~80 МБ |
-| `keycloak` | Keycloak 26.4 | мок IdP «ФСП ID»: authorization code + PKCE, claim `fsp_id` | ≤700 МБ (`mem_limit`) |
+| `keycloak` | Keycloak 26.4 | мок IdP «ФСП ID»: authorization code + PKCE, claim `fsp_id` | ~500 МБ (лимит 1 ГБ) |
 | `mail` | Postfix (`boky/postfix`) | отправка писем подтверждения от `noreply@itscout.ru` с DKIM | — |
 | Yandex AI Studio | внешний LLM, выключатель `LLM_PROVIDER` | разбор текста резюме и потребностей, чек-лист открытых ответов, черновики шаблонов | — |
 
-Весь стенд работает на VDS 2 vCPU / 3,3 ГБ RAM — в пределах требования п. 3.1 ТЗ о недорогом сервере.
+Весь стенд занимает около 1,1 ГБ RAM и работает на недорогом VDS (прод — 7,25 ГБ RAM и своп 2 ГБ; до апгрейда работал и на 3,3 ГБ) — в пределах требования п. 3.1 ТЗ.
 
 ### 2.1. Backend: модули
 

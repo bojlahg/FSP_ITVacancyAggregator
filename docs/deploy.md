@@ -1,6 +1,6 @@
 # Сборка, развёртывание и локальный запуск
 
-Решение запускается одним `docker compose` на любой ОС с Docker (Linux, macOS, Windows с WSL 2) и на недорогом VDS: прод работает на 2 vCPU и 3,3 ГБ RAM.
+Решение запускается одним `docker compose` на любой ОС с Docker (Linux, macOS, Windows с WSL 2) и на недорогом VDS: весь стенд занимает около 1,1 ГБ RAM.
 
 | Способ | Для чего | Раздел |
 |---|---|---|
@@ -18,7 +18,7 @@
 | Python + [uv](https://docs.astral.sh/uv/) | 3.12, uv 0.12 | разделы 3, 4, тесты, валидация |
 | Node.js + npm | 22 | разделы 3, 4, e2e, сборка PDF документации |
 | PostgreSQL | 16 | раздел 4 |
-| Свободная память | ~2 ГБ (из них Keycloak до 700 МБ) | весь стенд |
+| Свободная память | ~2 ГБ (из них Keycloak до 1 ГБ) | весь стенд |
 
 ## 2. Весь стенд локально в Docker
 
@@ -101,7 +101,7 @@ PDF-профиль требует системных библиотек WeasyPri
 
 ### 5.1. Сервер
 
-1. VDS с Ubuntu, 2 vCPU, от 3 ГБ RAM. Установить Docker Engine и Compose plugin. Если Docker Hub недоступен — зеркало в `/etc/docker/daemon.json` (см. раздел 2).
+1. VDS с Ubuntu, от 2 vCPU и 3 ГБ RAM. Установить Docker Engine и Compose plugin. Если Docker Hub недоступен — зеркало в `/etc/docker/daemon.json` (см. раздел 2). Своп 2 ГБ как подстраховка от OOM — `infra/scripts/setup-swap.sh` (идемпотентный; без SSH — `gh workflow run server-ops.yml -f action=swap`).
 2. DNS: A-записи `itscout.ru` и `www.itscout.ru` → IP сервера. Caddy сам выпустит сертификат Let's Encrypt при первом запросе.
 3. Для писем: открыть исходящий порт 25 у провайдера, в DNS — SPF `v=spf1 ip4:<IP> -all`, DKIM (`mail._domainkey`, ключ генерирует контейнер `mail` в volume `dkim`), DMARC; PTR IP → домен.
 4. Каталог приложения `/opt/itscout/app`, в нём `.env` с правами 600:
@@ -146,6 +146,7 @@ gh workflow run server-ops.yml -f action=status                     # docker com
 gh workflow run server-ops.yml -f action=logs -f service=backend -f lines=200
 gh workflow run server-ops.yml -f action=reseed                     # демо-данные заново
 gh workflow run server-ops.yml -f action=restart -f service=backend
+gh workflow run server-ops.yml -f action=swap                       # своп 2 ГБ (идемпотентно)
 gh run watch <id> && gh run view <id> --log
 ```
 
