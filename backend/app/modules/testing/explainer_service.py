@@ -49,6 +49,12 @@ def _scorable(template: Template) -> bool:
     return template.status == "active" and template.kind != "open_approach"
 
 
+def _showcase(template: Template) -> bool:
+    # Публичная страница показывает только витрину: эти шаблоны в тесты не входят, рабочий банк
+    # через неё не выгрузить (§10.6)
+    return template.status == "showcase" and template.kind != "open_approach"
+
+
 def _grade_names() -> dict[str, str]:
     return {item.slug.value: item.name for item in get_catalog().grades}
 
@@ -74,8 +80,8 @@ def _require_specialization(slug: str) -> None:
 
 def _require_template(template_id: str) -> Template:
     template = get_bank().templates.get(template_id)
-    if template is None or not _scorable(template):
-        raise NotFoundError("Шаблон не найден или не используется в тесте", code="template_not_found")
+    if template is None or not _showcase(template):
+        raise NotFoundError("Шаблон не найден среди показательных", code="template_not_found")
     return template
 
 
@@ -140,7 +146,7 @@ def overview() -> ExplainerOverview:
 
 def templates(specialization: str) -> list[ExplainerTemplate]:
     _require_specialization(specialization)
-    found = [t for t in get_bank().for_spec(specialization) if _scorable(t)]
+    found = [t for t in get_bank().for_spec(specialization) if _showcase(t)]
     return [_template_out(t) for t in sorted(found, key=lambda t: (t.topic, t.irt.b, t.id))]
 
 
@@ -172,7 +178,10 @@ def _content(instance: Instance) -> tuple:
 
 @lru_cache(maxsize=256)
 def diversity(template_id: str, sample: int) -> ExplainerDiversity:
-    template = _require_template(template_id)
+    return diversity_of(_require_template(template_id), sample)
+
+
+def diversity_of(template: Template, sample: int) -> ExplainerDiversity:
     leak_size = get_settings().explainer_leak_size
     leaked = {_content(render(template, seed)) for seed in range(leak_size)}
     fresh = Counter(_content(render(template, seed)) for seed in range(leak_size, leak_size + sample))

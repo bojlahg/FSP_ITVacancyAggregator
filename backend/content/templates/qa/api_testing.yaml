@@ -51,6 +51,7 @@
     wrong: [POST, PATCH, CONNECT]
 
 - id: qa.api.jsonpath_filter
+  status: showcase
   specializations: [qa]
   topic: api_testing
   skills: [api_testing]

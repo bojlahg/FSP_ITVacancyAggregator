@@ -101,6 +101,7 @@
   generator: qa.web_storage
 
 - id: qa.web.accessibility
+  status: showcase
   specializations: [qa]
   topic: web_mobile
   skills: [manual_testing]

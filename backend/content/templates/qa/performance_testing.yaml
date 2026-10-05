@@ -103,6 +103,7 @@
   generator: qa.perf_error_budget
 
 - id: qa.perf.apdex
+  status: showcase
   specializations: [qa]
   topic: performance_testing
   skills: [load_testing]

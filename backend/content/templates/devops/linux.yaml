@@ -33,6 +33,7 @@
   generator: devops.top_ip_pipeline
 
 - id: ops.linux.inode_exhaustion
+  status: showcase
   specializations: [devops]
   topic: linux
   skills: [linux]

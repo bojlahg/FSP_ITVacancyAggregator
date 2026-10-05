@@ -62,6 +62,7 @@
       - "Обрабатываются нормально, потому что ядро ОС переключает задачи внутри event loop"
 
 - id: be.conc.littles_law
+  status: showcase
   specializations: [backend]
   topic: concurrency
   skills: [concurrency, system_design]

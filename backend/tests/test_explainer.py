@@ -8,7 +8,7 @@ import pytest
 from app.core.config import get_settings
 from app.modules.testing.engine.bank import get_bank
 from app.modules.testing.engine.render import render
-from app.modules.testing.explainer_service import _content, diversity
+from app.modules.testing.explainer_service import _content, diversity_of
 
 API = "/api/v1/explainer"
 KEY_FIELDS = {
@@ -35,8 +35,8 @@ def _keys(value: Any) -> set[str]:
 def _template_ids(kind: str) -> str:
     return next(
         t.id
-        for t in sorted(get_bank().for_spec("backend"), key=lambda t: t.id)
-        if t.kind == kind and t.status == "active"
+        for t in sorted(get_bank().templates.values(), key=lambda t: t.id)
+        if t.kind == kind and t.status == "showcase"
     )
 
 
@@ -56,6 +56,15 @@ async def test_templates_list_without_keys(client):
     assert templates
     assert all(t["kind"] != "open_approach" for t in templates)
     assert not _keys(templates) & KEY_FIELDS
+    # Публичная страница не открывает рабочий банк: только витрина, которая в тесты не входит (§10.6)
+    bank = get_bank()
+    assert all(bank.templates[t["id"]].status == "showcase" for t in templates)
+
+
+async def test_working_bank_is_not_exposed(client):
+    working = next(t.id for t in get_bank().for_spec("backend") if t.status == "active")
+    response = await client.get(f"{API}/templates/{working}/instances", params={"seeds": [1]})
+    assert response.status_code == 404
 
 
 async def test_unknown_specialization_is_404(client):
@@ -84,7 +93,7 @@ async def test_instances_have_no_answer_keys(client, kind):
 
 async def test_unknown_or_inactive_template_is_404(client):
     bank = get_bank()
-    hidden = [t.id for t in bank.templates.values() if t.status != "active" or t.kind == "open_approach"]
+    hidden = [t.id for t in bank.templates.values() if t.status != "showcase" or t.kind == "open_approach"]
     for template_id in ["no.such.template", *hidden[:2]]:
         for path in ("instances?seeds=1", "diversity?sample=10"):
             response = await client.get(f"{API}/templates/{template_id}/{path}")
@@ -146,7 +155,7 @@ def test_collision_probability_is_unbiased_pair_estimate():
     sample, leak = 60, get_settings().explainer_leak_size
     counts = Counter(_content(render(template, seed)) for seed in range(leak, leak + sample))
     expected = sum(c * (c - 1) for c in counts.values()) / (sample * (sample - 1))
-    result = diversity(template.id, sample)
+    result = diversity_of(template, sample)
     assert result.distinct == len(counts)
     assert result.collision_probability == pytest.approx(expected, abs=1e-4)
     assert result.collision_probability > 0

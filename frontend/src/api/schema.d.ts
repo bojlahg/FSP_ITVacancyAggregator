@@ -1577,7 +1577,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Активные шаблоны специализации с параметрами IRT (без ключей ответов)
+         * Показательные шаблоны специализации с параметрами IRT (без ключей; в тесты они не входят)
          * @description 404 specialization_not_found — специализации нет или для неё нет теста.
          */
         get: operations["explainer_templates_api_v1_explainer_specializations__specialization__templates_get"];

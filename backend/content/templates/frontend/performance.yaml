@@ -68,6 +68,7 @@
       - "Изменение background-color"
 
 - id: fe.perf.debounce_calls
+  status: showcase
   specializations: [frontend]
   topic: performance
   skills: [javascript]

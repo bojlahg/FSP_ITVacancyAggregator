@@ -77,6 +77,7 @@
   generator: backend.sql_left_join_rows
 
 - id: be.db.group_having_rows
+  status: showcase
   specializations: [backend]
   topic: databases
   skills: [sql]

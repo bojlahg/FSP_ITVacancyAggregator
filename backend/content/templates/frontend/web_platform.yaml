@@ -97,6 +97,7 @@
       - "Объём localStorage не ограничен браузером"
 
 - id: fe.web.event_propagation_order
+  status: showcase
   specializations: [frontend]
   topic: web_platform
   skills: [javascript, html]

@@ -118,6 +118,7 @@
       - "Обе метрики обязательно снизятся"
 
 - id: ds.eval.f1_score
+  status: showcase
   specializations: [data]
   topic: evaluation
   skills: [machine_learning]

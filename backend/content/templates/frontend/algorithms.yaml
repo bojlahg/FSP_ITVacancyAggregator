@@ -57,6 +57,7 @@
       - "arr.reduce с проверкой acc.includes(x) — O(n)"
 
 - id: fe.algo.dom_document_order
+  status: showcase
   specializations: [frontend]
   topic: algorithms
   skills: [algorithms, html, javascript]

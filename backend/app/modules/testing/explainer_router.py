@@ -36,7 +36,7 @@ async def explainer_overview() -> ExplainerOverview:
 @router.get(
     "/specializations/{specialization}/templates",
     response_model=list[ExplainerTemplate],
-    summary="Активные шаблоны специализации с параметрами IRT (без ключей ответов)",
+    summary="Показательные шаблоны специализации с параметрами IRT (без ключей; в тесты они не входят)",
     description="404 specialization_not_found — специализации нет или для неё нет теста.",
     responses=error_responses(404),
 )

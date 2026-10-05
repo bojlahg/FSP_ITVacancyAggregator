@@ -49,6 +49,7 @@
       - "В открытом виде, но с доступом к таблице только у администратора БД"
 
 - id: be.sec.csrf
+  status: showcase
   specializations: [backend]
   topic: security
   skills: [appsec, owasp]

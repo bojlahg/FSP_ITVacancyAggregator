@@ -24,7 +24,7 @@
 | `skills` | да | id навыков из `content/skills.yaml`: что проверяет задание |
 | `kind` | да | `single_choice`, `multi_choice`, `numeric`, `ordering`, `code_output`, `open_approach` |
 | `irt` | да | `{a, b}`: a — дискриминация 0.3–3 (обычно 0.8–1.6), b — сложность в логитах |
-| `status` | нет | `active` (по умолчанию), `pilot` — не влияет на оценку, `retired` |
+| `status` | нет | `active` (по умолчанию), `pilot` — не влияет на оценку, `retired`, `showcase` — только для публичной страницы «Как работает тест», в тесты, задания и предпросмотр не входит |
 | `time_limit_sec` | нет | 90 по умолчанию; код и расчёты — 120–180; `open_approach` — 600 |
 | `params` | нет | `имя: {choice: [...]}` или `имя: {int: [от, до], step: N}` |
 | `stem` / `stem_variants` | да (без генератора) | Текст с подстановками `{{имя}}`. Несколько формулировок — `stem_variants` |

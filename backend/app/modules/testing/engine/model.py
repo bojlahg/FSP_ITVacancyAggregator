@@ -51,7 +51,8 @@ class Template(BaseModel):
     skills: list[str] = Field(default_factory=list)
     kind: ItemKind
     irt: IrtParams
-    status: Literal["pilot", "active", "retired"] = "active"
+    # showcase — витрина для публичной страницы «Как работает тест»: в тесты, задания и предпросмотр не входит
+    status: Literal["pilot", "active", "retired", "showcase"] = "active"
     time_limit_sec: int = Field(default=90, ge=20, le=900)
     params: dict[str, ParamSpec] = Field(default_factory=dict)
     stem: str | None = None

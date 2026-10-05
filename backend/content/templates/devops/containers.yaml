@@ -46,6 +46,7 @@
   generator: devops.k8s_probe
 
 - id: ops.cont.entrypoint_cmd
+  status: showcase
   specializations: [devops]
   topic: containers
   skills: [docker]

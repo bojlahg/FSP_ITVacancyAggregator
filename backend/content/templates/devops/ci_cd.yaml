@@ -182,6 +182,7 @@
       - "Использовать тег stable и переносить его на новую сборку после деплоя"
 
 - id: ops.ci.pipeline_duration
+  status: showcase
   specializations: [devops]
   topic: ci_cd
   skills: [ci_cd, gitlab_ci]

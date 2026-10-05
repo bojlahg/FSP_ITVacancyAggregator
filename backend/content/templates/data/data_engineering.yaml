@@ -88,6 +88,7 @@
       - "Запретить параллельный запуск DAG (max_active_runs=1) — этого достаточно"
 
 - id: ds.de.partition_key
+  status: showcase
   specializations: [data]
   topic: data_engineering
   skills: [etl, spark]

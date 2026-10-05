@@ -84,6 +84,7 @@
   generator: data.sql_not_equal_null
 
 - id: ds.sql.left_join_count
+  status: showcase
   specializations: [data]
   topic: sql
   skills: [sql, sql_analytics]
