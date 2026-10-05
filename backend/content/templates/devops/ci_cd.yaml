@@ -249,3 +249,11 @@
       - "Опасность только в том, что {{secret}} попадёт в лог: GitHub не маскирует секреты на этом событии"
       - "Проблема только в производительности: checkout по SHA отключает кэш"
       - "Опасно, только если в репозитории включены self-hosted runners"
+
+- id: ops.ci.matrix_jobs
+  specializations: [devops]
+  topic: ci_cd
+  skills: [ci_cd, github_actions]
+  kind: numeric
+  irt: {a: 1.0, b: -1.8}
+  generator: devops.ci_matrix_jobs

@@ -1250,3 +1250,57 @@ def mae(rng: random.Random) -> Generated:
         number=round(value, 2),
         tolerance=0.01,
     )
+
+
+# --- Базовые задания уровня Intern: открытый числовой ответ без угадывания ---
+
+MEAN_CONTEXTS = [
+    "Время ответа сервиса в пяти замерах, мс",
+    "Число заказов за дни недели",
+    "Число ошибок в логах по дням",
+    "Длительность сессий, мин",
+    "Возраст участников опроса",
+]
+
+
+@generator("data.mean_small")
+def mean_small(rng: random.Random) -> Generated:
+    """Среднее — сумма, делённая на число значений; выборка подобрана так, чтобы ответ был целым."""
+    size = rng.choice([3, 4, 5])
+    mean = rng.randint(4, 40)
+    while True:
+        values = [rng.randint(max(1, mean - 9), mean + 9) for _ in range(size - 1)]
+        last = mean * size - sum(values)
+        if last >= 1 and abs(last - mean) <= 12:
+            break
+    values.append(last)
+    rng.shuffle(values)
+    context = rng.choice(MEAN_CONTEXTS).replace("пяти", {3: "трёх", 4: "четырёх", 5: "пяти"}[size])
+    return Generated(
+        stem=f"{context}: {', '.join(map(str, values))}. Чему равно среднее арифметическое?",
+        number=float(mean),
+    )
+
+
+ONEHOT_FEATURES = [
+    ("city", CITIES),
+    ("color", ["red", "green", "blue", "black", "white", "grey"]),
+    ("device", ["ios", "android", "web", "tv", "desktop"]),
+    ("payment", ["card", "cash", "sbp", "credit", "bonus"]),
+]
+
+
+@generator("data.onehot_columns")
+def onehot_columns(rng: random.Random) -> Generated:
+    """One-hot кодирование создаёт по столбцу на каждое уникальное значение категории."""
+    feature, pool = rng.choice(ONEHOT_FEATURES)
+    unique = rng.sample(pool, rng.randint(3, min(5, len(pool))))
+    size = rng.randint(len(unique) + 2, len(unique) + 4)
+    values = unique + [rng.choice(unique) for _ in range(size - len(unique))]
+    rng.shuffle(values)
+    stem = (
+        f"Категориальный признак {feature} в обучающей выборке принимает значения: {', '.join(values)}. "
+        "Его закодировали one-hot (по столбцу на каждое значение, без удаления одного из столбцов). "
+        "Сколько столбцов получится из этого признака?"
+    )
+    return Generated(stem=stem, number=float(len(unique)))

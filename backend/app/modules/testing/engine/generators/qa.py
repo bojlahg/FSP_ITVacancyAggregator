@@ -2240,3 +2240,62 @@ def web_storage(rng: random.Random) -> Generated:
         correct=(answer,),
         wrong=tuple(o for o in options if o != answer),
     )
+
+
+# --- Базовые задания уровня Intern: открытый числовой ответ без угадывания ---
+
+BUG_SEVERITIES = ["critical", "major", "minor"]
+BUG_TITLES = ["login", "cart", "search", "payment", "profile", "export", "upload", "filter", "logout"]
+
+
+@generator("qa.sql_severity_count")
+def sql_severity_count(rng: random.Random) -> Generated:
+    """COUNT(*) с одним условием равенства на маленькой таблице."""
+    while True:
+        titles = rng.sample(BUG_TITLES, rng.randint(6, 8))
+        rows = [[i + 1, title, rng.choice(BUG_SEVERITIES)] for i, title in enumerate(titles)]
+        severity = rng.choice(BUG_SEVERITIES)
+        answer = sum(1 for row in rows if row[2] == severity)
+        if 2 <= answer <= len(rows) - 2:
+            break
+    code = _table("bugs", ["id", "module", "severity"], rows)
+    code += f"\n\nSELECT COUNT(*) FROM bugs WHERE severity = '{severity}';"
+    return Generated(stem="Какое число вернёт запрос?", code=code, code_language="sql", number=float(answer))
+
+
+API_FLAGS = [
+    ("users", "active", "name", ["Анна", "Борис", "Вера", "Глеб", "Дина", "Егор", "Зоя", "Илья", "Лена"]),
+    ("users", "verified", "name", ["Анна", "Борис", "Вера", "Глеб", "Дина", "Егор", "Зоя", "Илья", "Лена"]),
+    (
+        "products",
+        "available",
+        "title",
+        ["Чайник", "Лампа", "Стул", "Мышь", "Кресло", "Плед", "Кружка", "Полка"],
+    ),
+    (
+        "tasks",
+        "completed",
+        "title",
+        ["Ревью", "Деплой", "Тесты", "Отчёт", "Макет", "Релиз", "Миграция", "Звонок"],
+    ),
+]
+
+
+@generator("qa.json_flag_count")
+def json_flag_count(rng: random.Random) -> Generated:
+    """Считаем объекты массива с полем, равным true."""
+    resource, flag, label, values = rng.choice(API_FLAGS)
+    names = rng.sample(values, rng.randint(5, 7))
+    truthy = rng.randint(2, len(names) - 2)
+    flags = [True] * truthy + [False] * (len(names) - truthy)
+    rng.shuffle(flags)
+    data = [
+        {"id": rng.randint(10, 99) * 10 + i, label: name, flag: value}
+        for i, (name, value) in enumerate(zip(names, flags, strict=True))
+    ]
+    code = json.dumps({"data": data}, ensure_ascii=False, indent=2)
+    stem = (
+        f"Запрос GET /api/{resource} вернул 200 OK с таким телом. "
+        f'Сколько объектов в массиве data имеют "{flag}": true?'
+    )
+    return Generated(stem=stem, code=code, code_language="json", number=float(truthy))

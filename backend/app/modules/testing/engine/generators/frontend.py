@@ -1881,3 +1881,116 @@ def module_eval_order(rng: random.Random) -> Generated:
         correct=(correct,),
         wrong=_distinct_wrong(correct, wrong),
     )
+
+
+# --- Базовые задания уровня Intern: открытый числовой ответ без угадывания ---
+
+JS_VALUES = ["1", "2", "3", "7", "10", "'a'", "'b'", "'ok'", "null", "true", "0"]
+JS_ARRAYS = ["items", "list", "queue", "ids", "values", "tags"]
+
+
+@generator("frontend.js_push_length")
+def js_push_length(rng: random.Random) -> Generated:
+    """Каждый push(x) с одним аргументом добавляет один элемент в конец массива."""
+    name = rng.choice(JS_ARRAYS)
+    initial = rng.sample(JS_VALUES, rng.randint(2, 5))
+    pushes = rng.sample(JS_VALUES, rng.randint(1, 3))
+    code = f"const {name} = [{', '.join(initial)}];\n"
+    code += "".join(f"{name}.push({value});\n" for value in pushes)
+    code += f"console.log({name}.length);"
+    return Generated(
+        stem="Что выведет этот код?",
+        code=code,
+        code_language="javascript",
+        number=float(len(initial) + len(pushes)),
+    )
+
+
+MARKED_CLASSES = [
+    ("task", "done"),
+    ("item", "active"),
+    ("tab", "selected"),
+    ("card", "hidden"),
+    ("row", "error"),
+]
+LIST_LABELS = ["Почта", "Отчёт", "Звонок", "Ревью", "Деплой", "Встреча", "Тесты", "Макет", "Релиз"]
+
+
+@generator("frontend.class_selector_count")
+def class_selector_count(rng: random.Random) -> Generated:
+    """Селектор .class находит все элементы, у которых в атрибуте class есть этот класс."""
+    base, marker = rng.choice(MARKED_CLASSES)
+    labels = rng.sample(LIST_LABELS, rng.randint(6, 8))
+    marked = rng.randint(2, len(labels) - 2)
+    flags = [True] * marked + [False] * (len(labels) - marked)
+    rng.shuffle(flags)
+    items = [
+        f'  <li class="{base} {marker}">{label}</li>' if flag else f'  <li class="{base}">{label}</li>'
+        for label, flag in zip(labels, flags, strict=True)
+    ]
+    code = "<ul>\n" + "\n".join(items) + "\n</ul>\n\n"
+    code += f"<script>\n  console.log(document.querySelectorAll('.{marker}').length);\n</script>"
+    return Generated(
+        stem="Какое число будет выведено в консоль?", code=code, code_language="html", number=float(marked)
+    )
+
+
+REACT_LISTS = [
+    ("todos", "done", "title", LIST_LABELS),
+    ("users", "online", "name", ["Анна", "Борис", "Вера", "Глеб", "Дина", "Егор", "Зоя", "Илья"]),
+    ("products", "inStock", "title", ["Чайник", "Лампа", "Стул", "Мышь", "Кресло", "Плед", "Кружка"]),
+]
+
+
+@generator("frontend.react_filter_map_count")
+def react_filter_map_count(rng: random.Random) -> Generated:
+    """filter оставляет элементы с истинным полем, map рисует по одному <li> на каждый."""
+    plural, flag, label, pool = rng.choice(REACT_LISTS)
+    names = rng.sample(pool, rng.randint(5, 7))
+    truthy = rng.randint(2, len(names) - 2)
+    flags = [True] * truthy + [False] * (len(names) - truthy)
+    rng.shuffle(flags)
+    entries = ",\n".join(
+        f"  {{ id: {i + 1}, {label}: '{name}', {flag}: {'true' if value else 'false'} }}"
+        for i, (name, value) in enumerate(zip(names, flags, strict=True))
+    )
+    item = plural[0]
+    code = (
+        f"const {plural} = [\n{entries},\n];\n\n"
+        "export function List() {\n"
+        "  return (\n"
+        "    <ul>\n"
+        f"      {{{plural}.filter(({item}) => {item}.{flag}).map(({item}) => (\n"
+        f"        <li key={{{item}.id}}>{{{item}.{label}}}</li>\n"
+        "      ))}\n"
+        "    </ul>\n"
+        "  );\n"
+        "}"
+    )
+    return Generated(
+        stem="Сколько элементов <li> отрисует компонент List?",
+        code=code,
+        code_language="jsx",
+        number=float(truthy),
+    )
+
+
+PAGED_RESOURCES = ["товаров", "заказов", "комментариев", "пользователей", "уведомлений"]
+
+
+@generator("frontend.pagination_requests")
+def pagination_requests(rng: random.Random) -> Generated:
+    """Последняя неполная страница — тоже отдельный запрос: ответ — деление с округлением вверх."""
+    per_page = rng.choice([10, 20, 25, 50])
+    full = rng.randint(2, 9)
+    total = per_page * full + rng.randint(1, per_page - 1)
+    resource = rng.choice(PAGED_RESOURCES)
+    stem = rng.choice(
+        [
+            f"API отдаёт список {resource} постранично (параметр page), по {per_page} записей на страницу. "
+            f"Всего {total} записей. Сколько запросов нужно сделать фронтенду, чтобы загрузить все записи?",
+            f"Бэкенд возвращает не больше {per_page} {resource} за один запрос (параметр page). "
+            f"В базе {total} записей. Сколько запросов страниц понадобится, чтобы показать их все?",
+        ]
+    )
+    return Generated(stem=stem, number=float(full + 1))

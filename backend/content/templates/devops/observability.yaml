@@ -224,3 +224,20 @@
       - "Нужно применить histogram_quantile к Summary: он умеет агрегировать любые квантили"
       - "Корректно, если все поды получают одинаковое число запросов, при любом распределении латентности"
       - "Summary хранит все наблюдения, поэтому sum по подам даёт точный общий квантиль"
+
+- id: ops.obs.scrape_count
+  specializations: [devops]
+  topic: observability
+  skills: [prometheus]
+  kind: numeric
+  irt: {a: 1.0, b: -1.9}
+  params:
+    interval: {choice: [5, 10, 15, 20, 30]}
+    minutes: {int: [2, 10]}
+    job: {choice: [node-exporter, api, postgres-exporter, nginx]}
+  stem_variants:
+    - "В prometheus.yml для job «{{job}}» задано scrape_interval: {{interval}}s. Сколько раз в среднем Prometheus опрашивает одну цель этого job за {{minutes}} минут?"
+    - "Prometheus собирает метрики job «{{job}}» с интервалом {{interval}} секунд. Сколько опросов одной цели приходится в среднем на {{minutes}} минут?"
+  answer:
+    expr: "{{minutes}} * 60 / {{interval}}"
+    tolerance: 0

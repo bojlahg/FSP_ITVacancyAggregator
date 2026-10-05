@@ -182,3 +182,20 @@
       - "Flaky-тесты всегда вызваны медленным железом CI, увеличение ресурсов решит проблему"
       - "Лучшее решение — добавить time.sleep или Thread.sleep во все шаги"
       - "Нестабильные тесты нужно сразу удалять без анализа"
+
+- id: qa.proc.pass_rate
+  specializations: [qa]
+  topic: process
+  skills: [manual_testing, test_automation]
+  kind: numeric
+  irt: {a: 1.0, b: -2.0}
+  params:
+    total: {choice: [20, 25, 50]}
+    failed: {int: [1, 9]}
+    run: {choice: [смоук-прогоне, регрессионном прогоне, ночном прогоне автотестов, прогоне перед релизом]}
+  stem_variants:
+    - "В {{run}} было {{total}} тестов: {{failed}} упали, остальные прошли. Какой процент тестов прошёл?"
+    - "Отчёт о {{run}}: всего тестов — {{total}}, упавших — {{failed}}, пропущенных нет. Сколько процентов тестов прошло успешно?"
+  answer:
+    expr: "({{total}} - {{failed}}) * 100 / {{total}}"
+    tolerance: 0

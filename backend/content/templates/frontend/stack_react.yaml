@@ -275,3 +275,13 @@
       - "Значение контролируемого поля ввода тоже следует обновлять внутри startTransition"
       - "startTransition делает рендер списка быстрее за счёт кэширования результатов"
       - "Переход гарантирует, что каждое промежуточное значение фильтра будет отрисовано"
+
+- id: fe.react.filter_map_count
+  specializations: [frontend]
+  topic: stack
+  stack_module: react
+  skills: [react, javascript]
+  kind: numeric
+  irt: {a: 1.0, b: -1.9}
+  time_limit_sec: 120
+  generator: frontend.react_filter_map_count

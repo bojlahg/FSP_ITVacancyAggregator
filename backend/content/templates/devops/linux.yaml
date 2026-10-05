@@ -275,3 +275,11 @@
       - "Нужно выполнить sysctl -w fs.file-max={{limit}}: он задаёт лимит для каждого процесса"
       - "Лимит открытых файлов процесса нельзя поднять выше 1024 без пересборки ядра"
       - "Нужно запустить сервис от root, на root лимиты не действуют"
+
+- id: ops.linux.glob_wc_count
+  specializations: [devops]
+  topic: linux
+  skills: [linux_cli, bash]
+  kind: numeric
+  irt: {a: 1.0, b: -2.0}
+  generator: devops.glob_wc_count

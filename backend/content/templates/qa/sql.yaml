@@ -87,3 +87,11 @@
   irt: {a: 1.3, b: 1.5}
   time_limit_sec: 180
   generator: qa.sql_not_in_null
+
+- id: qa.sql.severity_count
+  specializations: [qa]
+  topic: sql
+  skills: [sql]
+  kind: numeric
+  irt: {a: 1.0, b: -2.1}
+  generator: qa.sql_severity_count

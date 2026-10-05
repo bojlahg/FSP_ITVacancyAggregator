@@ -176,3 +176,27 @@
   kind: single_choice
   irt: {a: 1.0, b: -1.3}
   generator: backend.algo_loop_complexity
+
+- id: be.algo.loop_iterations
+  specializations: [backend]
+  topic: algorithms
+  skills: [algorithms]
+  kind: numeric
+  irt: {a: 1.0, b: -1.9}
+  params:
+    start: {int: [1, 6]}
+    stop: {int: [9, 30]}
+    counter: {choice: [count, steps, calls, total]}
+  stem_variants:
+    - "Чему будет равна переменная {{counter}} после выполнения цикла?"
+    - "Сколько раз выполнится тело цикла? Ответ — значение {{counter}} после цикла."
+  code: |
+    int {{counter}} = 0;
+    for (int i = {{start}}; i < {{stop}}; i++) {
+        {{counter}}++;
+    }
+  code_language: java
+  answer:
+    # i пробегает значения от start до stop − 1 включительно
+    expr: "{{stop}} - {{start}}"
+    tolerance: 0

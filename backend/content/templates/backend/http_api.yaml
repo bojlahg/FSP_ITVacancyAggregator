@@ -329,3 +329,11 @@
       - "HPACK заново пересылает всю таблицу заголовков после каждой потери; в HTTP/3 сжатие заголовков отключено"
       - "Сервер при потерях снижает SETTINGS_MAX_CONCURRENT_STREAMS до 1; в HTTP/3 такого ограничения нет"
       - "Приоритеты потоков HTTP/2 откладывают все потоки, кроме самого важного; в HTTP/3 приоритетов нет, поэтому потоки равны"
+
+- id: be.http.count_client_errors
+  specializations: [backend]
+  topic: http_api
+  skills: [http, rest]
+  kind: numeric
+  irt: {a: 1.0, b: -2.1}
+  generator: backend.http_count_client_errors

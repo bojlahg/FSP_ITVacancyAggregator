@@ -257,3 +257,11 @@
   irt: {a: 1.1, b: 1.4}
   time_limit_sec: 150
   generator: data.simpson
+
+- id: ds.stat.mean_small
+  specializations: [data]
+  topic: statistics
+  skills: [statistics]
+  kind: numeric
+  irt: {a: 0.9, b: -2.3}
+  generator: data.mean_small

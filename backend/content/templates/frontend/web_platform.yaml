@@ -266,3 +266,11 @@
   irt: {a: 1.2, b: 1.5}
   time_limit_sec: 180
   generator: frontend.flex_shrink_width
+
+- id: fe.web.class_selector_count
+  specializations: [frontend]
+  topic: web_platform
+  skills: [html, css]
+  kind: numeric
+  irt: {a: 1.0, b: -2.0}
+  generator: frontend.class_selector_count

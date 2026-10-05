@@ -272,3 +272,11 @@
       - "Для проверки контракта нужно поднимать оба сервиса и общую тестовую базу"
       - "Если контрактные тесты зелёные, интеграционные и e2e-тесты можно удалить"
       - "Контракт проверяет только коды ответов, структура тела не учитывается"
+
+- id: qa.api.json_flag_count
+  specializations: [qa]
+  topic: api_testing
+  skills: [api_testing, rest]
+  kind: numeric
+  irt: {a: 1.0, b: -2.2}
+  generator: qa.json_flag_count

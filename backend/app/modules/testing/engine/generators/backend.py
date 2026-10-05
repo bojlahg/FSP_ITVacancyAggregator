@@ -965,3 +965,78 @@ def node_module_cache(rng: random.Random) -> Generated:
     return _choice(
         "Проект на Node.js (CommonJS). Что выведет node main.js?", code, "javascript", right, wrong
     )
+
+
+# --- Базовые задания уровня Intern: открытый числовой ответ без угадывания ---
+
+ACCESS_PATHS = ["/api/users", "/api/orders", "/api/cart", "/login", "/api/items/7", "/health", "/api/search"]
+ACCESS_METHODS = ["GET", "GET", "POST", "PUT", "DELETE"]
+
+
+@generator("backend.http_count_client_errors")
+def http_count_client_errors(rng: random.Random) -> Generated:
+    """Класс ответа — первая цифра кода: 4xx — ошибки клиента."""
+    total = rng.randint(7, 9)
+    client = rng.randint(2, 4)
+    server = rng.randint(1, 2)
+    kinds = ["client"] * client + ["server"] * server
+    kinds += [rng.choice(["success", "success", "redirect"]) for _ in range(total - len(kinds))]
+    rng.shuffle(kinds)
+    lines = []
+    for kind in kinds:
+        code = rng.choice(HTTP_CODES[kind]).split()[0]
+        lines.append(f"{rng.choice(ACCESS_METHODS):<6} {rng.choice(ACCESS_PATHS):<14} {code}")
+    stem = rng.choice(
+        [
+            "Фрагмент лога доступа сервиса: метод, путь, код ответа. "
+            "Сколько ответов относятся к ошибкам клиента (4xx)?",
+            "В логе API за минуту записаны запросы и коды ответов. "
+            "Сколько из них — ошибки клиента (класс 4xx)?",
+        ]
+    )
+    return Generated(stem=stem, code="\n".join(lines), code_language="text", number=float(client))
+
+
+TASK_STATUSES = ["todo", "in_progress", "done"]
+TASK_TITLES = ["login", "signup", "cart", "search", "profile", "payment", "export", "logout", "billing"]
+
+
+@generator("backend.sql_where_equals_rows")
+def sql_where_equals_rows(rng: random.Random) -> Generated:
+    """WHERE с одним условием равенства: считаем подходящие строки маленькой таблицы."""
+    while True:
+        titles = rng.sample(TASK_TITLES, rng.randint(6, 8))
+        rows = [(i + 1, title, rng.choice(TASK_STATUSES)) for i, title in enumerate(titles)]
+        status = rng.choice(TASK_STATUSES)
+        answer = sum(1 for row in rows if row[2] == status)
+        if 2 <= answer <= len(rows) - 2:
+            break
+    values = ",\n  ".join(f"({row[0]}, '{row[1]}', '{row[2]}')" for row in rows)
+    code = (
+        "CREATE TABLE tasks (id int, title text, status text);\n"
+        f"INSERT INTO tasks VALUES\n  {values};\n\n"
+        f"SELECT * FROM tasks WHERE status = '{status}';"
+    )
+    return Generated(
+        stem="Сколько строк вернёт последний запрос?", code=code, code_language="sql", number=float(answer)
+    )
+
+
+LIST_WORDS = ["'a'", "'b'", "'c'", "'x'", "'y'", "1", "2", "3", "5", "8", "None", "True"]
+
+
+@generator("backend.python_list_append_len")
+def python_list_append_len(rng: random.Random) -> Generated:
+    """Каждый append добавляет в конец списка ровно один элемент."""
+    name = rng.choice(NAMES)
+    initial = rng.sample(LIST_WORDS, rng.randint(2, 5))
+    appends = rng.sample(LIST_WORDS, rng.randint(1, 3))
+    code = f"{name} = [{', '.join(initial)}]\n"
+    code += "".join(f"{name}.append({value})\n" for value in appends)
+    code += f"print(len({name}))"
+    return Generated(
+        stem="Что выведет этот код на Python?",
+        code=code,
+        code_language="python",
+        number=float(len(initial) + len(appends)),
+    )

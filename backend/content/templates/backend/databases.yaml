@@ -382,3 +382,11 @@
       - "Убрать FOR UPDATE и полагаться на уровень изоляции READ COMMITTED"
       - "Повысить уровень изоляции до SERIALIZABLE"
       - "Убрать ORDER BY, чтобы каждый воркер получал случайные строки, и оставить FOR UPDATE"
+
+- id: be.db.where_equals_rows
+  specializations: [backend]
+  topic: databases
+  skills: [sql]
+  kind: numeric
+  irt: {a: 1.0, b: -2.0}
+  generator: backend.sql_where_equals_rows

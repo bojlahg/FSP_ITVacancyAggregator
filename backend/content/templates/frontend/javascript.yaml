@@ -210,3 +210,11 @@
   irt: {a: 1.3, b: 1.5}
   time_limit_sec: 180
   generator: frontend.js_promise_chain
+
+- id: fe.js.push_length
+  specializations: [frontend]
+  topic: javascript
+  skills: [javascript]
+  kind: numeric
+  irt: {a: 0.9, b: -2.2}
+  generator: frontend.js_push_length

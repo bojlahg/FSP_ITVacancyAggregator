@@ -160,3 +160,11 @@
       - "Использовать await перед fetch — это упорядочит ответы разных вызовов обработчика"
       - "Перейти на HTTP/2: он гарантирует порядок ответов на параллельные запросы"
       - "Добавить заголовок Cache-Control: no-cache к запросу"
+
+- id: fe.http.pagination_requests
+  specializations: [frontend]
+  topic: http_api
+  skills: [http, rest]
+  kind: numeric
+  irt: {a: 1.0, b: -1.9}
+  generator: frontend.pagination_requests

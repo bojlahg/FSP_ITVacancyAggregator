@@ -380,3 +380,11 @@
   options:
     correct: ["DBSCAN"]
     wrong: ["k-means", "k-medoids", "Gaussian Mixture Model", "Mini-batch k-means"]
+
+- id: ds.ml.onehot_columns
+  specializations: [data]
+  topic: ml_theory
+  skills: [machine_learning]
+  kind: numeric
+  irt: {a: 1.0, b: -2.0}
+  generator: data.onehot_columns

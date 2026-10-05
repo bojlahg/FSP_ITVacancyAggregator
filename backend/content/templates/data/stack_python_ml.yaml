@@ -161,3 +161,27 @@
   kind: code_output
   irt: {a: 1.2, b: 1.4}
   generator: data.numpy_int_assign
+
+- id: ds.py.numpy_size
+  specializations: [data]
+  topic: stack
+  stack_module: python_ml
+  skills: [numpy, python]
+  kind: numeric
+  irt: {a: 1.0, b: -1.9}
+  params:
+    rows: {int: [2, 9]}
+    cols: {int: [2, 9]}
+    var: {choice: [a, x, grid, matrix]}
+    fill: {choice: [zeros, ones]}
+  stem: "Что выведет этот код?"
+  code: |
+    import numpy as np
+
+    {{var}} = np.{{fill}}(({{rows}}, {{cols}}))
+    print({{var}}.size)
+  code_language: python
+  answer:
+    # size — общее число элементов: произведение размеров по осям
+    expr: "{{rows}} * {{cols}}"
+    tolerance: 0

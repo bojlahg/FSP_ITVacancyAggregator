@@ -201,3 +201,12 @@
   kind: code_output
   irt: {a: 1.0, b: -1.5}
   generator: backend.python_dict_get
+
+- id: be.py.list_append_len
+  specializations: [backend]
+  topic: stack
+  stack_module: python
+  skills: [python]
+  kind: numeric
+  irt: {a: 0.9, b: -2.3}
+  generator: backend.python_list_append_len

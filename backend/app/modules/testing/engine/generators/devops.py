@@ -900,3 +900,65 @@ def terraform_plan_symbol(rng: random.Random) -> Generated:
         correct=(PLAN_SYMBOLS[symbol],),
         wrong=tuple(wrong),
     )
+
+
+# --- Базовые задания уровня Intern: открытый числовой ответ без угадывания ---
+
+FILE_STEMS = ["app", "error", "access", "worker", "backup", "notes", "report", "deploy", "cron", "audit"]
+FILE_EXTENSIONS = ["log", "txt", "conf", "sh", "gz"]
+
+
+@generator("devops.glob_wc_count")
+def glob_wc_count(rng: random.Random) -> Generated:
+    """Шаблон *.ext совпадает с именами, оканчивающимися на .ext; wc -l считает строки вывода ls."""
+    ext = rng.choice(["log", "txt", "conf", "sh"])
+    others = [item for item in FILE_EXTENSIONS if item != ext]
+    stems = rng.sample(FILE_STEMS, rng.randint(6, 8))
+    matched = rng.randint(2, len(stems) - 2)
+    names = [f"{stem}.{ext}" for stem in stems[:matched]]
+    names += [f"{stem}.{rng.choice(others)}" for stem in stems[matched:]]
+    names.sort()
+    folder = rng.choice(["/var/log/myapp", "/opt/app", "/srv/data", "/home/deploy"])
+    code = f"$ ls {folder}\n" + "  ".join(names) + f"\n$ cd {folder}\n$ ls *.{ext} | wc -l"
+    return Generated(
+        stem="Какое число выведет последняя команда?", code=code, code_language="bash", number=float(matched)
+    )
+
+
+MATRIX_AXES = {
+    "python": ['"3.10"', '"3.11"', '"3.12"', '"3.13"'],
+    "node": ["18", "20", "22"],
+    "os": ["ubuntu-latest", "windows-latest", "macos-latest"],
+    "db": ["postgres", "mysql", "sqlite"],
+}
+
+
+@generator("devops.ci_matrix_jobs")
+def ci_matrix_jobs(rng: random.Random) -> Generated:
+    """Матрица без include/exclude запускает по джобу на каждую комбинацию значений осей."""
+    language = rng.choice(["python", "node"])
+    second = rng.choice(["os", "db"])
+    axes = {
+        language: rng.sample(MATRIX_AXES[language], rng.randint(2, len(MATRIX_AXES[language]))),
+        second: rng.sample(MATRIX_AXES[second], rng.randint(2, 3)),
+    }
+    lines = [f"        {axis}: [{', '.join(values)}]" for axis, values in axes.items()]
+    code = (
+        "jobs:\n"
+        "  test:\n"
+        "    strategy:\n"
+        "      matrix:\n" + "\n".join(lines) + "\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - uses: actions/checkout@v4\n"
+        "      - run: make test"
+    )
+    if second == "os":
+        code = code.replace("runs-on: ubuntu-latest", "runs-on: ${{ matrix.os }}")
+    answer = len(axes[language]) * len(axes[second])
+    return Generated(
+        stem="Сколько джобов test запустит GitHub Actions по этому workflow?",
+        code=code,
+        code_language="yaml",
+        number=float(answer),
+    )

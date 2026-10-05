@@ -247,3 +247,45 @@
       - "Контейнер упирается в лимит памяти, и ядро замедляет его вместо OOM kill"
       - "Причина в requests.cpu: он ограничивает потребление сверху так же, как limits"
       - "Средняя загрузка ниже лимита, значит, задержки вызваны только сетью"
+
+- id: ops.cont.replicas_total
+  specializations: [devops]
+  topic: containers
+  skills: [kubernetes]
+  kind: numeric
+  irt: {a: 1.0, b: -2.1}
+  params:
+    app1: {choice: [api, web, gateway]}
+    app2: {choice: [worker, consumer, scheduler]}
+    app3: {choice: [frontend, admin, notifier]}
+    r1: {int: [1, 6]}
+    r2: {int: [1, 6]}
+    r3: {int: [1, 6]}
+  stem_variants:
+    - "В кластер применили три Deployment (фрагменты манифестов ниже). Сколько подов будет запущено, когда все реплики поднимутся?"
+    - "Фрагменты манифестов трёх Deployment в одном namespace. Сколько всего подов приложения будет работать после выката?"
+  code: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: {{app1}}
+    spec:
+      replicas: {{r1}}
+    ---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: {{app2}}
+    spec:
+      replicas: {{r2}}
+    ---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: {{app3}}
+    spec:
+      replicas: {{r3}}
+  code_language: yaml
+  answer:
+    expr: "{{r1}} + {{r2}} + {{r3}}"
+    tolerance: 0
