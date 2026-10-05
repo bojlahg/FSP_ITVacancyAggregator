@@ -151,7 +151,7 @@ gh workflow run server-ops.yml -f action=llm-check                  # все с�
 gh run watch <id> && gh run view <id> --log
 ```
 
-С SSH: `cd /opt/itscout/app && make reseed` (или `docker compose --env-file .env -f infra/docker-compose.yml exec -T backend python -m seed.generate`). Демо-данные можно сбросить и через API: `POST /api/v1/admin/reseed` от демо-админа.
+С SSH: `cd /opt/itscout/app && make reseed` (или `docker compose --env-file .env -f infra/docker-compose.yml exec -T backend python -m seed.generate`). Демо-данные можно сбросить и через API: `POST /api/v1/admin/reseed` от демо-админа. Сброс удаляет всех пользователей, компании, их API-ключи и webhook'и; сохраняется только экспертная разметка пар и оценки Angoff.
 
 ## 6. Проверки
 
