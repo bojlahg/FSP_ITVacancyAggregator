@@ -98,7 +98,7 @@ sequenceDiagram
   participant R as Реестр ФСП
   К->>F: согласие на импорт + «Войти через ФСП ID»
   F->>B: GET /fsp/oidc/start?consent=true
-  B-->>F: authorization_url + httpOnly cookie (state, PKCE verifier, nonce, id кандидата; подпись, 10 минут)
+  B-->>F: authorization_url + httpOnly cookie (state, PKCE verifier, nonce, id кандидата, подписана, 10 минут)
   F->>K: редирект на страницу входа
   К->>K: логин и пароль участника
   K->>B: GET /fsp/oidc/callback?code&state

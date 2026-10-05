@@ -2,7 +2,7 @@
 DC     = docker compose --env-file .env -f infra/docker-compose.yml
 DC_DEV = $(DC) -f infra/docker-compose.dev.yml
 
-.PHONY: up down logs test lint format openapi migration reseed validate e2e prod-up
+.PHONY: up down logs test lint format openapi migration reseed validate e2e docs-pdf prod-up
 
 up:            ## локально: БД, backend (reload), fsp-mock, mailpit
 	$(DC_DEV) up -d --build db backend fsp-mock mailpit
@@ -40,6 +40,9 @@ validate:      ## симуляционная валидация (§12) → docs/
 
 e2e:           ## демо-сценарий §18 в Playwright против прода (другой стенд — E2E_BASE_URL=...)
 	cd e2e && npm ci && npx playwright install chromium && npx playwright test
+
+docs-pdf:      ## версии и эндпоинты из lock-файлов и openapi.json, затем docs/ITScout-docs.pdf (Chromium — CHROMIUM_PATH)
+	cd docs/pdf && npm ci && npm run build
 
 prod-up:       ## на сервере: собрать и поднять всё
 	$(DC) up -d --build --remove-orphans

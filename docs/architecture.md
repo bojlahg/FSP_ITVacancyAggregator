@@ -8,34 +8,19 @@ ITScout — модульный монолит на FastAPI с отдельным
 
 ```mermaid
 flowchart TB
-  subgraph Кандидат
-    direction TB
-    c1[Регистрация по email<br/>с согласиями на ПДн и публикацию]
-    c2[Опрос → рекомендованная специализация]
-    c3[Выбор грейда → адаптивный тест]
-    c4[Категория «специализация × грейд»,<br/>разбор по темам, перцентиль]
-    c5[Профиль: резюме PDF → предзаполнение,<br/>PDF-профиль, привязка ФСП ID]
-    c6[Приглашения с вилкой и «почему вам»:<br/>принять / отклонить с причиной]
-    c7[Вакансии и отклики]
-    c8[Регулярные задания]
-    c9[Приватность, согласия, статус поиска,<br/>удаление аккаунта]
-  end
-  subgraph Работодатель
-    direction TB
-    e1[Профиль компании]
-    e2[Потребность текстом или формой,<br/>вилка обязательна, покрытие вилки]
-    e3[Подборка: рекомендованные категории<br/>+ кандидаты с объяснением, фильтры, шорт-лист]
-    e4[Поиск по базе и каталог категорий]
-    e5[Обезличенная карточка кандидата]
-    e6[Приглашение с вилкой → статусы,<br/>контакты после принятия, статистика отказов]
-    e7[Публикация вакансии и отклики]
-    e8[«Проверка под вакансию»: blueprint и примеры заданий]
-    e9[Регулярные задания и ответы на них]
-  end
-  c4 --> e3
-  e6 --> c6
-  e7 --> c7
-  e9 --> c8
+  c1["Кандидат: регистрация по email,<br/>согласия на ПДн и публикацию"] --> c2[Опрос → рекомендованная специализация]
+  c2 --> c3[Выбор грейда → адаптивный тест]
+  c3 --> c4[Категория «специализация × грейд»,<br/>разбор по темам, перцентиль]
+  c4 --> c5[Профиль: резюме PDF → предзаполнение,<br/>PDF-профиль, привязка ФСП ID]
+  c5 --> c6[Приглашения с вилкой и «почему вам»:<br/>принять / отклонить с причиной]
+  c6 --> c7[Вакансии и отклики · регулярные задания ·<br/>приватность, согласия, удаление]
+  e1["Работодатель: профиль компании"] --> e2[Потребность текстом или формой,<br/>вилка обязательна, покрытие вилки]
+  e2 --> e3[Подборка: рекомендованные категории<br/>+ кандидаты с объяснением, фильтры, шорт-лист]
+  e3 --> e4[Поиск по базе, каталог категорий,<br/>обезличенная карточка]
+  e4 --> e5[Приглашение с вилкой → статусы,<br/>контакты после принятия, статистика отказов]
+  e5 --> e6[Вакансии и отклики · «Проверка под вакансию» ·<br/>регулярные задания]
+  c4 -. попадает в выдачу .-> e3
+  e5 -. приглашение .-> c6
 ```
 
 | Функциональный блок | Что делает | Модуль backend | Экраны frontend |
@@ -129,31 +114,25 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-  subgraph core["app/core"]
-    cfg[config] --- dbm[db] --- sec[security] --- deps[deps] --- err[errors] --- llmm[llm] --- mailm[mail] --- audit[audit] --- rl[ratelimit]
-  end
+  core["app/core: config · db · security · deps · errors · llm · mail · audit · ratelimit"]
   subgraph engine["testing/engine — чистый Python, без БД и FastAPI"]
-    bank[bank: шаблоны и blueprint'ы] --> render[render + generators]
-    bank --> session[session: Planner MST]
+    bank[bank: шаблоны и blueprint'ы] --> session[session: Planner MST]
     session --> irt[irt: EAP, информация]
-    session --> scoring[scoring: проверка ответов]
-    vacancy[vacancy: blueprint под вакансию]
+    session --> escoring[scoring: проверка ответов]
+    bank --> render[render + generators]
   end
   auth --> candidates
-  survey --> testing
-  testing --> engine
-  testing --> categories
-  categories --> matching
+  survey --> testing --> engine
+  testing --> categories --> matching
   fsp --> matching
   tasks --> matching
   needs --> matching
-  matching --> invitations
-  matching --> applications
-  invitations --> candidates
-  applications --> candidates
   resume --> candidates
+  matching --> invitations --> candidates
+  matching --> applications --> candidates
   validation[["validation/ — симуляция"]] --> engine
   validation --> mscoring[matching/scoring.py]
+  core -.- auth
 ```
 
 - Каждый модуль — `router.py` (тонкий: валидация, зависимости, вызов сервиса), `service.py` (бизнес-логика), `models.py`, `schemas.py`. Модули обращаются к чужим `service`, а не к чужим моделям.
