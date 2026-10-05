@@ -38,8 +38,8 @@ reseed:        ## демо-данные заново (на сервере: в к
 validate:      ## симуляционная валидация (§12) → docs/validation/report.md, metrics.json, PNG
 	cd backend && uv run python ../validation/run.py
 
-e2e:
-	@echo "TODO(T14): Playwright"
+e2e:           ## демо-сценарий §18 в Playwright против прода (другой стенд — E2E_BASE_URL=...)
+	cd e2e && npm ci && npx playwright install chromium && npx playwright test
 
 prod-up:       ## на сервере: собрать и поднять всё
 	$(DC) up -d --build --remove-orphans

@@ -69,6 +69,7 @@ backend/migrations/  seed/  tests/
 fsp-mock/                    mock реестра ФСП (отдельный сервис)
 frontend/src/api/            сгенерированный клиент — руками не править
 validation/                  симуляция и отчёт валидации
+e2e/                         Playwright: демо-сценарий §18 против прода
 infra/                       compose, Caddyfile, keycloak realm, заглушка
 ```
 
@@ -87,7 +88,7 @@ infra/                       compose, Caddyfile, keycloak realm, заглушк�
 | Проверка миграции | `uv run alembic upgrade head && uv run alembic check` (нужен Postgres, см. ниже) |
 | Демо-данные | `make reseed` |
 | Валидация (отчёт в `docs/validation/`, ~3–4 мин) | `make validate` (`cd backend && uv run python ../validation/run.py`; размер и seed — `--size`, `--seed`) |
-| e2e | `make e2e` |
+| e2e (демо-сценарий против прода) | `make e2e` (`cd e2e && npm ci && npx playwright install chromium && npx playwright test`; другой стенд — `E2E_BASE_URL=<адрес>`) |
 
 ## Правила кода
 

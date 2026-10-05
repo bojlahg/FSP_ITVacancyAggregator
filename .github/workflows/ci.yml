@@ -120,3 +120,39 @@ jobs:
             sleep 5
           done
           echo "health check failed"; exit 1
+
+  # Демо-сценарий §18 (шаги 1–9) против прода после каждого деплоя; героев показа не трогает
+  e2e:
+    needs: [deploy]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: e2e-prod
+      cancel-in-progress: false
+    env:
+      E2E_BASE_URL: https://itscout.ru
+    defaults:
+      run:
+        working-directory: e2e
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Playwright against production
+        run: npx playwright test
+      - name: Upload report, traces and screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report
+          path: |
+            e2e/playwright-report/
+            e2e/test-results/
+          retention-days: 14
