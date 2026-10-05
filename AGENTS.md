@@ -87,7 +87,7 @@ infra/                       compose, Caddyfile, keycloak realm, заглушк�
 | Миграция | `cd backend && uv run alembic revision --autogenerate -m "..."` |
 | Проверка миграции | `uv run alembic upgrade head && uv run alembic check` (нужен Postgres, см. ниже) |
 | Демо-данные | `make reseed` |
-| Валидация (отчёт в `docs/validation/`, ~3–4 мин) | `make validate` (`cd backend && uv run python ../validation/run.py`; размер и seed — `--size`, `--seed`) |
+| Валидация (отчёт в `docs/validation/`, ~7–8 мин) | `make validate` (`cd backend && uv run python ../validation/run.py`; размер и seed — `--size`, `--seed`) |
 | Документация в PDF (`docs/ITScout-docs.pdf`; версии и эндпоинты генерируются) | `make docs-pdf` (`cd docs/pdf && npm ci && npm run build`; Chromium — `CHROMIUM_PATH`) |
 | e2e (демо-сценарий против прода) | `make e2e` (`cd e2e && npm ci && npx playwright install chromium && npx playwright test`; другой стенд — `E2E_BASE_URL=<адрес>`) |
 

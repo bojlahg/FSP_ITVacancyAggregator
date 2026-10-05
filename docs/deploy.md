@@ -161,7 +161,7 @@ gh run watch <id> && gh run view <id> --log
 | Линт и формат | `make lint` |
 | Фронт | `cd frontend && npm run lint && npm run typecheck && npm run build` |
 | Актуальность OpenAPI и клиента | `make openapi` → `git diff` пустой |
-| Валидация (отчёт в `docs/validation/`, ~3–4 мин) | `make validate` |
+| Валидация (отчёт в `docs/validation/`, ~7–8 мин) | `make validate` |
 | e2e против стенда | `make e2e` (другой стенд — `E2E_BASE_URL=http://localhost make e2e`) |
 | Сборка PDF документации | `make docs-pdf` (`cd docs/pdf && npm ci && npm run build`) → `docs/ITScout-docs.pdf`; путь к Chromium — `CHROMIUM_PATH`, иначе браузер Playwright |
 
