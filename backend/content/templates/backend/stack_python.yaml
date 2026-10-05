@@ -18,13 +18,19 @@
   irt: {a: 1.0, b: 0.4}
   params:
     framework: {choice: [FastAPI, Starlette]}
-  stem: "Расположите этапы обработки HTTP-запроса в приложении на {{framework}} в правильном порядке."
+    server: {choice: [uvicorn, hypercorn, granian]}
+    route: {choice: ["GET /orders/{id}", "POST /payments", "PUT /profile", "DELETE /sessions/{id}", "GET /reports/daily", "PATCH /tasks/{id}"]}
+    mw: {choice: [CORSMiddleware, GZipMiddleware, middleware логирования, middleware трассировки]}
+  stem_variants:
+    - "Расположите этапы обработки HTTP-запроса {{route}} в приложении на {{framework}} в правильном порядке."
+    - "Приложение на {{framework}} запущено под {{server}}, подключён {{mw}}. В каком порядке обрабатывается запрос {{route}}?"
+    - "Пришёл запрос {{route}} к сервису на {{framework}} ({{server}}). Расположите этапы его обработки по порядку."
   order_items:
-    - ASGI-сервер (uvicorn) принимает соединение и формирует scope
-    - Запрос проходит через middleware
-    - Маршрутизатор выбирает обработчик по пути и методу
-    - Разрешаются зависимости и валидируются параметры запроса
-    - Выполняется обработчик и формируется ответ
+    - "ASGI-сервер ({{server}}) принимает соединение и формирует scope"
+    - "Запрос проходит через middleware ({{mw}})"
+    - "Маршрутизатор выбирает обработчик для {{route}}"
+    - "Разрешаются зависимости и валидируются параметры запроса"
+    - "Выполняется обработчик и формируется ответ"
 
 - id: be.py.slicing
   specializations: [backend]
@@ -62,18 +68,25 @@
   kind: single_choice
   irt: {a: 1.2, b: 0.3}
   params:
-    cores: {choice: [4, 8, 16, 32]}
-    task: {choice: [пересчёт хешей паролей, обработка изображений на чистом Python, численное моделирование в циклах, разбор и агрегация больших логов]}
-  stem: >-
-    В стандартной сборке CPython (с GIL) нужно ускорить CPU-bound задачу — {{task}} — на сервере с {{cores}} ядрами.
-    Код написан на чистом Python. Что даст реальное параллельное ускорение?
+    cores: {choice: [4, 8, 16, 32, 64]}
+    task: {choice: [пересчёт хешей паролей, обработка изображений на чистом Python, численное моделирование в циклах, разбор и агрегация больших логов, поиск путей в графе, генерация отчётов с расчётами в циклах]}
+  stem_variants:
+    - >-
+      В стандартной сборке CPython (с GIL) нужно ускорить CPU-bound задачу — {{task}} — на сервере с {{cores}} ядрами.
+      Код написан на чистом Python. Что даст реальное параллельное ускорение?
+    - >-
+      Задача «{{task}}» нагружает одно ядро на 100%, а на сервере {{cores}} ядер. Код — чистый Python, интерпретатор —
+      обычный CPython с GIL. Какой способ распараллеливания действительно ускорит работу?
   options:
-    correct: ["Запуск в нескольких процессах: multiprocessing или ProcessPoolExecutor"]
+    correct:
+      - "Запуск в нескольких процессах: multiprocessing или ProcessPoolExecutor"
+      - "ProcessPoolExecutor с max_workers={{cores}}"
     wrong:
       - "ThreadPoolExecutor с max_workers={{cores}}"
       - "asyncio.gather для запуска вычислений одновременно"
       - "threading.Thread на каждый кусок данных"
       - "Уменьшить sys.setswitchinterval, чтобы потоки чаще переключались"
+      - "asyncio.to_thread для каждого куска данных"
 
 - id: be.py.generator_exhaust
   specializations: [backend]
@@ -179,3 +192,12 @@
   options:
     correct: [tuple, str, frozenset, bytes, int]
     wrong: [list, dict, set, bytearray]
+
+- id: be.py.dict_get
+  specializations: [backend]
+  topic: stack
+  stack_module: python
+  skills: [python]
+  kind: code_output
+  irt: {a: 1.0, b: -1.5}
+  generator: backend.python_dict_get

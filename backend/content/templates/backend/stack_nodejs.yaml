@@ -35,17 +35,25 @@
   kind: single_choice
   irt: {a: 1.1, b: -0.3}
   params:
-    task: {choice: [генерация PDF-отчёта, ресайз изображений на чистом JS, подсчёт bcrypt-хешей в цикле, парсинг гигантского CSV]}
-  stem: >-
-    В сервисе на Node.js {{task}} занимает несколько секунд процессорного времени и тормозит все остальные запросы.
-    Как вынести эту работу, чтобы она не блокировала event loop?
+    task: {choice: [генерация PDF-отчёта, ресайз изображений на чистом JS, подсчёт bcrypt-хешей на чистом JS в цикле, парсинг гигантского CSV, расчёт маршрутов в графе, сжатие данных на чистом JS, построение поискового индекса, рендеринг диаграмм в SVG]}
+  stem_variants:
+    - >-
+      В сервисе на Node.js {{task}} занимает несколько секунд процессорного времени и тормозит все остальные запросы.
+      Как вынести эту работу, чтобы она не блокировала event loop?
+    - >-
+      Пока Node.js-сервис выполняет CPU-bound задачу ({{task}}), он не отвечает даже на /health. Какое решение действительно
+      освободит основной поток?
   options:
-    correct: ["Выполнять её в worker_threads (пуле воркеров)", "Выполнять её в отдельном процессе через child_process"]
+    correct:
+      - "Выполнять её в worker_threads (пуле воркеров)"
+      - "Выполнять её в отдельном процессе через child_process"
     wrong:
       - "Обернуть вычисление в async-функцию и вызвать через await"
       - "Обернуть вычисление в Promise.all"
       - "Запланировать вычисление через process.nextTick"
       - "Обернуть вычисление в new Promise(resolve => resolve(compute()))"
+      - "Увеличить UV_THREADPOOL_SIZE"
+      - "Запланировать всё вычисление целиком через setImmediate"
 
 - id: be.node.promise_all_reject
   specializations: [backend]
@@ -87,11 +95,15 @@
   kind: single_choice
   irt: {a: 1.1, b: 1.0}
   params:
-    fn: {choice: [syncInventory, refreshToken, flushMetrics, sendWebhook]}
-    ver: {choice: [18, 20, 22]}
-  stem: >-
-    В сервисе на Node.js {{ver}} функция {{fn}}() вызывается без await и без .catch(), и возвращаемый ею промис
-    отклоняется. Обработчика process.on('unhandledRejection') нет, флаги запуска по умолчанию. Что произойдёт?
+    fn: {choice: [syncInventory, refreshToken, flushMetrics, sendWebhook, warmCache, reportUsage, pushAnalytics, rotateKeys]}
+    ver: {choice: [16, 18, 20, 22]}
+  stem_variants:
+    - >-
+      В сервисе на Node.js {{ver}} функция {{fn}}() вызывается без await и без .catch(), и возвращаемый ею промис
+      отклоняется. Обработчика process.on('unhandledRejection') нет, флаги запуска по умолчанию. Что произойдёт?
+    - >-
+      Node.js {{ver}}, запуск без дополнительных флагов. Код делает «fire-and-forget» вызов {{fn}}() — без await и без .catch(),
+      глобального обработчика unhandledRejection нет. Промис {{fn}}() отклоняется. Каков результат?
   options:
     correct: ["Процесс завершится с ошибкой: по умолчанию необработанное отклонение промиса приводит к падению процесса"]
     wrong:
@@ -99,3 +111,52 @@
       - "Ошибка будет молча проигнорирована"
       - "Node.js автоматически повторит вызов {{fn}}()"
       - "Отклонение будет перехвачено ближайшим try/catch вызывающей функции"
+      - "Процесс продолжит работу, а ошибка будет записана в stderr только при штатном завершении"
+
+- id: be.node.await_loop_time
+  specializations: [backend]
+  topic: stack
+  stack_module: nodejs
+  skills: [nodejs, javascript]
+  kind: numeric
+  irt: {a: 1.1, b: -0.5}
+  time_limit_sec: 120
+  generator: backend.node_await_loop_time
+
+- id: be.node.module_cache
+  specializations: [backend]
+  topic: stack
+  stack_module: nodejs
+  skills: [nodejs]
+  kind: code_output
+  irt: {a: 1.1, b: 0.2}
+  time_limit_sec: 120
+  generator: backend.node_module_cache
+
+- id: be.node.stream_backpressure
+  specializations: [backend]
+  topic: stack
+  stack_module: nodejs
+  skills: [nodejs]
+  kind: single_choice
+  irt: {a: 1.2, b: 1.5}
+  time_limit_sec: 120
+  params:
+    source: {choice: [файл на 20 ГБ, выгрузку из PostgreSQL через курсор, объект из S3, лог-файл на 5 ГБ]}
+    dest: {choice: [HTTP-ответ медленному клиенту, TCP-сокет партнёра, gzip-поток в файл на медленном диске]}
+  stem_variants:
+    - >-
+      Сервис на Node.js читает {{source}} потоком и в обработчике события 'data' вызывает dest.write(chunk), где dest —
+      {{dest}}. Возвращаемое значение write() не проверяется. Память процесса растёт до OOM. В чём причина и как исправить?
+    - >-
+      Код копирует {{source}} в {{dest}}: source.on('data', (chunk) => dest.write(chunk)). На больших объёмах процесс
+      падает с нехваткой памяти. Что не так?
+  options:
+    correct:
+      - "Не учитывается backpressure: write() возвращает false, когда внутренний буфер переполнен, а данные продолжают поступать; нужно приостанавливать чтение до события 'drain' или использовать stream.pipeline()"
+    wrong:
+      - "Утечка из-за замыкания в обработчике 'data'; нужно вынести обработчик в именованную функцию"
+      - "Нужно увеличить --max-old-space-size — это и есть исправление"
+      - "write() синхронно ждёт отправки данных, поэтому блокирует event loop и память растёт"
+      - "Нужно вызывать global.gc() после каждого чанка"
+      - "Поток читается в бинарном режиме; нужно задать кодировку utf8"

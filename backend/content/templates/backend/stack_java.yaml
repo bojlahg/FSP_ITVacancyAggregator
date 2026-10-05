@@ -57,11 +57,15 @@
   kind: single_choice
   irt: {a: 1.2, b: 0.4}
   params:
-    cls: {choice: [Money, OrderKey, Point, Email]}
+    cls: {choice: [Money, OrderKey, Point, Email, Sku, AccountId, DateRange, Coordinates]}
     map: {choice: [HashMap, HashSet]}
-  stem: >-
-    В классе {{cls}} переопределён equals(), но не hashCode(). Объекты {{cls}} используются как ключи в {{map}}.
-    Какое утверждение верно?
+  stem_variants:
+    - >-
+      В классе {{cls}} переопределён equals(), но не hashCode(). Объекты {{cls}} используются как ключи в {{map}}.
+      Какое утверждение верно?
+    - >-
+      Два разных экземпляра {{cls}} с одинаковыми полями равны по equals(), но hashCode() не переопределён.
+      Что будет при работе с {{map}}?
   options:
     correct:
       - "Нарушен контракт: равные объекты обязаны иметь равные hashCode, иначе поиск по равному, но другому экземпляру обычно не находит запись"
@@ -70,6 +74,8 @@
       - "Код не скомпилируется: компилятор требует переопределять equals() и hashCode() вместе"
       - "{{map}} сравнивает ключи через ==, поэтому переопределение equals() ни на что не влияет"
       - "Достаточно переопределить toString(), чтобы ключи сравнивались по содержимому"
+      - "JVM автоматически вычислит hashCode() по полям, использованным в equals()"
+      - "Проблема возникнет только в TreeMap, а в {{map}} всё будет работать"
 
 - id: be.java.volatile_visibility
   specializations: [backend]
@@ -79,9 +85,11 @@
   kind: single_choice
   irt: {a: 1.3, b: 1.0}
   params:
-    flag: {choice: [stopRequested, stopped, shutdown, cancelled]}
-    cls: {choice: [Worker, Poller, Consumer]}
-  stem: "Иногда поток {{cls}} не останавливается после stop(), вызванного из другого потока. Как это исправить правильно?"
+    flag: {choice: [stopRequested, stopped, shutdown, cancelled, done, finished]}
+    cls: {choice: [Worker, Poller, Consumer, Scheduler, Watcher]}
+  stem_variants:
+    - "Иногда поток {{cls}} не останавливается после stop(), вызванного из другого потока. Как это исправить правильно?"
+    - "Метод stop() вызывается из другого потока, но цикл в {{cls}}.run() может так и не завершиться. Какое исправление корректно по модели памяти Java?"
   code: |
     class {{cls}} implements Runnable {
         private boolean {{flag}} = false;
@@ -96,12 +104,15 @@
     }
   code_language: java
   options:
-    correct: ["Объявить поле volatile (или использовать AtomicBoolean), чтобы запись была видна другому потоку"]
+    correct:
+      - "Объявить поле volatile (или использовать AtomicBoolean), чтобы запись была видна другому потоку"
     wrong:
       - "Ничего не нужно: запись boolean атомарна, значит, сразу видна всем потокам"
       - "Объявить поле final"
       - "Вызывать System.gc() внутри цикла"
       - "Объявить поле static"
+      - "Объявить поле transient"
+      - "Добавить в цикл Thread.yield() — это гарантирует видимость записи"
 
 - id: be.java.transactional_self_call
   specializations: [backend]

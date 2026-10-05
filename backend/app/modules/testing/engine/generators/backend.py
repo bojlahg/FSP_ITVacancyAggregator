@@ -695,3 +695,273 @@ def node_event_loop_order(rng: random.Random) -> Generated:
         " ".join(sync + micro + timer),
         wrong,
     )
+
+
+# --- HTTP ---
+
+HTTP_CODES = {
+    "success": [
+        "200 OK",
+        "201 Created",
+        "202 Accepted",
+        "204 No Content",
+        "206 Partial Content",
+    ],
+    "redirect": [
+        "301 Moved Permanently",
+        "302 Found",
+        "303 See Other",
+        "304 Not Modified",
+        "307 Temporary Redirect",
+        "308 Permanent Redirect",
+    ],
+    "client": [
+        "400 Bad Request",
+        "401 Unauthorized",
+        "403 Forbidden",
+        "404 Not Found",
+        "405 Method Not Allowed",
+        "409 Conflict",
+        "410 Gone",
+        "413 Content Too Large",
+        "415 Unsupported Media Type",
+        "422 Unprocessable Content",
+        "429 Too Many Requests",
+    ],
+    "server": [
+        "500 Internal Server Error",
+        "501 Not Implemented",
+        "502 Bad Gateway",
+        "503 Service Unavailable",
+        "504 Gateway Timeout",
+    ],
+}
+HTTP_CLASS_TEXT = {
+    "success": [
+        "Запрос успешно получен и обработан (класс 2xx)",
+        "Успешный ответ: сервер выполнил запрос (класс 2xx)",
+    ],
+    "redirect": [
+        "Перенаправление: для завершения запроса клиенту нужно действие, например перейти"
+        " по другому адресу (класс 3xx)",
+        "Перенаправление или ответ из кеша клиента (класс 3xx)",
+    ],
+    "client": [
+        "Ошибка клиента: запрос некорректен или не может быть выполнен для этого клиента (класс 4xx)",
+        "Ошибка на стороне клиента (класс 4xx)",
+    ],
+    "server": [
+        "Ошибка сервера: запрос корректен, но сервер или вышестоящий сервис"
+        " не смог его выполнить (класс 5xx)",
+        "Ошибка на стороне сервера (класс 5xx)",
+    ],
+    "info": [
+        "Информационный промежуточный ответ: обработка продолжается (класс 1xx)",
+    ],
+}
+
+
+@generator("backend.http_status_class")
+def http_status_class(rng: random.Random) -> Generated:
+    """Класс ответа — первая цифра кода: 2xx успех, 3xx перенаправление, 4xx клиент, 5xx сервер."""
+    kind = rng.choice(list(HTTP_CODES))
+    code = rng.choice(HTTP_CODES[kind])
+    number = code.split()[0]
+    method, path = rng.choice(
+        [
+            ("GET", "/api/orders"),
+            ("POST", "/api/payments"),
+            ("PUT", "/api/profile"),
+            ("DELETE", "/api/sessions/current"),
+            ("GET", "/static/app.js"),
+            ("PATCH", "/api/tasks/17"),
+        ]
+    )
+    stem = rng.choice(
+        [
+            f"На запрос {method} {path} сервер вернул статус {number}. "
+            "К какому классу ответов по RFC 9110 он относится?",
+            f"В логах балансировщика у запроса {method} {path} код ответа {number}. "
+            "Что означает ответ с таким кодом?",
+            f"Клиент получил на {method} {path} HTTP-ответ с кодом {number}. "
+            "Какое описание класса этого ответа верно?",
+        ]
+    )
+    correct = rng.choice(HTTP_CLASS_TEXT[kind])
+    wrong = [rng.choice(texts) for other, texts in HTTP_CLASS_TEXT.items() if other != kind]
+    rng.shuffle(wrong)
+    return Generated(stem=stem, correct=(correct,), wrong=tuple(wrong))
+
+
+# --- Сложность простых циклов ---
+
+LOOP_PATTERNS = [
+    (
+        "O(n)",
+        "def {fn}({arr}):\n    total = 0\n    for x in {arr}:\n        total += x\n    return total",
+    ),
+    (
+        "O(n)",
+        "def {fn}({arr}):\n    best = {arr}[0]\n    for x in {arr}:\n"
+        "        if x > best:\n            best = x\n"
+        "    for x in {arr}:\n        print(x - best)\n    return best",
+    ),
+    (
+        "O(n²)",
+        "def {fn}({arr}):\n    count = 0\n    for a in {arr}:\n"
+        "        for b in {arr}:\n            if a == b:\n"
+        "                count += 1\n    return count",
+    ),
+    (
+        "O(log n)",
+        "def {fn}(n):\n    steps = 0\n    while n > 1:\n"
+        "        n //= 2\n        steps += 1\n    return steps",
+    ),
+    (
+        "O(1)",
+        "def {fn}({arr}):\n    return {arr}[0] + {arr}[-1]",
+    ),
+    (
+        "O(n)",
+        "def {fn}({arr}):\n    for x in {arr}:\n        for k in range(10):\n            print(x * k)",
+    ),
+]
+COMPLEXITIES = ["O(1)", "O(log n)", "O(n)", "O(n log n)", "O(n²)", "O(2ⁿ)"]
+
+
+@generator("backend.algo_loop_complexity")
+def algo_loop_complexity(rng: random.Random) -> Generated:
+    """Асимптотика простого кода: один проход — O(n), вложенный по n — O(n²), деление пополам — O(log n)."""
+    answer, template = rng.choice(LOOP_PATTERNS)
+    fn = rng.choice(["process", "check", "summarize", "scan", "analyze", "count_items"])
+    arr = rng.choice(["items", "values", "prices", "scores", "ids"])
+    code = template.format(fn=fn, arr=arr)
+    size = "n — длина списка" if "{arr}" in template else "n — значение аргумента"
+    stem = rng.choice(
+        [
+            f"Какова временная сложность функции {fn} ({size})?",
+            f"Оцените время работы {fn} в нотации O-большое ({size}).",
+        ]
+    )
+    wrong = [c for c in COMPLEXITIES if c != answer]
+    return Generated(stem=stem, code=code, code_language="python", correct=(answer,), wrong=tuple(wrong))
+
+
+# --- Python: dict.get ---
+
+DICT_DATA = [
+    ("prices", ["apple", "pear", "plum", "kiwi", "lime"]),
+    ("stock", ["pens", "cups", "bags", "hats", "maps"]),
+    ("ages", ["anna", "boris", "vera", "gleb", "dina"]),
+    ("ports", ["http", "https", "ssh", "smtp", "dns"]),
+]
+
+
+@generator("backend.python_dict_get")
+def python_dict_get(rng: random.Random) -> Generated:
+    """dict.get(k, d) без ключа даёт d, get(k) без default — None; KeyError бывает только у d[k]."""
+    name, keys = rng.choice(DICT_DATA)
+    present = rng.sample(keys, 2)
+    missing = [k for k in keys if k not in present]
+    absent_a, absent_b = rng.sample(missing, 2)
+    values = rng.sample(range(5, 99), 2)
+    default = rng.choice([0, -1, 1])
+    data = ", ".join(f'"{k}": {v}' for k, v in zip(present, values, strict=True))
+    code = (
+        f"{name} = {{{data}}}\n"
+        f'print({name}.get("{absent_a}", {default}), {name}.get("{present[1]}", {default}), '
+        f'{name}.get("{absent_b}"))'
+    )
+    right = f"{default} {values[1]} None"
+    wrong = [
+        "KeyError",
+        f"{default} {values[1]} {default}",
+        f"None {values[1]} None",
+        f"{default} {default} None",
+        f"{default} {values[1]} KeyError",
+        f"{default} {values[0]} None",
+    ]
+    return _choice("Что выведет этот код?", code, "python", right, wrong)
+
+
+# --- C#: целочисленное деление ---
+
+
+@generator("backend.csharp_int_division")
+def csharp_int_division(rng: random.Random) -> Generated:
+    """int / int в C# — целочисленное деление; присваивание в double дробную часть не вернёт."""
+    a = rng.randint(7, 60)
+    b = rng.randint(2, 9)
+    while a % b == 0:
+        a += 1
+    x, y, r = rng.choice(
+        [("a", "b", "r"), ("total", "count", "avg"), ("sum", "n", "mean"), ("items", "pages", "ratio")]
+    )
+    code = f"int {x} = {a};\nint {y} = {b};\ndouble {r} = {x} / {y};\nConsole.WriteLine({r});"
+    q = a // b
+    exact = round(a / b, 2)
+    wrong = [
+        f"{exact:g}",
+        f"{q}.0",
+        q + 1,
+        f"{q} (остаток {a % b})",
+        "Ошибка компиляции: нельзя присвоить int переменной double",
+    ]
+    return _choice(
+        "Что выведет этот код на C#? (Культура вывода не влияет на ответ.)", code, "csharp", q, wrong
+    )
+
+
+# --- Node.js ---
+
+
+@generator("backend.node_await_loop_time")
+def node_await_loop_time(rng: random.Random) -> Generated:
+    """await в цикле выполняет операции последовательно (n · t), Promise.all — параллельно (≈ t)."""
+    fn = rng.choice(["fetchUser", "loadPrice", "getStock", "readProfile", "sendPing"])
+    n = rng.randint(3, 12)
+    ms = rng.choice([50, 80, 100, 120, 150, 200, 250, 300])
+    sequential = rng.random() < 0.6
+    if sequential:
+        body = (
+            "  const out = [];\n"
+            "  for (const id of ids) {\n"
+            f"    out.push(await {fn}(id));\n"
+            "  }\n"
+            "  return out;"
+        )
+        answer = n * ms
+    else:
+        body = f"  return Promise.all(ids.map((id) => {fn}(id)));"
+        answer = ms
+    code = f"async function loadAll(ids) {{\n{body}\n}}\n\nawait loadAll(ids); // ids.length === {n}"
+    stem = (
+        f"Каждый вызов {fn}() — сетевой запрос, который всегда занимает ровно {ms} мс и не нагружает CPU; "
+        f"сервер обрабатывает любое число запросов одновременно. Массив ids содержит {n} элементов. "
+        "Сколько миллисекунд займёт loadAll(ids)? Накладными расходами пренебречь."
+    )
+    return Generated(stem=stem, code=code, code_language="javascript", number=float(answer), tolerance=0)
+
+
+@generator("backend.node_module_cache")
+def node_module_cache(rng: random.Random) -> Generated:
+    """require кеширует модуль: все импортирующие файлы получают один и тот же объект и общее состояние."""
+    mod = rng.choice(["counter", "registry", "store", "metrics"])
+    fn = rng.choice(["inc", "next", "track", "bump"])
+    a_calls = rng.randint(1, 4)
+    b_calls = rng.randint(1, 3)
+    start = rng.choice([0, 10, 100])
+    code = (
+        f"// {mod}.js\nlet n = {start};\nmodule.exports = {{ {fn}: () => ++n }};\n\n"
+        f"// a.js\nconst m = require('./{mod}');\n" + f"m.{fn}();\n" * a_calls + "\n"
+        f"// b.js\nconst m = require('./{mod}');\n"
+        + f"m.{fn}();\n"
+        * (b_calls - 1)
+        + f"console.log(m.{fn}());\n\n"
+        "// main.js\nrequire('./a');\nrequire('./b');"
+    )
+    right = start + a_calls + b_calls
+    wrong = [start + b_calls, start + 1, start + a_calls, right + 1, start, "undefined"]
+    return _choice(
+        "Проект на Node.js (CommonJS). Что выведет node main.js?", code, "javascript", right, wrong
+    )

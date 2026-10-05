@@ -7,13 +7,15 @@
   kind: single_choice
   irt: {a: 1.1, b: -1.2}
   params:
-    resource: {choice: [заказ, платёж, профиль пользователя, корзину, подписку]}
+    resource: {choice: [заказ, платёж, профиль пользователя, корзину, подписку, адрес доставки, настройки уведомлений, карточку товара]}
   stem_variants:
     - "Клиент повторяет запрос на изменение ресурса «{{resource}}» после таймаута. Какой метод по RFC 9110 идемпотентен и подходит для полной замены ресурса?"
     - "Нужно полностью заменить {{resource}}, и запрос может быть отправлен повторно. Какой HTTP-метод идемпотентен и предназначен для этого?"
+    - "Мобильное приложение отправляет новое полное представление ресурса «{{resource}}» и при обрыве связи повторяет запрос. Какой метод по RFC 9110 подходит, чтобы повтор не менял результат?"
+    - "Какой HTTP-метод по RFC 9110 предназначен для полной замены ресурса «{{resource}}» и при этом идемпотентен?"
   options:
     correct: [PUT]
-    wrong: [POST, PATCH, CONNECT, OPTIONS]
+    wrong: [POST, PATCH, CONNECT, TRACE, OPTIONS]
 
 - id: be.http.status_codes_conflict
   specializations: [backend]
@@ -22,11 +24,14 @@
   kind: single_choice
   irt: {a: 1.3, b: -0.3}
   params:
-    entity: {choice: [пользователя с таким email, заказ с таким номером, товар с таким артикулом]}
-  stem: "API получает запрос на создание сущности, но {{entity}} уже существует. Какой код ответа наиболее точен?"
+    entity: {choice: [пользователя с таким email, заказ с таким номером, товар с таким артикулом, компанию с таким ИНН, команду с таким названием, промокод с таким кодом, слот с таким временем, договор с таким номером]}
+  stem_variants:
+    - "API получает запрос на создание сущности, но {{entity}} уже существует. Какой код ответа наиболее точен?"
+    - "POST-запрос нарушает ограничение уникальности: {{entity}} уже есть в системе, и запрос конфликтует с текущим состоянием ресурса. Какой код ответа вернуть?"
+    - "Сервис отклоняет создание записи, потому что {{entity}} уже зарегистрирован в системе. Какой HTTP-статус точнее всего описывает ситуацию?"
   options:
     correct: ["409 Conflict"]
-    wrong: ["400 Bad Request", "404 Not Found", "500 Internal Server Error", "422 Unprocessable Content"]
+    wrong: ["400 Bad Request", "404 Not Found", "500 Internal Server Error", "422 Unprocessable Content", "201 Created", "200 OK"]
 
 - id: be.http.retry_budget
   specializations: [backend]
@@ -74,14 +79,18 @@
   kind: single_choice
   irt: {a: 1.1, b: -1.0}
   params:
-    action: {choice: [удалить чужой заказ, изменить настройки биллинга, выгрузить отчёт по всем клиентам, заблокировать пользователя]}
-    role: {choice: [viewer, support, guest, analyst]}
-  stem: >-
-    Пользователь с ролью {{role}} передал валидный, не истёкший токен и пытается {{action}}. Прав на это у роли нет.
-    Какой код ответа наиболее точен по семантике HTTP?
+    action: {choice: [удалить чужой заказ, изменить настройки биллинга, выгрузить отчёт по всем клиентам, заблокировать пользователя, изменить тариф компании, удалить проект, просмотреть журнал аудита, назначить роль администратора]}
+    role: {choice: [viewer, support, guest, analyst, editor, intern]}
+  stem_variants:
+    - >-
+      Пользователь с ролью {{role}} передал валидный, не истёкший токен и пытается {{action}}. Прав на это у роли нет.
+      Какой код ответа наиболее точен по семантике HTTP?
+    - >-
+      Аутентификация прошла успешно: сервер знает, что это пользователь с ролью {{role}}. Но роль не позволяет
+      {{action}}, и повторная аутентификация ничего не изменит. Какой код ответа вернуть?
   options:
     correct: ["403 Forbidden"]
-    wrong: ["401 Unauthorized", "400 Bad Request", "405 Method Not Allowed", "407 Proxy Authentication Required"]
+    wrong: ["401 Unauthorized", "400 Bad Request", "405 Method Not Allowed", "407 Proxy Authentication Required", "409 Conflict", "429 Too Many Requests"]
 
 - id: be.http.safe_methods
   specializations: [backend]
@@ -106,14 +115,18 @@
   kind: ordering
   irt: {a: 1.0, b: -0.7}
   params:
-    host: {choice: [api.itscout.ru, shop.example.com, pay.example.org, auth.example.net]}
-    path: {choice: [/v1/orders, /login, /health, /v2/profile]}
-  stem: "Клиент впервые обращается к https://{{host}}{{path}} по HTTP/1.1, кешей и открытых соединений нет. Расположите этапы в правильном порядке."
+    host: {choice: [api.itscout.ru, shop.example.com, pay.example.org, auth.example.net, cdn.example.com, crm.example.org, maps.example.net, lk.example.ru]}
+    path: {choice: [/v1/orders, /login, /health, /v2/profile, /api/cart, "/search?q=go", /v1/payments, /reports/daily]}
+    method: {choice: [GET, POST, PUT, DELETE]}
+  stem_variants:
+    - "Клиент впервые обращается к https://{{host}}{{path}} по HTTP/1.1, кешей и открытых соединений нет. Расположите этапы в правильном порядке."
+    - "Сервис впервые отправляет запрос {{method}} https://{{host}}{{path}} (HTTP/1.1). DNS-кеша и открытых соединений нет. В каком порядке пройдут этапы?"
+    - "Расположите по порядку этапы первого HTTPS-запроса {{method}} к {{host}}{{path}} (HTTP/1.1, без кешей и keep-alive соединений)."
   order_items:
     - "DNS-резолвинг имени {{host}} в IP-адрес"
     - "Установка TCP-соединения (трёхстороннее рукопожатие)"
     - "TLS-рукопожатие и проверка сертификата {{host}}"
-    - "Отправка HTTP-запроса GET {{path}}"
+    - "Отправка HTTP-запроса {{method}} {{path}}"
     - "Получение HTTP-ответа со статусом и заголовками"
 
 - id: be.http.etag_not_modified
@@ -123,11 +136,15 @@
   kind: single_choice
   irt: {a: 1.2, b: -0.1}
   params:
-    etag: {choice: ['"a1b2c3"', '"v42"', '"9f8e7d"', 'W/"17-abc"']}
-    resource: {choice: [/api/catalog, /api/profile, /static/app.js, /api/prices]}
-  stem: >-
-    Клиент запрашивает GET {{resource}} с заголовком If-None-Match: {{etag}}. Ресурс не менялся, и его текущий ETag
-    совпадает. Что вернёт сервер, корректно поддерживающий условные запросы?
+    etag: {choice: ['"a1b2c3"', '"v42"', '"9f8e7d"', 'W/"17-abc"', '"r2024"', 'W/"5d-ff1"']}
+    resource: {choice: [/api/catalog, /api/profile, /static/app.js, /api/prices, /api/news, /static/logo.svg, /api/tariffs]}
+  stem_variants:
+    - >-
+      Клиент запрашивает GET {{resource}} с заголовком If-None-Match: {{etag}}. Ресурс не менялся, и его текущий ETag
+      совпадает. Что вернёт сервер, корректно поддерживающий условные запросы?
+    - >-
+      Браузер повторно запрашивает {{resource}} и отправляет If-None-Match: {{etag}} — этот ETag он получил в прошлый раз.
+      На сервере ресурс с тех пор не изменился. Каким должен быть ответ?
   options:
     correct: ["304 Not Modified без тела ответа"]
     wrong:
@@ -135,6 +152,8 @@
       - "200 OK с полным телом ресурса"
       - "412 Precondition Failed"
       - "302 Found с редиректом на закешированную версию"
+      - "200 OK с пустым телом"
+      - "409 Conflict"
 
 - id: be.http.keyset_pagination
   specializations: [backend]
@@ -165,10 +184,11 @@
   kind: single_choice
   irt: {a: 1.2, b: 0.5}
   params:
-    data: {choice: [паспортные данные, выписку по счёту, медицинскую карту, платёжные реквизиты]}
+    data: {choice: [паспортные данные, выписку по счёту, медицинскую карту, платёжные реквизиты, одноразовый код подтверждения, налоговую декларацию, историю переписки с поддержкой, данные банковской карты]}
   stem_variants:
     - "Ответ API содержит {{data}}. Его нельзя сохранять ни в каком кеше — ни в браузере, ни на промежуточных прокси. Какой заголовок ответа это выражает?"
     - "Эндпоинт отдаёт {{data}}, и ответ не должен записываться ни в один кеш (включая диск браузера). Какую директиву указать?"
+    - "Требование безопасности: ответ, содержащий {{data}}, не должен сохраняться ни браузером, ни CDN, ни прокси. Какой заголовок ответа выбрать?"
   options:
     correct: ["Cache-Control: no-store"]
     wrong:
@@ -176,6 +196,9 @@
       - "Cache-Control: private"
       - "Cache-Control: max-age=0"
       - "Cache-Control: must-revalidate"
+      - "Cache-Control: no-transform"
+      - "Expires: 0"
+      - "Cache-Control: proxy-revalidate"
 
 - id: be.http.if_match_precondition
   specializations: [backend]
@@ -184,15 +207,20 @@
   kind: single_choice
   irt: {a: 1.2, b: 1.0}
   params:
-    etag: {choice: ['"r17"', '"v5"', '"7c1e"', '"2024-a"']}
-    resource: {choice: [/api/articles/42, /api/orders/918, /api/profiles/7, /api/configs/main]}
-  stem: >-
-    Для защиты от потерянных обновлений клиент отправляет PUT {{resource}} с заголовком If-Match: {{etag}}.
-    Пока он редактировал, другой клиент уже изменил ресурс, и ETag на сервере другой. Какой код ответа
-    предписывает RFC 9110?
+    etag: {choice: ['"r17"', '"v5"', '"7c1e"', '"2024-a"', '"b91f"', '"rev-33"']}
+    resource: {choice: [/api/articles/42, /api/orders/918, /api/profiles/7, /api/configs/main, /api/wiki/pages/15, /api/tariffs/3, /api/contracts/501]}
+    method: {choice: [PUT, PATCH, DELETE]}
+  stem_variants:
+    - >-
+      Для защиты от потерянных обновлений клиент отправляет {{method}} {{resource}} с заголовком If-Match: {{etag}}.
+      Пока он редактировал, другой клиент уже изменил ресурс, и ETag на сервере другой. Какой код ответа
+      предписывает RFC 9110?
+    - >-
+      Клиент выполняет условный запрос {{method}} {{resource}} с If-Match: {{etag}}, но текущий ETag ресурса на сервере
+      уже другой — ресурс успели изменить. Что должен ответить сервер по RFC 9110?
   options:
     correct: ["412 Precondition Failed"]
-    wrong: ["409 Conflict", "304 Not Modified", "428 Precondition Required", "422 Unprocessable Content"]
+    wrong: ["409 Conflict", "304 Not Modified", "428 Precondition Required", "422 Unprocessable Content", "423 Locked", "200 OK: применяется последняя запись"]
 
 - id: be.http.idempotency_key
   specializations: [backend]
@@ -202,10 +230,14 @@
   irt: {a: 1.3, b: 1.4}
   n_options: 5
   params:
-    op: {choice: [создания платежа, оформления заказа, отправки перевода, бронирования места]}
-  stem: >-
-    Для POST-запроса {{op}} вводится заголовок Idempotency-Key, чтобы повтор после таймаута не выполнил операцию
-    дважды. Сервис работает в нескольких экземплярах. Какие решения правильные?
+    op: {choice: [создания платежа, оформления заказа, отправки перевода, бронирования места, списания бонусов, создания возврата, выпуска виртуальной карты, отправки SMS-рассылки]}
+  stem_variants:
+    - >-
+      Для POST-запроса {{op}} вводится заголовок Idempotency-Key, чтобы повтор после таймаута не выполнил операцию
+      дважды. Сервис работает в нескольких экземплярах. Какие решения правильные?
+    - >-
+      API {{op}} принимает заголовок Idempotency-Key: клиент повторяет запрос с тем же ключом, если не дождался ответа.
+      Экземпляров сервиса несколько. Какие решения о хранении и обработке ключей верны?
   options:
     correct:
       - "Сохранять ключ вместе с результатом первого выполнения и на повтор возвращать сохранённый ответ"
@@ -216,6 +248,7 @@
       - "Ключ можно не хранить: POST по RFC 9110 идемпотентен"
       - "Если запрос с этим ключом ещё выполняется, выполнять повтор параллельно, чтобы клиент не ждал"
       - "Хранить ключи меньше, чем клиент может делать повторы, чтобы таблица не росла"
+      - "Генерировать ключ на сервере заново при получении каждого запроса"
 
 - id: be.http.grpc_deadline
   specializations: [backend]
@@ -237,3 +270,62 @@
       - "Ответ, как только {{b}} закончит обработку, — дедлайн носит рекомендательный характер"
       - "HTTP 504 Gateway Timeout"
       - "Ошибку со статусом CANCELLED"
+
+- id: be.http.status_class
+  specializations: [backend]
+  topic: http_api
+  skills: [http]
+  kind: single_choice
+  irt: {a: 1.0, b: -1.8}
+  generator: backend.http_status_class
+
+- id: be.http.created_201
+  specializations: [backend]
+  topic: http_api
+  skills: [http, rest]
+  kind: single_choice
+  irt: {a: 1.0, b: -1.4}
+  params:
+    res: {choice: [orders, users, projects, invoices, comments, tickets, bookings, products]}
+    entity: {choice: [новую запись, новый ресурс, новый объект]}
+  stem_variants:
+    - "Клиент отправил POST /api/{{res}}, и сервер синхронно создал {{entity}}. Какой ответ наиболее точен по семантике HTTP?"
+    - "Обработчик POST /api/{{res}} успешно сохранил {{entity}} в базе до отправки ответа. Какой ответ API лучше всего соответствует RFC 9110?"
+    - "REST API: запрос POST /api/{{res}} создал {{entity}} сразу, без фоновой обработки. Что вернуть клиенту?"
+  options:
+    correct: ["201 Created с заголовком Location, указывающим на созданный ресурс"]
+    wrong:
+      - "202 Accepted с заголовком Location"
+      - "204 No Content"
+      - "302 Found с редиректом на созданный ресурс"
+      - "304 Not Modified"
+      - "200 OK без тела и без Location"
+      - "409 Conflict"
+
+- id: be.http.hol_blocking
+  specializations: [backend]
+  topic: http_api
+  skills: [http, networking]
+  kind: single_choice
+  irt: {a: 1.2, b: 1.5}
+  time_limit_sec: 120
+  params:
+    client: {choice: [мобильное приложение, браузер, SDK партнёра, IoT-устройство]}
+    n: {choice: [20, 40, 60, 100]}
+    loss: {choice: [1, 2, 3, 5]}
+  stem_variants:
+    - >-
+      Клиент ({{client}}) отправляет {{n}} параллельных запросов по одному HTTP/2-соединению. В сети с потерей {{loss}}% пакетов
+      задержки растут сразу у всех потоков, а не только у того, чей пакет потерян. Почему так происходит и что меняет HTTP/3?
+    - >-
+      Профилирование показало: когда в сети теряется около {{loss}}% пакетов, все {{n}} мультиплексированных потоков HTTP/2
+      ({{client}}) замирают одновременно. В чём причина и как это решает HTTP/3?
+  options:
+    correct:
+      - "Все потоки HTTP/2 идут в одном TCP-соединении, и потерянный сегмент задерживает доставку данных всех потоков (head-of-line blocking на уровне TCP); HTTP/3 работает поверх QUIC, где потеря пакета задерживает только свой поток"
+    wrong:
+      - "HTTP/2 отправляет ответы строго по очереди, следующий — только после завершения предыдущего; HTTP/3 впервые добавляет мультиплексирование"
+      - "При потере пакета HTTP/2 закрывает соединение и заново выполняет TLS-рукопожатие; HTTP/3 сохраняет сессию в cookie"
+      - "HPACK заново пересылает всю таблицу заголовков после каждой потери; в HTTP/3 сжатие заголовков отключено"
+      - "Сервер при потерях снижает SETTINGS_MAX_CONCURRENT_STREAMS до 1; в HTTP/3 такого ограничения нет"
+      - "Приоритеты потоков HTTP/2 откладывают все потоки, кроме самого важного; в HTTP/3 приоритетов нет, поэтому потоки равны"

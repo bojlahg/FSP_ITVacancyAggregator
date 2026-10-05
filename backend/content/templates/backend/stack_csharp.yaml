@@ -8,8 +8,11 @@
   kind: single_choice
   irt: {a: 1.0, b: -1.0}
   params:
-    res: {choice: [SqlConnection, FileStream, HttpResponseMessage, StreamReader]}
-  stem: "Объект {{res}} создаётся в блоке using. Что гарантирует using?"
+    res: {choice: [SqlConnection, FileStream, HttpResponseMessage, StreamReader, NpgsqlConnection, MemoryStream, StreamWriter, Timer]}
+  stem_variants:
+    - "Объект {{res}} создаётся в блоке using. Что гарантирует using?"
+    - "Код работает с {{res}} внутри using (var x = …) { … }. Какое утверждение о таком блоке верно?"
+    - "Зачем объект {{res}} оборачивают в using? Что именно гарантирует эта конструкция?"
   options:
     correct: ["Dispose() будет вызван при выходе из блока, в том числе если внутри возникло исключение"]
     wrong:
@@ -17,6 +20,7 @@
       - "Dispose() вызывается только при нормальном выходе из блока, без исключений"
       - "Объект становится потокобезопасным внутри блока"
       - "Исключения внутри блока автоматически перехватываются и логируются"
+      - "Dispose() вызывается в фоновом потоке через некоторое время после выхода из блока"
 
 - id: be.cs.struct_vs_class
   specializations: [backend]
@@ -35,11 +39,15 @@
   kind: single_choice
   irt: {a: 1.2, b: 0.5}
   params:
-    single: {choice: [PriceCache, ReportScheduler, RateLimiter]}
-    scoped: {choice: [AppDbContext, UnitOfWork, CurrentUserContext]}
-  stem: >-
-    В ASP.NET Core {{single}} зарегистрирован как Singleton и принимает в конструкторе {{scoped}}, зарегистрированный
-    как Scoped. Что не так с такой конфигурацией?
+    single: {choice: [PriceCache, ReportScheduler, RateLimiter, FeatureFlags, MetricsCollector, TokenProvider]}
+    scoped: {choice: [AppDbContext, UnitOfWork, CurrentUserContext, OrderRepository, TenantContext, RequestAuditLog]}
+  stem_variants:
+    - >-
+      В ASP.NET Core {{single}} зарегистрирован как Singleton и принимает в конструкторе {{scoped}}, зарегистрированный
+      как Scoped. Что не так с такой конфигурацией?
+    - >-
+      services.AddSingleton<{{single}}>(); services.AddScoped<{{scoped}}>(); — и {{single}} получает {{scoped}} через
+      конструктор. В чём проблема?
   options:
     correct: ["Это захваченная зависимость: {{scoped}} будет жить столько же, сколько синглтон, и разделяться между запросами"]
     wrong:
@@ -47,6 +55,8 @@
       - "{{single}} автоматически станет Scoped"
       - "Ничего: время жизни определяется только интерфейсом, а не регистрацией"
       - "{{scoped}} автоматически станет Transient"
+      - "Контейнер создаст отдельный экземпляр {{single}} на каждый запрос"
+      - "Проблема только в производительности: {{scoped}} будет создаваться при каждом обращении к {{single}}"
 
 - id: be.cs.linq_deferred
   specializations: [backend]
@@ -65,14 +75,86 @@
   kind: single_choice
   irt: {a: 1.2, b: 1.2}
   params:
-    method: {choice: [GetUserAsync, LoadPricesAsync, FetchReportAsync]}
-  stem: >-
-    Синхронный код вызывает асинхронный метод так: var x = {{method}}().Result;. Какое утверждение верно?
+    method: {choice: [GetUserAsync, LoadPricesAsync, FetchReportAsync, SendEmailAsync, ReadConfigAsync, GetBalanceAsync, SaveOrderAsync, CallPartnerAsync]}
+    form: {choice: [".Result", ".GetAwaiter().GetResult()", ".Wait()"]}
+  stem_variants:
+    - >-
+      Синхронный код вызывает асинхронный метод так: {{method}}(){{form}};. Какое утверждение верно?
+    - >-
+      В библиотеке нет синхронной версии {{method}}, и разработчик пишет {{method}}(){{form}} внутри синхронного метода.
+      Что верно про такой вызов?
+    - >-
+      Ревьюер нашёл строку {{method}}(){{form}} в коде, который вызывается из обработчика запросов. Какое утверждение о ней верно?
   options:
     correct:
       - "Поток блокируется до завершения задачи; при SynchronizationContext (WinForms, WPF, классический ASP.NET) это может дать взаимоблокировку, а в ASP.NET Core под нагрузкой — истощение пула потоков"
     wrong:
-      - ".Result не блокирует поток: компилятор превращает его в await"
+      - "Такой вызов не блокирует поток: компилятор превращает его в await"
       - "Взаимоблокировка невозможна ни в каком окружении, потому что Task всегда выполняется в отдельном потоке"
-      - "ConfigureAwait(false) в вызывающем коде на строке с .Result делает вызов неблокирующим"
-      - "Асинхронный метод при вызове через .Result выполняется в отдельном процессе"
+      - "ConfigureAwait(false) в вызывающем коде на этой же строке делает вызов неблокирующим"
+      - "Асинхронный метод при таком вызове выполняется в отдельном процессе"
+      - "Вызов сразу возвращает значение по умолчанию, не дожидаясь завершения задачи"
+      - "Блокировка возможна только в консольных приложениях, а в UI и ASP.NET — нет"
+
+- id: be.cs.int_division
+  specializations: [backend]
+  topic: stack
+  stack_module: csharp
+  skills: [csharp]
+  kind: code_output
+  irt: {a: 1.0, b: -1.2}
+  generator: backend.csharp_int_division
+
+- id: be.cs.async_void
+  specializations: [backend]
+  topic: stack
+  stack_module: csharp
+  skills: [csharp, dotnet, concurrency]
+  kind: single_choice
+  irt: {a: 1.2, b: 0.8}
+  params:
+    name: {choice: [SendReceipt, SyncInventory, RefreshCache, NotifyPartner, WriteAudit, UploadReport]}
+    ex: {choice: [HttpRequestException, InvalidOperationException, TimeoutException, IOException]}
+  stem_variants:
+    - >-
+      Метод объявлен как async void {{name}}(), внутри после await выбрасывается {{ex}}. Вызывающий код делает
+      try { {{name}}(); } catch (Exception e) { … }. Что произойдёт?
+    - >-
+      В ASP.NET Core сервисе вызывается async void {{name}}(), обёрнутый в try/catch. После первого await внутри метода
+      летит {{ex}}. Каков результат?
+  options:
+    correct:
+      - "catch вызывающего кода исключение не поймает: у async void нет Task, которую можно ожидать; исключение уходит в контекст синхронизации или пул потоков и обычно завершает процесс — метод должен возвращать Task и ожидаться через await"
+    wrong:
+      - "Исключение будет перехвачено catch, как у синхронного метода"
+      - "Исключение сохранится в возвращённой Task и пробросится при её ожидании"
+      - "Среда выполнения молча проигнорирует исключение"
+      - "Код не скомпилируется: async void запрещён везде, кроме обработчиков событий"
+      - "Исключение будет записано в лог как предупреждение, а метод перезапустится"
+
+- id: be.cs.concurrent_dictionary
+  specializations: [backend]
+  topic: stack
+  stack_module: csharp
+  skills: [csharp, dotnet, concurrency]
+  kind: single_choice
+  irt: {a: 1.1, b: -0.2}
+  params:
+    svc: {choice: [PriceCache, SessionRegistry, RateCounter, TemplateCache, TenantSettings, ExchangeRates]}
+    value: {choice: [decimal, string, int, "List<string>"]}
+  stem_variants:
+    - >-
+      Сервис {{svc}} зарегистрирован как Singleton и хранит данные в Dictionary<string, {{value}}>, который изменяется
+      из параллельных HTTP-запросов без блокировок. Какое утверждение верно?
+    - >-
+      В синглтоне {{svc}} поле Dictionary<string, {{value}}> заполняется лениво при первом обращении из разных запросов
+      ASP.NET Core одновременно. Синхронизации нет. Что верно?
+  options:
+    correct:
+      - "Dictionary не потокобезопасен при одновременной записи: возможны повреждение структуры и исключения; использовать ConcurrentDictionary (например, GetOrAdd) или блокировку"
+    wrong:
+      - "Dictionary потокобезопасен: методы коллекций .NET синхронизированы"
+      - "Проблем нет: ASP.NET Core обрабатывает все запросы в одном потоке"
+      - "Достаточно объявить поле readonly"
+      - "Достаточно объявить поле volatile"
+      - "Достаточно заменить Dictionary на List<KeyValuePair<string, {{value}}>>"
