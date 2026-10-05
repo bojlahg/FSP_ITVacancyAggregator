@@ -463,7 +463,8 @@ def explain(
             lines.append(_line("warning", "skills", f"{name} — нет данных"))
 
     if facts.best_fsp:
-        lines.append(_line("positive", "fsp", f"ФСП: {facts.best_fsp}"))
+        # Без вклада в score (ФСП не по профилю или владение не подтверждено) — нейтральная строка
+        lines.append(_line("positive" if facts.fsp_score > 0 else "neutral", "fsp", f"ФСП: {facts.best_fsp}"))
     if facts.fresh_days is not None and facts.fresh_days <= 30:
         lines.append(_line("neutral", "freshness", f"Свежий результат: {facts.fresh_days} дн. назад"))
     if salary_fit < 1.0 and facts.salary_min:

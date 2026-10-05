@@ -170,6 +170,13 @@ async def candidate_fsp_score(
     return round(score, 4), bool(has_results or ranks), best
 
 
+def counts_in_score(candidate: Candidate) -> bool:
+    """ФСП учитывается в подборе, только если владение подтверждено входом через ФСП ID (§9.3)."""
+    if candidate.fsp_link_method == FspLinkMethod.oidc:
+        return True
+    return candidate.fsp_link_method == FspLinkMethod.manual and get_settings().fsp_manual_link_counts
+
+
 async def link_manual(db: AsyncSession, candidate: Candidate, body: FspLinkRequest) -> FspProfileOut:
     if not body.consent:
         raise AppError("Нужно согласие на импорт данных из реестра ФСП", code="consent_required")

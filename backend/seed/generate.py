@@ -9,6 +9,7 @@ import math
 import random
 import secrets
 import sys
+import zlib
 from collections import Counter
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
@@ -677,7 +678,14 @@ class Seeder:
             self.register_participant(fsp_id, f"{first} {last}", results, ranks)
             if results or ranks:
                 candidate.fsp_id = fsp_id
-                candidate.fsp_link_method = FspLinkMethod.manual
+                # Большинство — через ФСП ID (mock Keycloak), каждый седьмой — номером вручную: в демо видна
+                # пометка «владение не подтверждено», и такой ФСП в score не идёт (§9.3). Демо-кандидат Анна —
+                # вручную: в сценарии она повышает привязку до подтверждённой входом через ФСП ID
+                if hero:
+                    manual = email == get_settings().demo_candidate_email
+                else:
+                    manual = zlib.crc32(fsp_id.encode()) % 7 == 0
+                candidate.fsp_link_method = FspLinkMethod.manual if manual else FspLinkMethod.oidc
                 candidate.fsp_linked_at = created + timedelta(days=1)
                 self.consents(user, [ConsentKind.fsp_import], created + timedelta(days=1))
                 await self.db.flush()

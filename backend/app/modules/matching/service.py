@@ -96,7 +96,10 @@ async def refresh_candidate(db: AsyncSession, candidate_id: int) -> None:
     now = datetime.now(UTC)
     attempt = await db.get(TestAttempt, current.attempt_id) if current.attempt_id else None
     skills: dict[str, str] = {}
+    fsp_counts = fsp_service.counts_in_score(candidate)
     for skill in await db.scalars(select(CandidateSkill).where(CandidateSkill.candidate_id == candidate_id)):
+        if skill.source == SkillSource.fsp and not fsp_counts:
+            continue
         status = SKILL_STATUS_PRIORITY.get(skill.source, "declared")
         if skills.get(skill.skill_id) in (None, "declared"):
             skills[skill.skill_id] = status
@@ -119,6 +122,8 @@ async def refresh_candidate(db: AsyncSession, candidate_id: int) -> None:
     row.fsp_score, row.has_fsp, row.max_rank = await fsp_service.candidate_fsp_score(
         db, candidate_id, current.specialization
     )
+    if not fsp_counts:
+        row.fsp_score = 0.0
     row.fresh = fresh
     row.approach = approach
     row.vps = scoring.vps(current.percentile, row.fsp_score, fresh, approach)
@@ -235,14 +240,17 @@ async def _best_fsp(db: AsyncSession, candidate_ids: list[int]) -> dict[int, str
         .where(FspAchievement.candidate_id.in_(candidate_ids))
         .order_by(FspAchievement.candidate_id, FspAchievement.strength.desc())
     )
+    candidates = await db.scalars(select(Candidate).where(Candidate.id.in_(candidate_ids)))
+    unverified = {c.id for c in candidates if not fsp_service.counts_in_score(c)}
     best: dict[int, str] = {}
     for row in rows:
         if row.candidate_id in best:
             continue
         role = f", роль {row.team_role}" if row.team_role else ""
+        note = " — владение не подтверждено, в score не учтено" if row.candidate_id in unverified else ""
         best[row.candidate_id] = (
             f"{row.place} место из {row.participants} — {row.competition_name} "
-            f"({LEVEL_NAMES.get(row.level, row.level)}{role})"
+            f"({LEVEL_NAMES.get(row.level, row.level)}{role}){note}"
         )
     return best
 

@@ -284,7 +284,7 @@ def test_acceptance_is_shown_only_by_default(monkeypatch):
 
 
 def test_acceptance_multiplier_behind_flag(monkeypatch):
-    likely, unlikely = facts(1, search_status="active"), facts(2, theta=0.8, active_invitations=5)
+    likely, unlikely = facts(1, search_status="active"), facts(2, theta=0.9, active_invitations=5)
     assert score(unlikely) > score(likely)
     monkeypatch.setitem(get_rules().acceptance, "rank_weight", 0.5)
     result = evaluate(unlikely, NEED, LABELS)

@@ -117,6 +117,9 @@ class Settings(BaseSettings):
     fsp_api_key: str = "dev-fsp-key"
     # Файл данных fsp-mock; генератор демо-данных пишет его в общий volume
     fsp_data_path: str = "/data/fsp/fsp.json"
+    # Ручная привязка по номеру ФСП ID не доказывает владение: достижения видны с пометкой «не подтверждено»,
+    # но в score, силу профиля и статус навыков «подтверждено ФСП» не идут. true — учитывать как через ФСП ID
+    fsp_manual_link_counts: bool = False
 
     # Привязка через ФСП ID по OIDC (§9.3). Discovery читаем по внутреннему адресу IdP: issuer и
     # authorization_endpoint в нём публичные, token и jwks — внутренние (Keycloak с KC_HOSTNAME).

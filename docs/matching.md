@@ -76,7 +76,7 @@ flowchart LR
 ### 4.2. Score
 
 ```text
-match = 100 × (0,40·skills + 0,20·strength + 0,15·category + 0,10·fsp + 0,05·fresh + 0,10·conditions)
+match = 100 × (0,43·skills + 0,22·strength + 0,16·category + 0,03·fsp + 0,05·fresh + 0,11·conditions)
 ```
 
 | Компонент | Расчёт |
