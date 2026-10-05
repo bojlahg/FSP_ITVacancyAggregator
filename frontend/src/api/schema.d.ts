@@ -3679,6 +3679,26 @@ export interface components {
              * @description Квадратично взвешенная κ согласия экспертов
              */
             weighted_kappa: number | null;
+            /** @description 95% bootstrap-интервал κ по парам оценок */
+            weighted_kappa_ci: components["schemas"]["Interval"] | null;
+            /**
+             * Agreement Level
+             * @description Интерпретация κ по Landis & Koch: «умеренное» и т. п.
+             */
+            agreement_level: string | null;
+            /**
+             * Krippendorff Alpha
+             * @description α Криппендорфа (интервальная): любое число экспертов на пару
+             */
+            krippendorff_alpha: number | null;
+            /**
+             * Double Labeled Share
+             * @description Доля размеченных пар с двумя и более оценками
+             */
+            double_labeled_share: number | null;
+            /** Comparisons */
+            comparisons: components["schemas"]["RankerComparison"][];
+            target: components["schemas"]["LabelingTarget"];
         };
         /** ExpertTask */
         ExpertTask: {
@@ -4339,6 +4359,13 @@ export interface components {
              */
             fast_correct_hard: number | null;
         };
+        /** Interval */
+        Interval: {
+            /** Low */
+            low: number;
+            /** High */
+            high: number;
+        };
         /** InvitationCreate */
         InvitationCreate: {
             /**
@@ -4604,6 +4631,31 @@ export interface components {
             endDate?: string | null;
             /** Summary */
             summary?: string | null;
+        };
+        /**
+         * LabelingTarget
+         * @description Цель разметки: столько потребностей и меток дают мощность 0,8 для разницы nDCG 0,1 (Sakai).
+         */
+        LabelingTarget: {
+            /**
+             * Needs
+             * @description Цель: потребностей с полностью размеченным топ-5 обеих выдач
+             */
+            needs: number;
+            /**
+             * Labels
+             * @description Цель: оценок всего
+             */
+            labels: number;
+            /** Needs Done */
+            needs_done: number;
+            /** Labels Done */
+            labels_done: number;
+            /**
+             * Needs In Set
+             * @description Потребностей в наборе пар
+             */
+            needs_in_set: number;
         };
         /** LegalDocument */
         LegalDocument: {
@@ -5109,6 +5161,48 @@ export interface components {
              */
             hidden_employer_ids?: number[];
         };
+        /**
+         * RankerComparison
+         * @description ITScout против ключевых слов на одних и тех же потребностях (парное сравнение).
+         */
+        RankerComparison: {
+            /**
+             * Metric
+             * @enum {string}
+             */
+            metric: "precision_at_5" | "ndcg_at_5";
+            /**
+             * Needs
+             * @description Потребностей, где топ-5 обеих выдач размечен полностью
+             */
+            needs: number;
+            /**
+             * Difference
+             * @description Среднее ITScout − ключевые слова
+             */
+            difference: number | null;
+            /** @description 95% интервал разницы, парный bootstrap */
+            ci: components["schemas"]["Interval"] | null;
+            /**
+             * P Value
+             * @description p парного bootstrap, двустороннее
+             */
+            p_value: number | null;
+            /**
+             * Wins
+             * @description Потребностей, где ITScout лучше
+             */
+            wins: number;
+            /** Losses */
+            losses: number;
+            /** Ties */
+            ties: number;
+            /**
+             * Sign Test P
+             * @description p знакового теста (точный биномиальный)
+             */
+            sign_test_p: number | null;
+        };
         /** RankerQuality */
         RankerQuality: {
             /** Name */
@@ -5118,6 +5212,15 @@ export interface components {
              * @description Доля релевантных (средняя оценка ≥ порога) в топ-5
              */
             precision_at_5: number | null;
+            /** @description 95% bootstrap-интервал P@5 по потребностям */
+            precision_ci: components["schemas"]["Interval"] | null;
+            /**
+             * Ndcg At 5
+             * @description nDCG@5 по средним оценкам; идеал — лучшие размеченные пары
+             */
+            ndcg_at_5: number | null;
+            /** @description 95% bootstrap-интервал nDCG@5 по потребностям */
+            ndcg_ci: components["schemas"]["Interval"] | null;
             /**
              * Needs
              * @description Потребностей, у которых топ-5 размечен полностью

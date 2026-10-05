@@ -1,8 +1,9 @@
 """Экспертная разметка пар «потребность — кандидат» (§12.2): набор пар, оценки 0–3 и метрики подбора.
 
 Эксперт видит обезличенную карточку без score, объяснения и места в выдаче — разметка «вслепую».
-Метрики: P@5 выдачи ITScout и базовой линии по ключевым словам на экспертных оценках, корреляция
-Спирмена score со средней оценкой и согласие экспертов между собой.
+Метрики: P@5 и nDCG@5 выдачи ITScout и базовой линии по ключевым словам на экспертных оценках с
+bootstrap-интервалами и парным сравнением, корреляция Спирмена score со средней оценкой, согласие
+экспертов (взвешенная κ, α Криппендорфа) и прогресс к цели разметки (expert в content/matching.yaml).
 """
 
 import hashlib
@@ -18,12 +19,16 @@ from app.core.errors import NotFoundError
 from app.modules.auth import service as auth_service
 from app.modules.catalog.service import get_catalog
 from app.modules.categories import service as categories_service
+from app.modules.expert import stats
 from app.modules.expert.models import ExpertLabel, ExpertPair
 from app.modules.expert.schemas import (
     ExpertNeed,
     ExpertProgress,
     ExpertSummary,
     ExpertTask,
+    Interval,
+    LabelingTarget,
+    RankerComparison,
     RankerQuality,
 )
 from app.modules.matching import scoring
@@ -71,13 +76,19 @@ def _spread(needs: list[HiringNeed], limit: int) -> list[HiringNeed]:
 
 
 async def ensure_pairs(db: AsyncSession) -> int:
-    """Набор пар формируется один раз — при первом обращении эксперта; дальше он не меняется."""
-    existing = await db.scalar(select(func.count()).select_from(ExpertPair))
-    if existing:
-        return existing
+    """Набор пар формируется при первом обращении эксперта; размеченные пары потом не меняются.
+
+    Если в наборе меньше `expert.needs` потребностей (цель подняли после начала разметки), он дополняется
+    новыми потребностями — по тем же правилам, без пересчёта уже собранных пар.
+    """
     cfg = _config()
+    existing = set(await db.scalars(select(ExpertPair.need_id).distinct()))
+    room = int(cfg["needs"]) - len(existing)
+    if room <= 0:
+        return await db.scalar(select(func.count()).select_from(ExpertPair)) or 0
     top_k = int(cfg["top_k"])
-    for need in _spread(await needs_service.active_latest_needs(db), int(cfg["needs"])):
+    fresh = [need for need in await needs_service.active_latest_needs(db) if need.id not in existing]
+    for need in _spread(fresh, room):
         ours = await matching_service.rank_for_need(db, need)
         keyword = await matching_service.keyword_rank(db, need)
         ours_rank = {cid: index + 1 for index, (cid, _score) in enumerate(ours)}
@@ -156,51 +167,89 @@ async def label(db: AsyncSession, user_id: int, pair_id: int, value: int) -> Exp
     return await _progress(db, rater, total)
 
 
-def _precision_at_5(pairs: list[ExpertPair], means: dict[int, float], attr: str, relevant: float) -> tuple:
+def _top5(pairs: list[ExpertPair], means: dict[int, float], attr: str) -> dict[int, list[float]]:
+    """Средние оценки топ-5 выдачи по местам — для потребностей, где размечены все пять."""
     by_need: dict[int, list[ExpertPair]] = defaultdict(list)
     for pair in pairs:
         rank = getattr(pair, attr)
         if rank is not None and rank <= 5:
             by_need[pair.need_id].append(pair)
-    values = [
-        sum(means[p.id] >= relevant for p in top) / 5
-        for top in by_need.values()
+    return {
+        need_id: [means[p.id] for p in sorted(top, key=lambda p: getattr(p, attr))]
+        for need_id, top in by_need.items()
         if len(top) == 5 and all(p.id in means for p in top)
-    ]
-    return (round(sum(values) / len(values), 3) if values else None), len(values)
+    }
 
 
-def _weighted_kappa(pairs: list[tuple[int, int]], categories: int = 4) -> float | None:
-    """Квадратично взвешенная κ Коэна по парам оценок двух экспертов (симметризованная)."""
-    if len(pairs) < 2:
-        return None
-    observed = [[0.0] * categories for _ in range(categories)]
-    for a, b in pairs:
-        observed[a][b] += 0.5
-        observed[b][a] += 0.5
-    total = len(pairs)
-    marginal = [sum(row) / total for row in observed]
-    weight = [[(i - j) ** 2 / (categories - 1) ** 2 for j in range(categories)] for i in range(categories)]
-    cells = [(i, j) for i in range(categories) for j in range(categories)]
-    disagreement = sum(weight[i][j] * observed[i][j] / total for i, j in cells)
-    expected = sum(weight[i][j] * marginal[i] * marginal[j] for i, j in cells)
-    return round(1 - disagreement / expected, 3) if expected else None
+def _interval(value: tuple[float, float] | None) -> Interval | None:
+    return Interval(low=round(value[0], 3), high=round(value[1], 3)) if value else None
+
+
+def _mean(values: list[float]) -> float | None:
+    return round(sum(values) / len(values), 3) if values else None
+
+
+def _comparison(
+    metric: str, ours: dict[int, float], keyword: dict[int, float], resamples: int, seed: int
+) -> RankerComparison:
+    common = sorted(set(ours) & set(keyword))
+    a, b = [ours[n] for n in common], [keyword[n] for n in common]
+    paired = stats.paired_bootstrap(a, b, resamples, seed)
+    wins, losses, ties, sign_p = stats.sign_test(a, b)
+    return RankerComparison(
+        metric=metric,
+        needs=len(common),
+        difference=round(paired[0], 3) if paired else None,
+        ci=_interval(paired[1:3]) if paired else None,
+        p_value=round(paired[3], 4) if paired else None,
+        wins=wins,
+        losses=losses,
+        ties=ties,
+        sign_test_p=round(sign_p, 4) if sign_p is not None else None,
+    )
 
 
 async def summary(db: AsyncSession) -> ExpertSummary:
     cfg = _config()
     relevant = float(cfg["relevant_from"])
+    resamples, seed = int(cfg["bootstrap_resamples"]), int(cfg["bootstrap_seed"])
     pairs = list(await db.scalars(select(ExpertPair)))
     labels = list(await db.scalars(select(ExpertLabel)))
     by_pair: dict[int, list[int]] = defaultdict(list)
     for item in labels:
         by_pair[item.pair_id].append(item.label)
     means = {pair_id: sum(values) / len(values) for pair_id, values in by_pair.items()}
+    labeled_by_need: dict[int, list[float]] = defaultdict(list)
+    for pair in pairs:
+        if pair.id in means:
+            labeled_by_need[pair.need_id].append(means[pair.id])
 
+    # По потребностям: P@5 и nDCG@5 каждой выдачи — для средних, интервалов и парного сравнения (§12.4)
+    per_need: dict[str, dict[str, dict[int, float]]] = {}
     rankers = []
-    for attr, name in (("ours_rank", RANKERS["ours"]), ("keyword_rank", RANKERS["keyword"])):
-        precision, needs = _precision_at_5(pairs, means, attr, relevant)
-        rankers.append(RankerQuality(name=name, precision_at_5=precision, needs=needs))
+    for key, attr in (("ours", "ours_rank"), ("keyword", "keyword_rank")):
+        tops = _top5(pairs, means, attr)
+        precision = {n: sum(m >= relevant for m in top) / 5 for n, top in tops.items()}
+        ndcg = {
+            n: value
+            for n, top in tops.items()
+            if (value := stats.ndcg(top, labeled_by_need[n], 5)) is not None
+        }
+        per_need[key] = {"precision_at_5": precision, "ndcg_at_5": ndcg}
+        rankers.append(
+            RankerQuality(
+                name=RANKERS[key],
+                precision_at_5=_mean(list(precision.values())),
+                precision_ci=_interval(stats.bootstrap_ci(list(precision.values()), resamples, seed)),
+                ndcg_at_5=_mean(list(ndcg.values())),
+                ndcg_ci=_interval(stats.bootstrap_ci(list(ndcg.values()), resamples, seed)),
+                needs=len(tops),
+            )
+        )
+    comparisons = [
+        _comparison(metric, per_need["ours"][metric], per_need["keyword"][metric], resamples, seed)
+        for metric in ("precision_at_5", "ndcg_at_5")
+    ]
 
     scored = [(p.ours_score, means[p.id]) for p in pairs if p.id in means and p.ours_score is not None]
     rho = None
@@ -212,6 +261,8 @@ async def summary(db: AsyncSession) -> ExpertSummary:
     ]
     multi = sum(len(values) >= 2 for values in by_pair.values())
     exact = round(sum(a == b for a, b in rater_pairs) / len(rater_pairs), 3) if rater_pairs else None
+    kappa = stats.weighted_kappa(rater_pairs)
+    complete = set(per_need["ours"]["precision_at_5"]) & set(per_need["keyword"]["precision_at_5"])
     return ExpertSummary(
         raters=len({item.rater_email for item in labels}),
         labels=len(labels),
@@ -223,5 +274,19 @@ async def summary(db: AsyncSession) -> ExpertSummary:
         spearman_pairs=len(scored),
         agreement_pairs=multi,
         exact_agreement=exact,
-        weighted_kappa=_weighted_kappa(rater_pairs),
+        weighted_kappa=kappa,
+        weighted_kappa_ci=_interval(
+            stats.bootstrap_statistic_ci(rater_pairs, stats.weighted_kappa, resamples, seed)
+        ),
+        agreement_level=stats.landis_koch(kappa),
+        krippendorff_alpha=stats.krippendorff_alpha(list(by_pair.values())),
+        double_labeled_share=round(multi / len(by_pair), 3) if by_pair else None,
+        comparisons=comparisons,
+        target=LabelingTarget(
+            needs=int(cfg["target_needs"]),
+            labels=int(cfg["target_labels"]),
+            needs_done=len(complete),
+            labels_done=len(labels),
+            needs_in_set=len({pair.need_id for pair in pairs}),
+        ),
     )

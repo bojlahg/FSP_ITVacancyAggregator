@@ -41,10 +41,42 @@ class ExpertLabelRequest(ApiModel):
     )
 
 
+class Interval(ApiModel):
+    low: float
+    high: float
+
+
 class RankerQuality(ApiModel):
     name: str
     precision_at_5: float | None = Field(description="Доля релевантных (средняя оценка ≥ порога) в топ-5")
+    precision_ci: Interval | None = Field(description="95% bootstrap-интервал P@5 по потребностям")
+    ndcg_at_5: float | None = Field(description="nDCG@5 по средним оценкам; идеал — лучшие размеченные пары")
+    ndcg_ci: Interval | None = Field(description="95% bootstrap-интервал nDCG@5 по потребностям")
     needs: int = Field(description="Потребностей, у которых топ-5 размечен полностью")
+
+
+class RankerComparison(ApiModel):
+    """ITScout против ключевых слов на одних и тех же потребностях (парное сравнение)."""
+
+    metric: Literal["precision_at_5", "ndcg_at_5"]
+    needs: int = Field(description="Потребностей, где топ-5 обеих выдач размечен полностью")
+    difference: float | None = Field(description="Среднее ITScout − ключевые слова")
+    ci: Interval | None = Field(description="95% интервал разницы, парный bootstrap")
+    p_value: float | None = Field(description="p парного bootstrap, двустороннее")
+    wins: int = Field(description="Потребностей, где ITScout лучше")
+    losses: int
+    ties: int
+    sign_test_p: float | None = Field(description="p знакового теста (точный биномиальный)")
+
+
+class LabelingTarget(ApiModel):
+    """Цель разметки: столько потребностей и меток дают мощность 0,8 для разницы nDCG 0,1 (Sakai)."""
+
+    needs: int = Field(description="Цель: потребностей с полностью размеченным топ-5 обеих выдач")
+    labels: int = Field(description="Цель: оценок всего")
+    needs_done: int
+    labels_done: int
+    needs_in_set: int = Field(description="Потребностей в наборе пар")
 
 
 class ExpertSummary(ApiModel):
@@ -59,6 +91,14 @@ class ExpertSummary(ApiModel):
     agreement_pairs: int = Field(description="Пар, размеченных двумя и более экспертами")
     exact_agreement: float | None
     weighted_kappa: float | None = Field(description="Квадратично взвешенная κ согласия экспертов")
+    weighted_kappa_ci: Interval | None = Field(description="95% bootstrap-интервал κ по парам оценок")
+    agreement_level: str | None = Field(description="Интерпретация κ по Landis & Koch: «умеренное» и т. п.")
+    krippendorff_alpha: float | None = Field(
+        description="α Криппендорфа (интервальная): любое число экспертов на пару"
+    )
+    double_labeled_share: float | None = Field(description="Доля размеченных пар с двумя и более оценками")
+    comparisons: list[RankerComparison]
+    target: LabelingTarget
 
 
 class AngoffProgress(ApiModel):

@@ -14,7 +14,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiError } from "@/lib/api-error";
-import { type ExpertTask, useExpertSummary, useExpertTask, useLabelPair } from "@/lib/expert-queries";
+import {
+  type ExpertSummary,
+  type ExpertTask,
+  useExpertSummary,
+  useExpertTask,
+  useLabelPair,
+} from "@/lib/expert-queries";
 import { formatExperience, formatNumber, plural, toPercent } from "@/lib/format";
 import { SKILL_STATUS_LABELS, WORK_FORMAT_LABELS, workFormatsLabel } from "@/lib/labels";
 import { AngoffTab } from "@/pages/expert/AngoffTab";
@@ -310,6 +316,11 @@ function SummaryTab() {
     );
   }
   const fmt = (value: number | null, digits = 2) => (value == null ? "—" : value.toFixed(digits));
+  const interval = (value: ExpertSummary["rankers"][number]["precision_ci"]) =>
+    value == null ? "" : ` [${fmt(value.low)}; ${fmt(value.high)}]`;
+  const pValue = (value: number | null) => (value == null ? "—" : value < 0.001 ? "< 0.001" : value.toFixed(3));
+  const target = data.target;
+  const metricNames = { precision_at_5: "P@5", ndcg_at_5: "nDCG@5" } as const;
   return (
     <div className="grid gap-4">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -324,19 +335,37 @@ function SummaryTab() {
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Точность первых пяти (P@5)</CardTitle>
+          <CardTitle>Цель разметки</CardTitle>
+          <CardDescription>
+            {target.needs} потребностей с размеченным топ-5 обеих выдач и {target.labels} оценок: столько нужно,
+            чтобы парный тест заметил разницу nDCG 0,1 между выдачами с мощностью 0,8. В наборе —{" "}
+            {target.needs_in_set} {plural(target.needs_in_set, ["потребность", "потребности", "потребностей"])}.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <TargetBar label="Потребностей с полным топ-5" done={target.needs_done} total={target.needs} />
+          <TargetBar label="Оценок" done={target.labels_done} total={target.labels} />
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Точность первых пяти (P@5 и nDCG@5)</CardTitle>
           <CardDescription>
             Доля релевантных в топ-5 по потребности; релевантна пара со средней оценкой не ниже{" "}
-            {data.relevant_from}. Считаются только потребности, где размечены все пять.
+            {data.relevant_from}. nDCG@5 учитывает порядок и всю шкалу 0–3. Считаются только потребности, где
+            размечены все пять; в скобках — 95% bootstrap-интервал по потребностям.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
           {data.rankers.map((ranker) => (
             <div key={ranker.name} className="space-y-1.5">
-              <div className="flex justify-between gap-2 text-sm">
+              <div className="flex flex-wrap justify-between gap-2 text-sm">
                 <span>{ranker.name}</span>
                 <span className="font-mono font-bold tabular-nums">
-                  {fmt(ranker.precision_at_5)}
+                  P@5 {fmt(ranker.precision_at_5)}
+                  <span className="font-normal text-muted-foreground">{interval(ranker.precision_ci)}</span>
+                  {" · "}nDCG@5 {fmt(ranker.ndcg_at_5)}
+                  <span className="font-normal text-muted-foreground">{interval(ranker.ndcg_ci)}</span>
                   <span className="ml-1 text-xs font-normal text-muted-foreground">
                     · {ranker.needs} {plural(ranker.needs, ["потребность", "потребности", "потребностей"])}
                   </span>
@@ -349,10 +378,44 @@ function SummaryTab() {
       </Card>
       <Card>
         <CardHeader>
+          <CardTitle>ITScout против ключевых слов</CardTitle>
+          <CardDescription>
+            Парное сравнение на одних и тех же потребностях: разница средних с 95% интервалом (парный bootstrap),
+            p-значение и знаковый тест по числу потребностей, где выдача ITScout лучше.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {data.comparisons.every((item) => item.needs === 0) ? (
+            <p className="text-sm text-muted-foreground">
+              Нужна хотя бы одна потребность, где размечен топ-5 обеих выдач.
+            </p>
+          ) : (
+            <dl className="grid gap-2 text-sm">
+              {data.comparisons.map((item) => (
+                <Row key={item.metric} label={`${metricNames[item.metric]}: разница`}>
+                  <span className="font-mono font-bold tabular-nums">
+                    {item.difference == null ? "—" : `${item.difference > 0 ? "+" : ""}${fmt(item.difference)}`}
+                    <span className="font-normal text-muted-foreground">{interval(item.ci)}</span>
+                  </span>
+                  <span className="block text-xs text-muted-foreground">
+                    p = {pValue(item.p_value)} · лучше / хуже / равно: {item.wins} / {item.losses} / {item.ties}, знаковый
+                    тест p = {pValue(item.sign_test_p)} · {item.needs}{" "}
+                    {plural(item.needs, ["потребность", "потребности", "потребностей"])}
+                  </span>
+                </Row>
+              ))}
+            </dl>
+          )}
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
           <CardTitle>Согласие экспертов</CardTitle>
           <CardDescription>
-            По парам, которые оценили двое и больше: {data.agreement_pairs}. Взвешенная κ учитывает, насколько
-            далеко разошлись оценки.
+            По парам, которые оценили двое и больше: {data.agreement_pairs}
+            {data.double_labeled_share != null && ` (${toPercent(data.double_labeled_share)}% размеченных)`}. Для
+            надёжной оценки стоит размечать двумя экспертами не меньше 20% пар. Взвешенная κ учитывает, насколько
+            далеко разошлись оценки; уровень согласия — по Landis &amp; Koch.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -363,11 +426,34 @@ function SummaryTab() {
               </span>
             </Row>
             <Row label="Квадратично взвешенная κ">
-              <span className="font-mono font-bold">{fmt(data.weighted_kappa)}</span>
+              <span className="font-mono font-bold">
+                {fmt(data.weighted_kappa)}
+                <span className="font-normal text-muted-foreground">{interval(data.weighted_kappa_ci)}</span>
+              </span>
+              {data.agreement_level && (
+                <span className="block text-xs text-muted-foreground">согласие {data.agreement_level}</span>
+              )}
+            </Row>
+            <Row label="α Криппендорфа">
+              <span className="font-mono font-bold">{fmt(data.krippendorff_alpha)}</span>
             </Row>
           </dl>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function TargetBar({ label, done, total }: { label: string; done: number; total: number }) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex justify-between gap-2 text-sm">
+        <span>{label}</span>
+        <span className="font-mono font-bold tabular-nums">
+          {formatNumber(done)} / {formatNumber(total)}
+        </span>
+      </div>
+      <Progress value={total ? Math.min(100, (done / total) * 100) : 0} aria-label={label} />
     </div>
   );
 }

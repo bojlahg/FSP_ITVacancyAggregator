@@ -13528,6 +13528,63 @@
             ],
             "title": "Weighted Kappa",
             "description": "Квадратично взвешенная κ согласия экспертов"
+          },
+          "weighted_kappa_ci": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Interval"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "95% bootstrap-интервал κ по парам оценок"
+          },
+          "agreement_level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agreement Level",
+            "description": "Интерпретация κ по Landis & Koch: «умеренное» и т. п."
+          },
+          "krippendorff_alpha": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Krippendorff Alpha",
+            "description": "α Криппендорфа (интервальная): любое число экспертов на пару"
+          },
+          "double_labeled_share": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Double Labeled Share",
+            "description": "Доля размеченных пар с двумя и более оценками"
+          },
+          "comparisons": {
+            "items": {
+              "$ref": "#/components/schemas/RankerComparison"
+            },
+            "type": "array",
+            "title": "Comparisons"
+          },
+          "target": {
+            "$ref": "#/components/schemas/LabelingTarget"
           }
         },
         "type": "object",
@@ -13542,7 +13599,13 @@
           "spearman_pairs",
           "agreement_pairs",
           "exact_agreement",
-          "weighted_kappa"
+          "weighted_kappa",
+          "weighted_kappa_ci",
+          "agreement_level",
+          "krippendorff_alpha",
+          "double_labeled_share",
+          "comparisons",
+          "target"
         ],
         "title": "ExpertSummary"
       },
@@ -14956,6 +15019,24 @@
         "title": "IntegritySignals",
         "description": "Сигналы честности попытки (§10.9): пометка для человека, в θ̂, грейд, категорию и score не входит."
       },
+      "Interval": {
+        "properties": {
+          "low": {
+            "type": "number",
+            "title": "Low"
+          },
+          "high": {
+            "type": "number",
+            "title": "High"
+          }
+        },
+        "type": "object",
+        "required": [
+          "low",
+          "high"
+        ],
+        "title": "Interval"
+      },
       "InvitationCreate": {
         "properties": {
           "salary_from": {
@@ -15696,6 +15777,43 @@
           "position"
         ],
         "title": "JsonResumeWork"
+      },
+      "LabelingTarget": {
+        "properties": {
+          "needs": {
+            "type": "integer",
+            "title": "Needs",
+            "description": "Цель: потребностей с полностью размеченным топ-5 обеих выдач"
+          },
+          "labels": {
+            "type": "integer",
+            "title": "Labels",
+            "description": "Цель: оценок всего"
+          },
+          "needs_done": {
+            "type": "integer",
+            "title": "Needs Done"
+          },
+          "labels_done": {
+            "type": "integer",
+            "title": "Labels Done"
+          },
+          "needs_in_set": {
+            "type": "integer",
+            "title": "Needs In Set",
+            "description": "Потребностей в наборе пар"
+          }
+        },
+        "type": "object",
+        "required": [
+          "needs",
+          "labels",
+          "needs_done",
+          "labels_done",
+          "needs_in_set"
+        ],
+        "title": "LabelingTarget",
+        "description": "Цель разметки: столько потребностей и меток дают мощность 0,8 для разницы nDCG 0,1 (Sakai)."
       },
       "LegalDocument": {
         "properties": {
@@ -16957,6 +17075,97 @@
         "type": "object",
         "title": "PrivacySettings"
       },
+      "RankerComparison": {
+        "properties": {
+          "metric": {
+            "type": "string",
+            "enum": [
+              "precision_at_5",
+              "ndcg_at_5"
+            ],
+            "title": "Metric"
+          },
+          "needs": {
+            "type": "integer",
+            "title": "Needs",
+            "description": "Потребностей, где топ-5 обеих выдач размечен полностью"
+          },
+          "difference": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Difference",
+            "description": "Среднее ITScout − ключевые слова"
+          },
+          "ci": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Interval"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "95% интервал разницы, парный bootstrap"
+          },
+          "p_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P Value",
+            "description": "p парного bootstrap, двустороннее"
+          },
+          "wins": {
+            "type": "integer",
+            "title": "Wins",
+            "description": "Потребностей, где ITScout лучше"
+          },
+          "losses": {
+            "type": "integer",
+            "title": "Losses"
+          },
+          "ties": {
+            "type": "integer",
+            "title": "Ties"
+          },
+          "sign_test_p": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sign Test P",
+            "description": "p знакового теста (точный биномиальный)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "metric",
+          "needs",
+          "difference",
+          "ci",
+          "p_value",
+          "wins",
+          "losses",
+          "ties",
+          "sign_test_p"
+        ],
+        "title": "RankerComparison",
+        "description": "ITScout против ключевых слов на одних и тех же потребностях (парное сравнение)."
+      },
       "RankerQuality": {
         "properties": {
           "name": {
@@ -16975,6 +17184,40 @@
             "title": "Precision At 5",
             "description": "Доля релевантных (средняя оценка ≥ порога) в топ-5"
           },
+          "precision_ci": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Interval"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "95% bootstrap-интервал P@5 по потребностям"
+          },
+          "ndcg_at_5": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ndcg At 5",
+            "description": "nDCG@5 по средним оценкам; идеал — лучшие размеченные пары"
+          },
+          "ndcg_ci": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Interval"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "95% bootstrap-интервал nDCG@5 по потребностям"
+          },
           "needs": {
             "type": "integer",
             "title": "Needs",
@@ -16985,6 +17228,9 @@
         "required": [
           "name",
           "precision_at_5",
+          "precision_ci",
+          "ndcg_at_5",
+          "ndcg_ci",
           "needs"
         ],
         "title": "RankerQuality"
