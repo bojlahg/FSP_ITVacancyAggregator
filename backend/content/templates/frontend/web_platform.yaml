@@ -274,3 +274,32 @@
   kind: numeric
   irt: {a: 1.0, b: -2.0}
   generator: frontend.class_selector_count
+
+# --- Senior: события, CLS, доступность ---
+
+- id: fe.web.event_propagation
+  specializations: [frontend]
+  topic: web_platform
+  skills: [javascript, html]
+  kind: code_output
+  irt: {a: 1.4, b: 1.6}
+  time_limit_sec: 180
+  generator: frontend.dom_event_propagation
+
+- id: fe.web.cls_shift_score
+  specializations: [frontend]
+  topic: web_platform
+  skills: [html, css]
+  kind: numeric
+  irt: {a: 1.4, b: 1.8}
+  time_limit_sec: 180
+  generator: frontend.cls_shift_score
+
+- id: fe.web.accessible_name
+  specializations: [frontend]
+  topic: web_platform
+  skills: [html]
+  kind: code_output
+  irt: {a: 1.3, b: 1.5}
+  time_limit_sec: 120
+  generator: frontend.accessible_name

@@ -2,7 +2,8 @@
 
 import random
 from collections import Counter, deque
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
+from typing import Any
 
 from app.modules.testing.engine.generators import generator
 from app.modules.testing.engine.model import Generated
@@ -1994,3 +1995,605 @@ def pagination_requests(rng: random.Random) -> Generated:
         ]
     )
     return Generated(stem=stem, number=float(full + 1))
+
+
+# --- Senior: вложенные задачи, генераторы, события, метрики, фреймворки ---------------------------
+
+Statement = tuple[str, Any]
+
+
+def _nested_body(rng: random.Random, labels: Iterator[str], kind: str) -> list[Statement]:
+    """Тело колбэка: лог и, возможно, вложенная микрозадача или таймер."""
+    body: list[Statement] = [("log", next(labels))]
+    extra = rng.choice(["micro", "timeout", "none"] if kind == "timeout" else ["micro", "timeout"])
+    if extra != "none":
+        nested: list[Statement] = [("log", next(labels))]
+        body.insert(rng.randint(0, 1), (extra, nested))
+    return body
+
+
+def _simulate_tasks(script: list[Statement], mode: str) -> list[str]:
+    """mode: spec — микрозадачи после каждой задачи; batch — старый Node: все готовые таймеры подряд;
+    shallow — микрозадачи, созданные в микрозадаче, ошибочно откладываются до следующей задачи."""
+    output: list[str] = []
+    tasks: deque[list[Statement]] = deque()
+    micro: deque[list[Statement]] = deque()
+    later: deque[list[Statement]] = deque()
+
+    def run(body: list[Statement], in_micro: bool) -> None:
+        for kind, value in body:
+            if kind == "log":
+                output.append(str(value))
+            elif kind == "timeout":
+                tasks.append(value)
+            elif mode == "shallow" and in_micro:
+                later.append(value)
+            else:
+                micro.append(value)
+
+    def drain() -> None:
+        while micro:
+            run(micro.popleft(), True)
+        micro.extend(later)
+        later.clear()
+
+    run(script, False)
+    drain()
+    while tasks:
+        batch = [tasks.popleft()] if mode != "batch" else [tasks.popleft() for _ in range(len(tasks))]
+        for body in batch:
+            run(body, False)
+        drain()
+    return output
+
+
+def _js_body(body: list[Statement], indent: int) -> list[str]:
+    pad = "  " * indent
+    lines: list[str] = []
+    for kind, value in body:
+        if kind == "log":
+            lines.append(f"{pad}console.log('{value}');")
+        elif kind == "timeout":
+            lines += [f"{pad}setTimeout(() => {{", *_js_body(value, indent + 1), f"{pad}}}, 0);"]
+        elif kind == "micro":
+            lines += [f"{pad}Promise.resolve().then(() => {{", *_js_body(value, indent + 1), f"{pad}}});"]
+        else:
+            lines += [f"{pad}queueMicrotask(() => {{", *_js_body(value, indent + 1), f"{pad}}});"]
+    return lines
+
+
+@generator("frontend.js_nested_tasks")
+def js_nested_tasks(rng: random.Random) -> Generated:
+    """Очередь микрозадач опустошается после каждой макрозадачи, включая микрозадачи, созданные по ходу."""
+    while True:
+        labels = iter(rng.sample(LETTERS, 12))
+        script: list[Statement] = []
+        for kind in rng.sample(["timeout", "timeout", "micro", "qmicro"], 4):
+            body_kind = "timeout" if kind == "timeout" else "micro"
+            script.append((kind, _nested_body(rng, labels, body_kind)))
+        script.insert(0, ("log", next(labels)))
+        script.insert(rng.randint(2, len(script)), ("log", next(labels)))
+        correct = _simulate_tasks(script, "spec")
+        wrong = [_spaced(_simulate_tasks(script, mode)) for mode in ("batch", "shallow")]
+        if all(option != _spaced(correct) for option in wrong):
+            break
+    flat: list[str] = []
+
+    def walk(body: list[Statement]) -> None:
+        for kind, value in body:
+            if kind == "log":
+                flat.append(str(value))
+            else:
+                walk(value)
+
+    walk(script)
+    wrong.append(_spaced(flat))
+    _fill_permutations(rng, correct, wrong)
+    return Generated(
+        stem="В каком порядке будут выведены значения в браузере (или Node.js 11+)? Ответ — через пробел.",
+        code="\n".join(_js_body(script, 0)),
+        code_language="javascript",
+        correct=(_spaced(correct),),
+        wrong=_distinct_wrong(_spaced(correct), wrong),
+    )
+
+
+def _js_value(value: object) -> str:
+    return "undefined" if value is None else str(value)
+
+
+@generator("frontend.js_generator_protocol")
+def js_generator_protocol(rng: random.Random) -> Generated:
+    """Аргумент первого next() теряется: значение next(x) становится результатом уже ожидающего yield."""
+    name = rng.choice(["gen", "steps", "counter", "flow"])
+    it = rng.choice(["it", "g", "seq"])
+    if rng.random() < 0.5:
+        first, k = rng.randint(1, 9), rng.randint(2, 9)
+        op = rng.choice(["+", "*", "-"])
+        args = rng.sample(range(2, 20), 4)
+
+        def run(delivered: list[int]) -> list[object]:
+            a, b = delivered
+            result = {"+": a + b, "*": a * b, "-": a - b}[op]
+            return [first, a + k, result, None]
+
+        calls = ", ".join(f"{it}.next({arg}).value" for arg in args)
+        code = (
+            f"function* {name}() {{\n  const a = yield {first};\n  const b = yield a + {k};\n"
+            f"  return a {op} b;\n}}\n\nconst {it} = {name}();\nconsole.log({calls});"
+        )
+        correct = run(args[1:3])
+        variants = [
+            run(args[0:2]),
+            [*correct[:2], None, None],
+            [*correct[:3], correct[2]],
+            [args[0], *correct[1:]],
+            run([args[1], args[3]]),
+            [first, args[1], correct[2], None],
+        ]
+    else:
+        start = rng.randint(1, 20)
+        steps: list[int | None] = [rng.randint(2, 15) for _ in range(4)]
+        stop = rng.randint(2, 3)
+        steps[stop] = None
+        args = steps
+
+        def run_loop(delivered: list[int | None], initial: int = start, ends: bool = True) -> list[object]:
+            total, done, out = initial, False, [initial]
+            for step in delivered:
+                if done:
+                    out.append(None)
+                elif step is None:
+                    out.append(total)
+                    done = ends
+                else:
+                    total += step
+                    out.append(total)
+            return out
+
+        calls = ", ".join(f"{it}.next({'' if arg is None else arg}).value" for arg in args)
+        code = (
+            f"function* {name}(start) {{\n  let total = start;\n  while (true) {{\n"
+            "    const step = yield total;\n    if (step === undefined) return total;\n    total += "
+            "step;\n  }\n}\n\n"
+            f"const {it} = {name}({start});\nconsole.log({calls});"
+        )
+        correct = run_loop(args[1:])
+        shifted = [start + (args[0] or 0)]
+        variants = [
+            run_loop(args[:-1]),
+            [*correct[:stop], None, *correct[stop + 1 :]],
+            shifted + correct[1:],
+            run_loop(args[1:], ends=False),
+            run_loop(args[1:], initial=start + (args[0] or 0)),
+        ]
+    show = [" ".join(_js_value(v) for v in variant) for variant in variants]
+    answer = " ".join(_js_value(v) for v in correct)
+    return Generated(
+        stem="Что выведет console.log?",
+        code=code,
+        code_language="javascript",
+        correct=(answer,),
+        wrong=_distinct_wrong(answer, show),
+    )
+
+
+EVENT_NODES = ["document", "list", "item", "button"]
+EVENT_MARKUP = '<!-- <ul id="list"><li id="item"><button id="button">Купить</button></li></ul> -->'
+
+
+def _dispatch(listeners: list[tuple[str, bool, str, str]], mode: str) -> list[str]:
+    """Порядок вызова слушателей click на button. mode: spec — на цели сначала capture-слушатели (Chrome 89+);
+    registration — на цели в порядке регистрации; nocapture — флаг capture игнорируется; swap — stop/immediate
+    перепутаны."""
+    out: list[str] = []
+    target = EVENT_NODES[-1]
+
+    def invoke(node: str, phase: bool | None) -> bool:
+        """phase: True — capture, False — bubble, None — все слушатели узла по регистрации."""
+        stopped = False
+        for owner, capture, label, stop in listeners:
+            if owner != node or (phase is not None and capture != phase):
+                continue
+            out.append(label)
+            kind = {"stop": "immediate", "immediate": "stop"}.get(stop, stop) if mode == "swap" else stop
+            if kind == "immediate":
+                return True
+            if kind == "stop":
+                stopped = True
+        return stopped
+
+    effective = [(o, False if mode == "nocapture" else c, lab, s) for o, c, lab, s in listeners]
+    if mode == "nocapture":
+        listeners = effective
+    capture_path = EVENT_NODES[-2::-1] if mode == "reverse_capture" else EVENT_NODES[:-1]
+    for node in capture_path:
+        if invoke(node, True):
+            return out
+    if mode == "registration":
+        if invoke(target, None):
+            return out
+    else:
+        if invoke(target, True) or invoke(target, False):
+            return out
+    for node in reversed(EVENT_NODES[:-1]):
+        if invoke(node, False):
+            return out
+    return out
+
+
+@generator("frontend.dom_event_propagation")
+def dom_event_propagation(rng: random.Random) -> Generated:
+    """Фазы capture → target → bubble; stopPropagation дорабатывает слушателей текущего узла,
+    stopImmediatePropagation — нет. На цели capture-слушатели срабатывают раньше (DOM Standard, Chrome
+    89+)."""
+    while True:
+        labels = iter(rng.sample(LETTERS, 7))
+        listeners: list[tuple[str, bool, str, str]] = []
+        for _ in range(rng.randint(5, 6)):
+            node = rng.choice(EVENT_NODES)
+            listeners.append((node, rng.random() < 0.45, next(labels), ""))
+        if not any(c and n != "button" for n, c, _, _ in listeners):
+            continue
+        if not any(c for n, c, _, _ in listeners if n == "button") or not any(
+            not c for n, c, _, _ in listeners if n == "button"
+        ):
+            continue
+        # stop — только не в capture-слушателе цели: там поведение зависит от версии спецификации
+        candidates = [i for i, (n, c, _, _) in enumerate(listeners) if not (n == "button" and c)]
+        index = rng.choice(candidates)
+        node, capture, label, _ = listeners[index]
+        listeners[index] = (node, capture, label, rng.choice(["stop", "immediate"]))
+        correct = _dispatch(listeners, "spec")
+        modes = ("registration", "nocapture", "swap", "reverse_capture")
+        wrong = [_spaced(_dispatch(listeners, mode)) for mode in modes]
+        if len(correct) >= 3 and len(set(wrong) - {_spaced(correct)}) >= 2:
+            break
+    lines = [EVENT_MARKUP]
+    for node, capture, label, stop in listeners:
+        target = "document" if node == "document" else f"document.getElementById('{node}')"
+        call = {"stop": " e.stopPropagation();", "immediate": " e.stopImmediatePropagation();"}.get(stop, "")
+        flag = ", true" if capture else ""
+        lines.append(f"{target}.addEventListener('click', (e) => {{ console.log('{label}');{call} }}{flag});")
+    lines.append("// пользователь кликает по кнопке #button")
+    _fill_permutations(rng, correct, wrong)
+    return Generated(
+        stem="В каком порядке выведутся метки после клика по кнопке в современном браузере? (через пробел)",
+        code="\n".join(lines),
+        code_language="javascript",
+        correct=(_spaced(correct),),
+        wrong=_distinct_wrong(_spaced(correct), wrong),
+    )
+
+
+VIEWPORTS = [(1280, 720), (1440, 900), (1366, 768), (390, 844), (360, 800), (412, 915)]
+
+
+@generator("frontend.cls_shift_score")
+def cls_shift_score(rng: random.Random) -> Generated:
+    """Layout shift score = impact fraction × distance fraction; distance делится на большую сторону
+    вьюпорта."""
+    width, height = rng.choice(VIEWPORTS)
+    elem_w = width if rng.random() < 0.6 else rng.randrange(width // 2, width, 10)
+    elem_h = rng.randrange(max(80, height // 8), height // 3, 10)
+    # сдвиг меньше высоты элемента: область влияния — объединение старого и нового положения, h + сдвиг
+    shift = rng.randrange(40, min(height // 4, elem_h), 10)
+    top = rng.randrange(0, height - elem_h - shift, 10)
+    impact = elem_w * (elem_h + shift) / (width * height)
+    distance = shift / max(width, height)
+    score = impact * distance
+    what = rng.choice(["карточка товара", "блок статьи", "кнопка подписки", "форма поиска", "список отзывов"])
+    stem = (
+        f"Вьюпорт {width}×{height} px. Единственный нестабильный элемент — {what} размером "
+        f"{elem_w}×{elem_h} px, "
+        f"его верхний край на {top} px ниже верха вьюпорта. Над ним вставили баннер, и элемент сдвинулся "
+        "вниз "
+        f"на {shift} px, оставшись целиком во вьюпорте. Каков layout shift score этого сдвига (по "
+        "определению CLS)? "
+        "Ответ округлите до трёх знаков после запятой."
+    )
+    return Generated(stem=stem, number=round(score, 3), tolerance=0.0015)
+
+
+NAME_WORDS = [
+    "Удалить черновик",
+    "Сохранить",
+    "Открыть меню",
+    "Корзина",
+    "Закрыть окно",
+    "Поделиться",
+    "Отправить",
+    "Добавить в избранное",
+    "Найти",
+    "Настройки профиля",
+]
+
+
+@generator("frontend.accessible_name")
+def accessible_name(rng: random.Random) -> Generated:
+    """accname: aria-labelledby (даже на скрытый элемент) > aria-label > содержимое > title.
+    aria-hidden и alt="" в имя из содержимого не попадают."""
+    words = iter(rng.sample(NAME_WORDS, 5))
+    use_labelledby = rng.random() < 0.4
+    use_label = rng.random() < 0.55
+    content = rng.choice(["text", "icon_text", "img_alt", "icon_only", "img_empty"])
+    use_title = rng.random() < 0.6 or content in ("icon_only", "img_empty")
+    if use_labelledby + use_label + (content in ("text", "icon_text", "img_alt")) + use_title < 2:
+        use_label = True
+    ref_text, label_text, content_text, title_text = next(words), next(words), next(words), next(words)
+    hidden = rng.random() < 0.5
+    attrs = []
+    if use_labelledby:
+        attrs.append('aria-labelledby="hint"')
+    if use_label:
+        attrs.append(f'aria-label="{label_text}"')
+    if use_title:
+        attrs.append(f'title="{title_text}"')
+    inner = {
+        "text": content_text,
+        "icon_text": f'<svg aria-hidden="true" class="icon"></svg> {content_text}',
+        "img_alt": f'<img src="icon.svg" alt="{content_text}">',
+        "icon_only": '<svg aria-hidden="true" class="icon"></svg>',
+        "img_empty": '<img src="icon.svg" alt="">',
+    }[content]
+    lines = []
+    if use_labelledby:
+        lines.append(f'<span id="hint"{" hidden" if hidden else ""}>{ref_text}</span>')
+    lines.append(f"<button {' '.join(attrs)}>\n  {inner}\n</button>")
+    has_content = content in ("text", "icon_text", "img_alt")
+    if use_labelledby:
+        correct = ref_text
+    elif use_label:
+        correct = label_text
+    elif has_content:
+        correct = content_text
+    elif use_title:
+        correct = title_text
+    else:
+        correct = "Пустое имя"
+    candidates = [ref_text if use_labelledby else None, label_text if use_label else None]
+    candidates += [content_text if has_content else None, title_text if use_title else None]
+    wrong = [text for text in candidates if text and text != correct]
+    if use_labelledby:
+        wrong.append(f"{ref_text} {label_text}" if use_label else f"{ref_text} {content_text}")
+    if has_content and use_title:
+        wrong.append(f"{content_text} {title_text}")
+    wrong += ["Пустое имя", "button"]
+    return Generated(
+        stem="Какое доступное имя (accessible name) получит кнопка по алгоритму accname?",
+        code="\n".join(lines),
+        code_language="html",
+        correct=(correct,),
+        wrong=_distinct_wrong(correct, wrong),
+    )
+
+
+def _apply_updates(start: int, updates: list[tuple[str, str, int]], clicks: int, mode: str) -> int:
+    """mode: react — значения из замыкания текущего рендера, функции — от предыдущего результата очереди;
+    eager — как будто n меняется сразу; stale — функции тоже получают n из замыкания; last — только
+    последний."""
+    value = start
+    for _ in range(clicks):
+        rendered, current = value, value
+        applied = updates[-1:] if mode == "last" else updates
+        for form, op, k in applied:
+            base = rendered if form == "value" or mode == "stale" else current
+            if mode == "eager":
+                base = current
+            current = base + k if op == "+" else base * k
+        value = current
+    return value
+
+
+@generator("frontend.react_batched_updates")
+def react_batched_updates(rng: random.Random) -> Generated:
+    """setState(значение) берёт n из замыкания рендера, setState(prev => …) — из очереди обновлений."""
+    while True:
+        start = rng.randint(1, 9)
+        updates = []
+        for _ in range(rng.randint(3, 4)):
+            form = rng.choice(["value", "fn"])
+            op = rng.choice(["+", "+", "*"])
+            k = rng.randint(2, 5) if op == "*" else rng.randint(1, 9)
+            updates.append((form, op, k))
+        if {f for f, _, _ in updates} != {"value", "fn"}:
+            continue
+        clicks = rng.choice([1, 2])
+        correct = _apply_updates(start, updates, clicks, "react")
+        wrong = {_apply_updates(start, updates, clicks, m) for m in ("eager", "stale", "last")}
+        if clicks == 2:
+            wrong.add(_apply_updates(start, updates, 1, "react"))
+        wrong.discard(correct)
+        if len(wrong) >= 2:
+            break
+    setter = rng.choice(["setCount", "setN", "setTotal"])
+    var = {"setCount": "count", "setN": "n", "setTotal": "total"}[setter]
+    body = []
+    for form, op, k in updates:
+        body.append(
+            f"    {setter}({var} {op} {k});" if form == "value" else f"    {setter}(prev => prev {op} {k});"
+        )
+    code = (
+        f"function Counter() {{\n  const [{var}, {setter}] = useState({start});\n"
+        "  function handleClick() {\n" + "\n".join(body) + "\n  }\n"
+        f"  return <button onClick={{handleClick}}>{{{var}}}</button>;\n}}"
+    )
+    times = (
+        "один раз" if clicks == 1 else "два раза (второй клик — после того как отрисовался результат первого)"
+    )
+    extra = sorted(wrong) + [correct + 1, correct - 1]
+    return Generated(
+        stem=f"React 18. Пользователь нажал на кнопку {times}. Какое значение {var} будет отображено?",
+        code=code,
+        code_language="jsx",
+        correct=(str(correct),),
+        wrong=_distinct_wrong(str(correct), [str(v) for v in extra]),
+    )
+
+
+@generator("frontend.vue_next_tick")
+def vue_next_tick(rng: random.Random) -> Generated:
+    """Vue 3: DOM обновляется асинхронно (до nextTick), computed пересчитывается лениво и синхронно при
+    чтении,
+    watch (flush: 'pre') вызывается один раз с итоговым значением до обновления DOM."""
+    start = rng.randint(1, 9)
+    adds = [rng.randint(1, 9) for _ in range(rng.randint(2, 3))]
+    factor = rng.randint(2, 4)
+    final = start + sum(adds)
+    with_watch = rng.random() < 0.5
+    lines = [
+        "<script setup>",
+        "import { ref, computed, watch, nextTick } from 'vue';",
+        f"const count = ref({start});",
+        f"const scaled = computed(() => count.value * {factor});",
+        "const el = ref(null);",
+    ]
+    if with_watch:
+        lines.append("watch(count, (v) => console.log('w', v));")
+    lines += ["", "async function onClick() {"]
+    lines += [f"  count.value += {a};" for a in adds]
+    lines += [
+        "  console.log(el.value.textContent, scaled.value);",
+        "  await nextTick();",
+        "  console.log(el.value.textContent);",
+        "}",
+        "</script>",
+        "",
+        '<template><p ref="el">{{ count }}</p><button @click="onClick">+</button></template>',
+    ]
+    parts = [f"{start} {final * factor}"]
+    if with_watch:
+        parts.append(f"w {final}")
+    parts.append(str(final))
+    correct = " | ".join(parts)
+    watch_once = [f"w {final}"] if with_watch else []
+    watch_each = []
+    running = start
+    for a in adds:
+        running += a
+        watch_each.append(f"w {running}")
+
+    def build(first: str, watch_part: list[str], last: int) -> str:
+        return " | ".join([first, *watch_part, str(last)])
+
+    wrong = [
+        build(f"{final} {final * factor}", watch_once, final),
+        build(f"{start} {start * factor}", watch_once, final),
+        build(f"{start} {final * factor}", watch_once, start),
+        build(f"{final} {start * factor}", watch_once, final),
+    ]
+    if with_watch:
+        wrong.append(build(f"{start} {final * factor}", watch_each, final))
+        wrong.append(" | ".join([*watch_each, f"{start} {final * factor}", str(final)]))
+    return Generated(
+        stem=(
+            "Компонент Vue 3 смонтирован, пользователь один раз нажал «+». Что выведет консоль? Строки "
+            "вывода "
+            "разделены знаком |."
+        ),
+        code="\n".join(lines),
+        code_language="vue",
+        correct=(correct,),
+        wrong=_distinct_wrong(correct, wrong),
+    )
+
+
+@generator("frontend.inp_interactions")
+def inp_interactions(rng: random.Random) -> Generated:
+    """Задержка взаимодействия = input delay + обработка + presentation delay; INP при < 50 взаимодействий —
+    худшее из них."""
+    while True:
+        rows, latencies, handlers = [], [], []
+        moment = rng.randrange(500, 2000, 10)
+        for index in range(3):
+            busy_until = moment + rng.choice([0, 0, rng.randrange(40, 260, 10)])
+            processing = rng.randrange(20, 160, 10)
+            presentation = rng.randrange(10, 60, 5)
+            delay = max(0, busy_until - moment)
+            latencies.append(delay + processing + presentation)
+            handlers.append(processing + presentation)
+            busy = f"занят другой задачей до {busy_until} мс" if delay else "свободен"
+            rows.append(
+                f"{index + 1}) клик в {moment} мс; главный поток {busy}; обработчики — {processing} мс; "
+                f"от конца обработчиков до отрисовки кадра — {presentation} мс"
+            )
+            moment = busy_until + processing + presentation + rng.randrange(800, 3000, 10)
+        worst = latencies.index(max(latencies))
+        if worst != handlers.index(max(handlers)) and latencies.count(max(latencies)) == 1:
+            break
+    stem = (
+        "За визит на странице было ровно три взаимодействия (см. ниже). Каким будет INP для этого визита, мс?"
+    )
+    return Generated(
+        stem=stem, code="\n".join(rows), code_language="text", number=float(max(latencies)), tolerance=0
+    )
+
+
+@generator("frontend.forced_reflow_count")
+def forced_reflow_count(rng: random.Random) -> Generated:
+    """Чтение геометрии после записи стилей вызывает синхронный layout; пакетное чтение, затем запись —
+    нет."""
+    count = rng.randint(6, 40)
+    selector = rng.choice([".card", ".row", ".tile", ".cell", "li.item"])
+    prop_read = rng.choice(["offsetHeight", "offsetWidth", "getBoundingClientRect().height", "clientHeight"])
+    pattern = rng.choice(["write_read", "read_write", "batched"])
+    if pattern == "write_read":
+        body = [
+            "for (const el of items) {",
+            "  el.style.width = width + 'px';",
+            f"  total += el.{prop_read};",
+            "}",
+        ]
+        answer = count
+    elif pattern == "read_write":
+        body = [
+            "for (const el of items) {",
+            f"  const h = el.{prop_read};",
+            "  el.style.height = h + 10 + 'px';",
+            "}",
+        ]
+        answer = count - 1
+    else:
+        body = [
+            f"const sizes = Array.from(items, (el) => el.{prop_read});",
+            "items.forEach((el, i) => {",
+            "  el.style.height = sizes[i] + 10 + 'px';",
+            "});",
+        ]
+        answer = 0
+    header = [f"const items = document.querySelectorAll('{selector}'); // найдено элементов: {count}"]
+    if pattern == "write_read":
+        header += [f"const width = {rng.randrange(120, 400, 10)};", "let total = 0;"]
+    code = "\n".join([*header, *body])
+    stem = (
+        "Перед выполнением кода раскладка (layout) страницы актуальна, других изменений DOM нет, каждое "
+        "изменение "
+        "стиля влияет на геометрию. Сколько раз браузеру придётся синхронно пересчитать layout (forced "
+        "reflow) "
+        "во время выполнения этого кода?"
+    )
+    return Generated(stem=stem, code=code, code_language="javascript", number=float(answer), tolerance=0)
+
+
+@generator("frontend.virtual_list_rendered")
+def virtual_list_rendered(rng: random.Random) -> Generated:
+    """Виртуальный список: видимы элементы с floor(top/h) по ceil((top+H)/h) − 1, плюс overscan с двух
+    сторон."""
+    item = rng.choice([24, 32, 40, 48, 56, 72])
+    viewport = rng.randrange(300, 900, 20)
+    total = rng.randint(500, 5000)
+    overscan = rng.randint(2, 6)
+    near_top = rng.random() < 0.3
+    scroll = rng.randrange(0, item * overscan, 4) if near_top else rng.randrange(item * 20, item * 400, 4)
+    first = scroll // item
+    last = -(-(scroll + viewport) // item) - 1
+    rendered = min(total - 1, last + overscan) - max(0, first - overscan) + 1
+    stem = (
+        f"Виртуализированный список из {total} элементов фиксированной высоты {item} px, высота области "
+        f"прокрутки {viewport} px, scrollTop = {scroll} px. Рендерятся все элементы, хотя бы частично "
+        "попадающие "
+        f"в область, плюс overscan: ещё {overscan} шт. сверху и {overscan} шт. снизу (если такие элементы "
+        "есть). Сколько элементов "
+        "будет в DOM?"
+    )
+    return Generated(stem=stem, number=float(rendered), tolerance=0)

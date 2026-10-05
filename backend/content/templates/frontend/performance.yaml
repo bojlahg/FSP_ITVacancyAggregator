@@ -213,3 +213,23 @@
       - "Разбить работу на части и запускать каждую через queueMicrotask"
       - "Объявить функцию async без других изменений: она станет выполняться в фоне"
       - "Обернуть вычисление в requestAnimationFrame: тогда оно не блокирует отрисовку"
+
+# --- Senior: INP и forced reflow ---
+
+- id: fe.perf.inp_interactions
+  specializations: [frontend]
+  topic: performance
+  skills: [javascript, html]
+  kind: numeric
+  irt: {a: 1.4, b: 1.6}
+  time_limit_sec: 150
+  generator: frontend.inp_interactions
+
+- id: fe.perf.forced_reflow
+  specializations: [frontend]
+  topic: performance
+  skills: [javascript, css]
+  kind: numeric
+  irt: {a: 1.4, b: 1.6}
+  time_limit_sec: 150
+  generator: frontend.forced_reflow_count

@@ -145,3 +145,36 @@
       - "Изменено поле одного из объектов внутри {{items}}"
       - "Сработал любой цикл обнаружения изменений, например клик в другом компоненте"
       - "this.{{items}}.sort() — массив отсортирован на месте"
+
+# --- Senior ---
+
+- id: fe.ng.expression_changed
+  specializations: [frontend]
+  topic: stack
+  stack_module: angular
+  skills: [angular]
+  kind: multi_choice
+  irt: {a: 1.3, b: 1.5}
+  time_limit_sec: 120
+  n_options: 5
+  params:
+    comp: {choice: [CartComponent, ProfileComponent, DashboardComponent, OrdersComponent, HeaderComponent]}
+    field: {choice: [isLoading, title, total, hasErrors, counter]}
+  stem_variants:
+    - >-
+      В {{comp}} появилась ошибка ExpressionChangedAfterItHasBeenCheckedError для привязки {{field}} в шаблоне
+      родителя: дочерний компонент меняет {{field}} родителя в своём ngAfterViewInit. Какие утверждения верны?
+    - >-
+      Шаблон {{comp}} выводит {{field}}, а дочерний компонент в ngAfterViewInit записывает новое значение в
+      {{field}} родителя. Angular сообщает ExpressionChangedAfterItHasBeenCheckedError. Что из перечисленного верно?
+  options:
+    correct:
+      - "Ошибку выбрасывает дополнительная проверочная фаза change detection, она выполняется только в режиме разработки"
+      - "Значение привязки {{field}} изменилось после того, как Angular уже проверил шаблон родителя в этом же цикле"
+      - "В production-сборке исключения нет, но на экране до следующего цикла change detection останется старое значение {{field}}"
+    wrong:
+      - "В production-сборке приложение упадёт с той же ошибкой"
+      - "Ошибку вызывает любое изменение состояния в ngAfterViewInit, даже если оно не используется в шаблонах"
+      - "Перевод родителя на ChangeDetectionStrategy.OnPush гарантированно устраняет ошибку"
+      - "Ошибка возникает из-за мутации массива без смены ссылки"
+      - "Ошибка означает, что Zone.js не перехватил асинхронную операцию"

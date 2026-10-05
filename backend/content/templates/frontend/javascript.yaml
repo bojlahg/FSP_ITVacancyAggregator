@@ -218,3 +218,23 @@
   kind: numeric
   irt: {a: 0.9, b: -2.2}
   generator: frontend.js_push_length
+
+# --- Senior: очередь задач и протокол генераторов ---
+
+- id: fe.js.nested_tasks
+  specializations: [frontend]
+  topic: javascript
+  skills: [javascript, concurrency]
+  kind: code_output
+  irt: {a: 1.5, b: 1.7}
+  time_limit_sec: 180
+  generator: frontend.js_nested_tasks
+
+- id: fe.js.generator_protocol
+  specializations: [frontend]
+  topic: javascript
+  skills: [javascript]
+  kind: code_output
+  irt: {a: 1.4, b: 1.5}
+  time_limit_sec: 150
+  generator: frontend.js_generator_protocol

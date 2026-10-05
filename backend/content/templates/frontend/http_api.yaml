@@ -168,3 +168,37 @@
   kind: numeric
   irt: {a: 1.0, b: -1.9}
   generator: frontend.pagination_requests
+
+# --- Senior ---
+
+- id: fe.http.cors_credentials
+  specializations: [frontend]
+  topic: http_api
+  skills: [http, appsec]
+  kind: multi_choice
+  irt: {a: 1.3, b: 1.5}
+  time_limit_sec: 120
+  n_options: 5
+  params:
+    site: {choice: [shop, bank, crm, travel, clinic]}
+    method: {choice: [PUT, PATCH, DELETE]}
+  stem_variants:
+    - >-
+      Фронтенд на https://app.{{site}}.ru вызывает fetch('https://api.{{site}}.ru/v1/profile', { method: '{{method}}', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' } }), авторизация — по cookie. Что должно быть выполнено,
+      чтобы браузер отправил запрос с cookie и отдал ответ скрипту?
+    - >-
+      SPA с адреса https://app.{{site}}.ru делает {{method}}-запрос к https://api.{{site}}.ru с credentials: 'include' и телом JSON; сессия
+      хранится в cookie. Какие условия необходимы, чтобы запрос прошёл, а ответ был доступен коду страницы?
+  options:
+    correct:
+      - "Ответ на preflight OPTIONS разрешает метод {{method}} и заголовок Content-Type"
+      - "Access-Control-Allow-Origin содержит ровно https://app.{{site}}.ru, а не *"
+      - "Сервер отвечает Access-Control-Allow-Credentials: true"
+      - "Ответ на сам {{method}}-запрос тоже содержит Access-Control-Allow-Origin и Access-Control-Allow-Credentials"
+    wrong:
+      - "Достаточно Access-Control-Allow-Origin: * — он разрешает любой источник, в том числе с cookie"
+      - "Preflight не нужен: запрос с JSON-телом считается простым"
+      - "Сервер должен вернуть заголовок Access-Control-Allow-Cookies: true"
+      - "CORS-заголовки нужны только на ответе OPTIONS, на основном ответе они не проверяются"
+      - "Нужно добавить в запрос заголовок Origin вручную через headers"

@@ -149,3 +149,15 @@
   kind: single_choice
   irt: {a: 1.0, b: -1.4}
   generator: frontend.vue_template_syntax
+
+# --- Senior ---
+
+- id: fe.vue.next_tick
+  specializations: [frontend]
+  topic: stack
+  stack_module: vue
+  skills: [vue]
+  kind: code_output
+  irt: {a: 1.4, b: 1.5}
+  time_limit_sec: 150
+  generator: frontend.vue_next_tick

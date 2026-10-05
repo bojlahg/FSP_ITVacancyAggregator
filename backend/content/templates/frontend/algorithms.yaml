@@ -108,3 +108,14 @@
   irt: {a: 1.2, b: 1.4}
   time_limit_sec: 180
   generator: frontend.module_eval_order
+
+# --- Senior ---
+
+- id: fe.algo.virtual_list
+  specializations: [frontend]
+  topic: algorithms
+  skills: [algorithms, javascript]
+  kind: numeric
+  irt: {a: 1.3, b: 1.4}
+  time_limit_sec: 150
+  generator: frontend.virtual_list_rendered

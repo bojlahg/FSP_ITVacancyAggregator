@@ -285,3 +285,46 @@
   irt: {a: 1.0, b: -1.9}
   time_limit_sec: 120
   generator: frontend.react_filter_map_count
+
+# --- Senior: очередь обновлений и гидрация ---
+
+- id: fe.react.batched_updates
+  specializations: [frontend]
+  topic: stack
+  stack_module: react
+  skills: [react]
+  kind: code_output
+  irt: {a: 1.4, b: 1.5}
+  time_limit_sec: 150
+  generator: frontend.react_batched_updates
+
+- id: fe.react.hydration_mismatch
+  specializations: [frontend]
+  topic: stack
+  stack_module: react
+  skills: [react, nextjs]
+  kind: multi_choice
+  irt: {a: 1.3, b: 1.4}
+  time_limit_sec: 120
+  n_options: 5
+  params:
+    comp: {choice: [Header, PriceTag, CartBadge, Greeting, Footer, OrderStatus]}
+  stem_variants:
+    - >-
+      Компонент {{comp}} рендерится на сервере (SSR), затем гидрируется на клиенте в React 18. Что из
+      перечисленного вызывает ошибку или предупреждение о несовпадении при гидрации (hydration mismatch)?
+    - >-
+      После перехода на SSR в консоли браузера появились ошибки гидрации из {{comp}}. Какие приёмы в коде
+      компонента приводят к несовпадению серверной разметки и первого клиентского рендера?
+  options:
+    correct:
+      - "Вывод new Date().toLocaleTimeString() прямо в JSX при рендере"
+      - "Ветвление в теле рендера по typeof window !== 'undefined'"
+      - "Невалидная вложенность HTML, например <div> внутри <p>: парсер браузера перестраивает DOM"
+      - "Генерация id через Math.random() при рендере"
+    wrong:
+      - "Чтение localStorage в useEffect и setState по его результату"
+      - "Генерация id через useId"
+      - "Подписка на resize окна в useEffect"
+      - "Обращение к window внутри обработчика onClick"
+      - "Ленивая загрузка дочернего компонента через React.lazy внутри Suspense"
