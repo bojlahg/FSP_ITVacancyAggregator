@@ -48,6 +48,7 @@ def test_all_metric_groups_present(results: dict) -> None:
         "whatif",
         "survey",
         "matching",
+        "fairness",
     ):
         assert key in results, key
     assert results["population"]["size"] == 60
@@ -78,7 +79,7 @@ def test_deterministic_by_seed(results: dict) -> None:
 def test_report_written(results: dict, tmp_path) -> None:
     report = write_report(results, tmp_path)
     text = report.read_text(encoding="utf-8")
-    assert "## 12. Ограничения" in text
+    assert "## 13. Ограничения" in text
     assert "### 3.1. Оценка по Руднеру" in text
     assert (tmp_path / "metrics.json").exists()
     assert (tmp_path / "category_confusion.png").exists()

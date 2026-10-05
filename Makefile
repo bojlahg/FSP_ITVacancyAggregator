@@ -2,7 +2,7 @@
 DC     = docker compose --env-file .env -f infra/docker-compose.yml
 DC_DEV = $(DC) -f infra/docker-compose.dev.yml
 
-.PHONY: up down logs test lint format openapi migration reseed validate integrity-check loadtest bank-review e2e docs-pdf prod-up
+.PHONY: up down logs test lint format openapi migration reseed validate integrity-check fairness-check loadtest bank-review e2e docs-pdf prod-up
 
 up:            ## локально: БД, backend (reload), fsp-mock, mailpit
 	$(DC_DEV) up -d --build db backend fsp-mock mailpit
@@ -40,6 +40,9 @@ validate:      ## симуляционная валидация (§12) → docs/
 
 integrity-check: ## сигналы честности на симуляции (§10.9) → docs/validation/integrity.md (~30 с)
 	cd backend && uv run python ../validation/integrity_check.py
+
+fairness-check: ## аудит предвзятости на симуляции (правило 4/5, «ФСП не штрафует») → docs/validation/fairness.md (~1 мин)
+	cd backend && uv run python ../validation/fairness.py
 
 bank-review:   ## HTML-отчёт для ревью банка заданий с ключами → bank-review/<спец>.html (в git не попадает)
 	cd backend && uv run python -m app.scripts.bank_review $(ARGS)

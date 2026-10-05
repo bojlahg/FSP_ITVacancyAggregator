@@ -12,7 +12,7 @@ from app.modules.testing.engine.bank import GRADE_ORDER, Blueprints, get_bank, g
 from app.modules.testing.engine.confidence import band_of, rudner_indices
 from app.modules.testing.engine.irt import GRID, information
 from seed import data
-from validation import calibration, categorization, leakage, matching_eval
+from validation import calibration, categorization, fairness, leakage, matching_eval
 from validation.engine_sim import (
     Attempt,
     Environment,
@@ -600,6 +600,7 @@ def run_validation(config: dict, log=print) -> dict:
     log(f"эксперименты: {time.perf_counter() - started:.0f} с")
     results["survey"] = categorization.evaluate_survey(people, config)
     results["matching"] = matching_eval.evaluate_matching(people, paths_a, config)
+    results["fairness"] = fairness.audit(people, paths_a, first_a, blueprints, config)
     results["raw"] = {
         "theta_true": [p.theta for p in people],
         "theta_hat": [first_a[p.pid].theta for p in people],

@@ -169,6 +169,12 @@ def build_markdown(r: dict) -> list[str]:
                     for k in ("match_grouped", "test_category", "declared_grade", "keywords")
                 ),
             ],
+            [
+                "Справедливость",
+                "Тест: мин. impact ratio при равной способности (город, ФСП, формат); «ФСП не штрафует»",
+                f"{num(min(row['conditional'] for rows in r['fairness']['selections']['test_pass'].values() for row in rows))}; "
+                + ("выполняется" if r["fairness"]["fsp_invariant"]["holds"] else "**нарушен**"),
+            ],
         ],
     )
     lines += _method(r)
@@ -181,6 +187,7 @@ def build_markdown(r: dict) -> list[str]:
     lines += _calibration(r)
     lines += _survey(r)
     lines += _matching(r)
+    lines += _fairness(r)
     lines += _weaknesses(r)
     lines += _limitations(r)
     lines += [
@@ -323,7 +330,7 @@ def _repeatability(r: dict) -> list[str]:
         "Трёхуровневое решение "
         "повторяется хуже, потому что у него два порога: cut_G и граница «уверенно» около cut_{G+1} − SE, и "
         "кандидат у любого из них может сменить исход. Это слабое место — разбор и варианты улучшения в "
-        "разделе 11.",
+        "разделе 12.",
         "",
     ]
     return lines + _rudner(r)
@@ -898,6 +905,14 @@ def _matching(r: dict) -> list[str]:
     return lines
 
 
+def _fairness(r: dict) -> list[str]:
+    from validation.fairness import markdown
+
+    lines = markdown(r["fairness"])
+    lines[0] = "## 11. Справедливость: аудит предвзятости"
+    return lines
+
+
 def _p5_margin(match: dict) -> float:
     values = [row["match_grouped_p@5"] for row in match["needs"]]
     if len(values) < 2:
@@ -914,12 +929,12 @@ def _weaknesses(r: dict) -> list[str]:
     needed = math.ceil(length["scored_mean"] / cap)
     worst_spec = min(exp["by_spec"], key=lambda s: exp["by_spec"][s]["templates"])
     lines = [
-        "## 11. Слабые места и рекомендации",
+        "## 12. Слабые места и рекомендации",
         "",
         "Пороги, blueprint'ы, веса и движок по результатам прогона **автоматически не меняются** — ниже "
         "то, что рекомендуется, с цифрами из симуляции.",
         "",
-        f"### 11.1. Трёхуровневое решение повторяется в {pct(rep['three_level_agreement'], 0)} случаев",
+        f"### 12.1. Трёхуровневое решение повторяется в {pct(rep['three_level_agreement'], 0)} случаев",
         "",
         "Решение «пройден уверенно» — это не категория, а предложение сразу сдать тест на грейд выше. Его "
         "ошибка стоит кандидату одного лишнего (или недостающего) теста, а итоговая категория определяется "
@@ -1006,7 +1021,7 @@ def _weaknesses(r: dict) -> list[str]:
     smallest = min(v["templates"] for v in exp["by_spec"].values())
     if smallest < needed:
         lines += [
-            f"### 11.2. Порог экспозиции {pct(cap, 0)} недостижим при текущем банке",
+            f"### 12.2. Порог экспозиции {pct(cap, 0)} недостижим при текущем банке",
             "",
             f"При {num(length['scored_mean'], 1)} оценённых заданиях на попытку порог {pct(cap, 0)} требует не "
             f"меньше **{needed} активных шаблонов** на специализацию; сейчас их "
@@ -1019,7 +1034,7 @@ def _weaknesses(r: dict) -> list[str]:
     else:
         worst = max(exp["by_spec"], key=lambda spec: exp["by_spec"][spec]["over_cap_share"])
         lines += [
-            "### 11.2. Экспозиция: размер банка достаточен, остаются отдельные темы",
+            "### 12.2. Экспозиция: размер банка достаточен, остаются отдельные темы",
             "",
             f"Порог {pct(cap, 0)} при {num(length['scored_mean'], 1)} оценённых заданиях требует ≥ {needed} "
             "активных шаблонов на специализацию; сейчас "
@@ -1031,7 +1046,7 @@ def _weaknesses(r: dict) -> list[str]:
         ]
     high_hit = leak["diversity_high_hit_share"]
     lines += [
-        "### 11.3. Разнообразие экземпляров",
+        "### 12.3. Разнообразие экземпляров",
         "",
         f"У {pct(high_hit, 0)} шаблонов слитые {r['config']['leak']['leaked_instances']} экземпляров покрывают "
         "половину и больше будущих экземпляров; медианная вероятность совпадения — "
@@ -1050,7 +1065,7 @@ def _weaknesses(r: dict) -> list[str]:
     adjacent = match["rules"]["adjacent_grade_fit"]
     by_test = summary["test_category"]
     lines += [
-        "### 11.4. Подбор: порядок внутри категории",
+        "### 12.4. Подбор: порядок внутри категории",
         "",
         f"Выдача ITScout: P@5 {num(grouped['p@5'])} по категориям и {num(top['p@5'])} в «общем топе», "
         f"перерост в топ-10 — {pct(grouped['overqualified@10'], 0)} и {pct(top['overqualified@10'], 0)} "
@@ -1066,7 +1081,7 @@ def _weaknesses(r: dict) -> list[str]:
     if shifted:
         few_easy = min(v["below_junior_cut"] for v in bank.values()) < 15
         lines += [
-            "### 11.5. Информация теста у нижних порогов",
+            "### 12.5. Информация теста у нижних порогов",
             "",
             "Максимум информации теста смещён от порога у "
             + ", ".join(
@@ -1095,7 +1110,7 @@ def _weaknesses(r: dict) -> list[str]:
 
 def _limitations(r: dict) -> list[str]:
     return [
-        "## 12. Ограничения",
+        "## 13. Ограничения",
         "",
         "- **Симуляция проверяет механику при заданной модели ответов.** Ответы порождены 3PL с параметрами "
         "банка (плюс σ_b и профиль по темам), поэтому цифры — оценка сверху для реальных людей. Реальную "

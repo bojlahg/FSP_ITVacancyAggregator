@@ -109,3 +109,12 @@ integrity:                  # §10.9 сигналы честности: validati
   rapid:
     item_share: 0.30        # доля заданий, на которые кандидат отвечает не читая
     time_sec: [1, 6]
+
+fairness:                   # аудит предвзятости (§12.2 «Справедливость»): validation/fairness.py
+  threshold: 0.8            # правило 4/5 (EEOC Uniform Guidelines, 29 CFR 1607.4(D); NYC Local Law 144)
+  top_k: 10                 # «отбор» в выдаче — попадание в топ-k по потребности
+  min_group: 30             # группы меньше не помечаются
+  ability_bin: 0.5          # бины θ_true − порог для сравнения при равной способности (Mantel–Haenszel)
+  ability_range: [-2.0, 2.0]
+  bootstrap: 500            # повторов bootstrap по потребностям для ДИ выдачи
+  z: 1.96
