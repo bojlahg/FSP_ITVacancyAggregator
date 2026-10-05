@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Query
 
 from app.core.deps import CurrentCandidate, CurrentEmployer, DbSession
-from app.core.enums import Grade
-from app.core.errors import NotImplementedApiError, error_responses
+from app.core.enums import ApplicationStatus, Grade
+from app.core.errors import error_responses
+from app.modules.applications import service
 from app.modules.applications.schemas import (
     ApplicationForCandidate,
     ApplicationForEmployer,
@@ -30,7 +31,7 @@ async def list_vacancies(
     grade: Grade | None = Query(default=None),
     q: str | None = Query(default=None, description="Поиск по названию и навыкам"),
 ) -> list[VacancyOut]:
-    raise NotImplementedApiError()
+    return await service.list_vacancies(db, user.id, match, specialization, grade, q)
 
 
 @candidate_router.get(
@@ -40,7 +41,7 @@ async def list_vacancies(
     responses=error_responses(401, 403, 404),
 )
 async def get_vacancy(vacancy_id: int, user: CurrentCandidate, db: DbSession) -> VacancyOut:
-    raise NotImplementedApiError()
+    return await service.get_vacancy(db, user.id, vacancy_id)
 
 
 @candidate_router.post(
@@ -53,7 +54,7 @@ async def get_vacancy(vacancy_id: int, user: CurrentCandidate, db: DbSession) ->
 async def apply_to_vacancy(
     vacancy_id: int, body: ApplyRequest, user: CurrentCandidate, db: DbSession
 ) -> ApplicationForCandidate:
-    raise NotImplementedApiError()
+    return await service.apply(db, user.id, vacancy_id, body)
 
 
 @candidate_router.get(
@@ -63,7 +64,7 @@ async def apply_to_vacancy(
     responses=error_responses(401, 403),
 )
 async def list_my_applications(user: CurrentCandidate, db: DbSession) -> list[ApplicationForCandidate]:
-    raise NotImplementedApiError()
+    return await service.list_mine(db, user.id)
 
 
 @employer_router.get(
@@ -75,7 +76,7 @@ async def list_my_applications(user: CurrentCandidate, db: DbSession) -> list[Ap
 async def list_need_applications(
     need_id: int, user: CurrentEmployer, db: DbSession
 ) -> list[ApplicationForEmployer]:
-    raise NotImplementedApiError()
+    return await service.list_for_need(db, user.id, need_id)
 
 
 @employer_router.post(
@@ -87,7 +88,7 @@ async def list_need_applications(
 async def view_application(
     application_id: int, user: CurrentEmployer, db: DbSession
 ) -> ApplicationForEmployer:
-    raise NotImplementedApiError()
+    return await service.view(db, user.id, application_id)
 
 
 @employer_router.post(
@@ -99,7 +100,7 @@ async def view_application(
 async def accept_application(
     application_id: int, user: CurrentEmployer, db: DbSession
 ) -> ApplicationForEmployer:
-    raise NotImplementedApiError()
+    return await service.decide(db, user.id, application_id, ApplicationStatus.accepted)
 
 
 @employer_router.post(
@@ -111,4 +112,4 @@ async def accept_application(
 async def reject_application(
     application_id: int, user: CurrentEmployer, db: DbSession
 ) -> ApplicationForEmployer:
-    raise NotImplementedApiError()
+    return await service.decide(db, user.id, application_id, ApplicationStatus.rejected)
