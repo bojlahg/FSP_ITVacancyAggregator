@@ -12,7 +12,15 @@ from sqlalchemy.dialects.postgresql import array
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
-from app.core.enums import ConsentKind, Grade, InvitationStatus, SearchStatus, SkillSource, WorkFormat
+from app.core.enums import (
+    ConsentKind,
+    Grade,
+    InvitationStatus,
+    SearchStatus,
+    SkillSource,
+    SkillStatus,
+    WorkFormat,
+)
 from app.core.errors import NotFoundError
 from app.core.schemas import CategoryRef, Explanation, ExplanationLine, FspBadge
 from app.modules.auth import service as auth_service
@@ -59,11 +67,7 @@ from app.modules.testing.engine.bank import GRADE_ORDER, get_blueprints
 from app.modules.testing.models import TestAttempt
 from app.modules.testing.schemas import TopicScore
 
-SKILL_STATUS_PRIORITY = {
-    SkillSource.test: "verified",
-    SkillSource.fsp: "fsp_confirmed",
-    SkillSource.task: "task_confirmed",
-}
+STATUS_RANK = {status: rank for rank, status in enumerate(candidates_service.STATUS_ORDER)}
 FIT_ORDER = {"exact": 0, "adjacent_grade": 1, "adjacent_specialization": 2, "adjacent_both": 3}
 LEVEL_NAMES = {
     "international": "международные",
@@ -100,9 +104,11 @@ async def refresh_candidate(db: AsyncSession, candidate_id: int) -> None:
     for skill in await db.scalars(select(CandidateSkill).where(CandidateSkill.candidate_id == candidate_id)):
         if skill.source == SkillSource.fsp and not fsp_counts:
             continue
-        status = SKILL_STATUS_PRIORITY.get(skill.source, "declared")
-        if skills.get(skill.skill_id) in (None, "declared"):
-            skills[skill.skill_id] = status
+        # Сильнейший источник навыка — по тому же порядку, что в профиле (skill_states, §8.3)
+        status = candidates_service.STATUS_BY_SOURCE.get(skill.source, SkillStatus.declared)
+        known = skills.get(skill.skill_id)
+        if known is None or STATUS_RANK[status] < STATUS_RANK[SkillStatus(known)]:
+            skills[skill.skill_id] = status.value
     published = await auth_service.has_active_consent(db, candidate.user_id, ConsentKind.profile_publication)
     # Проверенные решения регулярных заданий тоже освежают профиль и дают approach (§11)
     tasks = await tasks_service.signals(db, candidate_id)

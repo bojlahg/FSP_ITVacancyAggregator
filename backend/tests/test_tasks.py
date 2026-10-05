@@ -5,7 +5,8 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from sqlalchemy import select, update
 
-from app.core.enums import Grade, Role, UnlockSource
+from app.core.enums import Grade, Role, SkillSource, UnlockSource
+from app.modules.candidates.models import CandidateSkill
 from app.modules.categories.models import CandidateCategory
 from app.modules.invitations.models import ContactUnlock
 from app.modules.matching import service as matching_service
@@ -373,3 +374,21 @@ async def test_assignment_answer_key_stays_in_db(client, session):
     stored = await session.scalar(select(TaskAssignment).where(TaskAssignment.candidate_id == cid))
     assert stored.answer_key["choice_ids"]
     assert "choice_ids" not in response.text
+
+
+async def test_index_keeps_strongest_skill_source(client, session):
+    """Ревью 06.10, №5: «проверено тестом» сильнее «подтверждено заданием» независимо от порядка строк."""
+    employer = await signup(client, "hr@bank.ru")
+    _, cid = await candidate_with_category(client, session, "anna@example.com")
+    now = datetime.now(UTC)
+    for source in (SkillSource.task, SkillSource.test):
+        session.add(CandidateSkill(candidate_id=cid, skill_id="python", source=source, updated_at=now))
+        await session.commit()
+    await matching_service.refresh_candidate(session, cid)
+    await session.commit()
+
+    session.expire_all()
+    assert (await session.get(CandidateSearchIndex, cid)).skills_status["python"] == "verified"
+    params = {"skills": "python", "verified_only": "true"}
+    found = (await client.get(f"{API}/talent/search", params=params, headers=employer)).json()
+    assert cid in [item["id"] for item in found["items"]]
