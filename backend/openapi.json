@@ -9992,6 +9992,10 @@
             ],
             "title": "Approach Score"
           },
+          "confidence": {
+            "$ref": "#/components/schemas/GradeConfidence",
+            "description": "Уверенность относительно проверяемого грейда (§10.4.1); на результат не влияет"
+          },
           "next_actions": {
             "items": {
               "$ref": "#/components/schemas/NextAction"
@@ -10012,6 +10016,7 @@
           "category",
           "topic_scores",
           "verified_skills",
+          "confidence",
           "next_actions"
         ],
         "title": "AttemptResultOut"
@@ -10353,6 +10358,17 @@
               }
             ],
             "description": "Сигналы честности теста текущей категории (§10.9): пометка «стоит перепроверить», на грейд не влияет; null — сигналы выключены (INTEGRITY_SIGNALS_ENABLED=false) или не считались"
+          },
+          "grade_evidence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GradeEvidence"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "«Почему этому грейду можно верить» (§10.4.1): дата и параметры теста, уверенность в грейде; null — категория без теста или обезличенная карточка эксперта"
           },
           "fsp": {
             "anyOf": [
@@ -11194,6 +11210,17 @@
             "type": "boolean",
             "title": "Needs Reconfirmation",
             "description": "Срок действия результата истёк"
+          },
+          "evidence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GradeEvidence"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Только у текущей категории: тест, уверенность в грейде (§10.4.1); null — теста нет"
           }
         },
         "type": "object",
@@ -13524,6 +13551,88 @@
         ],
         "title": "GradeAction"
       },
+      "GradeBandProbability": {
+        "properties": {
+          "grade": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Grade"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "null — ниже порога стажёра: категория не присваивается"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "probability": {
+            "type": "number",
+            "title": "Probability",
+            "description": "P(истинный уровень в полосе грейда) при θ ~ N(θ̂, SE²)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "grade",
+          "label",
+          "probability"
+        ],
+        "title": "GradeBandProbability"
+      },
+      "GradeConfidence": {
+        "properties": {
+          "grade": {
+            "$ref": "#/components/schemas/Grade",
+            "description": "Грейд, к которому относится уверенность: присвоенный или проверяемый"
+          },
+          "at_least": {
+            "type": "number",
+            "title": "At Least",
+            "description": "P(θ ≥ cut грейда) — вероятность, что уровень не ниже этого грейда"
+          },
+          "level": {
+            "type": "string",
+            "title": "Level",
+            "description": "Словесный уровень по content/confidence.yaml: high | medium | low"
+          },
+          "level_label": {
+            "type": "string",
+            "title": "Level Label"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "Готовая фраза: работодателю «87% — вероятность, что уровень не ниже Middle», кандидату «Уверенность: 87%, что ваш уровень не ниже Middle»"
+          },
+          "bands": {
+            "items": {
+              "$ref": "#/components/schemas/GradeBandProbability"
+            },
+            "type": "array",
+            "title": "Bands",
+            "description": "Вероятности всех полос шкалы, снизу вверх"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "grade",
+          "at_least",
+          "level",
+          "level_label",
+          "text",
+          "bands",
+          "note"
+        ],
+        "title": "GradeConfidence",
+        "description": "Уверенность в грейде (§10.4.1, Rudner 2001/2005): объяснение решения, на грейд не влияет."
+      },
       "GradeDecision": {
         "properties": {
           "category": {
@@ -13634,6 +13743,81 @@
         ],
         "title": "GradeDecision",
         "description": "Как тест определил категорию (§10.4): θ̂ против порога грейда; решение — только по тесту."
+      },
+      "GradeEvidence": {
+        "properties": {
+          "tested_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tested At",
+            "description": "Когда завершён тест, по которому присвоена категория"
+          },
+          "valid_until": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Valid Until",
+            "description": "Срок действия результата (§6.3)"
+          },
+          "adaptive": {
+            "type": "boolean",
+            "title": "Adaptive",
+            "description": "Двухэтапный адаптивный тест (MST): задания подбирались по ответам"
+          },
+          "short_mode": {
+            "type": "boolean",
+            "title": "Short Mode",
+            "description": "Сокращённый демо-режим теста (TEST_MODE=short)"
+          },
+          "items_scored": {
+            "type": "integer",
+            "title": "Items Scored",
+            "description": "Оценённых заданий в попытке"
+          },
+          "theta": {
+            "type": "number",
+            "title": "Theta"
+          },
+          "se": {
+            "type": "number",
+            "title": "Se",
+            "description": "Стандартная ошибка θ̂"
+          },
+          "confidence": {
+            "$ref": "#/components/schemas/GradeConfidence"
+          },
+          "how_it_works_path": {
+            "type": "string",
+            "title": "How It Works Path",
+            "description": "Публичная страница о том, как устроен тест"
+          },
+          "validation_url": {
+            "type": "string",
+            "title": "Validation Url",
+            "description": "Отчёт симуляционной валидации (§12)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tested_at",
+          "valid_until",
+          "adaptive",
+          "short_mode",
+          "items_scored",
+          "theta",
+          "se",
+          "confidence",
+          "how_it_works_path",
+          "validation_url"
+        ],
+        "title": "GradeEvidence",
+        "description": "Блок «Почему этому грейду можно верить» (§10.4.1): из чего сложилась категория."
       },
       "GradeExplanation": {
         "properties": {

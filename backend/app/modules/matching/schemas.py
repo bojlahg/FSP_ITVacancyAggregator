@@ -7,7 +7,7 @@ from app.core.enums import InvitationStatus, WorkFormat
 from app.core.schemas import ApiModel, CategoryRef, Explanation, FspBadge
 from app.modules.candidates.schemas import Contacts, ExperienceItem, SkillState
 from app.modules.fsp.schemas import FspProfileOut
-from app.modules.testing.schemas import ApproachAnswer, IntegritySignals, TopicScore
+from app.modules.testing.schemas import ApproachAnswer, GradeEvidence, IntegritySignals, TopicScore
 
 
 class CandidateBrief(ApiModel):
@@ -129,6 +129,11 @@ class CandidateCard(ApiModel):
         default=None,
         description="Сигналы честности теста текущей категории (§10.9): пометка «стоит перепроверить», "
         "на грейд не влияет; null — сигналы выключены (INTEGRITY_SIGNALS_ENABLED=false) или не считались",
+    )
+    grade_evidence: GradeEvidence | None = Field(
+        default=None,
+        description="«Почему этому грейду можно верить» (§10.4.1): дата и параметры теста, уверенность "
+        "в грейде; null — категория без теста или обезличенная карточка эксперта",
     )
     fsp: FspProfileOut | None = Field(description="null, если кандидат скрыл ФСП")
     contacts_unlocked: bool

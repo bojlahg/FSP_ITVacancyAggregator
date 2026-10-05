@@ -1055,12 +1055,17 @@ async def _card(
     current = await categories_service.get_current(db, candidate_id)
     approach_answers = []
     integrity = None
+    evidence = None
     if current is not None and current.attempt_id is not None:
         from app.modules.testing import service as testing_service
 
         approach_answers = await testing_service.open_answers(db, current.attempt_id)
         # Обезличенной карточке эксперта сигналы не нужны: она для разметки релевантности (§12.2)
         integrity = None if blind else await testing_service.integrity_signals(db, current.attempt_id)
+        if not blind:
+            evidence = await testing_service.grade_evidence(
+                db, current.attempt_id, current.grade.value, current.valid_until
+            )
     # До раскрытия контактов свободный текст не должен их выдавать (инвариант contact_unlocks)
     hide = (lambda text: text) if unlocked else redact_contacts
     for answer in approach_answers:
@@ -1092,6 +1097,7 @@ async def _card(
         ],
         approach_answers=approach_answers,
         integrity=integrity,
+        grade_evidence=evidence,
         fsp=await _fsp_for_employer(db, candidate, unlocked) if privacy.show_fsp and row.has_fsp else None,
         contacts_unlocked=unlocked,
         contacts=await contacts_of(db, candidate) if unlocked else None,

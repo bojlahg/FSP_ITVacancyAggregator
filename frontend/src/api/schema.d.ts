@@ -2442,6 +2442,8 @@ export interface components {
             verified_skills: string[];
             /** Approach Score */
             approach_score?: number | null;
+            /** @description Уверенность относительно проверяемого грейда (§10.4.1); на результат не влияет */
+            confidence: components["schemas"]["GradeConfidence"];
             /** Next Actions */
             next_actions: components["schemas"]["NextAction"][];
         };
@@ -2571,6 +2573,8 @@ export interface components {
             approach_answers?: components["schemas"]["ApproachAnswer"][];
             /** @description Сигналы честности теста текущей категории (§10.9): пометка «стоит перепроверить», на грейд не влияет; null — сигналы выключены (INTEGRITY_SIGNALS_ENABLED=false) или не считались */
             integrity?: components["schemas"]["IntegritySignals"] | null;
+            /** @description «Почему этому грейду можно верить» (§10.4.1): дата и параметры теста, уверенность в грейде; null — категория без теста или обезличенная карточка эксперта */
+            grade_evidence?: components["schemas"]["GradeEvidence"] | null;
             /** @description null, если кандидат скрыл ФСП */
             fsp: components["schemas"]["FspProfileOut"] | null;
             /** Contacts Unlocked */
@@ -2820,6 +2824,8 @@ export interface components {
              * @description Срок действия результата истёк
              */
             needs_reconfirmation: boolean;
+            /** @description Только у текущей категории: тест, уверенность в грейде (§10.4.1); null — теста нет */
+            evidence?: components["schemas"]["GradeEvidence"] | null;
         };
         /** CategoryRef */
         CategoryRef: {
@@ -3705,6 +3711,50 @@ export interface components {
             /** Reason */
             reason?: string | null;
         };
+        /** GradeBandProbability */
+        GradeBandProbability: {
+            /** @description null — ниже порога стажёра: категория не присваивается */
+            grade: components["schemas"]["Grade"] | null;
+            /** Label */
+            label: string;
+            /**
+             * Probability
+             * @description P(истинный уровень в полосе грейда) при θ ~ N(θ̂, SE²)
+             */
+            probability: number;
+        };
+        /**
+         * GradeConfidence
+         * @description Уверенность в грейде (§10.4.1, Rudner 2001/2005): объяснение решения, на грейд не влияет.
+         */
+        GradeConfidence: {
+            /** @description Грейд, к которому относится уверенность: присвоенный или проверяемый */
+            grade: components["schemas"]["Grade"];
+            /**
+             * At Least
+             * @description P(θ ≥ cut грейда) — вероятность, что уровень не ниже этого грейда
+             */
+            at_least: number;
+            /**
+             * Level
+             * @description Словесный уровень по content/confidence.yaml: high | medium | low
+             */
+            level: string;
+            /** Level Label */
+            level_label: string;
+            /**
+             * Text
+             * @description Готовая фраза: работодателю «87% — вероятность, что уровень не ниже Middle», кандидату «Уверенность: 87%, что ваш уровень не ниже Middle»
+             */
+            text: string;
+            /**
+             * Bands
+             * @description Вероятности всех полос шкалы, снизу вверх
+             */
+            bands: components["schemas"]["GradeBandProbability"][];
+            /** Note */
+            note: string;
+        };
         /**
          * GradeDecision
          * @description Как тест определил категорию (§10.4): θ̂ против порога грейда; решение — только по тесту.
@@ -3749,6 +3799,56 @@ export interface components {
              * Format: date-time
              */
             valid_until: string;
+        };
+        /**
+         * GradeEvidence
+         * @description Блок «Почему этому грейду можно верить» (§10.4.1): из чего сложилась категория.
+         */
+        GradeEvidence: {
+            /**
+             * Tested At
+             * @description Когда завершён тест, по которому присвоена категория
+             */
+            tested_at: string | null;
+            /**
+             * Valid Until
+             * Format: date-time
+             * @description Срок действия результата (§6.3)
+             */
+            valid_until: string;
+            /**
+             * Adaptive
+             * @description Двухэтапный адаптивный тест (MST): задания подбирались по ответам
+             */
+            adaptive: boolean;
+            /**
+             * Short Mode
+             * @description Сокращённый демо-режим теста (TEST_MODE=short)
+             */
+            short_mode: boolean;
+            /**
+             * Items Scored
+             * @description Оценённых заданий в попытке
+             */
+            items_scored: number;
+            /** Theta */
+            theta: number;
+            /**
+             * Se
+             * @description Стандартная ошибка θ̂
+             */
+            se: number;
+            confidence: components["schemas"]["GradeConfidence"];
+            /**
+             * How It Works Path
+             * @description Публичная страница о том, как устроен тест
+             */
+            how_it_works_path: string;
+            /**
+             * Validation Url
+             * @description Отчёт симуляционной валидации (§12)
+             */
+            validation_url: string;
         };
         /** GradeExplanation */
         GradeExplanation: {

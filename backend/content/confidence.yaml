@@ -1,0 +1,32 @@
+# Уверенность в грейде — docs/implementation.md §10.4.1, обзор: docs/research/psychometrics.md §5 (Rudner 2001/2005,
+# Lee 2010). По θ̂ и SE попытки: P(θ ≥ cut_G) и вероятность каждой полосы грейда при θ ~ N(θ̂, SE²).
+# Это объяснение решения, а не решение: грейд выставляет правило §10.4 (θ̂ против порога из blueprints.yaml).
+# Пороги уровней стартовые: при θ̂ = cut + 1,28·SE P = 0,90, при θ̂ = cut + 0,52·SE P = 0,70.
+
+levels:
+  - code: high
+    min: 0.90
+    label: высокая
+  - code: medium
+    min: 0.70
+    label: средняя
+  - code: low
+    min: 0.0
+    label: низкая
+
+# Границы процента в тексте: при конечной SE «0%» и «100%» были бы неправдой
+display_min: 0.01
+display_max: 0.99
+
+texts:
+  # {percent} — P(θ ≥ cut_G) в процентах, {grade} — название грейда, {level} — уровень из levels
+  statement: "{percent}% — вероятность, что уровень не ниже {grade}"
+  candidate: "Уверенность: {percent}%, что ваш уровень не ниже {grade}"
+  note: >-
+    Оценка по результату и погрешности теста (подход Руднера). На грейд не влияет: грейд присваивает правило
+    теста — результат не ниже порога грейда.
+  # Название полосы ниже порога стажёра
+  below: "Ниже стажёра"
+
+how_it_works_path: /how-it-works
+validation_url: https://github.com/bojlahg/FSP_ITVacancyAggregator/blob/master/docs/validation/report.md

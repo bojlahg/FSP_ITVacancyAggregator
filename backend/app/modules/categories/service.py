@@ -134,8 +134,16 @@ async def grade_status(db: AsyncSession, candidate: Candidate) -> GradeStatus:
             needs_reconfirmation=row.valid_until < now,
         )
 
+    current_record = None
+    if current_row is not None:
+        from app.modules.testing import service as testing_service
+
+        current_record = record(current_row)
+        current_record.evidence = await testing_service.grade_evidence(
+            db, current_row.attempt_id, current_row.grade.value, current_row.valid_until, for_candidate=True
+        )
     return GradeStatus(
-        current=record(current_row) if current_row else None,
+        current=current_record,
         history=[record(row) for row in history_rows],
         attempts=[
             AttemptSummary(

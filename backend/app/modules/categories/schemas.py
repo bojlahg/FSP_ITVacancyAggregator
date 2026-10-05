@@ -4,6 +4,7 @@ from pydantic import Field
 
 from app.core.enums import AttemptPurpose, AttemptResult, AttemptStatus, Grade
 from app.core.schemas import ApiModel, CategoryRef
+from app.modules.testing.schemas import GradeEvidence
 
 
 class CategoryRecord(ApiModel):
@@ -14,6 +15,10 @@ class CategoryRecord(ApiModel):
     valid_until: datetime
     is_current: bool
     needs_reconfirmation: bool = Field(description="Срок действия результата истёк")
+    evidence: GradeEvidence | None = Field(
+        default=None,
+        description="Только у текущей категории: тест, уверенность в грейде (§10.4.1); null — теста нет",
+    )
 
 
 class AttemptSummary(ApiModel):

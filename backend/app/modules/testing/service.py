@@ -16,7 +16,7 @@ from app.modules.catalog.service import get_catalog
 from app.modules.categories import service as categories_service
 from app.modules.matching import service as matching_service
 from app.modules.survey import service as survey_service
-from app.modules.testing.engine import integrity
+from app.modules.testing.engine import confidence, integrity
 from app.modules.testing.engine.bank import GRADE_ORDER, get_bank, get_blueprints
 from app.modules.testing.engine.render import render
 from app.modules.testing.engine.scoring import score
@@ -31,6 +31,9 @@ from app.modules.testing.schemas import (
     AttemptOut,
     AttemptResultOut,
     CurrentItem,
+    GradeBandProbability,
+    GradeConfidence,
+    GradeEvidence,
     IntegrityReason,
     IntegritySignals,
     ItemOption,
@@ -381,6 +384,69 @@ async def integrity_signals(db: AsyncSession, attempt_id: int) -> IntegritySigna
     )
 
 
+def grade_confidence(theta: float, se: float, grade: str, *, for_candidate: bool = False) -> GradeConfidence:
+    """§10.4.1: вероятности полос грейда по θ̂ и SE с порогами правила грейда; сам грейд не меняет."""
+    rules = confidence.get_rules()
+    cuts = get_blueprints().scale.cuts
+    names = {item.slug.value: item.name for item in get_catalog().grades}
+    at_least = confidence.probability_at_least(theta, se, cuts[grade])
+    level = confidence.level_for(at_least, rules)
+    phrase = {"percent": confidence.display_percent(at_least, rules), "grade": names.get(grade, grade)}
+    bands = confidence.band_probabilities(theta, se, cuts)
+    return GradeConfidence(
+        grade=Grade(grade),
+        at_least=round(at_least, 4),
+        level=level.code,
+        level_label=level.label,
+        text=(rules.texts.candidate if for_candidate else rules.texts.statement).format(**phrase),
+        bands=[
+            GradeBandProbability(
+                grade=None if band == confidence.BELOW else Grade(band),
+                label=rules.texts.below if band == confidence.BELOW else names.get(band, band),
+                probability=round(probability, 4),
+            )
+            for band, probability in bands.items()
+        ],
+        note=rules.texts.note,
+    )
+
+
+async def grade_evidence(
+    db: AsyncSession,
+    attempt_id: int | None,
+    grade: str,
+    valid_until: datetime,
+    *,
+    for_candidate: bool = False,
+) -> GradeEvidence | None:
+    """Блок «Почему этому грейду можно верить»: тест, по которому присвоена категория; None — теста нет."""
+    attempt = await db.get(TestAttempt, attempt_id) if attempt_id is not None else None
+    if attempt is None or attempt.theta is None or attempt.se is None:
+        return None
+    items = await db.scalar(
+        select(func.count())
+        .select_from(TestAttemptItem)
+        .where(
+            TestAttemptItem.attempt_id == attempt.id,
+            TestAttemptItem.scored.is_(True),
+            TestAttemptItem.score.is_not(None),
+        )
+    )
+    rules = confidence.get_rules()
+    return GradeEvidence(
+        tested_at=attempt.finished_at,
+        valid_until=valid_until,
+        adaptive=True,
+        short_mode=(attempt.blueprint or {}).get("mode") == "short",
+        items_scored=items or 0,
+        theta=attempt.theta,
+        se=attempt.se,
+        confidence=grade_confidence(attempt.theta, attempt.se, grade, for_candidate=for_candidate),
+        how_it_works_path=rules.how_it_works_path,
+        validation_url=rules.validation_url,
+    )
+
+
 async def open_answers(db: AsyncSession, attempt_id: int) -> list[ApproachAnswer]:
     """Ответы на открытый вопрос о подходе с отметками по чек-листу (§10.5) — для карточки кандидата."""
     items = await db.scalars(
@@ -446,6 +512,9 @@ async def result(db: AsyncSession, candidate: Candidate, attempt_id: int) -> Att
         ],
         verified_skills=verified,
         approach_score=attempt.approach_score,
+        confidence=grade_confidence(
+            attempt.theta, attempt.se, attempt.grade_target.value, for_candidate=True
+        ),
         next_actions=await _next_actions(db, candidate, attempt),
     )
 

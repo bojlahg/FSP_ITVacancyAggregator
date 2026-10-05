@@ -108,6 +108,42 @@ class IntegritySignals(ApiModel):
     fast_correct_hard: int | None = Field(description="Верных ответов на трудных заданиях быстрее порога")
 
 
+class GradeBandProbability(ApiModel):
+    grade: Grade | None = Field(description="null — ниже порога стажёра: категория не присваивается")
+    label: str
+    probability: float = Field(description="P(истинный уровень в полосе грейда) при θ ~ N(θ̂, SE²)")
+
+
+class GradeConfidence(ApiModel):
+    """Уверенность в грейде (§10.4.1, Rudner 2001/2005): объяснение решения, на грейд не влияет."""
+
+    grade: Grade = Field(description="Грейд, к которому относится уверенность: присвоенный или проверяемый")
+    at_least: float = Field(description="P(θ ≥ cut грейда) — вероятность, что уровень не ниже этого грейда")
+    level: str = Field(description="Словесный уровень по content/confidence.yaml: high | medium | low")
+    level_label: str
+    text: str = Field(
+        description="Готовая фраза: работодателю «87% — вероятность, что уровень не ниже Middle», "
+        "кандидату «Уверенность: 87%, что ваш уровень не ниже Middle»"
+    )
+    bands: list[GradeBandProbability] = Field(description="Вероятности всех полос шкалы, снизу вверх")
+    note: str
+
+
+class GradeEvidence(ApiModel):
+    """Блок «Почему этому грейду можно верить» (§10.4.1): из чего сложилась категория."""
+
+    tested_at: datetime | None = Field(description="Когда завершён тест, по которому присвоена категория")
+    valid_until: datetime = Field(description="Срок действия результата (§6.3)")
+    adaptive: bool = Field(description="Двухэтапный адаптивный тест (MST): задания подбирались по ответам")
+    short_mode: bool = Field(description="Сокращённый демо-режим теста (TEST_MODE=short)")
+    items_scored: int = Field(description="Оценённых заданий в попытке")
+    theta: float
+    se: float = Field(description="Стандартная ошибка θ̂")
+    confidence: GradeConfidence
+    how_it_works_path: str = Field(description="Публичная страница о том, как устроен тест")
+    validation_url: str = Field(description="Отчёт симуляционной валидации (§12)")
+
+
 class NextAction(ApiModel):
     action: str = Field(description="retake_lower | try_higher | none")
     grade: Grade | None = None
@@ -127,6 +163,9 @@ class AttemptResultOut(ApiModel):
     topic_scores: list[TopicScore]
     verified_skills: list[str] = Field(description="id навыков из /catalog/skills, проверенных тестом")
     approach_score: float | None = None
+    confidence: GradeConfidence = Field(
+        description="Уверенность относительно проверяемого грейда (§10.4.1); на результат не влияет"
+    )
     next_actions: list[NextAction]
 
 
