@@ -7,18 +7,22 @@
   kind: single_choice
   irt: {a: 1.0, b: -1.4}
   params:
-    label: {choice: ["Добавить в корзину", "Сохранить черновик", "Открыть фильтры", "Показать пароль", "Удалить комментарий"]}
+    label: {choice: ["Добавить в корзину", "Сохранить черновик", "Открыть фильтры", "Показать пароль", "Удалить комментарий", "Скопировать ссылку", "Развернуть описание", "Обновить список", "Закрыть уведомление", "Применить промокод"]}
+    handler: {choice: [handle(), onAction(), toggle(), save(), run()]}
   stem_variants:
     - "Нужен элемент «{{label}}», который выполняет действие на странице (без перехода по адресу). Какая разметка корректна с точки зрения семантики и доступности?"
     - "Кнопка «{{label}}» запускает JavaScript-обработчик и никуда не ведёт. Какую разметку выбрать, чтобы она работала с клавиатуры и скринридеров без доработок?"
+    - "Элемент «{{label}}» вызывает {{handler}} и не меняет адрес страницы. Какая разметка правильная?"
   options:
     correct:
       - "<button type=\"button\">{{label}}</button>"
     wrong:
-      - "<div class=\"btn\" onclick=\"handle()\">{{label}}</div>"
+      - "<div class=\"btn\" onclick=\"{{handler}}\">{{label}}</div>"
       - "<a href=\"#\">{{label}}</a>"
       - "<span role=\"button\">{{label}}</span> без tabindex и обработки клавиш"
       - "<p class=\"button\">{{label}}</p> с обработчиком click"
+      - "<a onclick=\"{{handler}}\">{{label}}</a> без атрибута href"
+      - "<div tabindex=\"0\" onclick=\"{{handler}}\">{{label}}</div> без role и обработки клавиш"
 
 - id: fe.web.box_model_width
   specializations: [frontend]
@@ -36,10 +40,12 @@
   kind: ordering
   irt: {a: 1.0, b: -0.8}
   params:
-    page: {choice: [главной страницы, карточки товара, страницы статьи, личного кабинета]}
+    page: {choice: [главной страницы, карточки товара, страницы статьи, личного кабинета, страницы оформления заказа, страницы поиска, ленты новостей, страницы входа]}
+    kb: {int: [20, 240], step: 10}
   stem_variants:
-    - "Расположите этапы первой отрисовки {{page}} браузером в правильном порядке."
-    - "Браузер получил HTML {{page}}. В каком порядке выполняются этапы, пока пиксели не появятся на экране?"
+    - "Расположите этапы первой отрисовки {{page}} (HTML — {{kb}} КБ) браузером в правильном порядке."
+    - "Браузер получил HTML {{page}} размером {{kb}} КБ. В каком порядке выполняются этапы, пока пиксели не появятся на экране?"
+    - "Пользователь открыл {{page}}, сервер отдал {{kb}} КБ HTML и CSS. Упорядочьте этапы конвейера рендеринга браузера."
   order_items:
     - "Разбор HTML и CSS: построение DOM и CSSOM"
     - "Построение дерева рендеринга (render tree)"
@@ -98,9 +104,9 @@
   irt: {a: 1.2, b: 0.3}
   time_limit_sec: 120
   params:
-    event: {choice: [click, pointerdown, mouseup, dblclick]}
-    outer: {choice: ["form#checkout", "ul.menu", "div.modal", "nav#sidebar"]}
-    target: {choice: ["button.submit", "a.link", "span.icon", "button#save"]}
+    event: {choice: [click, pointerdown, mouseup, dblclick, mousedown, pointerup]}
+    outer: {choice: ["form#checkout", "ul.menu", "div.modal", "nav#sidebar", "section#cart", "div.toolbar"]}
+    target: {choice: ["button.submit", "a.link", "span.icon", "button#save", "li.item", "img.avatar"]}
   stem: >-
     Пользователь вызвал событие {{event}} на элементе {{target}}, который вложен в {{outer}}. На document,
     {{outer}} и {{target}} навешаны обработчики через addEventListener, на {{target}} — один обработчик.
@@ -119,12 +125,16 @@
   kind: ordering
   irt: {a: 1.2, b: 0.4}
   params:
-    prop: {choice: [color, font-size, margin-top, background-color]}
-    cls: {choice: [title, note, price, badge]}
-    id: {choice: [hero, total, promo, header]}
-  stem: >-
-    На элемент <p id="{{id}}" class="{{cls}}"> действуют несколько объявлений свойства {{prop}}. Расположите
-    источники по возрастанию приоритета в каскаде (последний побеждает).
+    prop: {choice: [color, font-size, margin-top, background-color, line-height, padding-left]}
+    cls: {choice: [title, note, price, badge, lead, caption]}
+    id: {choice: [hero, total, promo, header, summary, banner]}
+  stem_variants:
+    - >-
+      На элемент <p id="{{id}}" class="{{cls}}"> действуют несколько объявлений свойства {{prop}}. Расположите
+      источники по возрастанию приоритета в каскаде (последний побеждает).
+    - >-
+      Свойство {{prop}} элемента <p id="{{id}}" class="{{cls}}"> задано в нескольких местах. Упорядочьте
+      источники от самого слабого к самому сильному.
   order_items:
     - "Стиль браузера по умолчанию (user-agent)"
     - "Правило .{{cls}} { {{prop}}: … } в CSS-файле автора"
@@ -199,3 +209,60 @@
       - "От ширины самого элемента .{{card}}"
       - "От ширины ближайшего предка с position: relative"
       - "От ширины родительского элемента, даже если container-type ни у кого не задан"
+
+- id: fe.web.label_for_input
+  specializations: [frontend]
+  topic: web_platform
+  skills: [html]
+  kind: single_choice
+  irt: {a: 1.0, b: -1.6}
+  params:
+    id: {choice: [field-1, main-input, user-field, form-field, entry, input-a, f-value]}
+    label: {choice: [Почта, Телефон, Логин, Город, Промокод, Дата рождения, Компания, Пароль]}
+  stem_variants:
+    - "Нужно связать подпись «{{label}}» с полем ввода, чтобы клик по подписи ставил фокус в поле, а скринридер её зачитывал. Какая разметка это делает?"
+    - "Какая разметка правильно связывает текст «{{label}}» с текстовым полем ввода?"
+  options:
+    correct:
+      - "<label for=\"{{id}}\">{{label}}</label> <input id=\"{{id}}\" type=\"text\">"
+    wrong:
+      - "<label for=\"{{id}}\">{{label}}</label> <input name=\"{{id}}\" type=\"text\">"
+      - "<label name=\"{{id}}\">{{label}}</label> <input name=\"{{id}}\" type=\"text\">"
+      - "<span>{{label}}</span> <input id=\"{{id}}\" type=\"text\">"
+      - "<input type=\"text\" placeholder=\"{{label}}\"> без label"
+      - "<label id=\"{{id}}\">{{label}}</label> <input id=\"{{id}}\" type=\"text\">"
+
+- id: fe.web.css_combinators
+  specializations: [frontend]
+  topic: web_platform
+  skills: [css]
+  kind: single_choice
+  irt: {a: 1.0, b: -1.3}
+  generator: frontend.css_combinators
+
+- id: fe.web.font_units
+  specializations: [frontend]
+  topic: web_platform
+  skills: [css]
+  kind: numeric
+  irt: {a: 1.1, b: -1.1}
+  time_limit_sec: 120
+  generator: frontend.css_font_units
+
+- id: fe.web.margin_collapse
+  specializations: [frontend]
+  topic: web_platform
+  skills: [css]
+  kind: numeric
+  irt: {a: 1.1, b: -0.4}
+  time_limit_sec: 120
+  generator: frontend.margin_collapse
+
+- id: fe.web.flex_shrink_width
+  specializations: [frontend]
+  topic: web_platform
+  skills: [css]
+  kind: numeric
+  irt: {a: 1.2, b: 1.5}
+  time_limit_sec: 180
+  generator: frontend.flex_shrink_width

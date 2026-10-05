@@ -8,11 +8,15 @@
   kind: single_choice
   irt: {a: 1.1, b: -0.9}
   params:
-    items: {choice: [задач, комментариев, позиций заказа, участников]}
-    op: {choice: [удаляет первый элемент, добавляет элемент в начало, сортирует список по дате]}
-  stem: >-
-    Список {{items}} рендерится через map с key={index}, в каждой строке есть поле ввода со своим
-    состоянием. Пользователь {{op}}. Что может пойти не так?
+    items: {choice: [задач, комментариев, позиций заказа, участников, товаров, вложений, получателей]}
+    op: {choice: [удаляет первый элемент, добавляет элемент в начало, сортирует список по дате, удаляет элемент из середины, перемещает элемент перетаскиванием, фильтрует список]}
+  stem_variants:
+    - >-
+      Список {{items}} рендерится через map с key={index}, в каждой строке есть поле ввода со своим
+      состоянием. Пользователь {{op}}. Что может пойти не так?
+    - >-
+      Строки списка {{items}} — компоненты с собственным useState, ключ — индекс в массиве. Что произойдёт,
+      когда пользователь {{op}}?
   options:
     correct:
       - "Состояние и DOM полей привяжутся не к тем элементам: ключи сместятся вместе с индексами"
@@ -21,6 +25,8 @@
       - "Список перестанет обновляться до перезагрузки страницы"
       - "Ничего: индекс — рекомендуемый key для изменяемых списков"
       - "React при каждом рендере размонтирует и смонтирует заново весь список"
+      - "Состояние всех строк сбросится к начальным значениям"
+      - "React автоматически заменит индексы на стабильные id элементов"
 
 - id: fe.react.effect_deps
   specializations: [frontend]
@@ -39,10 +45,15 @@
   kind: single_choice
   irt: {a: 1.0, b: -0.7}
   params:
-    state: {choice: [query, email, title, city]}
-  stem: >-
-    В компоненте написано <input value={{{state}}} /> без onChange и без readOnly, {{state}} хранится в
-    useState. Что произойдёт, когда пользователь попытается ввести текст?
+    state: {choice: [query, email, title, city, phone, comment, nickname, promoCode]}
+    comp: {choice: [SearchBar, LoginForm, ProfileForm, FeedbackForm, CheckoutForm]}
+  stem_variants:
+    - >-
+      В компоненте {{comp}} написано <input value={{{state}}} /> без onChange и без readOnly, {{state}}
+      хранится в useState. Что произойдёт, когда пользователь попытается ввести текст?
+    - >-
+      {{comp}} рендерит <input value={{{state}}} />, где {{state}} — состояние из useState. Обработчика
+      onChange нет. Что увидит пользователь при попытке печатать?
   options:
     correct:
       - "Значение поля не изменится, а React предупредит в консоли о value без onChange"
@@ -51,6 +62,8 @@
       - "Поле будет меняться, но {{state}} останется прежним"
       - "React выбросит исключение и размонтирует компонент"
       - "Поле станет неконтролируемым, и React перестанет управлять его значением"
+      - "Введённый текст появится в поле и пропадёт только после следующего рендера родителя"
+      - "React молча превратит value в defaultValue без предупреждений"
 
 - id: fe.react.hooks_rules
   specializations: [frontend]
@@ -83,9 +96,11 @@
   kind: single_choice
   irt: {a: 1.1, b: 0.0}
   params:
-    fn: {choice: [handleSave, handleSelect, onSubmit, toggleItem]}
-    dep: {choice: [userId, items, filter, page]}
-  stem: "Какой вызов эквивалентен useCallback({{fn}}, [{{dep}}])?"
+    fn: {choice: [handleSave, handleSelect, onSubmit, toggleItem, loadMore, onFilter, removeRow]}
+    dep: {choice: [userId, items, filter, page, query, sortKey]}
+  stem_variants:
+    - "Какой вызов эквивалентен useCallback({{fn}}, [{{dep}}])?"
+    - "Чем можно заменить useCallback({{fn}}, [{{dep}}]) без изменения поведения?"
   options:
     correct:
       - "useMemo(() => {{fn}}, [{{dep}}])"
@@ -94,6 +109,8 @@
       - "useRef({{fn}})"
       - "useEffect(() => {{fn}}, [{{dep}}])"
       - "useState({{fn}})"
+      - "useMemo(() => {{fn}}(), [{{dep}}])"
+      - "useCallback(() => {{fn}}, [{{dep}}])"
 
 - id: fe.react.state_batching
   specializations: [frontend]
@@ -113,16 +130,22 @@
   kind: ordering
   irt: {a: 1.2, b: 0.5}
   params:
-    dep: {choice: [roomId, userId, channel, symbol]}
-    comp: {choice: [ChatRoom, Profile, Ticker, Feed]}
-  stem: >-
-    Компонент {{comp}} подписывается в useEffect(() => { subscribe({{dep}}); return () => unsubscribe({{dep}}); },
-    [{{dep}}]). Родитель передал новое значение {{dep}}. Расположите события в порядке выполнения.
+    dep: {choice: [roomId, userId, channel, symbol, topic, deviceId]}
+    comp: {choice: [ChatRoom, Profile, Ticker, Feed, LiveScore, Presence]}
+    api: {choice: [socket, store, feed, bus]}
+  stem_variants:
+    - >-
+      Компонент {{comp}} подписывается в useEffect(() => { {{api}}.subscribe({{dep}}); return () =>
+      {{api}}.unsubscribe({{dep}}); }, [{{dep}}]). Родитель передал новое значение {{dep}}. Расположите
+      события в порядке выполнения.
+    - >-
+      В {{comp}} эффект с зависимостью [{{dep}}] вызывает {{api}}.subscribe({{dep}}) и возвращает cleanup
+      с {{api}}.unsubscribe({{dep}}). Пришло новое значение {{dep}}. Упорядочьте происходящее.
   order_items:
     - "React вызывает функцию {{comp}} с новым {{dep}} (render)"
     - "React применяет изменения к DOM (commit)"
-    - "Выполняется cleanup предыдущего эффекта: unsubscribe со старым {{dep}}"
-    - "Выполняется эффект: subscribe с новым {{dep}}"
+    - "Выполняется cleanup предыдущего эффекта: {{api}}.unsubscribe со старым {{dep}}"
+    - "Выполняется эффект: {{api}}.subscribe с новым {{dep}}"
 
 - id: fe.react.memo_rerender
   specializations: [frontend]
@@ -133,10 +156,14 @@
   irt: {a: 1.2, b: 1.0}
   n_options: 5
   params:
-    comp: {choice: [PriceTable, UserList, ChartPanel, OrderRow]}
-  stem: >-
-    Компонент {{comp}} обёрнут в React.memo, но перерисовывается при каждом рендере родителя. Какие
-    причины возможны?
+    comp: {choice: [PriceTable, UserList, ChartPanel, OrderRow, CommentItem, MapMarker, TaskCard]}
+  stem_variants:
+    - >-
+      Компонент {{comp}} обёрнут в React.memo, но перерисовывается при каждом рендере родителя. Какие
+      причины возможны?
+    - >-
+      Профайлер показывает, что {{comp}} (React.memo) рендерится вместе с родителем, хотя данные не
+      менялись. Что может быть причиной?
   options:
     correct:
       - "Родитель передаёт объект или массив, созданный литералом прямо в JSX"
@@ -181,3 +208,70 @@
       - "Родитель перерисовался из-за изменения своего состояния"
       - "{{comp}} обёрнут в React.memo, и его props изменились"
       - "У родительского <div> изменился className"
+
+- id: fe.react.jsx_syntax
+  specializations: [frontend]
+  topic: stack
+  stack_module: react
+  skills: [react]
+  kind: single_choice
+  irt: {a: 1.0, b: -1.5}
+  generator: frontend.react_jsx_syntax
+
+- id: fe.react.effects_commit_order
+  specializations: [frontend]
+  topic: stack
+  stack_module: react
+  skills: [react]
+  kind: ordering
+  irt: {a: 1.2, b: 1.4}
+  time_limit_sec: 150
+  params:
+    parent: {choice: [App, Dashboard, CheckoutPage, ProfilePage, Layout, SettingsPage, OrdersPage, Inbox]}
+    child: {choice: [Chart, Avatar, PriceTag, Sidebar, Tooltip, OrderList, SearchBox, Toolbar]}
+  stem_variants:
+    - >-
+      Родитель {{parent}} рендерит дочерний {{child}}. Оба используют useLayoutEffect и useEffect (по одному
+      вызову). Production-сборка, без StrictMode. Расположите вызовы при первом монтировании в правильном порядке.
+    - >-
+      В {{parent}} и в его дочернем {{child}} есть по одному useLayoutEffect и useEffect. Упорядочьте, что
+      выполнит React при первом монтировании дерева (production, без StrictMode).
+  order_items:
+    - "{{parent}}: вызов функции компонента (render)"
+    - "{{child}}: вызов функции компонента (render)"
+    - "{{child}}: useLayoutEffect"
+    - "{{parent}}: useLayoutEffect"
+    - "{{child}}: useEffect"
+    - "{{parent}}: useEffect"
+
+- id: fe.react.transition_semantics
+  specializations: [frontend]
+  topic: stack
+  stack_module: react
+  skills: [react]
+  kind: multi_choice
+  irt: {a: 1.2, b: 1.6}
+  n_options: 5
+  time_limit_sec: 120
+  params:
+    list: {choice: [товаров, сотрудников, заказов, писем, вакансий]}
+    n: {choice: ["5 000", "10 000", "20 000"]}
+  stem_variants:
+    - >-
+      Поле фильтра управляет списком из {{n}} {{list}}. Обновление фильтрованного списка обёрнуто в
+      startTransition (useTransition), значение самого поля — обычный setState. Какие утверждения верны?
+    - >-
+      Чтобы ввод не тормозил при фильтрации {{n}} {{list}}, пересчёт результатов перенесли в
+      startTransition. Какие утверждения о переходах (transitions) в React верны?
+  options:
+    correct:
+      - "Срочное обновление (ввод в поле) может прервать незавершённый рендер перехода, и React начнёт его заново"
+      - "isPending из useTransition равен true, пока обновление перехода не применено"
+      - "Колбэк, переданный в startTransition, вызывается сразу и синхронно; откладывается рендер с его обновлениями"
+      - "Пока переход не завершён, на экране остаётся предыдущий результат, а не промежуточные состояния"
+    wrong:
+      - "startTransition откладывает вызов колбэка, как setTimeout с нулевой задержкой"
+      - "Обновления внутри startTransition рендерятся в Web Worker и не занимают главный поток"
+      - "Значение контролируемого поля ввода тоже следует обновлять внутри startTransition"
+      - "startTransition делает рендер списка быстрее за счёт кэширования результатов"
+      - "Переход гарантирует, что каждое промежуточное значение фильтра будет отрисовано"

@@ -162,3 +162,51 @@
   irt: {a: 1.4, b: 1.3}
   time_limit_sec: 180
   generator: frontend.js_event_loop_async
+
+- id: fe.js.coercion_plus_minus
+  specializations: [frontend]
+  topic: javascript
+  skills: [javascript]
+  kind: code_output
+  irt: {a: 1.0, b: -1.5}
+  generator: frontend.js_coercion_basic
+
+- id: fe.js.array_mutating_methods
+  specializations: [frontend]
+  topic: javascript
+  skills: [javascript]
+  kind: multi_choice
+  irt: {a: 1.0, b: -1.2}
+  n_options: 5
+  params:
+    arr: {choice: [items, users, prices, tags, rows, ids]}
+    x: {int: [1, 9]}
+    i: {int: [1, 3]}
+  stem_variants:
+    - "Какие вызовы изменяют сам массив {{arr}} (а не возвращают новый)?"
+    - "После каких вызовов содержимое исходного массива {{arr}} изменится?"
+  options:
+    correct:
+      - "{{arr}}.push({{x}})"
+      - "{{arr}}.splice({{i}}, 1)"
+      - "{{arr}}.sort()"
+      - "{{arr}}.reverse()"
+      - "{{arr}}.shift()"
+      - "{{arr}}.unshift({{x}})"
+      - "{{arr}}.pop()"
+    wrong:
+      - "{{arr}}.map(v => v * {{x}})"
+      - "{{arr}}.filter(Boolean)"
+      - "{{arr}}.slice({{i}})"
+      - "{{arr}}.concat([{{x}}])"
+      - "{{arr}}.join(', ')"
+      - "{{arr}}.indexOf({{x}})"
+
+- id: fe.js.promise_chain_semantics
+  specializations: [frontend]
+  topic: javascript
+  skills: [javascript, concurrency]
+  kind: code_output
+  irt: {a: 1.3, b: 1.5}
+  time_limit_sec: 180
+  generator: frontend.js_promise_chain

@@ -79,3 +79,56 @@
       - "Проверки через expect(locator).toBeVisible() с автоматическим ожиданием"
       - "Запуск каждого теста в отдельном browser context"
       - "Подготовка тестовых данных через API перед тестом"
+
+- id: fe.test.tobe_vs_toequal
+  specializations: [frontend]
+  topic: testing
+  skills: [jest, unit_testing]
+  kind: single_choice
+  irt: {a: 1.0, b: -1.4}
+  params:
+    fn: {choice: [createUser, buildOrder, parseQuery, toDto, mapAddress, makeCartItem]}
+    field: {choice: [id, count, page, qty, total]}
+    n: {int: [1, 50]}
+    lib: {choice: [Jest, Vitest]}
+  stem_variants:
+    - >-
+      Функция {{fn}}() каждый раз возвращает новый объект. В тесте на {{lib}} нужно проверить, что результат
+      равен { {{field}}: {{n}}, active: true } по содержимому. Какая проверка подходит?
+    - >-
+      {{fn}}() создаёт и возвращает объект { {{field}}: {{n}}, active: true }. Какой матчер {{lib}} корректно
+      сравнит результат с ожидаемым объектом?
+  options:
+    correct:
+      - "expect({{fn}}()).toEqual({ {{field}}: {{n}}, active: true })"
+    wrong:
+      - "expect({{fn}}()).toBe({ {{field}}: {{n}}, active: true })"
+      - "expect({{fn}}() === { {{field}}: {{n}}, active: true }).toBe(true)"
+      - "expect({{fn}}()).toBeTruthy()"
+      - "expect({{fn}}()).toHaveLength(2)"
+      - "expect({{fn}}()).toBe('[object Object]')"
+
+- id: fe.test.snapshot_tests
+  specializations: [frontend]
+  topic: testing
+  skills: [jest, unit_testing, react]
+  kind: multi_choice
+  irt: {a: 1.1, b: 0.4}
+  n_options: 5
+  params:
+    comp: {choice: [ProductCard, UserMenu, OrderTable, Header, PriceBadge, Pagination]}
+    lib: {choice: [Jest, Vitest]}
+  stem_variants:
+    - "Команда покрывает компонент {{comp}} snapshot-тестами в {{lib}} (toMatchSnapshot). Какие утверждения верны?"
+    - "Для {{comp}} добавили expect(container).toMatchSnapshot() в {{lib}}. Какие утверждения о snapshot-тестах верны?"
+  options:
+    correct:
+      - "Тест падает при любом изменении разметки {{comp}}, в том числе намеренном, и снимок приходится обновлять"
+      - "Снимок фиксирует результат рендера, но сам по себе не проверяет поведение (клики, ввод, запросы)"
+      - "Изменения в файле снимка нужно просматривать на ревью, иначе ошибка попадёт в эталон"
+      - "Большие снимки редко читают внимательно, поэтому их ценность падает"
+    wrong:
+      - "Snapshot-тест сравнивает скриншоты {{comp}} попиксельно в реальном браузере"
+      - "Снимки обновляются автоматически при каждом прогоне в CI"
+      - "Snapshot-тест проверяет, что {{comp}} корректно обрабатывает клики"
+      - "Если снимок не совпал, тест пропускается с предупреждением"

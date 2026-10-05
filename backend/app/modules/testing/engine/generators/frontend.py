@@ -1,7 +1,7 @@
 """Генераторы заданий frontend: вывод JS-кода, специфичность CSS, расчёты. Ответ считается в Python."""
 
 import random
-from collections import deque
+from collections import Counter, deque
 from collections.abc import Iterable
 
 from app.modules.testing.engine.generators import generator
@@ -854,59 +854,111 @@ def total_blocking_time(rng: random.Random) -> Generated:
 # --- Тестирование и архитектура ----------------------------------------------------------------
 
 
+RTL_TEXTS = [
+    "Ошибка оплаты",
+    "Заказ оформлен",
+    "Нет результатов",
+    "Профиль сохранён",
+    "Сессия истекла",
+    "Файл загружен",
+    "Неверный пароль",
+    "Товар добавлен в корзину",
+    "Письмо отправлено",
+    "Доступ запрещён",
+    "Изменения сохранены",
+    "Список пуст",
+]
+
+
 @generator("frontend.rtl_query_choice")
 def rtl_query_choice(rng: random.Random) -> Generated:
     """getBy бросает ошибку, queryBy возвращает null, findBy ждёт появления (Promise)."""
-    text = rng.choice(["Ошибка оплаты", "Заказ оформлен", "Нет результатов", "Профиль сохранён"])
+    text = rng.choice(RTL_TEXTS)
+    comp = rng.choice(
+        ["CheckoutForm", "LoginForm", "ProfilePage", "SearchResults", "UploadDialog", "CartPanel"]
+    )
     if rng.random() < 0.5:
-        stem = f"Нужно проверить, что после рендера текст «{text}» НЕ отображается. Какой запрос подходит?"
+        stem = rng.choice(
+            [
+                f"Нужно проверить, что после рендера <{comp} /> текст «{text}» НЕ отображается. "
+                "Какой запрос подходит?",
+                f"Тест на React Testing Library: после render(<{comp} />) сообщения «{text}» быть не должно. "
+                "Какая проверка корректна?",
+            ]
+        )
         correct = f"expect(screen.queryByText('{text}')).not.toBeInTheDocument()"
         wrong = [
             f"expect(screen.getByText('{text}')).not.toBeInTheDocument()",
             f"expect(await screen.findByText('{text}')).not.toBeInTheDocument()",
             f"expect(screen.getAllByText('{text}')).toHaveLength(0)",
+            f"expect(screen.queryByText('{text}')).toBeInTheDocument()",
         ]
     else:
-        stem = (
-            f"Текст «{text}» появляется после асинхронного запроса, который замокан. "
-            "Каким запросом дождаться его появления?"
+        stem = rng.choice(
+            [
+                f"В <{comp} /> текст «{text}» появляется после асинхронного запроса, который замокан. "
+                "Каким запросом дождаться его появления?",
+                f"После render(<{comp} />) компонент загружает данные (запрос замокан) и затем показывает "
+                f"«{text}». Какая проверка корректно дождётся текста?",
+            ]
         )
         correct = f"expect(await screen.findByText('{text}')).toBeInTheDocument()"
         wrong = [
             f"expect(screen.getByText('{text}')).toBeInTheDocument()",
             f"expect(screen.queryByText('{text}')).toBeInTheDocument()",
             f"expect(screen.queryAllByText('{text}')).not.toHaveLength(0)",
+            f"await waitFor(() => screen.queryByText('{text}'))",
         ]
     return Generated(stem=stem, correct=(correct,), wrong=tuple(wrong))
 
 
 STATE_SCENARIOS = [
-    ("Фильтры каталога должны сохраняться при перезагрузке, и ими можно поделиться ссылкой", "url"),
+    ("Фильтры каталога {x} должны сохраняться при перезагрузке, и ими можно поделиться ссылкой", "url"),
+    ("Номер страницы и сортировка таблицы {x} должны восстанавливаться по кнопке «Назад» браузера", "url"),
+    ("Выбранная вкладка на странице {x} должна открываться у коллеги, которому отправили ссылку", "url"),
     (
-        "Список заказов с сервера нужен нескольким экранам; нужны кэш, фоновое обновление и повтор запроса",
+        "Список {x} с сервера нужен нескольким экранам; нужны кэш, фоновое обновление и повтор запроса",
         "server",
     ),
-    ("Флаг «открыт ли выпадающий список» нужен только одному компоненту", "local"),
-    ("Значение поля поиска внутри одного компонента до отправки формы", "local"),
-    ("Карточка товара с сервера, которую нужно инвалидировать после редактирования", "server"),
+    ("Карточка из списка {x} загружается с сервера, после редактирования её нужно инвалидировать", "server"),
+    ("Данные {x} с API, которые должны обновляться при возврате фокуса на вкладку", "server"),
+    ("Флаг «открыт ли выпадающий список» в фильтре {x} нужен только одному компоненту", "local"),
+    ("Значение поля поиска {x} внутри одного компонента до отправки формы", "local"),
+    ("Признак «показать пароль» в форме входа, который нужен только самому полю пароля", "local"),
+    (
+        "Содержимое черновика {x} редактируется на клиенте, до отправки на сервер не сохраняется и нужно "
+        "шапке и нескольким далёким друг от друга страницам",
+        "global",
+    ),
+    (
+        "Открыто ли боковое меню: им управляют кнопка в шапке и сам сайдбар со списком {x}, они в разных "
+        "ветках дерева",
+        "global",
+    ),
 ]
 STATE_OPTIONS = {
     "url": "В URL (query-параметры)",
     "server": "В кэше серверного состояния (TanStack Query, RTK Query, SWR)",
     "local": "В локальном состоянии компонента (useState)",
+    "global": "В глобальном клиентском состоянии (Context или стор: Redux, Zustand, Pinia)",
 }
 STATE_WRONG = [
     "В глобальной переменной window",
     "В cookie, чтобы сервер всегда знал значение",
+    "В localStorage с чтением при каждом рендере",
 ]
+STATE_ENTITIES = ["заказов", "товаров", "сотрудников", "задач", "вакансий", "документов"]
 
 
 @generator("frontend.state_placement")
 def state_placement(rng: random.Random) -> Generated:
     text, answer = rng.choice(STATE_SCENARIOS)
+    question = rng.choice(
+        ["Где лучше всего хранить это состояние?", "Где разумнее всего держать это состояние?"]
+    )
     wrong = [label for key, label in STATE_OPTIONS.items() if key != answer] + STATE_WRONG
     return Generated(
-        stem=f"{text}. Где лучше всего хранить это состояние?",
+        stem=f"{text.format(x=rng.choice(STATE_ENTITIES))}. {question}",
         correct=(STATE_OPTIONS[answer],),
         wrong=tuple(wrong),
     )
@@ -989,36 +1041,48 @@ def bracket_depth(rng: random.Random) -> Generated:
 
 LOOP_VARIANTS = [
     (
-        "for (let {i} = 1; {i} < n; {i} *= 2) {{\n  for (let {j} = 0; {j} < {i}; {j}++) {{"
+        "for (let {i} = 1; {i} < n; {i} *= {g}) {{\n  for (let {j} = 0; {j} < {i}; {j}++) {{"
         "\n    work();\n  }}\n}}",
         "O(n)",
     ),
     (
-        "for (let {i} = n; {i} > 0; {i} = Math.floor({i} / 2)) {{\n"
+        "for (let {i} = n; {i} > 0; {i} = Math.floor({i} / {g})) {{\n"
         "  for (let {j} = 0; {j} < {i}; {j}++) {{\n    work();\n  }}\n}}",
         "O(n)",
     ),
     (
-        "for (let {i} = 1; {i} < n; {i} *= 2) {{\n  for (let {j} = 0; {j} < n; {j}++) {{"
+        "for (let {i} = 1; {i} < n; {i} *= {g}) {{\n  for (let {j} = 0; {j} < n; {j}++) {{"
         "\n    work();\n  }}\n}}",
         "O(n log n)",
     ),
     (
-        "for (let {i} = 0; {i} < n; {i}++) {{\n  for (let {j} = 1; {j} < n; {j} *= 2) {{"
+        "for (let {i} = 0; {i} < n; {i}++) {{\n  for (let {j} = 1; {j} < n; {j} *= {g}) {{"
         "\n    work();\n  }}\n}}",
         "O(n log n)",
     ),
+    (
+        "for (let {i} = n; {i} > 1; {i} = Math.floor({i} / {g})) {{\n"
+        "  for (let {j} = 0; {j} < n; {j}++) {{\n    work();\n  }}\n}}",
+        "O(n log n)",
+    ),
 ]
+LOOP_NAMES = [("i", "j"), ("k", "m"), ("a", "b"), ("step", "pos"), ("size", "x"), ("len", "t"), ("p", "q")]
 
 
 @generator("frontend.loop_complexity")
 def loop_complexity(rng: random.Random) -> Generated:
     """Вложенные циклы с геометрическим шагом: сумма 1 + 2 + 4 + … < 2n даёт O(n), а не O(n log n)."""
     template, answer = rng.choice(LOOP_VARIANTS)
-    i, j = rng.choice([("i", "j"), ("k", "m"), ("a", "b"), ("step", "pos")])
+    i, j = rng.choice(LOOP_NAMES)
+    stem = rng.choice(
+        [
+            "Какова асимптотическая сложность фрагмента по числу вызовов work() (work — O(1))?",
+            "Сколько раз асимптотически вызовется work() в зависимости от n? Сама work() — O(1).",
+        ]
+    )
     return Generated(
-        stem="Какова асимптотическая сложность фрагмента по числу вызовов work() (work — O(1))?",
-        code=template.format(i=i, j=j),
+        stem=stem,
+        code=template.format(i=i, j=j, g=rng.choice([2, 3])),
         code_language="javascript",
         correct=(answer,),
         wrong=tuple(x for x in ["O(n)", "O(n log n)", "O(n²)", "O(log n)", "O(log² n)"] if x != answer),
@@ -1032,16 +1096,19 @@ def fib_calls(rng: random.Random) -> Generated:
     calls = [1, 1]
     for k in range(2, n + 1):
         calls.append(1 + calls[k - 1] + calls[k - 2])
-    name = rng.choice(["fib", "f", "calc"])
+    name = rng.choice(["fib", "f", "calc", "seq", "rec", "fibo", "count", "solve"])
+    counter = rng.choice(["calls", "counter", "hits", "invocations"])
+    base = rng.choice(["n < 2", "n <= 1"])
     code = (
-        "let calls = 0;\n"
-        f"function {name}(n) {{\n  calls++;\n  if (n < 2) return n;"
+        f"let {counter} = 0;\n"
+        f"function {name}(n) {{\n  {counter}++;\n  if ({base}) return n;"
         f"\n  return {name}(n - 1) + {name}(n - 2);\n}}\n"
-        f"{name}({n});\nconsole.log(calls);"
+        f"{name}({n});\nconsole.log({counter});"
     )
-    return Generated(
-        stem="Что выведет этот код?", code=code, code_language="javascript", number=float(calls[n])
+    stem = rng.choice(
+        ["Что выведет этот код?", f"Сколько раз будет вызвана функция {name} (что выведет код)?"]
     )
+    return Generated(stem=stem, code=code, code_language="javascript", number=float(calls[n]))
 
 
 # --- React, Vue, Angular -----------------------------------------------------------------------
@@ -1192,11 +1259,55 @@ def ng_binding_syntax(rng: random.Random) -> Generated:
 
 
 RXJS_SCENARIOS = [
-    ("Поиск при вводе: при новом значении предыдущий HTTP-запрос нужно отменить", "switchMap"),
-    ("Сохранение изменений: запросы должны уходить строго по очереди, ни один не теряется", "concatMap"),
-    ("Кнопка «Оплатить»: пока запрос выполняется, повторные клики нужно игнорировать", "exhaustMap"),
-    ("Загрузка независимых файлов: запросы выполняются параллельно, порядок не важен", "mergeMap"),
+    ("Автодополнение в поиске {x}: при новом вводе предыдущий HTTP-запрос нужно отменить", "switchMap"),
+    (
+        "Переключение вкладок в списке {x}: нужны данные только последней выбранной вкладки, прежний "
+        "запрос отменяется",
+        "switchMap",
+    ),
+    (
+        "Страница просмотра {x} с параметром id в маршруте: при смене id загрузка для прежнего id "
+        "должна прерываться",
+        "switchMap",
+    ),
+    ("Сохранение изменений {x}: запросы должны уходить строго по очереди, ни один не теряется", "concatMap"),
+    (
+        "Очередь выгрузки {x} на сервер: следующий запрос начинается только после завершения предыдущего, "
+        "порядок важен",
+        "concatMap",
+    ),
+    (
+        "Журнал действий над списком {x}: каждое событие отправляется на сервер в исходном порядке, без "
+        "потерь и без параллельных запросов",
+        "concatMap",
+    ),
+    ("Кнопка «Экспорт {x}»: пока запрос выполняется, повторные клики нужно игнорировать", "exhaustMap"),
+    (
+        "Кнопка «Обновить» над списком {x}: пока идёт обновление, новые нажатия не должны запускать запросы",
+        "exhaustMap",
+    ),
+    (
+        "Отправка формы импорта {x}: пока запрос выполняется, повторные отправки (двойной клик, Enter) "
+        "игнорируются",
+        "exhaustMap",
+    ),
+    (
+        "Загрузка вложений для {x}: файлы независимы, запросы выполняются параллельно, порядок не важен",
+        "mergeMap",
+    ),
+    (
+        "Массовое удаление {x}: для каждого выбранного элемента сразу уходит независимый запрос, все "
+        "должны выполниться, порядок не важен",
+        "mergeMap",
+    ),
+    (
+        "Подгрузка подробностей {x} по мере появления id в потоке: запросы независимы, идут параллельно "
+        "и не отменяются",
+        "mergeMap",
+    ),
 ]
+RXJS_ENTITIES = ["заказов", "товаров", "документов", "профилей", "задач", "отчётов"]
+RXJS_OPERATORS = ["switchMap", "concatMap", "exhaustMap", "mergeMap"]
 
 
 @generator("frontend.rxjs_flattening")
@@ -1206,10 +1317,567 @@ def rxjs_flattening(rng: random.Random) -> Generated:
         [
             "Каким оператором RxJS превратить поток событий в HTTP-запросы?",
             "Какой оператор высшего порядка RxJS подходит для этого?",
+            "Какой оператор RxJS обеспечит такое поведение при отображении событий в запросы?",
         ]
     )
     return Generated(
-        stem=f"{text}. {question}",
+        stem=f"{text.format(x=rng.choice(RXJS_ENTITIES))}. {question}",
         correct=(answer,),
-        wrong=tuple(op for _, op in RXJS_SCENARIOS if op != answer),
+        wrong=tuple(op for op in RXJS_OPERATORS if op != answer),
+    )
+
+
+# --- Базовые и senior-задания, добавленные для покрытия шкалы ----------------------------------
+
+
+@generator("frontend.css_font_units")
+def css_font_units(rng: random.Random) -> Generated:
+    """em в font-size считается от font-size родителя, rem — от font-size корневого элемента html."""
+    root = rng.choice([10, 12, 16, 20])
+    parent = rng.choice([value for value in range(12, 33, 2) if value != root])
+    factor = rng.choice([0.5, 1.5, 2, 2.5])
+    unit = rng.choice(["em", "rem"])
+    cls = rng.choice(["note", "title", "price", "label", "hint", "caption"])
+    wrapper = rng.choice(["card", "panel", "sidebar", "footer", "modal"])
+    factor_text = f"{factor:g}"
+    code = (
+        f"html {{ font-size: {root}px; }}\n.{wrapper} {{ font-size: {parent}px; }}\n"
+        f".{cls} {{ font-size: {factor_text}{unit}; }}\n\n"
+        f'<div class="{wrapper}">\n  <p class="{cls}">Текст</p>\n</div>'
+    )
+    number = (parent if unit == "em" else root) * factor
+    return Generated(
+        stem=f"Каким будет вычисленный font-size элемента .{cls} в пикселях?",
+        code=code,
+        code_language="css",
+        number=float(number),
+    )
+
+
+@generator("frontend.margin_collapse")
+def margin_collapse(rng: random.Random) -> Generated:
+    """Вертикальные margin соседних блоков схлопываются: расстояние = больший из двух."""
+    first, second = rng.sample(["intro", "header", "lead", "card", "notice", "summary", "banner"], 2)
+    bottom = rng.randrange(10, 61, 2)
+    top = rng.choice([value for value in range(10, 61, 2) if value != bottom])
+    padding = rng.randrange(8, 25, 4)
+    side = rng.choice([0, 8, 16])
+    code = (
+        f".{first} {{ display: block; margin: 0 {side}px {bottom}px; padding: {padding}px; }}\n"
+        f".{second} {{ display: block; margin: {top}px {side}px 0; padding: {padding}px; }}\n\n"
+        f'<div class="{first}">…</div>\n<div class="{second}">…</div>'
+    )
+    return Generated(
+        stem=(
+            "Блоки идут подряд в обычном потоке (родитель — обычный block, не flex и не grid). "
+            f"Какое расстояние в пикселях будет между нижней границей рамки .{first} "
+            f"и верхней границей рамки .{second}?"
+        ),
+        code=code,
+        code_language="css",
+        number=float(max(bottom, top)),
+    )
+
+
+@generator("frontend.flex_shrink_width")
+def flex_shrink_width(rng: random.Random) -> Generated:
+    """Нехватка места делится пропорционально flex-shrink × flex-basis, а не одному flex-shrink."""
+    names = ["a", "b", "c"]
+    while True:
+        bases = [rng.choice([100, 150, 200, 250, 300, 400]) for _ in range(3)]
+        shrinks = [rng.randint(1, 3) for _ in range(3)]
+        overflow = rng.randrange(60, 301, 10)
+        weights = [s * b for s, b in zip(shrinks, bases, strict=True)]
+        total = sum(weights)
+        target = rng.randrange(3)
+        naive = overflow * shrinks[target] / sum(shrinks)
+        exact = overflow * weights[target]
+        if exact % total == 0 and len(set(shrinks)) > 1 and naive != exact / total:
+            break
+    width = sum(bases) - overflow
+    rules = "\n".join(f".{names[i]} {{ flex: 0 {shrinks[i]} {bases[i]}px; }}" for i in range(3))
+    code = (
+        f".row {{ display: flex; width: {width}px; }}\n{rules}\n\n"
+        '<div class="row">\n  <div class="a"></div>\n  <div class="b"></div>\n  <div class="c"></div>\n</div>'
+    )
+    return Generated(
+        stem=(
+            "У дочерних элементов нет содержимого, padding, border и margin; gap и min-width не заданы. "
+            f"Какой будет ширина элемента .{names[target]} в пикселях?"
+        ),
+        code=code,
+        code_language="css",
+        number=float(bases[target] - exact // total),
+    )
+
+
+SELECTOR_KINDS = {
+    "descendant": ("{p} {c}", "элементы {c}, находящиеся внутри {p} на любой глубине вложенности"),
+    "child": ("{p} > {c}", "только элементы {c}, которые являются прямыми дочерними элементами {p}"),
+    "adjacent": ("{p} + {c}", "элемент {c}, который идёт сразу после {p} и имеет того же родителя"),
+    "sibling": ("{p} ~ {c}", "все элементы {c}, которые идут после {p} и имеют того же родителя"),
+    "compound": ("{p}{c}", "элементы, у которых одновременно есть оба класса — {p} и {c}"),
+    "group": ("{p}, {c}", "все элементы {p} и все элементы {c}"),
+}
+SELECTOR_CLASSES = [".menu", ".item", ".card", ".title", ".list", ".row", ".tab", ".badge", ".form", ".field"]
+
+
+@generator("frontend.css_combinators")
+def css_combinators(rng: random.Random) -> Generated:
+    parent, child = rng.sample(SELECTOR_CLASSES, 2)
+    kind = rng.choice(list(SELECTOR_KINDS))
+    selector, description = SELECTOR_KINDS[kind]
+    stem = rng.choice(
+        [
+            f"Нужно выбрать {description.format(p=parent, c=child)}. Какой селектор подходит?",
+            f"Какой CSS-селектор выбирает {description.format(p=parent, c=child)}?",
+        ]
+    )
+    return Generated(
+        stem=stem,
+        correct=(selector.format(p=parent, c=child),),
+        wrong=tuple(sel.format(p=parent, c=child) for key, (sel, _) in SELECTOR_KINDS.items() if key != kind),
+    )
+
+
+@generator("frontend.js_coercion_basic")
+def js_coercion_basic(rng: random.Random) -> Generated:
+    """+ со строкой склеивает, а -, * и / приводят строку к числу."""
+    x = rng.randint(2, 9)
+    y = rng.randint(1, 9)
+    op = rng.choice(["-", "*"])
+    first, second = rng.sample(["a", "b", "x", "y", "count", "price", "qty", "step"], 2)
+    numeric = x - y if op == "-" else x * y
+    concat = f"{x}{y}"
+    order = rng.random() < 0.5
+    left, right = (f"{first} + {second}", f"{first} {op} {second}")
+    results = (concat, str(numeric))
+    if not order:
+        left, right = right, left
+        results = results[::-1]
+    code = f"const {first} = '{x}';\nconst {second} = {y};\nconsole.log({left}, {right});"
+    correct = f"{results[0]} {results[1]}"
+    swap = {concat: str(x + y), str(numeric): "NaN"}
+    wrong = [
+        f"{swap[results[0]]} {results[1]}",
+        f"{results[0]} {swap[results[1]]}",
+        f"{swap[results[0]]} {swap[results[1]]}",
+        "TypeError",
+        f"{results[1]} {results[0]}",
+    ]
+    return Generated(
+        stem="Что выведет этот код?",
+        code=code,
+        code_language="javascript",
+        correct=(correct,),
+        wrong=_distinct_wrong(correct, wrong),
+    )
+
+
+def _run_promise_chain(steps: list[tuple[str, int]], start: int, mistake: str = "") -> str:
+    """Семантика цепочки промисов; mistake моделирует типичное заблуждение для дистракторов."""
+    ok, value = True, start
+    for kind, k in steps:
+        if kind == "add":
+            if ok or mistake == "then_runs":
+                value += k
+        elif kind == "mul":
+            if ok or mistake == "then_runs":
+                value *= k
+        elif kind == "throw":
+            if ok or mistake == "then_runs":
+                ok, value = False, value + k
+        elif kind == "finally":
+            if mistake == "finally_value":
+                ok, value = True, k
+        elif kind == "catch":
+            if not ok:
+                ok, value = mistake != "catch_keeps", value + k
+        elif kind == "then2":
+            if ok:
+                value *= 2
+            else:
+                ok, value = mistake != "catch_keeps", value - k
+    return f"{'ok' if ok else 'err'} {value}"
+
+
+def _promise_line(kind: str, k: int) -> str:
+    return {
+        "add": f"  .then(v => v + {k})",
+        "mul": f"  .then(v => v * {k})",
+        "throw": f"  .then(v => {{ throw v + {k}; }})",
+        "finally": f"  .finally(() => {k})",
+        "catch": f"  .catch(e => e + {k})",
+        "then2": f"  .then(v => v * 2, e => e - {k})",
+    }[kind]
+
+
+@generator("frontend.js_promise_chain")
+def js_promise_chain(rng: random.Random) -> Generated:
+    """Отклонение пропускает then без onRejected; finally не меняет результат; catch восстанавливает."""
+    start = rng.randint(1, 6)
+    recover = rng.choice(["catch", "then2"])
+    skipped = rng.choice(["add", "mul"])
+    after = rng.choice(["add", "mul"])
+    finally_after = rng.random() < 0.5
+    steps = [("add", rng.randint(1, 5)), ("throw", rng.randint(1, 5)), (skipped, rng.randint(2, 4))]
+    if not finally_after:
+        steps.append(("finally", rng.randint(10, 99)))
+    steps.append((recover, rng.randint(1, 5)))
+    if finally_after:
+        steps.append(("finally", rng.randint(10, 99)))
+    steps.append((after, rng.randint(2, 3)))
+    correct = _run_promise_chain(steps, start)
+    wrong = [_run_promise_chain(steps, start, m) for m in ("then_runs", "finally_value", "catch_keeps")]
+    status, number = correct.split()
+    other = "err" if status == "ok" else "ok"
+    wrong += [f"{other} {number}", f"{status} {start}", f"{status} {int(number) + steps[-1][1]}"]
+    code = "\n".join(
+        [f"Promise.resolve({start})", *(_promise_line(kind, k) for kind, k in steps)]
+        + ["  .then(v => console.log('ok', v), e => console.log('err', e));"]
+    )
+    return Generated(
+        stem="Что выведет этот код?",
+        code=code,
+        code_language="javascript",
+        correct=(correct,),
+        wrong=_distinct_wrong(correct, wrong),
+    )
+
+
+JSX_NAMES = ["Save", "Delete", "Toggle", "Submit", "Select"]
+
+
+@generator("frontend.react_jsx_syntax")
+def react_jsx_syntax(rng: random.Random) -> Generated:
+    color = rng.choice(["red", "gray", "navy", "green"])
+    size = rng.choice([12, 14, 16, 18, 20])
+    name = rng.choice(JSX_NAMES)
+    items = rng.choice(["users", "orders", "tasks", "products"])
+    flag = rng.choice(["isOpen", "visible", "showModal", "expanded"])
+    modal = rng.choice(["Modal", "Dialog", "Popup", "Drawer"])
+    var = rng.choice(["name", "userName", "title", "city"])
+    scenarios = [
+        (
+            f"задаёт элементу p инлайн-стили: цвет {color} и размер шрифта {size}px",
+            f"<p style={{{{ color: '{color}', fontSize: {size} }}}}>…</p>",
+            [
+                f'<p style="color: {color}; font-size: {size}px">…</p>',
+                f"<p style={{{{ color: '{color}', font-size: {size} }}}}>…</p>",
+                f"<p style={{ color: '{color}', fontSize: {size} }}>…</p>",
+                f"<p css={{{{ color: '{color}', fontSize: {size} }}}}>…</p>",
+            ],
+        ),
+        (
+            f"вызывает функцию handle{name} при клике по кнопке",
+            f"<button onClick={{handle{name}}}>OK</button>",
+            [
+                f"<button onClick={{handle{name}()}}>OK</button>",
+                f'<button onclick="handle{name}()">OK</button>',
+                f'<button onClick="handle{name}">OK</button>',
+                f"<button on-click={{handle{name}}}>OK</button>",
+            ],
+        ),
+        (
+            f"выводит массив {items} списком li",
+            f"<ul>{{{items}.map(item => <li key={{item.id}}>{{item.name}}</li>)}}</ul>",
+            [
+                f"<ul>{{{items}.forEach(item => <li key={{item.id}}>{{item.name}}</li>)}}</ul>",
+                f"<ul>{{for (const item of {items}) <li key={{item.id}}>{{item.name}}</li>}}</ul>",
+                f'<ul><li v-for="item in {items}" key={{item.id}}>{{item.name}}</li></ul>',
+                f"<ul>{{{items}.map(item => {{ <li key={{item.id}}>{{item.name}}</li> }})}}</ul>",
+            ],
+        ),
+        (
+            f"показывает <{modal} /> только когда {flag} равно true",
+            f"<div>{{{flag} && <{modal} />}}</div>",
+            [
+                f"<div>{{if ({flag}) <{modal} />}}</div>",
+                f"<div><{modal} if={{{flag}}} /></div>",
+                f"<div>{{{flag} ? <{modal} />}}</div>",
+                f"<div>{{{flag} || <{modal} />}}</div>",
+            ],
+        ),
+        (
+            f"выводит значение переменной {var} внутри текста приветствия",
+            f"<p>Привет, {{{var}}}!</p>",
+            [
+                f"<p>Привет, {{{{{var}}}}}!</p>",
+                f"<p>Привет, ${{{var}}}!</p>",
+                f'<p>Привет, "{var}"!</p>',
+                f"<p>Привет, {var}!</p>",
+            ],
+        ),
+    ]
+    need, correct, wrong = rng.choice(scenarios)
+    stem = rng.choice(
+        [f"Какой JSX корректно {need}?", f"Нужен JSX-фрагмент, который {need}. Какой вариант верный?"]
+    )
+    return Generated(stem=stem, correct=(correct,), wrong=tuple(wrong))
+
+
+@generator("frontend.vue_template_syntax")
+def vue_template_syntax(rng: random.Random) -> Generated:
+    value = rng.choice(["title", "userName", "total", "status"])
+    url = rng.choice(["profileUrl", "link", "avatarSrc", "docUrl"])
+    attr = "src" if url == "avatarSrc" else "href"
+    tag = "img" if attr == "src" else "a"
+    handler = rng.choice(["save", "submit", "toggle", "reload"])
+    items = rng.choice(["users", "orders", "tasks", "products"])
+    model = rng.choice(["query", "email", "comment", "phone"])
+    flag = rng.choice(["isOpen", "visible", "hasError", "loading"])
+    scenarios = [
+        (
+            f"вывести значение {value} текстом",
+            f"<p>{{{{ {value} }}}}</p>",
+            [f"<p>{{ {value} }}</p>", f"<p>${{{value}}}</p>", f'<p [text]="{value}"></p>'],
+        ),
+        (
+            f"привязать атрибут {attr} элемента {tag} к свойству {url}",
+            f'<{tag} :{attr}="{url}">',
+            [
+                f'<{tag} {attr}="{{{{ {url} }}}}">',
+                f'<{tag} [{attr}]="{url}">',
+                f"<{tag} {attr}={{{url}}}>",
+                f'<{tag} v-{attr}="{url}">',
+            ],
+        ),
+        (
+            f"вызвать метод {handler} при клике по кнопке",
+            f'<button @click="{handler}">',
+            [
+                f'<button (click)="{handler}()">',
+                f"<button onClick={{{handler}}}>",
+                f'<button v-click="{handler}">',
+                f'<button :click="{handler}">',
+            ],
+        ),
+        (
+            f"вывести элемент li для каждого элемента массива {items}",
+            f'<li v-for="item in {items}" :key="item.id">{{{{ item.name }}}}</li>',
+            [
+                f'<li *ngFor="let item of {items}">{{{{ item.name }}}}</li>',
+                f'<li v-each="item in {items}" :key="item.id">{{{{ item.name }}}}</li>',
+                f'<li v-for="{items}" :key="id">{{{{ name }}}}</li>',
+            ],
+        ),
+        (
+            f"связать поле ввода со свойством {model} в обе стороны",
+            f'<input v-model="{model}" />',
+            [
+                f'<input [(ngModel)]="{model}" />',
+                f'<input :value="{model}" />',
+                f'<input v-bind="{model}" />',
+            ],
+        ),
+        (
+            f"не создавать блок в DOM, пока {flag} ложно",
+            f'<div v-if="{flag}">…</div>',
+            [f'<div *ngIf="{flag}">…</div>', f'<div v-show="{flag}">…</div>', f'<div :if="{flag}">…</div>'],
+        ),
+    ]
+    need, correct, wrong = rng.choice(scenarios)
+    stem = rng.choice(
+        [
+            f"Шаблон Vue 3, задача — {need}. Какой синтаксис нужен?",
+            f"Как в шаблоне Vue {need}?",
+            f"Какая запись в шаблоне Vue 3 позволяет {need}?",
+        ]
+    )
+    return Generated(stem=stem, correct=(correct,), wrong=tuple(wrong))
+
+
+HTTP_METHOD_SCENARIOS = [
+    ("получить список {res}", "GET", False),
+    ("загрузить одну запись из {res} по идентификатору", "GET", True),
+    ("создать новую запись в коллекции {res}, идентификатор назначает сервер", "POST", False),
+    ("полностью заменить запись из {res} новым представлением, переданным целиком", "PUT", True),
+    ("изменить у записи из {res} только поле status, не передавая остальные поля", "PATCH", True),
+    ("удалить запись из {res} по идентификатору", "DELETE", True),
+]
+HTTP_RESOURCES = {
+    "orders": "заказов",
+    "users": "пользователей",
+    "tasks": "задач",
+    "products": "товаров",
+    "comments": "комментариев",
+    "invoices": "счетов",
+}
+
+
+@generator("frontend.http_method_choice")
+def http_method_choice(rng: random.Random) -> Generated:
+    text, method, item = rng.choice(HTTP_METHOD_SCENARIOS)
+    res = rng.choice(list(HTTP_RESOURCES))
+    path = f"/api/{res}/{rng.randint(2, 999)}" if item else f"/api/{res}"
+    need = text.format(res=HTTP_RESOURCES[res])
+    stem = rng.choice(
+        [
+            f"REST API: нужно {need}. Какой запрос подходит?",
+            f"Фронтенду нужно {need}. Какой HTTP-метод выбрать по соглашениям REST?",
+        ]
+    )
+    methods = ["GET", "POST", "PUT", "PATCH", "DELETE"]
+    return Generated(
+        stem=stem,
+        correct=(f"{method} {path}",),
+        wrong=tuple(f"{other} {path}" for other in methods if other != method),
+    )
+
+
+HTTP_CLASSES = {
+    2: "Успех: запрос получен, понят и обработан",
+    3: "Перенаправление: для завершения запроса клиенту нужно действие (другой адрес или кэш)",
+    4: "Ошибка клиента: запрос некорректен или не может быть выполнен из-за клиента",
+    5: "Ошибка сервера: запрос корректен, но сервер не смог его обработать",
+}
+HTTP_CLASS_CODES = [
+    200,
+    201,
+    202,
+    204,
+    301,
+    302,
+    304,
+    307,
+    400,
+    401,
+    403,
+    404,
+    409,
+    422,
+    429,
+    500,
+    502,
+    503,
+    504,
+]
+
+
+@generator("frontend.http_status_class")
+def http_status_class(rng: random.Random) -> Generated:
+    code = rng.choice(HTTP_CLASS_CODES)
+    path = rng.choice(["/api/orders", "/api/profile", "/api/cart", "/api/search", "/api/login"])
+    stem = rng.choice(
+        [
+            f"Запрос к {path} вернул статус {code}. К какому классу ответов относится этот код?",
+            f"Что в общем случае означает код ответа {code} (по его первой цифре)? Запрос шёл к {path}.",
+        ]
+    )
+    cls = code // 100
+    wrong = [text for key, text in HTTP_CLASSES.items() if key != cls]
+    wrong.append("Информационный ответ: запрос получен, обработка продолжается")
+    return Generated(stem=stem, correct=(HTTP_CLASSES[cls],), wrong=tuple(wrong))
+
+
+DS_SCENARIOS = [
+    ("история отмены действий (Ctrl+Z) в редакторе {x}: отменяется последнее действие", "stack"),
+    ("кнопка «Назад» в многошаговом мастере создания {x}: возврат к последнему открытому шагу", "stack"),
+    ("проверка, что открывающие и закрывающие теги в шаблоне списка {x} правильно вложены", "stack"),
+    ("отправка уведомлений о статусе {x} строго в порядке поступления", "queue"),
+    ("обход дерева категорий {x} по уровням (в ширину)", "queue"),
+    ("буфер запросов на сохранение {x}, которые отправляются по одному в порядке создания", "queue"),
+    ("быстрый поиск {x} по id за O(1) в среднем, без перебора массива", "map"),
+    ("подсчёт, сколько раз встречается каждое значение поля в выгрузке {x}", "map"),
+]
+DS_OPTIONS = {
+    "stack": "Стек (LIFO): push и pop с одного конца",
+    "queue": "Очередь (FIFO): добавление в конец, извлечение из начала",
+    "map": "Map (хеш-таблица) с ключом по значению",
+}
+DS_WRONG = ["Отсортированный массив с поиском перебором", "Двумерный массив (матрица)"]
+DS_ENTITIES = ["заказов", "задач", "документов", "товаров", "платежей", "статей"]
+
+
+@generator("frontend.stack_or_queue")
+def stack_or_queue(rng: random.Random) -> Generated:
+    text, answer = rng.choice(DS_SCENARIOS)
+    entity = rng.choice(DS_ENTITIES)
+    stem = rng.choice(
+        [
+            f"Задача: {text.format(x=entity)}. Какая структура данных подходит лучше всего?",
+            f"Какую структуру данных естественно использовать для задачи: {text.format(x=entity)}?",
+        ]
+    )
+    wrong = [label for key, label in DS_OPTIONS.items() if key != answer] + DS_WRONG
+    return Generated(stem=stem, correct=(DS_OPTIONS[answer],), wrong=tuple(wrong))
+
+
+@generator("frontend.binary_search_steps")
+def binary_search_steps(rng: random.Random) -> Generated:
+    """Худший случай бинарного поиска — ⌊log2 n⌋ + 1 итераций (число бит в n)."""
+    n = rng.randrange(40, 5001)
+    while n & (n - 1) == 0:
+        n += 1
+    name = rng.choice(["ids", "prices", "timestamps", "scores", "sorted"])
+    target = rng.choice(["x", "target", "value", "needle"])
+    code = (
+        f"function search({name}, {target}) {{\n  let lo = 0, hi = {name}.length - 1;\n"
+        "  while (lo <= hi) {\n    const mid = (lo + hi) >> 1;\n"
+        f"    if ({name}[mid] === {target}) return mid;\n"
+        f"    if ({name}[mid] < {target}) lo = mid + 1;\n    else hi = mid - 1;\n"
+        "  }\n  return -1;\n}"
+    )
+    return Generated(
+        stem=(
+            f"Массив {name} отсортирован по возрастанию и содержит {n} элементов. Какое наибольшее число "
+            "итераций цикла while может выполнить search (худший случай, включая отсутствующее значение)?"
+        ),
+        code=code,
+        code_language="javascript",
+        number=float(n.bit_length()),
+    )
+
+
+MODULE_NAMES = ["api", "store", "utils", "config", "logger", "router", "theme", "i18n", "auth"]
+
+
+def _walk_modules(module: str, imports: dict[str, list[str]], order: list[str], pre: list[str]) -> None:
+    if module in pre:
+        return
+    pre.append(module)
+    for dep in imports[module]:
+        _walk_modules(dep, imports, order, pre)
+    order.append(module)
+
+
+@generator("frontend.module_eval_order")
+def module_eval_order(rng: random.Random) -> Generated:
+    """ES-модули выполняются обходом графа импортов в глубину: зависимости раньше, каждый модуль один раз."""
+    while True:
+        names = rng.sample(MODULE_NAMES, 5)
+        imports: dict[str, list[str]] = {"main": rng.sample(names[:3], 2)}
+        for index, name in enumerate(names):
+            later = names[index + 1 :]
+            imports[name] = rng.sample(later, min(len(later), rng.randint(0, 2)))
+        importers = Counter(dep for deps in imports.values() for dep in deps)
+        order: list[str] = []
+        pre: list[str] = []
+
+        _walk_modules("main", imports, order, pre)
+        if len(order) >= 5 and max(importers.values()) >= 2:
+            break
+    bfs: list[str] = []
+    queue = deque(["main"])
+    while queue:
+        module = queue.popleft()
+        if module not in bfs:
+            bfs.append(module)
+            queue.extend(imports[module])
+    blocks = []
+    for module in ["main", *[name for name in names if name in order]]:
+        lines = [f"// {module}.js", *(f"import './{dep}.js';" for dep in imports[module])]
+        blocks.append("\n".join([*lines, f"console.log('{module}');"]))
+    correct = _spaced(order)
+    wrong = [_spaced(pre), _spaced(bfs), _spaced(bfs[::-1]), _spaced(order[:-1][::-1] + ["main"])]
+    _fill_permutations(rng, order, wrong)
+    return Generated(
+        stem=(
+            'Браузер загружает <script type="module" src="main.js">. Что будет выведено в консоль '
+            "(через пробел)?"
+        ),
+        code="\n\n".join(blocks),
+        code_language="javascript",
+        correct=(correct,),
+        wrong=_distinct_wrong(correct, wrong),
     )

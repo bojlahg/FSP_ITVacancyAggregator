@@ -88,3 +88,75 @@
       - "Cache-Control: private разрешает хранить ответ в CDN, но не в браузере"
       - "s-maxage задаёт время жизни только в кэше браузера"
       - "Заголовок Expires имеет приоритет над max-age"
+
+- id: fe.http.status_class
+  specializations: [frontend]
+  topic: http_api
+  skills: [http]
+  kind: single_choice
+  irt: {a: 0.9, b: -1.8}
+  generator: frontend.http_status_class
+
+- id: fe.http.method_choice
+  specializations: [frontend]
+  topic: http_api
+  skills: [http, rest]
+  kind: single_choice
+  irt: {a: 1.0, b: -1.3}
+  generator: frontend.http_method_choice
+
+- id: fe.http.idempotency
+  specializations: [frontend]
+  topic: http_api
+  skills: [http, rest]
+  kind: multi_choice
+  irt: {a: 1.1, b: -0.1}
+  n_options: 5
+  params:
+    res: {choice: [orders, users, tasks, invoices, comments, carts]}
+    id: {int: [10, 999]}
+  stem_variants:
+    - "Клиент повторяет запрос к /api/{{res}} после обрыва соединения. Какие утверждения об идемпотентности методов HTTP верны?"
+    - "Фронтенд добавляет автоматический повтор запросов к /api/{{res}} при сетевой ошибке. Какие утверждения верны?"
+  options:
+    correct:
+      - "Повтор PUT /api/{{res}}/{{id}} с тем же телом оставляет ресурс в том же состоянии, что и один запрос"
+      - "Повтор DELETE /api/{{res}}/{{id}} не меняет состояние сервера сверх первого вызова, даже если вернёт 404"
+      - "GET и HEAD — безопасные методы: они не должны менять состояние ресурса"
+      - "Повтор POST /api/{{res}} после таймаута может создать дубликат, если сервер не поддерживает ключ идемпотентности"
+    wrong:
+      - "Повтор POST /api/{{res}} по спецификации гарантированно создаёт только одну запись"
+      - "Идемпотентный метод при повторе обязан вернуть тот же код ответа"
+      - "PATCH всегда идемпотентен, потому что меняет только часть ресурса"
+      - "DELETE неидемпотентен, потому что повторный вызов вернёт 404"
+      - "PUT неидемпотентен, если в теле передан ресурс целиком"
+
+- id: fe.http.response_race
+  specializations: [frontend]
+  topic: http_api
+  skills: [javascript, http]
+  kind: multi_choice
+  irt: {a: 1.2, b: 1.1}
+  n_options: 5
+  time_limit_sec: 120
+  params:
+    what: {choice: [поиска товаров, подсказок адреса, фильтра заказов, поиска сотрудников]}
+    path: {choice: [/api/search, /api/suggest, /api/orders, /api/people]}
+  stem_variants:
+    - >-
+      При вводе в поле {{what}} на каждое изменение уходит запрос к {{path}}. Иногда на экране остаются
+      результаты для старого текста: ответ на ранний запрос пришёл позже ответа на последний. Какие
+      решения устраняют проблему?
+    - >-
+      Пользователь быстро меняет запрос в поле {{what}}, ответы {{path}} приходят в произвольном порядке, и
+      устаревший ответ перезаписывает актуальный. Что из перечисленного решает проблему?
+  options:
+    correct:
+      - "Отменять предыдущий запрос через AbortController перед отправкой нового"
+      - "Игнорировать ответ, если он относится не к последнему отправленному запросу (сравнить id или флаг в cleanup эффекта)"
+      - "Использовать switchMap (RxJS) или библиотеку, где ключ запроса — текст поиска (TanStack Query)"
+    wrong:
+      - "Добавить debounce: он гарантирует, что ответы придут в порядке отправки"
+      - "Использовать await перед fetch — это упорядочит ответы разных вызовов обработчика"
+      - "Перейти на HTTP/2: он гарантирует порядок ответов на параллельные запросы"
+      - "Добавить заголовок Cache-Control: no-cache к запросу"

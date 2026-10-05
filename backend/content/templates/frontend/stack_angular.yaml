@@ -17,11 +17,15 @@
   kind: ordering
   irt: {a: 1.1, b: -0.6}
   params:
-    comp: {choice: [UserCardComponent, OrderListComponent, ChartComponent]}
-    input: {choice: [user, orders, data]}
-  stem: >-
-    Компонент {{comp}} имеет @Input() {{input}}, который родитель привязывает в шаблоне. Расположите
-    вызовы в порядке их первого выполнения за время жизни компонента.
+    comp: {choice: [UserCardComponent, OrderListComponent, ChartComponent, PriceTagComponent, InvoiceComponent, MapComponent, CommentComponent]}
+    input: {choice: [user, orders, data, price, invoice, coords, comment]}
+  stem_variants:
+    - >-
+      Компонент {{comp}} имеет @Input() {{input}}, который родитель привязывает в шаблоне. Расположите
+      вызовы в порядке их первого выполнения за время жизни компонента.
+    - >-
+      Родитель передаёт в {{comp}} значение через @Input() {{input}}, позже компонент удаляется со страницы.
+      Упорядочьте вызовы конструктора и хуков жизненного цикла.
   order_items:
     - "constructor"
     - "ngOnChanges (первое значение {{input}})"
@@ -110,3 +114,34 @@
       - "Родитель изменил поле внутри объекта {{input}}, не меняя ссылку"
       - "Сработал setTimeout в стороннем сервисе, не связанном с компонентом"
       - "Изменилось обычное поле сервиса-синглтона, который внедрён в компонент"
+
+- id: fe.ng.pure_pipe
+  specializations: [frontend]
+  topic: stack
+  stack_module: angular
+  skills: [angular]
+  kind: multi_choice
+  irt: {a: 1.1, b: 0.7}
+  n_options: 5
+  params:
+    pipe: {choice: [sortBy, activeOnly, groupBy, topN, filterBy]}
+    items: {choice: [orders, users, tasks, products, invoices]}
+    arg: {choice: [field, status, limit, key]}
+  stem_variants:
+    - >-
+      В шаблоне используется {{ {{items}} | {{pipe}}: {{arg}} }}, где {{pipe}} — собственный pipe с
+      настройками по умолчанию (pure). {{items}} — массив, {{arg}} — строка. В каких случаях Angular
+      заново вызовет transform?
+    - >-
+      Собственный pipe {{pipe}} объявлен без pure: false и применяется как {{items}} | {{pipe}}: {{arg}}
+      ({{items}} — массив объектов, {{arg}} — строка). Какие изменения приведут к повторному вызову transform?
+  options:
+    correct:
+      - "this.{{items}} = [...this.{{items}}, newItem] — присвоен новый массив"
+      - "this.{{arg}} изменил значение на другую строку"
+      - "this.{{items}} = this.{{items}}.filter(x => x.visible) — присвоен новый массив"
+    wrong:
+      - "this.{{items}}.push(newItem) — массив изменён на месте"
+      - "Изменено поле одного из объектов внутри {{items}}"
+      - "Сработал любой цикл обнаружения изменений, например клик в другом компоненте"
+      - "this.{{items}}.sort() — массив отсортирован на месте"

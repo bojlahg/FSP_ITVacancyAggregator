@@ -82,3 +82,29 @@
   irt: {a: 1.2, b: 1.1}
   time_limit_sec: 120
   generator: frontend.loop_complexity
+
+- id: fe.algo.stack_or_queue
+  specializations: [frontend]
+  topic: algorithms
+  skills: [data_structures, algorithms]
+  kind: single_choice
+  irt: {a: 1.0, b: -1.3}
+  generator: frontend.stack_or_queue
+
+- id: fe.algo.binary_search_steps
+  specializations: [frontend]
+  topic: algorithms
+  skills: [algorithms]
+  kind: numeric
+  irt: {a: 1.1, b: 0.1}
+  time_limit_sec: 150
+  generator: frontend.binary_search_steps
+
+- id: fe.algo.module_eval_order
+  specializations: [frontend]
+  topic: algorithms
+  skills: [algorithms, javascript]
+  kind: code_output
+  irt: {a: 1.2, b: 1.4}
+  time_limit_sec: 180
+  generator: frontend.module_eval_order
