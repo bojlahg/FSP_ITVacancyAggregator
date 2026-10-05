@@ -5,14 +5,25 @@ import { RouteFallback } from "@/components/RouteFallback";
 import PublicLayout from "@/layouts/PublicLayout";
 import NotFoundPage from "@/pages/NotFoundPage";
 import LandingPage from "@/pages/public/LandingPage";
-import LoginPage from "@/pages/public/LoginPage";
-import RegisterPage from "@/pages/public/RegisterPage";
-import VerifyEmailPage from "@/pages/public/VerifyEmailPage";
 import RouteErrorPage from "@/pages/RouteErrorPage";
 
-// Кабинеты грузятся лениво: лендинг и вход не тянут код кабинетов.
+// Кабинеты и формы грузятся лениво: лендинг не тянет код кабинетов, zod и react-hook-form.
 function lazyPage(load: () => Promise<{ default: ComponentType }>) {
   return async () => ({ Component: (await load()).default });
+}
+
+/** Вход и регистрация — только для гостей (см. GuestOnly). */
+function lazyGuestPage(load: () => Promise<{ default: ComponentType }>) {
+  return async () => {
+    const { default: Page } = await load();
+    return {
+      Component: () => (
+        <GuestOnly>
+          <Page />
+        </GuestOnly>
+      ),
+    };
+  };
 }
 
 export const router = createBrowserRouter([
@@ -24,23 +35,9 @@ export const router = createBrowserRouter([
         element: <PublicLayout />,
         children: [
           { index: true, element: <LandingPage /> },
-          {
-            path: "login",
-            element: (
-              <GuestOnly>
-                <LoginPage />
-              </GuestOnly>
-            ),
-          },
-          {
-            path: "register",
-            element: (
-              <GuestOnly>
-                <RegisterPage />
-              </GuestOnly>
-            ),
-          },
-          { path: "verify-email", element: <VerifyEmailPage /> },
+          { path: "login", lazy: lazyGuestPage(() => import("@/pages/public/LoginPage")) },
+          { path: "register", lazy: lazyGuestPage(() => import("@/pages/public/RegisterPage")) },
+          { path: "verify-email", lazy: lazyPage(() => import("@/pages/public/VerifyEmailPage")) },
           { path: "expert/join", lazy: lazyPage(() => import("@/pages/public/ExpertJoinPage")) },
           { path: "how-it-works", lazy: lazyPage(() => import("@/pages/public/HowItWorksPage")) },
         ],
