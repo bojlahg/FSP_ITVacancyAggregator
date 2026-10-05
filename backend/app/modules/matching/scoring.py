@@ -26,6 +26,7 @@ class MatchingRules(BaseModel):
     vps_weights: dict[str, float]
     market: dict[str, float]
     expert: dict[str, float]
+    insights: dict[str, float]
     recommendations: dict[str, int]
 
 
@@ -164,6 +165,11 @@ def _skill_value(skill: str, facts: CandidateFacts) -> tuple[float, str]:
     if parent and parent in facts.skills_status:
         return rules.skill_value["parent_only"], "parent_only"
     return 0.0, "missing"
+
+
+def skill_status(facts: CandidateFacts, skill: str) -> str:
+    """Статус навыка так, как его видит skills-компонент: verified … declared, parent_only, missing."""
+    return _skill_value(skill, facts)[1]
 
 
 def skills_component(

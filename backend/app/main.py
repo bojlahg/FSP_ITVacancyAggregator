@@ -24,6 +24,7 @@ from app.modules.fsp.router import router as fsp_router
 from app.modules.integrations import service as integrations_service
 from app.modules.integrations.router import router as integrations_router
 from app.modules.invitations import router as invitations
+from app.modules.matching.router import candidate_router as market_router
 from app.modules.matching.router import need_router as matching_need_router
 from app.modules.matching.router import router as matching_router
 from app.modules.needs.router import router as needs_router
@@ -47,6 +48,7 @@ TAGS = [
     {"name": "candidate: invitations", "description": "Входящие приглашения"},
     {"name": "candidate: vacancies", "description": "Вакансии и отклики"},
     {"name": "candidate: tasks", "description": "Регулярные задания"},
+    {"name": "candidate: market", "description": "Рынок своей категории: агрегаты и что поможет"},
     {"name": "employer: company", "description": "Профиль компании"},
     {"name": "employer: needs & matching", "description": "Потребности, подборка, шорт-лист, вакансии"},
     {"name": "employer: talent pool", "description": "Каталог категорий, поиск по базе, карточка кандидата"},
@@ -132,6 +134,7 @@ def create_app() -> FastAPI:
         invitations.candidate_router,
         applications.candidate_router,
         tasks.candidate_router,
+        market_router,
         employers_router,
         needs_router,
         matching_need_router,

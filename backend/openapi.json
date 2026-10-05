@@ -3401,6 +3401,53 @@
         }
       }
     },
+    "/api/v1/candidates/me/market": {
+      "get": {
+        "tags": [
+          "candidate: market"
+        ],
+        "summary": "Рынок моей категории: потребности, вилки, востребованные навыки и что поможет",
+        "description": "Только агрегаты по действующим потребностям своей и соседних категорий, без названий компаний и потребностей. Вилки, навыки и подсказки скрываются (`suppressed=true`), если потребностей или компаний в выборке меньше порога из `content/matching.yaml` (`insights`).",
+        "operationId": "get_my_market_api_v1_candidates_me_market_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidateMarketOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Требуется вход",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Недостаточно прав",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/employers/me": {
       "get": {
         "tags": [
@@ -9252,6 +9299,111 @@
         ],
         "title": "CandidateCard"
       },
+      "CandidateMarketOut": {
+        "properties": {
+          "category": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CategoryRef"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "null — категории ещё нет, рынок не считается"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/MarketGroup"
+            },
+            "type": "array",
+            "title": "Groups"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "category",
+                  "neighbourhood"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope",
+            "description": "Выборка вилок и навыков: своя категория или с соседними; null — скрыто"
+          },
+          "scope_needs": {
+            "type": "integer",
+            "title": "Scope Needs",
+            "description": "Потребностей в выборке агрегатов"
+          },
+          "suppressed": {
+            "type": "boolean",
+            "title": "Suppressed",
+            "description": "Агрегаты скрыты: потребностей или компаний меньше порога"
+          },
+          "min_needs": {
+            "type": "integer",
+            "title": "Min Needs",
+            "description": "Порог: не меньше стольких потребностей для агрегатов"
+          },
+          "salary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MarketSalary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "skills": {
+            "items": {
+              "$ref": "#/components/schemas/MarketSkill"
+            },
+            "type": "array",
+            "title": "Skills"
+          },
+          "matching_needs": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matching Needs",
+            "description": "Потребностей своей и соседних категорий, подходящих по навыкам сейчас; null — скрыто"
+          },
+          "suggestions": {
+            "items": {
+              "$ref": "#/components/schemas/MarketSuggestion"
+            },
+            "type": "array",
+            "title": "Suggestions",
+            "description": "Что поможет: 0–3 действия с эффектом"
+          }
+        },
+        "type": "object",
+        "required": [
+          "category",
+          "groups",
+          "scope",
+          "scope_needs",
+          "suppressed",
+          "min_needs",
+          "salary",
+          "skills",
+          "matching_needs",
+          "suggestions"
+        ],
+        "title": "CandidateMarketOut",
+        "description": "Рынок категории кандидата: только агрегаты, без названий компаний и потребностей."
+      },
       "CandidateMatch": {
         "properties": {
           "candidate": {
@@ -13219,6 +13371,193 @@
         ],
         "title": "LoginRequest"
       },
+      "MarketGroup": {
+        "properties": {
+          "fit": {
+            "type": "string",
+            "enum": [
+              "exact",
+              "adjacent_grade",
+              "adjacent_specialization",
+              "adjacent_both"
+            ],
+            "title": "Fit",
+            "description": "Категория кандидата, соседний грейд, смежная специализация или и то и другое"
+          },
+          "needs": {
+            "type": "integer",
+            "title": "Needs",
+            "description": "Действующие потребности (последние версии), включая опубликованные"
+          },
+          "vacancies": {
+            "type": "integer",
+            "title": "Vacancies",
+            "description": "Из них опубликованы как вакансии"
+          }
+        },
+        "type": "object",
+        "required": [
+          "fit",
+          "needs",
+          "vacancies"
+        ],
+        "title": "MarketGroup",
+        "description": "Сколько действующих потребностей в категории кандидата и рядом с ней."
+      },
+      "MarketSalary": {
+        "properties": {
+          "median_from": {
+            "type": "integer",
+            "title": "Median From",
+            "description": "Медиана нижних границ вилок, ₽"
+          },
+          "median_to": {
+            "type": "integer",
+            "title": "Median To",
+            "description": "Медиана верхних границ вилок, ₽"
+          },
+          "candidate_min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Candidate Min",
+            "description": "Ожидания кандидата «от», ₽"
+          },
+          "position": {
+            "type": "string",
+            "enum": [
+              "below",
+              "within",
+              "above",
+              "unknown"
+            ],
+            "title": "Position",
+            "description": "Ожидания относительно медианной вилки: ниже, внутри, выше; unknown — ожидания не указаны"
+          },
+          "covered_share": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Covered Share",
+            "description": "Доля потребностей, где верх вилки покрывает ожидания"
+          }
+        },
+        "type": "object",
+        "required": [
+          "median_from",
+          "median_to",
+          "candidate_min",
+          "position",
+          "covered_share"
+        ],
+        "title": "MarketSalary"
+      },
+      "MarketSkill": {
+        "properties": {
+          "skill_id": {
+            "type": "string",
+            "title": "Skill Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "required_share": {
+            "type": "number",
+            "title": "Required Share",
+            "description": "Доля потребностей, где навык обязательный"
+          },
+          "optional_share": {
+            "type": "number",
+            "title": "Optional Share",
+            "description": "Доля потребностей, где навык желательный"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "verified",
+              "fsp_confirmed",
+              "task_confirmed",
+              "declared",
+              "parent_only",
+              "missing"
+            ],
+            "title": "Status",
+            "description": "Статус навыка у кандидата — как в skills-компоненте score"
+          }
+        },
+        "type": "object",
+        "required": [
+          "skill_id",
+          "name",
+          "required_share",
+          "optional_share",
+          "status"
+        ],
+        "title": "MarketSkill"
+      },
+      "MarketSuggestion": {
+        "properties": {
+          "skill_id": {
+            "type": "string",
+            "title": "Skill Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "verified",
+              "fsp_confirmed",
+              "task_confirmed",
+              "declared",
+              "parent_only",
+              "missing"
+            ],
+            "title": "Status"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "confirm",
+              "declare"
+            ],
+            "title": "Action",
+            "description": "confirm — подтвердить тестом или заданием; declare — указать навык в профиле"
+          },
+          "extra_matches": {
+            "type": "integer",
+            "title": "Extra Matches",
+            "description": "На сколько больше потребностей подойдёт по навыкам"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "skill_id",
+          "name",
+          "status",
+          "action",
+          "extra_matches",
+          "text"
+        ],
+        "title": "MarketSuggestion"
+      },
       "MatchComponents": {
         "properties": {
           "skills": {
@@ -15778,6 +16117,10 @@
     {
       "name": "candidate: tasks",
       "description": "Регулярные задания"
+    },
+    {
+      "name": "candidate: market",
+      "description": "Рынок своей категории: агрегаты и что поможет"
     },
     {
       "name": "employer: company",

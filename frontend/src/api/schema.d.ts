@@ -859,6 +859,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/candidates/me/market": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Рынок моей категории: потребности, вилки, востребованные навыки и что поможет
+         * @description Только агрегаты по действующим потребностям своей и соседних категорий, без названий компаний и потребностей. Вилки, навыки и подсказки скрываются (`suppressed=true`), если потребностей или компаний в выборке меньше порога из `content/matching.yaml` (`insights`).
+         */
+        get: operations["get_my_market_api_v1_candidates_me_market_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/employers/me": {
         parameters: {
             query?: never;
@@ -2269,6 +2289,49 @@ export interface components {
             invitation_status?: components["schemas"]["InvitationStatus"] | null;
             /** Grade History */
             grade_history: components["schemas"]["CategoryRef"][];
+        };
+        /**
+         * CandidateMarketOut
+         * @description Рынок категории кандидата: только агрегаты, без названий компаний и потребностей.
+         */
+        CandidateMarketOut: {
+            /** @description null — категории ещё нет, рынок не считается */
+            category: components["schemas"]["CategoryRef"] | null;
+            /** Groups */
+            groups: components["schemas"]["MarketGroup"][];
+            /**
+             * Scope
+             * @description Выборка вилок и навыков: своя категория или с соседними; null — скрыто
+             */
+            scope: ("category" | "neighbourhood") | null;
+            /**
+             * Scope Needs
+             * @description Потребностей в выборке агрегатов
+             */
+            scope_needs: number;
+            /**
+             * Suppressed
+             * @description Агрегаты скрыты: потребностей или компаний меньше порога
+             */
+            suppressed: boolean;
+            /**
+             * Min Needs
+             * @description Порог: не меньше стольких потребностей для агрегатов
+             */
+            min_needs: number;
+            salary: components["schemas"]["MarketSalary"] | null;
+            /** Skills */
+            skills: components["schemas"]["MarketSkill"][];
+            /**
+             * Matching Needs
+             * @description Потребностей своей и соседних категорий, подходящих по навыкам сейчас; null — скрыто
+             */
+            matching_needs: number | null;
+            /**
+             * Suggestions
+             * @description Что поможет: 0–3 действия с эффектом
+             */
+            suggestions: components["schemas"]["MarketSuggestion"][];
         };
         /** CandidateMatch */
         CandidateMatch: {
@@ -3710,6 +3773,105 @@ export interface components {
             email: string;
             /** Password */
             password: string;
+        };
+        /**
+         * MarketGroup
+         * @description Сколько действующих потребностей в категории кандидата и рядом с ней.
+         */
+        MarketGroup: {
+            /**
+             * Fit
+             * @description Категория кандидата, соседний грейд, смежная специализация или и то и другое
+             * @enum {string}
+             */
+            fit: "exact" | "adjacent_grade" | "adjacent_specialization" | "adjacent_both";
+            /**
+             * Needs
+             * @description Действующие потребности (последние версии), включая опубликованные
+             */
+            needs: number;
+            /**
+             * Vacancies
+             * @description Из них опубликованы как вакансии
+             */
+            vacancies: number;
+        };
+        /** MarketSalary */
+        MarketSalary: {
+            /**
+             * Median From
+             * @description Медиана нижних границ вилок, ₽
+             */
+            median_from: number;
+            /**
+             * Median To
+             * @description Медиана верхних границ вилок, ₽
+             */
+            median_to: number;
+            /**
+             * Candidate Min
+             * @description Ожидания кандидата «от», ₽
+             */
+            candidate_min: number | null;
+            /**
+             * Position
+             * @description Ожидания относительно медианной вилки: ниже, внутри, выше; unknown — ожидания не указаны
+             * @enum {string}
+             */
+            position: "below" | "within" | "above" | "unknown";
+            /**
+             * Covered Share
+             * @description Доля потребностей, где верх вилки покрывает ожидания
+             */
+            covered_share: number | null;
+        };
+        /** MarketSkill */
+        MarketSkill: {
+            /** Skill Id */
+            skill_id: string;
+            /** Name */
+            name: string;
+            /**
+             * Required Share
+             * @description Доля потребностей, где навык обязательный
+             */
+            required_share: number;
+            /**
+             * Optional Share
+             * @description Доля потребностей, где навык желательный
+             */
+            optional_share: number;
+            /**
+             * Status
+             * @description Статус навыка у кандидата — как в skills-компоненте score
+             * @enum {string}
+             */
+            status: "verified" | "fsp_confirmed" | "task_confirmed" | "declared" | "parent_only" | "missing";
+        };
+        /** MarketSuggestion */
+        MarketSuggestion: {
+            /** Skill Id */
+            skill_id: string;
+            /** Name */
+            name: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "verified" | "fsp_confirmed" | "task_confirmed" | "declared" | "parent_only" | "missing";
+            /**
+             * Action
+             * @description confirm — подтвердить тестом или заданием; declare — указать навык в профиле
+             * @enum {string}
+             */
+            action: "confirm" | "declare";
+            /**
+             * Extra Matches
+             * @description На сколько больше потребностей подойдёт по навыкам
+             */
+            extra_matches: number;
+            /** Text */
+            text: string;
         };
         /**
          * MatchComponents
@@ -7212,6 +7374,44 @@ export interface operations {
             };
             /** @description Ошибка валидации данных */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_my_market_api_v1_candidates_me_market_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidateMarketOut"];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

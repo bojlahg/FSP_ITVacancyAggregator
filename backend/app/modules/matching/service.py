@@ -26,11 +26,12 @@ from app.modules.categories.models import CandidateCategory
 from app.modules.fsp import service as fsp_service
 from app.modules.fsp.models import FspAchievement
 from app.modules.invitations.models import ContactUnlock, Invitation
-from app.modules.matching import scoring
+from app.modules.matching import market, scoring
 from app.modules.matching.models import CandidateSearchIndex
 from app.modules.matching.schemas import (
     CandidateBrief,
     CandidateCard,
+    CandidateMarketOut,
     CandidateMatch,
     CategoryCatalogItem,
     CategoryRecommendation,
@@ -594,6 +595,35 @@ async def salary_coverage(db: AsyncSession, user_id: int, need_id: int) -> Salar
         ],
         market=market_check(salaries, need.salary_from, need.salary_to, "employer"),
     )
+
+
+async def market_for_candidate(db: AsyncSession, user_id: int) -> CandidateMarketOut:
+    """«Рынок вашей категории»: агрегаты по действующим потребностям без имён компаний (§8.5)."""
+    from app.modules.needs import service as needs_service
+
+    candidate = await candidates_service.get_by_user(db, user_id)
+    row = await db.get(CandidateSearchIndex, candidate.id)
+    if row is None:
+        return CandidateMarketOut(
+            category=None,
+            groups=[],
+            scope=None,
+            scope_needs=0,
+            suppressed=True,
+            min_needs=int(scoring.get_rules().insights["min_needs"]),
+            salary=None,
+            skills=[],
+            matching_needs=None,
+            suggestions=[],
+        )
+    facts = _facts(row, None, datetime.now(UTC))
+    pool = [
+        market.MarketNeed(employer_id=need.employer_id, published=need.published, spec=need_spec(need))
+        for need in await needs_service.active_latest_needs(db)
+    ]
+    result = market.insights(facts, pool, _skill_names(), set(scoring.skill_topics(row.specialization)))
+    result.category = categories_service.category_ref(row.specialization, row.grade.value)
+    return result
 
 
 async def match_for(

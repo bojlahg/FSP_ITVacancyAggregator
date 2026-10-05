@@ -63,6 +63,16 @@ expert:
   top_k: 6
   relevant_from: 2
 
+# «Рынок вашей категории» для кандидата (§8.5): только агрегаты по действующим потребностям.
+# Распределения (вилки, навыки, «что поможет») показываются, если в выборке не меньше min_needs потребностей
+# от не меньше min_employers компаний — иначе по агрегату можно узнать одного работодателя.
+insights:
+  min_needs: 3
+  min_employers: 2
+  top_skills: 8
+  max_suggestions: 3
+  skills_match: 0.75     # потребность «подходит по навыкам», если skills-компонент score ≥ порога
+
 recommendations:
   default_limit: 50
   max_explanation_lines: 6

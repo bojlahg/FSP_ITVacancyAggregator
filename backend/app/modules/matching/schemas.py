@@ -203,3 +203,66 @@ class JsonResume(ApiModel):
     skills: list[JsonResumeSkill]
     awards: list[JsonResumeAward]
     itscout: ItscoutExtension = Field(alias="x-itscout")
+
+
+# ---------- рынок категории для кандидата (§8.5) ----------
+
+SkillStatus = Literal["verified", "fsp_confirmed", "task_confirmed", "declared", "parent_only", "missing"]
+
+
+class MarketGroup(ApiModel):
+    """Сколько действующих потребностей в категории кандидата и рядом с ней."""
+
+    fit: Literal["exact", "adjacent_grade", "adjacent_specialization", "adjacent_both"] = Field(
+        description="Категория кандидата, соседний грейд, смежная специализация или и то и другое"
+    )
+    needs: int = Field(description="Действующие потребности (последние версии), включая опубликованные")
+    vacancies: int = Field(description="Из них опубликованы как вакансии")
+
+
+class MarketSalary(ApiModel):
+    median_from: int = Field(description="Медиана нижних границ вилок, ₽")
+    median_to: int = Field(description="Медиана верхних границ вилок, ₽")
+    candidate_min: int | None = Field(description="Ожидания кандидата «от», ₽")
+    position: Literal["below", "within", "above", "unknown"] = Field(
+        description="Ожидания относительно медианной вилки: ниже, внутри, выше; unknown — ожидания не указаны"
+    )
+    covered_share: float | None = Field(description="Доля потребностей, где верх вилки покрывает ожидания")
+
+
+class MarketSkill(ApiModel):
+    skill_id: str
+    name: str
+    required_share: float = Field(description="Доля потребностей, где навык обязательный")
+    optional_share: float = Field(description="Доля потребностей, где навык желательный")
+    status: SkillStatus = Field(description="Статус навыка у кандидата — как в skills-компоненте score")
+
+
+class MarketSuggestion(ApiModel):
+    skill_id: str
+    name: str
+    status: SkillStatus
+    action: Literal["confirm", "declare"] = Field(
+        description="confirm — подтвердить тестом или заданием; declare — указать навык в профиле"
+    )
+    extra_matches: int = Field(description="На сколько больше потребностей подойдёт по навыкам")
+    text: str
+
+
+class CandidateMarketOut(ApiModel):
+    """Рынок категории кандидата: только агрегаты, без названий компаний и потребностей."""
+
+    category: CategoryRef | None = Field(description="null — категории ещё нет, рынок не считается")
+    groups: list[MarketGroup]
+    scope: Literal["category", "neighbourhood"] | None = Field(
+        description="Выборка вилок и навыков: своя категория или с соседними; null — скрыто"
+    )
+    scope_needs: int = Field(description="Потребностей в выборке агрегатов")
+    suppressed: bool = Field(description="Агрегаты скрыты: потребностей или компаний меньше порога")
+    min_needs: int = Field(description="Порог: не меньше стольких потребностей для агрегатов")
+    salary: MarketSalary | None
+    skills: list[MarketSkill]
+    matching_needs: int | None = Field(
+        description="Потребностей своей и соседних категорий, подходящих по навыкам сейчас; null — скрыто"
+    )
+    suggestions: list[MarketSuggestion] = Field(description="Что поможет: 0–3 действия с эффектом")

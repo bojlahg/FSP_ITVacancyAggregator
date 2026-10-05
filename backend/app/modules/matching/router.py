@@ -3,12 +3,13 @@ from typing import Literal
 from fastapi import APIRouter, Query
 from fastapi.responses import Response
 
-from app.core.deps import CurrentEmployer, DbSession
+from app.core.deps import CurrentCandidate, CurrentEmployer, DbSession
 from app.core.enums import Grade, WorkFormat
 from app.core.errors import error_responses
 from app.modules.matching import service
 from app.modules.matching.schemas import (
     CandidateCard,
+    CandidateMarketOut,
     CategoryCatalogItem,
     JsonResume,
     RecommendationsOut,
@@ -175,3 +176,22 @@ async def get_recommendations(
 )
 async def get_salary_coverage(need_id: int, user: CurrentEmployer, db: DbSession) -> SalaryCoverage:
     return await service.salary_coverage(db, user.id, need_id)
+
+
+# Кандидату — только агрегаты рынка его категории; навыки считаются тем же skills-компонентом, что и подбор
+candidate_router = APIRouter(prefix="/candidates/me", tags=["candidate: market"])
+
+
+@candidate_router.get(
+    "/market",
+    response_model=CandidateMarketOut,
+    summary="Рынок моей категории: потребности, вилки, востребованные навыки и что поможет",
+    description=(
+        "Только агрегаты по действующим потребностям своей и соседних категорий, без названий компаний и "
+        "потребностей. Вилки, навыки и подсказки скрываются (`suppressed=true`), если потребностей или "
+        "компаний в выборке меньше порога из `content/matching.yaml` (`insights`)."
+    ),
+    responses=error_responses(401, 403),
+)
+async def get_my_market(user: CurrentCandidate, db: DbSession) -> CandidateMarketOut:
+    return await service.market_for_candidate(db, user.id)
