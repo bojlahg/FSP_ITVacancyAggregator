@@ -40,7 +40,7 @@ jobs:
           printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
           echo "$DEPLOY_KNOWN_HOST" > ~/.ssh/known_hosts
       # Только скрипты из infra/scripts (для action=swap), без LFS
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           sparse-checkout: infra/scripts
       - name: Run

@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from statistics import median
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import any_, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.enums import ConsentKind, Grade, InvitationStatus, SearchStatus, SkillSource, WorkFormat
@@ -285,7 +285,7 @@ async def _visible_rows(
         select(CandidateSearchIndex, Candidate)
         .join(Candidate, Candidate.id == CandidateSearchIndex.candidate_id)
         .where(CandidateSearchIndex.visible.is_(True))
-        .where(~CandidateSearchIndex.hidden_employer_ids.any(employer_id))
+        .where(~(any_(CandidateSearchIndex.hidden_employer_ids) == employer_id))
     )
     if specs:
         query = query.where(CandidateSearchIndex.specialization.in_(specs))

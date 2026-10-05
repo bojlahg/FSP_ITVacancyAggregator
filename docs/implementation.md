@@ -887,8 +887,8 @@ POST /admin/reseed (роль admin) ; POST /admin/demo/reset-cooldowns     то�
 
 | Вопрос | Нужно для | Срок |
 |---|---|---|
-| ~~Почта~~ — собственный Postfix с DKIM; осталось: SPF/DKIM/DMARC в DNS reg.ru и PTR в VDSina; до проверки доставляемости `EMAIL_VERIFICATION_REQUIRED=false` | T03 | в работе |
-| ~~A-запись `itscout.ru`~~ — работает, HTTPS включён; осталась A-запись `www` | HTTPS | решено |
+| ~~Почта~~ — собственный Postfix с DKIM; в DNS настроены SPF, DKIM (`mail._domainkey`), DMARC, PTR `94.103.87.151 → itscout.ru`, A-записи `itscout.ru` и `www`; доставка проверена. `EMAIL_VERIFICATION_REQUIRED=false` оставлен намеренно: на показе письмо у жюри может уйти в спам | T03 | решено |
+| ~~A-записи `itscout.ru` и `www`~~ — работают, HTTPS включён | HTTPS | решено |
 | Ключ Yandex AI Studio: берём из DealDojo или заводим новый | T08 | 6.10 |
 | ~~GitHub-репозиторий~~ — `bojlahg/FSP_ITVacancyAggregator`, приватный до конца разработки. Делаем публичным **11.10 перед отправкой ссылки**. С первого коммита — ни одного секрета в истории | T01 | решено |
 | ~~Поднимаем ли Keycloak на проде~~ — да, постоянный сервис compose с ограничением памяти (около 420 МБ RAM) | T17 | решено |
