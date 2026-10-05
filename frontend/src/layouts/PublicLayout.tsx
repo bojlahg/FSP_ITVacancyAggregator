@@ -1,6 +1,7 @@
 import { Link, Outlet, useLocation } from "react-router";
 import { LegalLinks } from "@/components/LegalLinks";
 import { Logo } from "@/components/Logo";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { homePathFor, useAuth } from "@/lib/auth";
 
@@ -15,7 +16,7 @@ export default function PublicLayout() {
         <Link to="/" aria-label="ITScout — на главную">
           <Logo className="h-8 sm:h-9" />
         </Link>
-        <div className="flex items-center gap-4">
+        <div className="ml-auto flex items-center gap-4">
           <span className="hidden font-mono text-xs tracking-wide text-muted-foreground md:inline">
             Лидеры цифровой трансформации 2026 · спецтрек ФСП
           </span>
@@ -42,6 +43,7 @@ export default function PublicLayout() {
               )}
             </>
           )}
+          <ThemeToggle />
         </div>
       </header>
 

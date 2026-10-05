@@ -1,6 +1,9 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Тёмная тема — класс .dark на <html>: его ставят public/theme-init.js до отрисовки и lib/theme.ts */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /*
  * Токены темы по брендбуку ФСП (docs/brandook, docs/implementation.md §16).
  * Компоненты используют только эти токены — произвольные hex в компонентах запрещены.
@@ -44,6 +47,8 @@
   --destructive-tint: color-mix(in oklab, var(--brand-red) 8%, var(--brand-white));
   /* Красный для мелкого текста ошибок: затемнён до контраста AA (≥4.5:1) */
   --destructive-strong: color-mix(in oklab, var(--brand-red) 78%, var(--brand-ink));
+  /* Заливка опасной кнопки под белый текст — одинаковая в обеих темах */
+  --destructive-solid: color-mix(in oklab, var(--brand-red) 78%, var(--brand-ink));
   --border: var(--brand-gray-strong);
   --border-subtle: var(--brand-gray);
   --input: var(--brand-gray-strong);
@@ -56,6 +61,57 @@
   --chart-3: var(--brand-blue-pale);
   --chart-4: var(--brand-ink);
   --chart-5: var(--brand-red);
+}
+
+/*
+ * Тёмная тема в той же гамме ФСП. Фирменный синий на тёмном фоне даёт контраст 2.7:1, поэтому
+ * основной цвет — светлый оттенок того же синего (#8A80FF, 5.4:1 на фоне), текст на кнопках — тёмный.
+ */
+.dark {
+  --brand-blue-light: #8a80ff;
+  --brand-red-light: #ff6b7a;
+  --surface-0: #1b1c21;
+  --surface-1: #222329;
+  --surface-2: #2a2b32;
+  --surface-line: #3a3b43;
+  --surface-line-subtle: #2e2f36;
+
+  --background: var(--surface-0);
+  --foreground: var(--brand-gray);
+  --card: var(--surface-1);
+  --card-foreground: var(--brand-gray);
+  --popover: var(--surface-1);
+  --popover-foreground: var(--brand-gray);
+  --primary: var(--brand-blue-light);
+  --primary-foreground: var(--surface-0);
+  --primary-soft: var(--brand-blue-pale);
+  --primary-pale: var(--brand-blue-soft);
+  --primary-tint: color-mix(in oklab, var(--brand-blue-light) 12%, var(--surface-0));
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--brand-gray);
+  --muted: var(--surface-2);
+  /* 6.9:1 на карточке */
+  --muted-foreground: #a3a4ad;
+  --accent: var(--primary-tint);
+  --accent-foreground: var(--brand-blue-pale);
+  --destructive: var(--brand-red);
+  --destructive-foreground: var(--brand-white);
+  --destructive-tint: color-mix(in oklab, var(--brand-red) 18%, var(--surface-0));
+  /* 6.2:1 на карточке */
+  --destructive-strong: var(--brand-red-light);
+  --border: var(--surface-line);
+  --border-subtle: var(--surface-line-subtle);
+  --input: var(--surface-line);
+  --ring: var(--brand-blue-light);
+  /* Тёмные панели (код в заданиях, оверлеи) остаются тёмными — темнее фона страницы */
+  --ink: #0f1013;
+  --ink-foreground: var(--brand-gray);
+
+  --chart-1: var(--brand-blue-light);
+  --chart-2: var(--brand-blue-pale);
+  --chart-3: var(--brand-blue-soft);
+  --chart-4: var(--brand-gray-strong);
+  --chart-5: var(--brand-red-light);
 }
 
 @theme inline {
@@ -83,6 +139,7 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --color-destructive-tint: var(--destructive-tint);
   --color-destructive-strong: var(--destructive-strong);
+  --color-destructive-solid: var(--destructive-solid);
   --color-border: var(--border);
   --color-border-subtle: var(--border-subtle);
   --color-input: var(--input);
@@ -116,6 +173,9 @@
   }
   html {
     color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
   }
   /* Элемент сетки не должен растягивать страницу по самому широкому содержимому:
      на телефоне длинный текст переносится, а таблицы прокручиваются внутри своего блока */

@@ -588,7 +588,7 @@ export default function HowItWorksPage() {
         <EmptyState className="mb-16" title="Тестов пока нет" description="Банк заданий ещё не загружен." />
       ) : (
         <>
-          <dl className="grid grid-cols-2 border-t-[1.5px] border-ink sm:grid-cols-4">
+          <dl className="grid grid-cols-2 border-t-[1.5px] border-foreground sm:grid-cols-4">
             {[
               { label: "Шаблонов в банке", value: overview.data.active_templates },
               { label: "Специализаций", value: specs.length },

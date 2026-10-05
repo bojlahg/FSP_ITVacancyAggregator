@@ -108,7 +108,7 @@ export default function LandingPage() {
           Как работает тест: шаблоны, адаптивность, защита от слива <ArrowRight className="inline size-4 align-[-3px]" aria-hidden />
         </Link>
 
-        <dl className="mt-14 grid grid-cols-1 border-t-[1.5px] border-ink sm:grid-cols-3">
+        <dl className="mt-14 grid grid-cols-1 border-t-[1.5px] border-foreground sm:grid-cols-3">
           {facts.map((fact) => (
             <div key={fact.label} className="pt-4 pr-5">
               <dt className="font-mono text-xs font-medium tracking-[0.06em] text-muted-foreground uppercase">

@@ -6,6 +6,7 @@ import { Link, NavLink, Outlet, useNavigate } from "react-router";
 import { EmailVerificationBanner } from "@/components/EmailVerificationBanner";
 import { LegalLinks } from "@/components/LegalLinks";
 import { ProductMark } from "@/components/Logo";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { authStore, useAuth } from "@/lib/auth";
 import { useLogout } from "@/lib/auth-queries";
@@ -137,9 +138,12 @@ export function CabinetLayout({ homePath, roleLabel, nav: baseNav, debugLink = t
           <Link to={homePath} className="font-mono text-base font-extrabold text-primary">
             IT<span className="text-foreground">Scout</span>
           </Link>
-          <span className="w-8" aria-hidden />
+          <ThemeToggle />
         </header>
-        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
+        <div className="mx-auto hidden w-full max-w-7xl justify-end px-10 pt-4 lg:flex">
+          <ThemeToggle />
+        </div>
+        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:pt-4 lg:pb-10">
           <EmailVerificationBanner />
           <Outlet />
         </main>

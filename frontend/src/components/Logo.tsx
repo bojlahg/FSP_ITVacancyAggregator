@@ -3,18 +3,22 @@ import logoLight from "@/assets/brand/logo_01w.svg";
 import { cn } from "@/lib/utils";
 
 interface LogoProps {
-  /** light — тёмный текст для светлого фона (по умолчанию), dark — светлый текст для тёмного фона. */
-  tone?: "light" | "dark";
+  /** auto — по теме сайта (по умолчанию); light — тёмный текст для светлого фона, dark — светлый для тёмного. */
+  tone?: "auto" | "light" | "dark";
   className?: string;
 }
 
-export function Logo({ tone = "light", className }: LogoProps) {
+const ALT = "Федерация спортивного программирования России";
+
+export function Logo({ tone = "auto", className }: LogoProps) {
+  if (tone !== "auto") {
+    return <img src={tone === "light" ? logoLight : logoDark} alt={ALT} className={cn("h-8 w-auto", className)} />;
+  }
   return (
-    <img
-      src={tone === "light" ? logoLight : logoDark}
-      alt="Федерация спортивного программирования России"
-      className={cn("h-8 w-auto", className)}
-    />
+    <>
+      <img src={logoLight} alt={ALT} className={cn("h-8 w-auto dark:hidden", className)} />
+      <img src={logoDark} alt={ALT} className={cn("hidden h-8 w-auto dark:inline", className)} />
+    </>
   );
 }
 
