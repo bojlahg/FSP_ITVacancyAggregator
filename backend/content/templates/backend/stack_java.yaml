@@ -145,3 +145,15 @@
   irt: {a: 1.2, b: 1.2}
   time_limit_sec: 120
   generator: backend.java_stream_short_circuit
+
+# --- Senior ---
+
+- id: be.java.hashset_mutation
+  specializations: [backend]
+  topic: stack
+  stack_module: java
+  skills: [java]
+  kind: code_output
+  irt: {a: 1.4, b: 1.6}
+  time_limit_sec: 180
+  generator: backend.java_hashset_mutation

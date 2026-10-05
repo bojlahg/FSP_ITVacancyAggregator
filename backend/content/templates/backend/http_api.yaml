@@ -337,3 +337,42 @@
   kind: numeric
   irt: {a: 1.0, b: -2.1}
   generator: backend.http_count_client_errors
+
+# --- Senior: кеширование и ретраи ---
+
+- id: be.http.swr_origin
+  specializations: [backend]
+  topic: http_api
+  skills: [http, caching]
+  kind: numeric
+  irt: {a: 1.4, b: 1.6}
+  time_limit_sec: 180
+  generator: backend.http_swr_origin
+
+- id: be.http.retry_amplification
+  specializations: [backend]
+  topic: http_api
+  skills: [http, microservices, system_design]
+  kind: numeric
+  irt: {a: 1.3, b: 1.4}
+  time_limit_sec: 120
+  params:
+    layers: {choice: [3, 4]}
+    retries: {int: [1, 4]}
+    bottom: {choice: [сервис профилей, сервис цен, сервис остатков, сервис сессий, сервис тарифов]}
+  stem_variants:
+    - >-
+      Запрос пользователя проходит цепочку из {{layers}} сервисов-клиентов: каждый вызывает следующий, а последний —
+      {{bottom}}. Каждый клиент при ошибке ответа повторяет вызов: число повторов — не больше {{retries}}, то есть
+      всего до {{retries}} + 1 попыток; бюджета ретраев и circuit breaker нет; ошибка нижнего уровня возвращается наверх
+      тоже как ошибка. Сейчас {{bottom}} полностью недоступен и отвечает ошибкой мгновенно. Сколько вызовов получит
+      {{bottom}} на один запрос пользователя?
+    - >-
+      В цепочке синхронных вызовов {{layers}} уровня клиентов, нижний вызывает {{bottom}}. На каждом уровне
+      включены ретраи: число повторов после неудачной попытки — не больше {{retries}}, других ограничений нет, ошибка
+      пробрасывается вызывающему. Сейчас {{bottom}} лежит и сразу возвращает 503. Сколько запросов придёт в
+      {{bottom}} в худшем случае на один пользовательский запрос?
+  answer:
+    # каждый уровень умножает число попыток: (r + 1)^L — «шторм ретраев»
+    expr: "({{retries}} + 1) ** {{layers}}"
+    tolerance: 0

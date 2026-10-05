@@ -137,3 +137,15 @@
   irt: {a: 1.3, b: 1.2}
   time_limit_sec: 120
   generator: backend.go_slice_append_shared
+
+# --- Senior ---
+
+- id: be.go.nil_interface
+  specializations: [backend]
+  topic: stack
+  stack_module: go
+  skills: [go]
+  kind: code_output
+  irt: {a: 1.4, b: 1.5}
+  time_limit_sec: 150
+  generator: backend.go_nil_interface

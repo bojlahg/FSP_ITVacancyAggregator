@@ -210,3 +210,15 @@
   kind: numeric
   irt: {a: 0.9, b: -2.3}
   generator: backend.python_list_append_len
+
+# --- Senior ---
+
+- id: be.py.super_mro
+  specializations: [backend]
+  topic: stack
+  stack_module: python
+  skills: [python, oop]
+  kind: code_output
+  irt: {a: 1.4, b: 1.6}
+  time_limit_sec: 180
+  generator: backend.python_super_mro

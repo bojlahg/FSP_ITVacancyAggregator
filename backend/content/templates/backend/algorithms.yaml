@@ -200,3 +200,38 @@
     # i пробегает значения от start до stop − 1 включительно
     expr: "{{stop}} - {{start}}"
     tolerance: 0
+
+# --- Senior ---
+
+- id: be.algo.dynamic_array_copies
+  specializations: [backend]
+  topic: algorithms
+  skills: [algorithms, data_structures]
+  kind: numeric
+  irt: {a: 1.3, b: 1.4}
+  time_limit_sec: 150
+  generator: backend.dynamic_array_copies
+
+- id: be.algo.birthday_collisions
+  specializations: [backend]
+  topic: algorithms
+  skills: [algorithms, data_structures]
+  kind: numeric
+  irt: {a: 1.3, b: 1.5}
+  time_limit_sec: 150
+  params:
+    n: {int: [3000, 20000], step: 1000}
+    bits: {choice: [16, 20]}
+    what: {choice: [короткие идентификаторы ссылок, ключи шардирования, отпечатки документов, ключи дедупликации]}
+  stem_variants:
+    - >-
+      Для {{n}} разных объектов вычисляют хеш и берут из него {{bits}} бит ({{what}}); хеш распределён
+      равномерно и независимо. Каково ожидаемое число пар объектов с одинаковым {{bits}}-битным значением?
+      Округлите до целого.
+    - >-
+      Задача — {{what}}: {{n}} разных объектов получают по {{bits}}-битному хешу, значения равномерны и независимы.
+      Сколько в среднем будет пар объектов с совпавшим хешем? Ответ округлите до целого.
+  answer:
+    # ожидаемое число коллизий пар: C(n, 2) / 2^bits (парадокс дней рождения)
+    expr: "{{n}} * ({{n}} - 1) / 2 / 2 ** {{bits}}"
+    tolerance: 1

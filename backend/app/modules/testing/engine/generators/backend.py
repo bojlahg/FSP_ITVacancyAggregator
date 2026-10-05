@@ -1040,3 +1040,436 @@ def python_list_append_len(rng: random.Random) -> Generated:
         code_language="python",
         number=float(len(initial) + len(appends)),
     )
+
+
+# --- Senior: изоляция, кеширование, блокировки, очереди, тонкости языков ---
+
+PG_ROWS = [
+    ("accounts", "balance"),
+    ("wallets", "amount"),
+    ("stock", "qty"),
+    ("limits", "remaining"),
+    ("budgets", "spent"),
+]
+
+
+@generator("backend.pg_isolation_outcome")
+def pg_isolation_outcome(rng: random.Random) -> Generated:
+    """PostgreSQL: READ COMMITTED перечитывает строку при UPDATE, REPEATABLE READ и SERIALIZABLE падают на
+    конфликте записи (could not serialize access due to concurrent update). READ UNCOMMITTED = READ COMMITTED.
+    """
+    table, column = rng.choice(PG_ROWS)
+    row_id = rng.randint(2, 99)
+    v0 = rng.randrange(200, 900, 10)
+    d2, d1 = rng.sample(range(10, 100, 5), 2)
+    level = rng.choice(["READ UNCOMMITTED", "READ COMMITTED", "REPEATABLE READ", "SERIALIZABLE"])
+    relative = rng.random() < 0.5
+    t1_set = f"{column} + {d1}" if relative else str(v0 + d1)
+    t1_note = "" if relative else f"  -- приложение посчитало {v0} + {d1}"
+    code = (
+        f"-- в {table} строка id = {row_id}, {column} = {v0}\n"
+        f"-- T1:\nBEGIN ISOLATION LEVEL {level};\n"
+        f"SELECT {column} FROM {table} WHERE id = {row_id};  -- вернул {v0}\n"
+        "-- T2 (другая сессия, автокоммит):\n"
+        f"UPDATE {table} SET {column} = {column} - {d2} WHERE id = {row_id};\n"
+        f"-- T1:\nUPDATE {table} SET {column} = {t1_set} WHERE id = {row_id};{t1_note}\nCOMMIT;"
+    )
+    ok = f"T1 зафиксируется, итог {column} = {{}}"
+    fail = f"T1 получит ошибку сериализации, итог {column} = {{}}"
+    if level in ("REPEATABLE READ", "SERIALIZABLE"):
+        correct = fail.format(v0 - d2)
+    elif relative:
+        correct = ok.format(v0 - d2 + d1)
+    else:
+        correct = ok.format(v0 + d1)
+    values = [v0 + d1, v0 - d2 + d1, v0 - d2, v0]
+    wrong = [template.format(value) for template in (ok, fail) for value in values]
+    wrong.append("T1 будет ждать снятия блокировки до таймаута, значение не изменится")
+    rng.shuffle(wrong)
+    stem = rng.choice(
+        [
+            "Транзакции в PostgreSQL выполняются в указанном порядке. Чем закончится T1 и каким будет "
+            "значение после обеих транзакций?",
+            "Что произойдёт с транзакцией T1 (PostgreSQL) и какое значение останется в строке?",
+        ]
+    )
+    return _choice(stem, code, "sql", correct, wrong)
+
+
+@generator("backend.http_swr_origin")
+def http_swr_origin(rng: random.Random) -> Generated:
+    """RFC 9111 и RFC 5861: свежий ответ — из кеша; устаревший не дольше stale-while-revalidate — из кеша
+    с фоновой ревалидацией; ещё старше — синхронный запрос к origin."""
+    while True:
+        max_age = rng.choice([30, 60, 90, 120])
+        swr = rng.choice([30, 60, 120, 180])
+        times, moment = [], 0
+        for _ in range(rng.randint(6, 8)):
+            moment += rng.randint(10, max_age + swr)
+            times.append(moment)
+        stored, sync, background, ok = 0, 0, 0, True
+        for moment in times:
+            age = moment - stored
+            if min(abs(age - max_age), abs(age - max_age - swr)) < 3:
+                ok = False
+                break
+            if age < max_age:
+                continue
+            if age < max_age + swr:
+                background += 1
+            else:
+                sync += 1
+            stored = moment
+        if ok and sync >= 1 and background >= 1:
+            break
+    ask_total = rng.random() < 0.4
+    question = (
+        "Сколько всего запросов (синхронных и фоновых) общий кеш отправит к origin за эти обращения?"
+        if ask_total
+        else "Сколько из этих обращений клиенту придётся ждать ответа origin (кеш не отдаст ответ сразу)?"
+    )
+    stem = (
+        "Общий HTTP-кеш (CDN) получил ответ от origin в момент 0 с заголовком "
+        f"Cache-Control: max-age={max_age}, stale-while-revalidate={swr} и сохранил его. Дальше клиенты "
+        f"запрашивают этот ресурс в моменты (секунды): {', '.join(map(str, times))}. Любой запрос к origin "
+        "(и синхронный, и фоновая ревалидация) выполняется мгновенно и заново сохраняет ответ с теми же "
+        f"заголовками; других запросов нет. {question}"
+    )
+    return Generated(stem=stem, number=float(sync + background if ask_total else sync), tolerance=0)
+
+
+LOCK_NAMES = ["accounts", "orders", "cache", "audit", "users", "stock", "queue", "ledger"]
+
+
+def _lock_cycles(edges: list[tuple[str, str]]) -> list[frozenset[int]]:
+    """Наборы потоков, образующих цикл ожидания: поток i держит first и ждёт second."""
+    found: list[frozenset[int]] = []
+    for i in range(len(edges)):
+        for j in range(i + 1, len(edges)):
+            if edges[i] == edges[j][::-1]:
+                found.append(frozenset({i, j}))
+    for order in ((0, 1, 2), (0, 2, 1)):
+        a, b, c = (edges[k] for k in order)
+        if a[1] == b[0] and b[1] == c[0] and c[1] == a[0]:
+            found.append(frozenset(order))
+    return found
+
+
+@generator("backend.lock_order_deadlock")
+def lock_order_deadlock(rng: random.Random) -> Generated:
+    """Взаимная блокировка возможна, если порядок захвата замков образует цикл — в том числе из трёх потоков,
+    где никакая пара напрямую не конфликтует."""
+    scenario = rng.choice(["none", "pair", "triple"])
+    while True:
+        locks = rng.sample(LOCK_NAMES, 3)
+        edges = [tuple(rng.sample(locks, 2)) for _ in range(3)]
+        if len(set(edges)) < 3:
+            continue
+        cycles = _lock_cycles(edges)
+        sizes = {len(cycle) for cycle in cycles}
+        if scenario == "none" and not cycles:
+            break
+        if scenario == "pair" and len(cycles) == 1 and sizes == {2}:
+            break
+        if scenario == "triple" and len(cycles) == 1 and sizes == {3}:
+            break
+    lines = []
+    for index, (first, second) in enumerate(edges, start=1):
+        lines += [
+            f"def worker_{index}():  # поток T{index}",
+            f"    with {first}_lock:",
+            f"        with {second}_lock:",
+            f"            update_{first}_{second}()",
+            "",
+        ]
+    labels = {
+        frozenset({0, 1}): "T1 и T2",
+        frozenset({0, 2}): "T1 и T3",
+        frozenset({1, 2}): "T2 и T3",
+        frozenset({0, 1, 2}): "Только T1, T2 и T3 вместе; никакая пара по отдельности",
+    }
+    none = "Взаимная блокировка невозможна"
+    correct = labels[cycles[0]] if cycles else none
+    stem = (
+        "Три потока запускаются одновременно и выполняют свои функции многократно; *_lock — обычные мьютексы "
+        "threading.Lock, других замков нет. Какие потоки могут попасть во взаимную блокировку (deadlock)?"
+    )
+    return _choice(stem, "\n".join(lines).rstrip(), "python", correct, [*labels.values(), none])
+
+
+def _fmt_number(value: float) -> str:
+    return str(int(value)) if float(value).is_integer() else str(round(value, 2)).replace(".", ",")
+
+
+@generator("backend.mm1_latency")
+def mm1_latency(rng: random.Random) -> Generated:
+    """M/M/1: время в системе W = S / (1 − ρ), ожидание в очереди Wq = ρ·S / (1 − ρ)."""
+    service = rng.choice([5, 10, 20, 25, 40])
+    rho = rng.choice([0.5, 0.6, 0.75, 0.8, 0.9])
+    arrival = rho * 1000 / service
+    queue_only = rng.random() < 0.4
+    answer = rho * service / (1 - rho) if queue_only else service / (1 - rho)
+    what = (
+        "среднее время ожидания в очереди (без самой обработки), мс"
+        if queue_only
+        else "среднее время пребывания запроса в системе (очередь + обработка), мс"
+    )
+    worker = rng.choice(["однопоточный воркер", "единственный обработчик", "один поток-обработчик"])
+    stem = (
+        f"Запросы приходят пуассоновским потоком, в среднем {_fmt_number(arrival)} в секунду, и "
+        f"обслуживаются по одному: {worker}, очередь без ограничений, время обработки распределено "
+        f"экспоненциально со средним {service} мс (модель M/M/1). Каково {what}?"
+    )
+    return Generated(stem=stem, number=round(answer, 2), tolerance=0.5)
+
+
+MRO_SHAPES = [
+    [("A", ()), ("B", ("A",)), ("C", ("A",)), ("D", ("B", "C"))],
+    [("A", ()), ("B", ("A",)), ("C", ("A",)), ("D", ("B",)), ("E", ("D", "C"))],
+    [("A", ()), ("B", ("A",)), ("C", ("B",)), ("D", ("A",)), ("E", ("C", "D"))],
+    [("A", ()), ("B", ("A",)), ("C", ("A",)), ("D", ("A",)), ("E", ("B", "C", "D"))],
+]
+CLASS_NAMES = ["Base", "Auth", "Cache", "Log", "Retry", "Metrics", "Trace", "Audit", "Store", "Limit"]
+
+
+def _super_chain(order: list[str], defining: set[str], after: set[str], root: str) -> list[str]:
+    """Вывод цепочки super().f() по порядку классов: печать до вызова super или после него."""
+    chain = [name for name in order if name in defining]
+    before = [name for name in chain if name != root and name not in after]
+    tail = [name for name in reversed(chain) if name != root and name in after]
+    return [*before, root, *tail]
+
+
+@generator("backend.python_super_mro")
+def python_super_mro(rng: random.Random) -> Generated:
+    """Кооперативный super() идёт по MRO (C3-линеаризация), а не к «родителю» класса."""
+    shape = rng.choice(MRO_SHAPES)
+    names = dict(zip([letter for letter, _ in shape], rng.sample(CLASS_NAMES, len(shape)), strict=True))
+    root, leaf = names[shape[0][0]], names[shape[-1][0]]
+    bases_of = {names[letter]: [names[b] for b in bases] for letter, bases in shape}
+    classes: dict[str, type] = {}
+    for letter, _ in shape:
+        name = names[letter]
+        classes[name] = type(name, tuple(classes[b] for b in bases_of[name]) or (object,), {})
+    mro = [cls.__name__ for cls in classes[leaf].__mro__ if cls is not object]
+    middle = [names[letter] for letter, _ in shape[1:-1]]
+    skip = rng.choice([None, *middle])
+    defining = {name for name in mro if name != skip}
+    after = {name for name in middle if name in defining and rng.random() < 0.3}
+
+    lines = []
+    for letter, _ in shape:
+        name = names[letter]
+        bases = bases_of[name]
+        lines.append(f"class {name}({', '.join(bases)}):" if bases else f"class {name}:")
+        if name not in defining:
+            lines += ["    pass", ""]
+            continue
+        lines.append("    def f(self):")
+        if name == root:
+            lines.append(f'        print("{name}", end=" ")')
+        elif name in after:
+            lines += ["        super().f()", f'        print("{name}", end=" ")']
+        else:
+            lines += [f'        print("{name}", end=" ")', "        super().f()"]
+        lines.append("")
+    lines.append(f"{leaf}().f()")
+
+    correct = _super_chain(mro, defining, after, root)
+    parent_chain, current = [leaf], leaf
+    while bases_of[current]:
+        current = bases_of[current][0]
+        parent_chain.append(current)
+    dfs_order: list[str] = []
+
+    def dfs(name: str) -> None:
+        if name not in dfs_order:
+            dfs_order.append(name)
+        for base in bases_of[name]:
+            dfs(base)
+
+    dfs(leaf)
+    right_first = [leaf, *reversed(mro[1:-1]), root]
+    candidates = [
+        _super_chain(parent_chain, defining, after, root),
+        _super_chain(dfs_order, defining, after, root),
+        _super_chain(right_first, defining, after, root),
+        _super_chain(mro, defining, set(), root),
+        list(reversed(correct)),
+    ]
+    if skip:
+        candidates.append(_super_chain(mro, defining | {skip}, after, root))
+    wrong = [" ".join(candidate) for candidate in candidates]
+    shuffled = correct[:]
+    for _ in range(6):
+        rng.shuffle(shuffled)
+        wrong.append(" ".join(shuffled))
+    return _choice("Что выведет этот код?", "\n".join(lines), "python", " ".join(correct), wrong)
+
+
+@generator("backend.java_hashset_mutation")
+def java_hashset_mutation(rng: random.Random) -> Generated:
+    """Изменение поля из hashCode после добавления в HashSet: элемент не находится поиском, хотя остаётся
+    в наборе; повторный add создаёт второй узел с тем же объектом."""
+    cls = rng.choice(["Point", "Key", "Cell", "Coord"])
+    var = rng.choice(["p", "k", "c"])
+    x0, y0 = rng.sample(range(1, 20), 2)
+    x1 = rng.choice([v for v in range(1, 20) if v != x0])
+    statements = rng.sample(["contains_p", "contains_old", "any_match", "remove", "add", "size"], 3)
+    if "contains_p" not in statements and "remove" not in statements:
+        statements[0] = rng.choice(["contains_p", "remove"])
+    size, readded = 1, False
+    naive_size, naive_present = 1, True
+    exprs: list[str] = []
+    actual: list[bool | int] = []
+    naive: list[bool | int] = []
+    for kind in statements:
+        if kind == "contains_p":
+            exprs.append(f"set.contains({var})")
+            actual.append(readded)
+            naive.append(naive_present)
+        elif kind == "contains_old":
+            exprs.append(f"set.contains(new {cls}({x0}, {y0}))")
+            actual.append(False)
+            naive.append(False)
+        elif kind == "any_match":
+            exprs.append(f"set.stream().anyMatch(e -> e.equals({var}))")
+            actual.append(size >= 1)
+            naive.append(naive_size >= 1)
+        elif kind == "remove":
+            exprs.append(f"set.remove({var})")
+            actual.append(readded)
+            if readded:
+                size, readded = size - 1, False
+            naive.append(naive_present)
+            if naive_present:
+                naive_size, naive_present = naive_size - 1, False
+        elif kind == "add":
+            exprs.append(f"set.add({var})")
+            actual.append(not readded)
+            if not readded:
+                size, readded = size + 1, True
+            naive.append(not naive_present)
+            if not naive_present:
+                naive_size, naive_present = naive_size + 1, True
+        else:
+            exprs.append("set.size()")
+            actual.append(size)
+            naive.append(naive_size)
+
+    def show(values: list[bool | int]) -> str:
+        return " ".join(str(v).lower() if isinstance(v, bool) else str(v) for v in values)
+
+    code = (
+        f"class {cls} {{\n    int x, y;\n    {cls}(int x, int y) {{ this.x = x; this.y = y; }}\n"
+        "    @Override public boolean equals(Object o) {\n"
+        f"        return o instanceof {cls} other && x == other.x && y == other.y;\n    }}\n"
+        "    @Override public int hashCode() { return Objects.hash(x, y); }\n}\n\n"
+        f"Set<{cls}> set = new HashSet<>();\n{cls} {var} = new {cls}({x0}, {y0});\nset.add({var});\n"
+        f"{var}.x = {x1};\n" + "\n".join(f'System.out.print({e} + " ");' for e in exprs)
+    )
+    wrong = [show(naive)]
+    for index, value in enumerate(actual):
+        flipped = actual[:]
+        flipped[index] = (not value) if isinstance(value, bool) else value + 1
+        wrong.append(show(flipped))
+    wrong.append(show([not v if isinstance(v, bool) else v for v in actual]))
+    return _choice("Что выведет фрагмент на Java (значения через пробел)?", code, "java", show(actual), wrong)
+
+
+@generator("backend.go_nil_interface")
+def go_nil_interface(rng: random.Random) -> Generated:
+    """Интерфейс равен nil, только если пусты и тип, и значение: nil-указатель в error — не nil."""
+    err_type = rng.choice(["ValidationError", "NotFoundError", "QuotaError", "AuthError"])
+    typed, plain, raw = rng.choice(
+        [("check", "checkFixed", "lookup"), ("validate", "validate2", "find"), ("load", "loadSafe", "raw")]
+    )
+    pool = [
+        (f"{typed}(true) == nil", False),
+        (f"{typed}(false) == nil", False),
+        (f"{plain}(true) == nil", True),
+        (f"{plain}(false) == nil", False),
+        (f"{raw}() == nil", True),
+        (f"error({raw}()) == nil", False),
+    ]
+    chosen = [pool[0], *rng.sample(pool[1:], 2)]
+    rng.shuffle(chosen)
+    code = (
+        'package main\n\nimport "fmt"\n\n'
+        f"type {err_type} struct{{}}\n\n"
+        f'func (e *{err_type}) Error() string {{ return "{err_type}" }}\n\n'
+        f"func {raw}() *{err_type} {{ return nil }}\n\n"
+        f"func {typed}(ok bool) error {{\n\tvar err *{err_type}\n"
+        f"\tif !ok {{\n\t\terr = &{err_type}{{}}\n\t}}\n"
+        "\treturn err\n}\n\n"
+        f"func {plain}(ok bool) error {{\n\tif !ok {{\n\t\treturn &{err_type}{{}}\n\t}}\n\treturn nil\n}}\n\n"
+        "func main() {\n\tfmt.Println(" + ", ".join(e for e, _ in chosen) + ")\n}"
+    )
+    correct = " ".join(str(v).lower() for _, v in chosen)
+    naive = " ".join("true" if e == pool[0][0] else str(v).lower() for e, v in chosen)
+    return _choice("Что выведет программа на Go?", code, "go", correct, [naive, *_bool_triples(rng)])
+
+
+def _ints(values: list[int]) -> str:
+    return " ".join(str(v) for v in values)
+
+
+@generator("backend.csharp_closure_loops")
+def csharp_closure_loops(rng: random.Random) -> Generated:
+    """C# 5+: переменная foreach своя на каждой итерации, а переменная цикла for — одна на весь цикл."""
+    count = rng.randint(2, 3)
+    factor = rng.randint(2, 5)
+    values = rng.sample(range(1, 30), count)
+    loops = rng.sample(["for", "foreach", "for_copy"], 2)
+    if "for" not in loops:
+        loops[rng.randrange(2)] = "for"
+    lines = ["var actions = new List<Func<int>>();"]
+    actual: list[int] = []
+    naive: list[int] = []
+    shared: list[int] = []
+    for loop in loops:
+        if loop == "for":
+            lines.append(f"for (int i = 0; i < {count}; i++) actions.Add(() => i * {factor});")
+            actual += [count * factor] * count
+            naive += [i * factor for i in range(count)]
+            shared += [count * factor] * count
+        elif loop == "for_copy":
+            lines.append(
+                f"for (int j = 0; j < {count}; j++) {{ int copy = j; actions.Add(() => copy + {factor}); }}"
+            )
+            actual += [j + factor for j in range(count)]
+            naive += [j + factor for j in range(count)]
+            shared += [count + factor] * count
+        else:
+            items = ", ".join(map(str, values))
+            lines.append(f"foreach (var v in new[] {{ {items} }}) actions.Add(() => v);")
+            actual += values
+            naive += values
+            shared += [values[-1]] * count
+    lines.append('Console.WriteLine(string.Join(" ", actions.Select(f => f())));')
+    last_index = [(count - 1) * factor if v == count * factor else v for v in actual]
+    wrong = [_ints(naive), _ints(shared), _ints(last_index), _ints(actual[count:] + actual[:count])]
+    return _choice(
+        "Что выведет фрагмент на C# (C# 5 и новее)?", "\n".join(lines), "csharp", _ints(actual), wrong
+    )
+
+
+@generator("backend.dynamic_array_copies")
+def dynamic_array_copies(rng: random.Random) -> Generated:
+    """Динамический массив: при заполнении ёмкость умножается на k и все элементы копируются в новый буфер."""
+    capacity = rng.choice([1, 2, 4, 5, 8, 10])
+    growth = rng.choice([2, 2, 3])
+    count = rng.randint(capacity * growth**3 + 1, capacity * growth**5)
+    copies, cap = 0, capacity
+    for size in range(count):
+        if size == cap:
+            copies += size
+            cap *= growth
+    name = rng.choice(["массив-список", "вектор", "динамический массив", "буфер событий"])
+    stem = (
+        f"Пустой {name} с начальной ёмкостью {capacity}. При добавлении в заполненный буфер ёмкость "
+        f"увеличивается в {growth} раза, и все уже лежащие элементы копируются в новый буфер. Сколько всего "
+        f"копирований элементов произойдёт при последовательном добавлении {count} элементов (запись самого "
+        "добавляемого элемента не считается)?"
+    )
+    return Generated(stem=stem, number=float(copies), tolerance=0)

@@ -390,3 +390,82 @@
   kind: numeric
   irt: {a: 1.0, b: -2.0}
   generator: backend.sql_where_equals_rows
+
+# --- Senior: изоляция, планы запросов, пагинация ---
+
+- id: be.db.isolation_outcome
+  specializations: [backend]
+  topic: databases
+  skills: [postgresql, sql, concurrency]
+  kind: code_output
+  irt: {a: 1.5, b: 1.7}
+  time_limit_sec: 180
+  generator: backend.pg_isolation_outcome
+
+- id: be.db.index_range_order
+  specializations: [backend]
+  topic: databases
+  skills: [postgresql, sql]
+  kind: multi_choice
+  irt: {a: 1.4, b: 1.5}
+  time_limit_sec: 150
+  n_options: 5
+  params:
+    table: {choice: [orders, payments, events, tickets, invoices]}
+    key: {choice: [customer_id, account_id, tenant_id, merchant_id]}
+    range: {choice: [amount, priority, score, weight]}
+    sort: {choice: [created_at, updated_at, paid_at]}
+  stem_variants:
+    - >-
+      Запрос в PostgreSQL: SELECT * FROM {{table}} WHERE {{key}} = $1 AND {{range}} > $2 ORDER BY {{sort}} DESC
+      LIMIT 20. У одного {{key}} сотни тысяч строк, и условию по {{range}} удовлетворяет большинство из них. Какие
+      B-tree индексы позволяют получить первые 20 строк, читая индекс в порядке {{sort}} только в пределах
+      нужного {{key}}, без сортировки всех подходящих строк?
+    - >-
+      Нужно ускорить запрос SELECT * FROM {{table}} WHERE {{key}} = $1 AND {{range}} > $2 ORDER BY {{sort}} DESC
+      LIMIT 20 (PostgreSQL). Под одним {{key}} — сотни тысяч строк, фильтр по {{range}} отсекает мало. С какими
+      B-tree индексами план сможет остановиться после 20 строк: идти по индексу в порядке {{sort}} внутри
+      одного {{key}} без шага Sort?
+  options:
+    correct:
+      - "({{key}}, {{sort}})"
+      - "({{key}}, {{sort}}, {{range}})"
+    wrong:
+      - "({{key}}, {{range}}, {{sort}})"
+      - "({{range}}, {{key}}, {{sort}})"
+      - "({{sort}}, {{key}})"
+      - "({{key}}, {{range}})"
+      - "({{range}}, {{sort}})"
+
+- id: be.db.keyset_pagination
+  specializations: [backend]
+  topic: databases
+  skills: [postgresql, sql, rest]
+  kind: multi_choice
+  irt: {a: 1.3, b: 1.4}
+  time_limit_sec: 120
+  n_options: 5
+  params:
+    entity: {choice: [заказов, комментариев, уведомлений, транзакций, событий аудита, постов]}
+    size: {choice: [20, 25, 50, 100]}
+  stem_variants:
+    - >-
+      Лента {{entity}} отдаётся страницами по {{size}}: ORDER BY created_at DESC LIMIT {{size}} OFFSET … .
+      Пока пользователь листает, в начало ленты постоянно добавляются новые записи, у многих записей
+      created_at совпадает до микросекунды. Какие утверждения верны?
+    - >-
+      API отдаёт список {{entity}} по {{size}} на страницу, новые записи появляются всё время, created_at
+      бывает одинаковым у нескольких записей. Сравниваем OFFSET-пагинацию (ORDER BY created_at DESC LIMIT
+      {{size}} OFFSET …) и keyset-пагинацию. Что верно?
+  options:
+    correct:
+      - "С OFFSET новые записи в начале ленты сдвигают выборку: на следующей странице повторятся уже показанные записи"
+      - "Keyset по (created_at, id): WHERE (created_at, id) < ($1, $2) ORDER BY created_at DESC, id DESC — не даёт дублей и пропусков при вставках в начало"
+      - "Ключ keyset должен быть уникальным: только по created_at записи с одинаковым временем на границе страниц пропадут или повторятся"
+      - "Стоимость OFFSET растёт с номером страницы: базе приходится прочитать и отбросить все предыдущие строки"
+    wrong:
+      - "OFFSET-пагинация стабильна при вставках, если в запросе есть ORDER BY created_at"
+      - "Keyset-пагинация позволяет сразу перейти на произвольную страницу по её номеру"
+      - "Для keyset-пагинации по (created_at, id) достаточно индекса только по id"
+      - "Удаление записей с уже показанных страниц не влияет на состав следующих страниц при OFFSET"
+      - "Keyset-пагинация корректна, только если всё листание идёт в одной транзакции SERIALIZABLE"
