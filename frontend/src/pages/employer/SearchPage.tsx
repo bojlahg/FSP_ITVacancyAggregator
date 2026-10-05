@@ -1,19 +1,92 @@
-import { Search, SlidersHorizontal } from "lucide-react";
+import { ChevronLeft, ChevronRight, FilterX, Loader2, Search, SlidersHorizontal } from "lucide-react";
+import { useState } from "react";
+import { SkillsMultiSelect } from "@/components/candidate/SkillsMultiSelect";
 import { CandidateRow } from "@/components/employer/CandidateRow";
+import { CommitInput } from "@/components/employer/CommitInput";
 import { EmptyState } from "@/components/EmptyState";
+import { ErrorState } from "@/components/ErrorState";
 import { PageHeader } from "@/components/PageHeader";
+import { SkeletonCards } from "@/components/SkeletonCards";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
-import { GRADE_LABELS, SPECIALIZATION_FULL_LABELS } from "@/lib/labels";
-// MOCK: заменить на GET /talent/search (фильтры — в query и в URL)
-import { mockCandidates } from "@/mocks/talent";
+import { apiError } from "@/lib/api-error";
+import { type TalentSearchQuery, useTalentSearch } from "@/lib/employer-queries";
+import { formatNumber } from "@/lib/format";
+import { WORK_FORMAT_LABELS } from "@/lib/labels";
+import { type Grade, type SkillOut, useGrades, useSkillCatalog, useSpecializations } from "@/lib/testing-queries";
+import { enumParam, intParam, useUrlFilters } from "@/lib/url-filters";
+import { cn } from "@/lib/utils";
+
+const PAGE_SIZE = 20;
+const GRADES: readonly Grade[] = ["intern", "junior", "middle", "senior"];
+const FORMATS = ["office", "hybrid", "remote"] as const;
+const SORTS = ["vps", "percentile", "fresh"] as const;
+const SORT_LABELS: Record<(typeof SORTS)[number], string> = {
+  vps: "Сила подтверждённого профиля",
+  percentile: "Перцентиль в категории",
+  fresh: "Свежесть результата",
+};
+const FRESH_OPTIONS = [
+  { value: "14", label: "До 2 недель" },
+  { value: "30", label: "До месяца" },
+  { value: "90", label: "До 3 месяцев" },
+];
+const FILTER_KEYS = ["spec", "grade", "skill", "verified", "fsp", "salary", "format", "city", "fresh"];
 
 export default function SearchPage() {
-  // TODO: состояние фильтров в URL (useSearchParams), как на экране подборки.
-  const results = mockCandidates.filter((candidate) => !candidate.outOfFilterReason);
+  const { params, set, reset } = useUrlFilters();
+  const specializations = useSpecializations();
+  const grades = useGrades();
+  const catalog = useSkillCatalog();
+  const [pickedNames, setPickedNames] = useState<Record<string, string>>({});
+
+  const filters = {
+    spec: params.get("spec") ?? "",
+    grade: enumParam(params.get("grade"), GRADES),
+    skills: params.getAll("skill"),
+    verified: params.get("verified") === "1",
+    fsp: params.get("fsp") === "1",
+    salary: intParam(params.get("salary")),
+    format: enumParam(params.get("format"), FORMATS),
+    city: params.get("city") ?? "",
+    fresh: intParam(params.get("fresh")),
+    sort: enumParam(params.get("sort"), SORTS) ?? "vps",
+    page: Math.max(0, (intParam(params.get("page")) ?? 1) - 1),
+  };
+  const hasActiveFilters = FILTER_KEYS.some((key) => params.has(key));
+
+  const query: TalentSearchQuery = {
+    sort: filters.sort,
+    offset: filters.page * PAGE_SIZE,
+    limit: PAGE_SIZE,
+    ...(filters.spec && { specialization: filters.spec }),
+    ...(filters.grade && { grade: filters.grade }),
+    ...(filters.skills.length > 0 && { skills: filters.skills }),
+    ...(filters.verified && { verified_only: true }),
+    ...(filters.fsp && { has_fsp: true }),
+    ...(filters.salary && { salary_max: filters.salary }),
+    ...(filters.format && { work_format: filters.format }),
+    ...(filters.city && { city: filters.city }),
+    ...(filters.fresh && { fresh_days: filters.fresh }),
+  };
+  const search = useTalentSearch(query);
+
+  // Любой фильтр возвращает на первую страницу.
+  const setFilter = (changes: Parameters<typeof set>[0]) => set({ ...changes, page: null });
+  const setSkills = (ids: string[]) => setFilter({ skill: ids });
+
+  const skillNames = {
+    ...Object.fromEntries((catalog.data ?? []).map((skill) => [skill.id, skill.name])),
+    ...pickedNames,
+  };
+  const rememberNames = (skills: SkillOut[]) =>
+    setPickedNames((current) => ({ ...current, ...Object.fromEntries(skills.map((skill) => [skill.id, skill.name])) }));
+
+  const total = search.data?.total ?? 0;
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <>
@@ -23,7 +96,7 @@ export default function SearchPage() {
         description="Без потребности: фильтры по категории, стеку, ФСП, зарплате и формату. Внутри категории выше стоят кандидаты с более сильным подтверждённым профилем."
       />
 
-      <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
+      <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
         <Card className="h-fit gap-4">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -33,70 +106,184 @@ export default function SearchPage() {
           <CardContent className="grid gap-4">
             <div className="grid gap-2">
               <Label htmlFor="search-spec">Специализация</Label>
-              <Select id="search-spec" defaultValue="">
+              <Select id="search-spec" value={filters.spec} onChange={(event) => setFilter({ spec: event.target.value })}>
                 <option value="">Любая</option>
-                {Object.entries(SPECIALIZATION_FULL_LABELS).map(([slug, label]) => (
-                  <option key={slug} value={slug}>
-                    {label}
+                {specializations.data?.map((item) => (
+                  <option key={item.slug} value={item.slug}>
+                    {item.name}
                   </option>
                 ))}
+                {filters.spec && !specializations.data?.some((item) => item.slug === filters.spec) && (
+                  <option value={filters.spec}>{filters.spec}</option>
+                )}
               </Select>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="search-grade">Грейд</Label>
-              <Select id="search-grade" defaultValue="">
+              <Select
+                id="search-grade"
+                value={filters.grade ?? ""}
+                onChange={(event) => setFilter({ grade: event.target.value })}
+              >
                 <option value="">Любой</option>
-                {Object.entries(GRADE_LABELS).map(([slug, label]) => (
-                  <option key={slug} value={slug}>
-                    {label}
+                {(grades.data ?? GRADES.map((slug) => ({ slug, name: slug }))).map((grade) => (
+                  <option key={grade.slug} value={grade.slug}>
+                    {grade.name}
                   </option>
                 ))}
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="search-stack">Стек</Label>
-              <Input id="search-stack" placeholder="Python, PostgreSQL" />
+              <Label htmlFor="search-skills">Стек</Label>
+              <SkillsMultiSelect
+                id="search-skills"
+                value={filters.skills}
+                onChange={setSkills}
+                names={skillNames}
+                onNamesChange={rememberNames}
+              />
               <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Checkbox /> только проверенный тестом
+                <Checkbox checked={filters.verified} onChange={(event) => setFilter({ verified: event.target.checked })} />
+                только проверенный тестом
               </label>
             </div>
+            <label className="flex items-center gap-3 text-sm">
+              <Checkbox checked={filters.fsp} onChange={(event) => setFilter({ fsp: event.target.checked })} />
+              Есть достижения ФСП
+            </label>
             <div className="grid gap-2">
-              <Label>Зарплатные ожидания, ₽</Label>
-              <div className="grid grid-cols-2 gap-2">
-                <Input placeholder="от" inputMode="numeric" aria-label="Ожидания от" />
-                <Input placeholder="до" inputMode="numeric" aria-label="Ожидания до" />
-              </div>
+              <Label htmlFor="search-salary">Ожидания не выше, ₽</Label>
+              <CommitInput
+                id="search-salary"
+                type="number"
+                inputMode="numeric"
+                min={0}
+                step={10000}
+                placeholder="например, 250000"
+                value={filters.salary ? String(filters.salary) : ""}
+                onCommit={(value) => setFilter({ salary: intParam(value) ?? null })}
+              />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="search-fsp-discipline">Дисциплина ФСП</Label>
-              <Select id="search-fsp-discipline" defaultValue="">
-                <option value="">Любая</option>
-                <option value="product">Продуктовое программирование</option>
-                <option value="algo">Алгоритмическое программирование</option>
-                <option value="security">Информационная безопасность</option>
-                <option value="robotics">Программирование робототехники</option>
+              <Label htmlFor="search-format">Формат работы</Label>
+              <Select
+                id="search-format"
+                value={filters.format ?? ""}
+                onChange={(event) => setFilter({ format: event.target.value })}
+              >
+                <option value="">Любой</option>
+                {FORMATS.map((format) => (
+                  <option key={format} value={format}>
+                    {WORK_FORMAT_LABELS[format]}
+                  </option>
+                ))}
               </Select>
-              <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Checkbox /> есть достижения ФСП
-              </label>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="search-city">Город</Label>
-              <Input id="search-city" placeholder="Москва" />
+              <CommitInput
+                id="search-city"
+                placeholder="Любой"
+                value={filters.city}
+                onCommit={(value) => setFilter({ city: value })}
+              />
             </div>
+            <div className="grid gap-2">
+              <Label htmlFor="search-fresh">Свежесть результата</Label>
+              <Select
+                id="search-fresh"
+                value={filters.fresh ? String(filters.fresh) : ""}
+                onChange={(event) => setFilter({ fresh: event.target.value })}
+              >
+                <option value="">Любая</option>
+                {FRESH_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => reset(["sort"])} disabled={!hasActiveFilters}>
+              <FilterX /> Сбросить фильтры
+            </Button>
           </CardContent>
         </Card>
 
-        <section className="min-w-0 space-y-3">
-          <div className="relative">
-            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input className="h-11 pl-9" placeholder="Навык, специализация или город" aria-label="Поиск" />
+        <section className="min-w-0 space-y-3" aria-labelledby="search-results">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 id="search-results" className="flex items-center gap-2 font-mono text-sm text-muted-foreground">
+              {search.data ? `Найдено: ${formatNumber(total)}` : "Поиск…"}
+              {search.isFetching && !search.isPending && (
+                <Loader2 className="size-4 animate-spin" aria-label="Обновляем результаты" />
+              )}
+            </h2>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="search-sort" className="text-xs text-muted-foreground">
+                Сортировка
+              </Label>
+              <Select
+                id="search-sort"
+                className="h-9 w-auto"
+                value={filters.sort}
+                onChange={(event) => setFilter({ sort: event.target.value === "vps" ? null : event.target.value })}
+              >
+                {SORTS.map((sort) => (
+                  <option key={sort} value={sort}>
+                    {SORT_LABELS[sort]}
+                  </option>
+                ))}
+              </Select>
+            </div>
           </div>
-          <div className="font-mono text-sm text-muted-foreground">Найдено: {results.length}</div>
-          {results.length === 0 ? (
-            <EmptyState icon={Search} title="Никого не нашли" description="Попробуйте ослабить фильтры." />
+
+          {search.isPending ? (
+            <SkeletonCards count={4} />
+          ) : search.isError ? (
+            <ErrorState description={apiError(search.error).message} onRetry={() => void search.refetch()} />
+          ) : search.data.items.length === 0 ? (
+            <EmptyState
+              icon={Search}
+              title="Никого не нашли"
+              description="Попробуйте ослабить фильтры."
+              action={
+                hasActiveFilters && (
+                  <Button variant="outline" onClick={() => reset(["sort"])}>
+                    <FilterX /> Сбросить фильтры
+                  </Button>
+                )
+              }
+            />
           ) : (
-            results.map((candidate) => <CandidateRow key={candidate.id} candidate={candidate} explanationLimit={2} />)
+            <>
+              <div className={cn("grid gap-3 transition-opacity", search.isPlaceholderData && "opacity-60")}>
+                {search.data.items.map((candidate) => (
+                  <CandidateRow key={candidate.id} candidate={candidate} href={`/employer/candidates/${candidate.id}`} />
+                ))}
+              </div>
+              {pages > 1 && (
+                <nav className="flex items-center justify-between gap-3 pt-2" aria-label="Страницы результатов">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={filters.page === 0}
+                    onClick={() => set({ page: filters.page > 1 ? filters.page : null })}
+                  >
+                    <ChevronLeft /> Назад
+                  </Button>
+                  <span className="font-mono text-sm text-muted-foreground tabular-nums">
+                    {filters.page + 1} / {pages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={filters.page + 1 >= pages}
+                    onClick={() => set({ page: filters.page + 2 })}
+                  >
+                    Дальше <ChevronRight />
+                  </Button>
+                </nav>
+              )}
+            </>
           )}
         </section>
       </div>

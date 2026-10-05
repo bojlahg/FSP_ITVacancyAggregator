@@ -60,3 +60,15 @@ export function formatTimer(totalSeconds: number): string {
   const seconds = safe % 60;
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
+
+/** Сколько полных дней прошло с ISO-даты (для бейджа свежести). */
+export function daysSince(iso: string): number {
+  const diff = Date.now() - new Date(iso).getTime();
+  return Math.max(0, Math.floor(diff / 86_400_000));
+}
+
+/** Часы → «5 ч», «2 дн.» */
+export function formatHours(hours: number): string {
+  if (hours < 24) return `${Math.max(1, Math.round(hours))} ч`;
+  return `${Math.round(hours / 24)} дн.`;
+}

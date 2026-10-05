@@ -77,6 +77,7 @@ export const router = createBrowserRouter([
               { path: "needs", lazy: lazyPage(() => import("@/pages/employer/NeedsPage")) },
               { path: "needs/new", lazy: lazyPage(() => import("@/pages/employer/NeedNewPage")) },
               { path: "needs/:needId", lazy: lazyPage(() => import("@/pages/employer/NeedDetailPage")) },
+              { path: "needs/:needId/edit", lazy: lazyPage(() => import("@/pages/employer/NeedEditPage")) },
               { path: "search", lazy: lazyPage(() => import("@/pages/employer/SearchPage")) },
               { path: "categories", lazy: lazyPage(() => import("@/pages/employer/CategoriesPage")) },
               { path: "candidates/:candidateId", lazy: lazyPage(() => import("@/pages/employer/CandidateCardPage")) },

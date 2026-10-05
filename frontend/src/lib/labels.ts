@@ -65,3 +65,47 @@ export const ATTEMPT_RESULT_LABELS: Record<string, string> = {
   pass: "Пройден",
   confident_pass: "Пройден уверенно",
 };
+
+export function workFormatsLabel(formats: readonly string[]): string {
+  return formats.length === 0 ? "формат не указан" : formats.map((item) => WORK_FORMAT_LABELS[item] ?? item).join(" / ");
+}
+
+/** Причины отказа от приглашения (§8.5). */
+export const DECLINE_REASON_LABELS: Record<string, string> = {
+  salary: "Зарплата",
+  stack: "Стек",
+  work_format: "Формат работы",
+  company: "Компания",
+  not_looking: "Не ищу работу",
+  other: "Другое",
+};
+
+/** Насколько рекомендованная категория совпадает с потребностью (§8.1 п.3). */
+export const CATEGORY_FIT_LABELS: Record<string, string> = {
+  exact: "Точное совпадение",
+  adjacent_grade: "Смежный грейд",
+  adjacent_specialization: "Смежная специализация",
+  adjacent_both: "Смежные грейд и специализация",
+};
+
+/** Статус навыка: проверено тестом / подтверждено ФСП / заявлено (§8.3, компонент skills). */
+export const SKILL_STATUS_LABELS: Record<string, string> = {
+  verified: "проверено тестом",
+  fsp_confirmed: "подтверждено ФСП",
+  task_confirmed: "подтверждено заданием",
+  declared: "заявлено",
+};
+
+export const FSP_LEVEL_LABELS: Record<string, string> = {
+  international: "Международный",
+  national: "Всероссийский",
+  interregional: "Межрегиональный",
+  regional: "Региональный",
+  municipal: "Муниципальный",
+};
+
+export const NEED_STATUS_LABELS: Record<string, string> = {
+  draft: "Черновик",
+  active: "Активна",
+  closed: "Закрыта",
+};
