@@ -618,9 +618,12 @@ async def market_for_candidate(db: AsyncSession, user_id: int) -> CandidateMarke
             suggestions=[],
         )
     facts = _facts(row, None, datetime.now(UTC))
+    # Неопубликованные потребности — внутренние планы компаний; учитываются только по настройке (агрегатами)
+    include_unpublished = bool(scoring.get_rules().insights.get("include_unpublished", 0))
     pool = [
         market.MarketNeed(employer_id=need.employer_id, published=need.published, spec=need_spec(need))
         for need in await needs_service.active_latest_needs(db)
+        if need.published or include_unpublished
     ]
     result = market.insights(facts, pool, _skill_names(), set(scoring.skill_topics(row.specialization)))
     result.category = categories_service.category_ref(row.specialization, row.grade.value)

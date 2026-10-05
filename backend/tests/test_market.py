@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 
 from app.core.enums import SkillSource
 from app.modules.candidates.models import CandidateSkill
-from app.modules.matching import market
+from app.modules.matching import market, scoring
 from app.modules.matching import service as matching_service
 from app.modules.matching.scoring import CandidateFacts, NeedSpec, get_rules
 from tests.test_applications import publish
@@ -123,7 +123,7 @@ def test_salary_position():
     assert (unknown.position, unknown.covered_share) == ("unknown", None)
 
 
-async def test_market_endpoint_aggregates_without_employer_identity(client, session):
+async def test_market_endpoint_aggregates_without_employer_identity(client, session, monkeypatch):
     candidate, cid = await make_candidate(client, session, "anna@example.com")
     now = datetime.now(UTC)
     session.add(CandidateSkill(candidate_id=cid, skill_id="python", source=SkillSource.test, updated_at=now))
@@ -163,6 +163,12 @@ async def test_market_endpoint_aggregates_without_employer_identity(client, sess
     }
     for secret in [*companies, "Закрытая потребность", "Банк", "employer"]:
         assert secret not in response.text
+
+    # Строгий режим: внутренние планы компаний не учитываются, остаётся одна открытая вакансия
+    monkeypatch.setitem(scoring.get_rules().insights, "include_unpublished", False)
+    strict = (await client.get(f"{API}/candidates/me/market", headers=candidate)).json()
+    exact = next(group for group in strict["groups"] if group["fit"] == "exact")
+    assert (exact["needs"], exact["vacancies"]) == (1, 1) and strict["suppressed"] is True
 
 
 async def test_market_suppressed_below_min_and_no_category(client, session):

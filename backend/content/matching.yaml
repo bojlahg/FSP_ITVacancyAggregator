@@ -72,6 +72,9 @@ insights:
   top_skills: 8
   max_suggestions: 3
   skills_match: 0.75     # потребность «подходит по навыкам», если skills-компонент score ≥ порога
+  # Учитывать неопубликованные потребности (внутренние планы компаний) в агрегатах для кандидатов.
+  # true — данных больше; false — только открытые вакансии (строже к конфиденциальности работодателей)
+  include_unpublished: true
 
 recommendations:
   default_limit: 50
