@@ -26,6 +26,14 @@ selection:
 verify_skill: {min_items: 2, min_share: 0.7}
 open_approach_from_grade: middle
 
+# «Проверка под вакансию» (§10.7): насколько навыки вакансии смещают веса тем blueprint'а.
+# Каждый обязательный навык добавляет boost_required к весу своей темы, желательный — boost_optional;
+# затем веса снова делятся на прежнее число заданий методом наибольшего остатка.
+vacancy:
+  boost_required: 2
+  boost_optional: 1
+  sample_items: 3
+
 topic_names:
   http_api: HTTP и API
   databases: Базы данных

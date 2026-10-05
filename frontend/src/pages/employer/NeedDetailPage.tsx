@@ -5,6 +5,7 @@ import {
   Eye,
   EyeOff,
   FilterX,
+  FlaskConical,
   History,
   Layers,
   ListOrdered,
@@ -239,6 +240,11 @@ function NeedView({ need }: { need: Need }) {
             <Button asChild variant="ghost" size="sm">
               <Link to={`/employer/invitations?need=${need.id}`}>
                 <Mail /> Приглашения
+              </Link>
+            </Button>
+            <Button asChild variant="ghost" size="sm">
+              <Link to={`/employer/vacancy-test?need=${need.id}`}>
+                <FlaskConical /> Проверка под вакансию
               </Link>
             </Button>
             <Button

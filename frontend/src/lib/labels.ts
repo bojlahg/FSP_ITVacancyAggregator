@@ -109,3 +109,13 @@ export const NEED_STATUS_LABELS: Record<string, string> = {
   active: "Активна",
   closed: "Закрыта",
 };
+
+export const ITEM_KIND_LABELS: Record<string, string> = {
+  single_choice: "один вариант",
+  multi_choice: "несколько вариантов",
+  numeric: "числовой ответ",
+  ordering: "упорядочивание",
+  code_output: "что выведет код",
+  sql_result: "результат SQL",
+  open_approach: "открытый подход",
+};

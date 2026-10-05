@@ -1117,6 +1117,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/vacancy-tests/examples": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Демо-набор описаний вакансий для проверки под вакансию */
+        get: operations["vacancy_examples_api_v1_vacancy_tests_examples_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/vacancy-tests/preview": {
         parameters: {
             query?: never;
@@ -1126,7 +1143,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Как система соберёт тест под вакансию: blueprint, примеры заданий, черновики LLM */
+        /**
+         * Как система соберёт тест под вакансию: blueprint, примеры заданий, черновики LLM
+         * @description Источник — текст вакансии (raw_text) или своя потребность (need_id). Повтор с другим regenerate_seed даёт другие экземпляры тех же шаблонов той же сложности. Ключи ответов не передаются. 422 specialization_not_detected / no_test_for_specialization — по тексту нельзя собрать тест.
+         */
         post: operations["preview_vacancy_test_api_v1_vacancy_tests_preview_post"];
         delete?: never;
         options?: never;
@@ -1435,18 +1455,26 @@ export interface components {
         BlueprintPreview: {
             /** Specialization */
             specialization: string;
+            /** @description Грейд вакансии: примеры заданий берутся у его порога */
+            grade: components["schemas"]["Grade"];
+            /**
+             * Total Items
+             * @description Оцениваемых заданий в основном блоке теста
+             */
+            total_items: number;
             /**
              * Topics
-             * @description Тема → число заданий после смещения по требованиям вакансии
+             * @description Темы в порядке убывания числа заданий
              */
-            topics: {
-                [key: string]: number;
-            };
-            /** Stack Modules */
+            topics: components["schemas"]["TopicWeight"][];
+            /**
+             * Stack Modules
+             * @description Стек-модули по навыкам вакансии: python, java, react…
+             */
             stack_modules: string[];
             /**
              * Weight Changes
-             * @description Почему изменились веса: «Kafka → +1 messaging»
+             * @description Почему изменились веса: «Kafka → +2 к теме Архитектура»
              */
             weight_changes: string[];
         };
@@ -2643,28 +2671,41 @@ export interface components {
          * @enum {string}
          */
         ParserKind: "dict" | "llm";
-        /** PreviewItem */
+        /**
+         * PreviewItem
+         * @description Пример задания. Ключ ответа не передаётся даже работодателю (инвариант §13).
+         */
         PreviewItem: {
             /** Template Id */
             template_id: string;
             /** Topic */
             topic: string;
-            /** Skills */
+            /** Topic Name */
+            topic_name: string;
+            /**
+             * Skills
+             * @description Названия навыков, которые проверяет шаблон
+             */
             skills: string[];
-            /** Difficulty B */
+            /**
+             * Difficulty B
+             * @description Сложность шаблона на IRT-шкале специализации
+             */
             difficulty_b: number;
+            /**
+             * Difficulty
+             * @description Сложность словами относительно порогов грейдов
+             */
+            difficulty: string;
             kind: components["schemas"]["ItemKind"];
             /** Stem */
             stem: string;
             /** Code */
             code?: string | null;
+            /** Code Language */
+            code_language?: string | null;
             /** Options */
             options: components["schemas"]["ItemOption"][];
-            /**
-             * Correct Option Ids
-             * @description Работодателю в предпросмотре ответ показывается
-             */
-            correct_option_ids: string[];
         };
         /** PrivacySettings */
         PrivacySettings: {
@@ -2804,6 +2845,13 @@ export interface components {
             family: string;
             /** Parent */
             parent?: string | null;
+        };
+        /** SkillRef */
+        SkillRef: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
         };
         /**
          * SkillSource
@@ -3019,6 +3067,23 @@ export interface components {
             /** Items */
             items: number;
         };
+        /** TopicWeight */
+        TopicWeight: {
+            /** Topic */
+            topic: string;
+            /** Name */
+            name: string;
+            /**
+             * Base Items
+             * @description Заданий по теме в базовом blueprint специализации
+             */
+            base_items: number;
+            /**
+             * Items
+             * @description Заданий по теме после смещения по требованиям вакансии
+             */
+            items: number;
+        };
         /** UserOut */
         UserOut: {
             /** Id */
@@ -3036,6 +3101,15 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /** VacancyExample */
+        VacancyExample: {
+            /** Slug */
+            slug: string;
+            /** Title */
+            title: string;
+            /** Raw Text */
+            raw_text: string;
         };
         /** VacancyOut */
         VacancyOut: {
@@ -3086,8 +3160,26 @@ export interface components {
             blueprint: components["schemas"]["BlueprintPreview"];
             /** Sample Items */
             sample_items: components["schemas"]["PreviewItem"][];
-            /** Seed */
+            /**
+             * Seed
+             * @description Seed экземпляров; seed+1 — другие экземпляры тех же шаблонов
+             */
             seed: number;
+            /**
+             * Uncovered Skills
+             * @description Навыки вакансии, для которых в банке нет шаблонов этой специализации
+             */
+            uncovered_skills: components["schemas"]["SkillRef"][];
+            /**
+             * Llm Available
+             * @description Генерация черновиков LLM включена на стенде
+             */
+            llm_available: boolean;
+            /**
+             * Llm Note
+             * @description Что с черновиками: созданы, не нужны или генерация выключена
+             */
+            llm_note: string;
             /** Llm Drafts */
             llm_drafts: components["schemas"]["LlmTemplateDraft"][];
         };
@@ -6820,6 +6912,44 @@ export interface operations {
             };
             /** @description Ошибка валидации данных */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    vacancy_examples_api_v1_vacancy_tests_examples_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VacancyExample"][];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -5239,12 +5239,63 @@
         }
       }
     },
+    "/api/v1/vacancy-tests/examples": {
+      "get": {
+        "tags": [
+          "employer: vacancy test preview"
+        ],
+        "summary": "Демо-набор описаний вакансий для проверки под вакансию",
+        "operationId": "vacancy_examples_api_v1_vacancy_tests_examples_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/VacancyExample"
+                  },
+                  "type": "array",
+                  "title": "Response Vacancy Examples Api V1 Vacancy Tests Examples Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Требуется вход",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Недостаточно прав",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/vacancy-tests/preview": {
       "post": {
         "tags": [
           "employer: vacancy test preview"
         ],
         "summary": "Как система соберёт тест под вакансию: blueprint, примеры заданий, черновики LLM",
+        "description": "Источник — текст вакансии (raw_text) или своя потребность (need_id). Повтор с другим regenerate_seed даёт другие экземпляры тех же шаблонов той же сложности. Ключи ответов не передаются. 422 specialization_not_detected / no_test_for_specialization — по тексту нельзя собрать тест.",
         "operationId": "preview_vacancy_test_api_v1_vacancy_tests_preview_post",
         "requestBody": {
           "content": {
@@ -6282,20 +6333,30 @@
             "type": "string",
             "title": "Specialization"
           },
+          "grade": {
+            "$ref": "#/components/schemas/Grade",
+            "description": "Грейд вакансии: примеры заданий берутся у его порога"
+          },
+          "total_items": {
+            "type": "integer",
+            "title": "Total Items",
+            "description": "Оцениваемых заданий в основном блоке теста"
+          },
           "topics": {
-            "additionalProperties": {
-              "type": "integer"
+            "items": {
+              "$ref": "#/components/schemas/TopicWeight"
             },
-            "type": "object",
+            "type": "array",
             "title": "Topics",
-            "description": "Тема → число заданий после смещения по требованиям вакансии"
+            "description": "Темы в порядке убывания числа заданий"
           },
           "stack_modules": {
             "items": {
               "type": "string"
             },
             "type": "array",
-            "title": "Stack Modules"
+            "title": "Stack Modules",
+            "description": "Стек-модули по навыкам вакансии: python, java, react…"
           },
           "weight_changes": {
             "items": {
@@ -6303,12 +6364,14 @@
             },
             "type": "array",
             "title": "Weight Changes",
-            "description": "Почему изменились веса: «Kafka → +1 messaging»"
+            "description": "Почему изменились веса: «Kafka → +2 к теме Архитектура»"
           }
         },
         "type": "object",
         "required": [
           "specialization",
+          "grade",
+          "total_items",
           "topics",
           "stack_modules",
           "weight_changes"
@@ -9995,16 +10058,27 @@
             "type": "string",
             "title": "Topic"
           },
+          "topic_name": {
+            "type": "string",
+            "title": "Topic Name"
+          },
           "skills": {
             "items": {
               "type": "string"
             },
             "type": "array",
-            "title": "Skills"
+            "title": "Skills",
+            "description": "Названия навыков, которые проверяет шаблон"
           },
           "difficulty_b": {
             "type": "number",
-            "title": "Difficulty B"
+            "title": "Difficulty B",
+            "description": "Сложность шаблона на IRT-шкале специализации"
+          },
+          "difficulty": {
+            "type": "string",
+            "title": "Difficulty",
+            "description": "Сложность словами относительно порогов грейдов"
           },
           "kind": {
             "$ref": "#/components/schemas/ItemKind"
@@ -10024,34 +10098,39 @@
             ],
             "title": "Code"
           },
+          "code_language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code Language"
+          },
           "options": {
             "items": {
               "$ref": "#/components/schemas/ItemOption"
             },
             "type": "array",
             "title": "Options"
-          },
-          "correct_option_ids": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Correct Option Ids",
-            "description": "Работодателю в предпросмотре ответ показывается"
           }
         },
         "type": "object",
         "required": [
           "template_id",
           "topic",
+          "topic_name",
           "skills",
           "difficulty_b",
+          "difficulty",
           "kind",
           "stem",
-          "options",
-          "correct_option_ids"
+          "options"
         ],
-        "title": "PreviewItem"
+        "title": "PreviewItem",
+        "description": "Пример задания. Ключ ответа не передаётся даже работодателю (инвариант §13)."
       },
       "PrivacySettings": {
         "properties": {
@@ -10362,6 +10441,24 @@
           "family"
         ],
         "title": "SkillOut"
+      },
+      "SkillRef": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "SkillRef"
       },
       "SkillSource": {
         "type": "string",
@@ -10931,6 +11028,36 @@
         ],
         "title": "TopicScore"
       },
+      "TopicWeight": {
+        "properties": {
+          "topic": {
+            "type": "string",
+            "title": "Topic"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "base_items": {
+            "type": "integer",
+            "title": "Base Items",
+            "description": "Заданий по теме в базовом blueprint специализации"
+          },
+          "items": {
+            "type": "integer",
+            "title": "Items",
+            "description": "Заданий по теме после смещения по требованиям вакансии"
+          }
+        },
+        "type": "object",
+        "required": [
+          "topic",
+          "name",
+          "base_items",
+          "items"
+        ],
+        "title": "TopicWeight"
+      },
       "UserOut": {
         "properties": {
           "id": {
@@ -10964,6 +11091,29 @@
           "created_at"
         ],
         "title": "UserOut"
+      },
+      "VacancyExample": {
+        "properties": {
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "raw_text": {
+            "type": "string",
+            "title": "Raw Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "slug",
+          "title",
+          "raw_text"
+        ],
+        "title": "VacancyExample"
       },
       "VacancyOut": {
         "properties": {
@@ -11123,7 +11273,26 @@
           },
           "seed": {
             "type": "integer",
-            "title": "Seed"
+            "title": "Seed",
+            "description": "Seed экземпляров; seed+1 — другие экземпляры тех же шаблонов"
+          },
+          "uncovered_skills": {
+            "items": {
+              "$ref": "#/components/schemas/SkillRef"
+            },
+            "type": "array",
+            "title": "Uncovered Skills",
+            "description": "Навыки вакансии, для которых в банке нет шаблонов этой специализации"
+          },
+          "llm_available": {
+            "type": "boolean",
+            "title": "Llm Available",
+            "description": "Генерация черновиков LLM включена на стенде"
+          },
+          "llm_note": {
+            "type": "string",
+            "title": "Llm Note",
+            "description": "Что с черновиками: созданы, не нужны или генерация выключена"
           },
           "llm_drafts": {
             "items": {
@@ -11139,6 +11308,9 @@
           "blueprint",
           "sample_items",
           "seed",
+          "uncovered_skills",
+          "llm_available",
+          "llm_note",
           "llm_drafts"
         ],
         "title": "VacancyTestPreview"
@@ -11171,7 +11343,9 @@
           "regenerate_seed": {
             "anyOf": [
               {
-                "type": "integer"
+                "type": "integer",
+                "maximum": 2000000000.0,
+                "minimum": 0.0
               },
               {
                 "type": "null"

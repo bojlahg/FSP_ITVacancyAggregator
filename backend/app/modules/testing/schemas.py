@@ -99,37 +99,63 @@ class AttemptResultOut(ApiModel):
     next_actions: list[NextAction]
 
 
+class VacancyExample(ApiModel):
+    slug: str
+    title: str
+    raw_text: str
+
+
 class VacancyTestPreviewRequest(ApiModel):
     raw_text: str | None = Field(default=None, max_length=20000)
     need_id: int | None = None
     regenerate_seed: int | None = Field(
-        default=None, description="Другой seed — другие экземпляры той же сложности"
+        default=None, ge=0, le=2_000_000_000, description="Другой seed — другие экземпляры той же сложности"
     )
 
     @model_validator(mode="after")
     def one_source(self) -> "VacancyTestPreviewRequest":
         if not (self.raw_text or self.need_id):
             raise ValueError("Нужен raw_text или need_id")
+        if self.need_id is None and len((self.raw_text or "").strip()) < 20:
+            raise ValueError("Текст вакансии слишком короткий: нужно хотя бы 20 символов")
         return self
+
+
+class TopicWeight(ApiModel):
+    topic: str
+    name: str
+    base_items: int = Field(description="Заданий по теме в базовом blueprint специализации")
+    items: int = Field(description="Заданий по теме после смещения по требованиям вакансии")
 
 
 class BlueprintPreview(ApiModel):
     specialization: str
-    topics: dict[str, int] = Field(description="Тема → число заданий после смещения по требованиям вакансии")
-    stack_modules: list[str]
-    weight_changes: list[str] = Field(description="Почему изменились веса: «Kafka → +1 messaging»")
+    grade: Grade = Field(description="Грейд вакансии: примеры заданий берутся у его порога")
+    total_items: int = Field(description="Оцениваемых заданий в основном блоке теста")
+    topics: list[TopicWeight] = Field(description="Темы в порядке убывания числа заданий")
+    stack_modules: list[str] = Field(description="Стек-модули по навыкам вакансии: python, java, react…")
+    weight_changes: list[str] = Field(description="Почему изменились веса: «Kafka → +2 к теме Архитектура»")
 
 
 class PreviewItem(ApiModel):
+    """Пример задания. Ключ ответа не передаётся даже работодателю (инвариант §13)."""
+
     template_id: str
     topic: str
-    skills: list[str]
-    difficulty_b: float
+    topic_name: str
+    skills: list[str] = Field(description="Названия навыков, которые проверяет шаблон")
+    difficulty_b: float = Field(description="Сложность шаблона на IRT-шкале специализации")
+    difficulty: str = Field(description="Сложность словами относительно порогов грейдов")
     kind: ItemKind
     stem: str
     code: str | None = None
+    code_language: str | None = None
     options: list[ItemOption]
-    correct_option_ids: list[str] = Field(description="Работодателю в предпросмотре ответ показывается")
+
+
+class SkillRef(ApiModel):
+    id: str
+    name: str
 
 
 class LlmTemplateDraft(ApiModel):
@@ -144,5 +170,10 @@ class VacancyTestPreview(ApiModel):
     requirements: NeedDraft
     blueprint: BlueprintPreview
     sample_items: list[PreviewItem]
-    seed: int
+    seed: int = Field(description="Seed экземпляров; seed+1 — другие экземпляры тех же шаблонов")
+    uncovered_skills: list[SkillRef] = Field(
+        description="Навыки вакансии, для которых в банке нет шаблонов этой специализации"
+    )
+    llm_available: bool = Field(description="Генерация черновиков LLM включена на стенде")
+    llm_note: str = Field(description="Что с черновиками: созданы, не нужны или генерация выключена")
     llm_drafts: list[LlmTemplateDraft]

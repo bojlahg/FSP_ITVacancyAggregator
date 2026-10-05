@@ -37,6 +37,12 @@ class VerifySkill(BaseModel):
     min_share: float
 
 
+class VacancyConfig(BaseModel):
+    boost_required: int
+    boost_optional: int
+    sample_items: int
+
+
 class SpecBlueprint(BaseModel):
     topics: dict[str, int]
 
@@ -47,6 +53,7 @@ class Blueprints(BaseModel):
     selection: Selection
     verify_skill: VerifySkill
     open_approach_from_grade: str
+    vacancy: VacancyConfig
     topic_names: dict[str, str]
     specializations: dict[str, SpecBlueprint]
 

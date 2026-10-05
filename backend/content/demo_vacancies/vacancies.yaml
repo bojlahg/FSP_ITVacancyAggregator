@@ -1,0 +1,46 @@
+# Демо-набор для «Проверки под вакансию» — docs/implementation.md §10.7.
+# Тексты вымышленные; на них видно, как навыки вакансии смещают blueprint теста.
+
+- slug: backend-middle-python
+  title: Backend Middle (Python)
+  raw_text: |
+    Backend-разработчик Middle (Python) в платёжную команду
+
+    Разрабатываем сервис платежей для банка: FastAPI, PostgreSQL, Kafka.
+    Обязанности: проектировать REST API, писать запросы и миграции, разбирать инциденты.
+    Требования: Python от 3 лет, PostgreSQL (индексы, транзакции), Kafka, асинхронность.
+    Будет плюсом: Redis, gRPC.
+    Формат: гибрид, Москва. Зарплата 220 000 – 280 000 ₽.
+
+- slug: frontend-junior-react
+  title: Frontend Junior (React)
+  raw_text: |
+    Junior Frontend-разработчик (React)
+
+    Делаем витрину маркетплейса. Стек: React, TypeScript, Vite, TanStack Query.
+    Обязанности: вёрстка компонентов, работа с API, исправление багов.
+    Требования: React, TypeScript, HTML и CSS.
+    Будет плюсом: Jest, Playwright.
+    Удалённо. Зарплата от 110 000 до 150 000 ₽.
+
+- slug: qa-middle
+  title: QA Middle
+  raw_text: |
+    QA-инженер Middle (автотесты на Python)
+
+    Тестируем API и веб-клиент интернет-магазина.
+    Обязанности: тест-дизайн, автотесты на Python и pytest, тестирование API, нагрузочное тестирование.
+    Требования: pytest, тестирование API, SQL, тест-дизайн.
+    Будет плюсом: Playwright, JMeter.
+    Удалённо. Зарплата 150 000 – 210 000 ₽.
+
+- slug: devops-senior
+  title: DevOps Senior
+  raw_text: |
+    Senior DevOps-инженер платформы
+
+    Развиваем внутреннюю платформу банка: Kubernetes, Terraform, GitLab CI, Prometheus, Grafana.
+    Обязанности: кластеры Kubernetes, инфраструктура как код, CI/CD, мониторинг и алертинг.
+    Требования: Kubernetes, Terraform, Linux, Prometheus.
+    Будет плюсом: Ansible, Helm.
+    Гибрид, Москва. Зарплата 350 000 – 450 000 ₽.
