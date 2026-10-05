@@ -1,0 +1,16 @@
+[project]
+name = "itscout-loadtest"
+version = "0.1.0"
+description = "Нагрузочный тест ITScout: только чтение, демо-вход"
+requires-python = ">=3.12"
+dependencies = ["httpx>=0.28"]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "ASYNC"]

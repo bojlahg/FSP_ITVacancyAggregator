@@ -26,6 +26,7 @@ const PARTS = [
   ["versions.md", "versions"],
   ["deploy.md", "deploy"],
   ["security.md", "security"],
+  ["performance.md", "performance"],
   ["anti-fraud-ats.md", "anti-fraud-ats"],
   ["limitations.md", "limitations"],
 ];
