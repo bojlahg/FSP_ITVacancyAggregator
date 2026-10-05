@@ -977,7 +977,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Опубликовать как вакансию (нужно название компании в профиле) */
+        /** Опубликовать как вакансию (нужны название компании и текст без запрещённых требований) */
         post: operations["publish_need_api_v1_needs__need_id__publish_post"];
         delete?: never;
         options?: never;
@@ -4087,6 +4087,11 @@ export interface components {
             category: components["schemas"]["CategoryRef"];
             stats: components["schemas"]["NeedStats"];
             /**
+             * Text Issues
+             * @description Запрещённые требования в тексте (возраст, пол, регистрация…)
+             */
+            text_issues?: components["schemas"]["NeedTextIssue"][];
+            /**
              * Created At
              * Format: date-time
              */
@@ -4107,6 +4112,11 @@ export interface components {
              * @description «Не распознали: …»
              */
             unmapped_terms: string[];
+            /**
+             * Text Issues
+             * @description Запрещённые требования в тексте (возраст, пол, регистрация…)
+             */
+            text_issues?: components["schemas"]["NeedTextIssue"][];
         };
         /** NeedStats */
         NeedStats: {
@@ -4126,6 +4136,29 @@ export interface components {
          * @enum {string}
          */
         NeedStatus: "draft" | "active" | "closed";
+        /** NeedTextIssue */
+        NeedTextIssue: {
+            /**
+             * Rule
+             * @description id правила из content/need_text_rules.yaml
+             */
+            rule: string;
+            /**
+             * Severity
+             * @description block — мешает публикации, warn — подсказка
+             * @enum {string}
+             */
+            severity: "block" | "warn";
+            /** Label */
+            label: string;
+            /** Message */
+            message: string;
+            /**
+             * Fragment
+             * @description Найденный фрагмент текста
+             */
+            fragment: string;
+        };
         /**
          * NeedUpdate
          * @description Правка создаёт новую версию потребности; шорт-лист переносится (§8.1).

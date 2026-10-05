@@ -29,6 +29,7 @@ import { SalaryCoverageCard } from "@/components/employer/SalaryCoverageCard";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { FormAlert } from "@/components/FormAlert";
+import { NeedTextIssues } from "@/components/employer/NeedTextIssues";
 import { PageHeader } from "@/components/PageHeader";
 import { SalaryRange } from "@/components/SalaryRange";
 import { ScoreBadge } from "@/components/ScoreBadge";
@@ -266,6 +267,7 @@ function NeedView({ need }: { need: Need }) {
       />
 
       <FormAlert message={publish.isError ? apiError(publish.error).message : null} className="mb-4" />
+      <NeedTextIssues issues={need.text_issues ?? []} className="mb-4" />
       <OlderVersionNotice need={need} />
 
       <div className="mb-8 grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">

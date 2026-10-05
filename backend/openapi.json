@@ -4142,7 +4142,7 @@
         "tags": [
           "employer: needs & matching"
         ],
-        "summary": "Опубликовать как вакансию (нужно название компании в профиле)",
+        "summary": "Опубликовать как вакансию (нужны название компании и текст без запрещённых требований)",
         "operationId": "publish_need_api_v1_needs__need_id__publish_post",
         "security": [
           {
@@ -14267,6 +14267,14 @@
           "stats": {
             "$ref": "#/components/schemas/NeedStats"
           },
+          "text_issues": {
+            "items": {
+              "$ref": "#/components/schemas/NeedTextIssue"
+            },
+            "type": "array",
+            "title": "Text Issues",
+            "description": "Запрещённые требования в тексте (возраст, пол, регистрация…)"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -14323,6 +14331,14 @@
             "type": "array",
             "title": "Unmapped Terms",
             "description": "«Не распознали: …»"
+          },
+          "text_issues": {
+            "items": {
+              "$ref": "#/components/schemas/NeedTextIssue"
+            },
+            "type": "array",
+            "title": "Text Issues",
+            "description": "Запрещённые требования в тексте (возраст, пол, регистрация…)"
           }
         },
         "type": "object",
@@ -14374,6 +14390,46 @@
           "closed"
         ],
         "title": "NeedStatus"
+      },
+      "NeedTextIssue": {
+        "properties": {
+          "rule": {
+            "type": "string",
+            "title": "Rule",
+            "description": "id правила из content/need_text_rules.yaml"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "block",
+              "warn"
+            ],
+            "title": "Severity",
+            "description": "block — мешает публикации, warn — подсказка"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "fragment": {
+            "type": "string",
+            "title": "Fragment",
+            "description": "Найденный фрагмент текста"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rule",
+          "severity",
+          "label",
+          "message",
+          "fragment"
+        ],
+        "title": "NeedTextIssue"
       },
       "NeedUpdate": {
         "properties": {

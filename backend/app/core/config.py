@@ -145,6 +145,10 @@ class Settings(BaseSettings):
     explainer_leak_size: int = 50
     explainer_simulations: int = 30
 
+    # Проверка текста потребности на запрещённые требования (content/need_text_rules.yaml):
+    # off — не проверять; warn — только подсказки; block — правила с severity=block запрещают публикацию
+    need_text_check: Literal["off", "warn", "block"] = "block"
+
     # Правила грейда и подбора — см. docs/implementation.md §6.3, §8.6
     grade_change_cooldown_days: int = 90
     failed_grade_retry_days: int = 30

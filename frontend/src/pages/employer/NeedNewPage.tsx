@@ -2,6 +2,7 @@ import { ArrowLeft, Loader2, Sparkles, Wand2 } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { NeedForm } from "@/components/employer/NeedForm";
+import { NeedTextIssues } from "@/components/employer/NeedTextIssues";
 import { FormAlert } from "@/components/FormAlert";
 import { PageHeader } from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
@@ -101,6 +102,7 @@ export default function NeedNewPage() {
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Sparkles className="size-4 text-primary" aria-hidden /> {PARSER_LABELS[parsed.result.parser]}
               </div>
+              <NeedTextIssues issues={parsed.result.text_issues ?? []} />
               {parsed.result.unmapped_terms.length > 0 && (
                 <div className="flex flex-wrap items-center gap-1.5 rounded-lg bg-destructive-tint px-3 py-2 text-sm">
                   <span className="mr-1">Не распознали:</span>

@@ -15,6 +15,7 @@ from app.core import llm
 from app.core.enums import Grade, ParserKind, WorkFormat
 from app.modules.catalog.service import get_catalog
 from app.modules.needs.schemas import NeedDraft, NeedParseResult
+from app.modules.needs.text_check import text_issues
 
 MAX_UNMAPPED = 15
 TITLE_MAX = 200
@@ -735,4 +736,5 @@ async def parse_need_text(text: str, user_id: int | None = None) -> NeedParseRes
         parser=ParserKind.llm if contributed else ParserKind.dict,
         draft=merged.draft,
         unmapped_terms=merged.unmapped_terms,
+        text_issues=text_issues(None, text, None),
     )

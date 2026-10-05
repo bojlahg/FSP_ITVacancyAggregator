@@ -94,7 +94,7 @@ async def remove_from_shortlist(
 @router.post(
     "/{need_id}/publish",
     response_model=NeedOut,
-    summary="Опубликовать как вакансию (нужно название компании в профиле)",
+    summary="Опубликовать как вакансию (нужны название компании и текст без запрещённых требований)",
     responses=LATEST_OWNED,
 )
 async def publish_need(need_id: int, user: CurrentEmployer, db: DbSession) -> NeedOut:

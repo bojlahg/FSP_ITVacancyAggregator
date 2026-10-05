@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import Field
 
@@ -47,10 +48,21 @@ class NeedDraft(ApiModel):
     salary_to: int | None = None
 
 
+class NeedTextIssue(ApiModel):
+    rule: str = Field(description="id правила из content/need_text_rules.yaml")
+    severity: Literal["block", "warn"] = Field(description="block — мешает публикации, warn — подсказка")
+    label: str
+    message: str
+    fragment: str = Field(description="Найденный фрагмент текста")
+
+
 class NeedParseResult(ApiModel):
     parser: ParserKind
     draft: NeedDraft = Field(description="Редактируемая форма — работодатель правит до сохранения")
     unmapped_terms: list[str] = Field(description="«Не распознали: …»")
+    text_issues: list[NeedTextIssue] = Field(
+        default_factory=list, description="Запрещённые требования в тексте (возраст, пол, регистрация…)"
+    )
 
 
 class NeedStats(ApiModel):
@@ -70,6 +82,9 @@ class NeedOut(NeedFields):
     published_at: datetime | None
     category: CategoryRef
     stats: NeedStats
+    text_issues: list[NeedTextIssue] = Field(
+        default_factory=list, description="Запрещённые требования в тексте (возраст, пол, регистрация…)"
+    )
     created_at: datetime
 
 

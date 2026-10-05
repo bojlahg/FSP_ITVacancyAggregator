@@ -19,6 +19,7 @@ from app.modules.employers.models import Employer
 from app.modules.invitations.models import Invitation
 from app.modules.needs.models import HiringNeed, NeedShortlist
 from app.modules.needs.schemas import NeedFields, NeedOut, NeedStats
+from app.modules.needs.text_check import text_issues
 
 ACTIVE_INVITATION_STATUSES = (InvitationStatus.sent, InvitationStatus.viewed)
 
@@ -32,6 +33,21 @@ class NeedValidationError(AppError):
 class NeedSupersededError(ConflictError):
     code = "need_superseded"
     message = "Эта версия потребности уже уточнена — откройте последнюю версию"
+
+
+class NeedTextBlockedError(ConflictError):
+    code = "need_text_discriminatory"
+    message = "В тексте вакансии есть запрещённые требования — исправьте их перед публикацией"
+
+
+def ensure_publishable_text(need: HiringNeed | NeedFields) -> None:
+    if get_settings().need_text_check != "block":
+        return
+    blocking = [
+        i for i in text_issues(need.title, need.raw_text, need.team_description) if i.severity == "block"
+    ]
+    if blocking:
+        raise NeedTextBlockedError(details={"issues": [issue.model_dump() for issue in blocking]})
 
 
 def _issue(field: str, msg: str, kind: str = "value_error", index: int | None = None) -> dict:
@@ -178,6 +194,7 @@ async def to_out(db: AsyncSession, need: HiringNeed) -> NeedOut:
         salary_to=need.salary_to,
         category=category_ref(need.specialization, need.grade.value),
         stats=await _stats(db, need),
+        text_issues=text_issues(need.title, need.raw_text, need.team_description),
     )
 
 
@@ -215,6 +232,8 @@ async def update_need(db: AsyncSession, user_id: int, need_id: int, body: NeedFi
     """Правка — новая версия; шорт-лист переезжает на неё, старая версия остаётся в истории (§8.1 п.4)."""
     validate_fields(body)
     old = await _get_latest_own(db, user_id, need_id)
+    if old.published:
+        ensure_publishable_text(body)
     need = HiringNeed(
         employer_id=old.employer_id,
         version=old.version + 1,
@@ -245,6 +264,7 @@ async def set_published(db: AsyncSession, user_id: int, need_id: int, published:
             )
         if need.status == NeedStatus.closed:
             raise ConflictError("Закрытую потребность нельзя опубликовать", code="need_closed")
+        ensure_publishable_text(need)
         need.published = True
         need.published_at = datetime.now(UTC)
     elif not published:
