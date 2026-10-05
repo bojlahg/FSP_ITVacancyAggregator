@@ -546,6 +546,13 @@ backend:
 - Результат обновляет `fresh` и `approach`, а также статус навыка «подтверждено заданием».
 - Работодатель видит обезличенные ответы на свои задания. Из ответа можно сразу отправить приглашение — естественный повод для первого контакта.
 
+**Как реализовано** (`tasks/service.py`, числа — `content/tasks.yaml`):
+- «Раз в неделю» сделано лениво, без планировщика: при открытии `GET /candidates/me/tasks` просроченные задания становятся `expired`, и если активного нет и с прошлого предложения прошло `offer_interval_days`, кандидату предлагается самое новое ещё не выданное задание его специализации и грейда (или без грейда); работодатели из `hidden_employer_ids` пропускаются. Кандидат может пропустить задание (`POST /tasks/assignments/{id}/skip`).
+- `auto`: экземпляр шаблона рендерится с новым seed на каждое предложение, ключ остаётся в БД; проверка — тем же `scoring.score`, что и в тесте. Score ≥ `confirm_min_score` добавляет навыкам шаблона источник `task` → статус `task_confirmed` в профиле и индексе. Шаблоны для формы — `GET /employer-tasks/templates?need_id=`: сначала проверяющие навыки потребности, стек — по ней же (тот же подход, что в §10.7).
+- `approach`: при включённом LLM он только отмечает критерии чек-листа (`rubric_hits`), score = доля отмеченных, считает код; без LLM решение ждёт оценки работодателя 1–5, score = (оценка − 1) / 4. Оценка работодателя не перетирает автопроверку и чек-лист.
+- Индекс выдачи: проверенное решение (есть score) обновляет `last_activity_at` → `fresh`; `approach` — среднее из оценки открытого вопроса теста и оценок заданий на подход. Грейд и категорию задания не меняют.
+- Чужое задание или решение → 404 (и для кандидата, и для работодателя).
+
 ---
 
 ## 12. Процедура валидации (P0, оценивается отдельно)
@@ -647,7 +654,8 @@ contact_unlocks(employer_id, candidate_id, source[invitation|application], sourc
 employer_tasks(id, employer_id, need_id null, specialization, grade null, kind[auto|approach],
                template_id null, prompt, rubric jsonb, created_at)
 task_assignments(id, task_id, candidate_id, offered_at, due_at, status[offered|submitted|expired|skipped],
-                 response jsonb, score, graded_by[auto|llm|employer], employer_rating)
+                 payload jsonb, answer_key jsonb, response jsonb, submitted_at, rubric_hits jsonb,
+                 score, graded_by[auto|llm|employer], employer_rating)
 
 candidate_search_index(candidate_id, specialization, grade, theta, percentile, vps, fsp_score, fresh,
                        approach, skills_status jsonb, salary_min, work_formats[], city, relocation,
@@ -696,7 +704,7 @@ GET  /fsp/oidc/start?consent=true → {authorization_url} ; GET /fsp/oidc/callba
 DELETE /candidates/me/fsp
 GET  /candidates/me/invitations ; POST /invitations/{id}/view|accept|decline
 GET  /vacancies?match=true ; GET /vacancies/{id} ; POST /vacancies/{id}/apply ; GET /candidates/me/applications
-GET  /candidates/me/tasks ; POST /tasks/assignments/{id}/submit
+GET  /candidates/me/tasks ; POST /tasks/assignments/{id}/submit | /tasks/assignments/{id}/skip
 
 # работодатель
 GET|PUT /employers/me
@@ -712,8 +720,8 @@ GET  /talent/candidates/{id}?need_id=      обезличенная или по�
 GET  /talent/candidates/{id}/profile.pdf
 POST /invitations ; GET /employers/me/invitations ; POST /invitations/{id}/withdraw
 GET  /employers/me/decline-stats
-POST /vacancy-tests/preview  {raw_text | need_id} → blueprint + примеры заданий + черновики LLM
-GET|POST /employer-tasks ; GET /employer-tasks/{id}/submissions ; POST /employer-tasks/{id}/submissions/{aid}/rate
+POST /vacancy-tests/preview  {raw_text | need_id} → blueprint + примеры заданий + черновики LLM ; GET /vacancy-tests/examples
+GET|POST /employer-tasks ; GET /employer-tasks/templates?specialization=|need_id= ; GET /employer-tasks/{id}/submissions ; POST /employer-tasks/{id}/submissions/{aid}/rate
 
 # служебное
 GET  /health
@@ -747,6 +755,7 @@ POST /admin/reseed (роль admin) ; POST /admin/demo/reset-cooldowns     то�
 - **Кандидаты:** 600 по 5 специализациям. Сначала генерируется θ_true, затем **ответы на тест через настоящий движок**, поэтому категории получаются по реальной механике, а не прописываются вручную. Архетипы: сильный олимпиадник-алгоритмист, продуктовый backend с хакатонами, CTF-специалист в devops, кандидат без ФСП, junior с одним региональным результатом, завысивший грейд, «серый» профиль без активности.
 - **ФСП:** 40 соревнований с реалистичными названиями, уровнями, датами и числом участников; данные кладутся в fsp-mock.
 - **Работодатели и активность:** 12 работодателей, 20 потребностей (6 опубликованы как вакансии), история приглашений и откликов со всеми статусами.
+- **Регулярные задания:** у «Демо Банка» два задания по первой потребности (автопроверка и подход) с решениями обычных кандидатов; героям задания не выдаются заранее — им предложат при первом открытии раздела.
 - **Герои демо** с известными сильными профилями:
   - кандидаты Анна (Backend Middle, есть ФСП), Илья (Frontend Junior, без ФСП), Мария (DevOps Senior, CTF);
   - работодатели «Демо Банк» и «Демо Ритейл».

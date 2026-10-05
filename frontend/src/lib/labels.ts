@@ -110,6 +110,24 @@ export const NEED_STATUS_LABELS: Record<string, string> = {
   closed: "Закрыта",
 };
 
+export const ASSIGNMENT_STATUS_LABELS: Record<string, string> = {
+  offered: "Активно",
+  submitted: "Решение отправлено",
+  expired: "Срок истёк",
+  skipped: "Пропущено",
+};
+
+export const TASK_KIND_LABELS: Record<string, string> = {
+  auto: "Автопроверка",
+  approach: "Подход к решению",
+};
+
+export const GRADED_BY_LABELS: Record<string, string> = {
+  auto: "автопроверка",
+  llm: "чек-лист",
+  employer: "оценка работодателя",
+};
+
 export const ITEM_KIND_LABELS: Record<string, string> = {
   single_choice: "один вариант",
   multi_choice: "несколько вариантов",

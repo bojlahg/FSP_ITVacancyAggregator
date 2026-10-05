@@ -775,7 +775,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Регулярные задания от работодателей */
+        /**
+         * Регулярные задания от работодателей
+         * @description Кандидату с категорией раз в неделю предлагается одно задание по его специализации и грейду, не больше одного активного; просроченные помечаются expired.
+         */
         get: operations["list_my_tasks_api_v1_candidates_me_tasks_get"];
         put?: never;
         post?: never;
@@ -794,8 +797,28 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Отправить решение или подход */
+        /**
+         * Отправить решение или подход
+         * @description kind=auto проверяется сразу; верное решение подтверждает навыки шаблона (task_confirmed). kind=approach — по чек-листу (LLM отмечает критерии) или ждёт оценки работодателя. 409 assignment_closed — задание уже решено, пропущено или просрочено.
+         */
         post: operations["submit_task_api_v1_tasks_assignments__assignment_id__submit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/assignments/{assignment_id}/skip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Пропустить задание */
+        post: operations["skip_task_api_v1_tasks_assignments__assignment_id__skip_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1221,6 +1244,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/employer-tasks/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Шаблоны банка для автопроверяемого задания
+         * @description С need_id — специализация из потребности, сначала шаблоны с её навыками.
+         */
+        get: operations["list_task_templates_api_v1_employer_tasks_templates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/employer-tasks/{task_id}/submissions": {
         parameters: {
             query?: never;
@@ -1247,7 +1290,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Оценить ответ 1–5 */
+        /**
+         * Оценить ответ 1–5
+         * @description Для решений без автопроверки и чек-листа оценка становится score: (оценка − 1) / 4.
+         */
         post: operations["rate_submission_api_v1_employer_tasks__task_id__submissions__assignment_id__rate_post"];
         delete?: never;
         options?: never;
@@ -2075,8 +2121,12 @@ export interface components {
             /** Title */
             title: string;
             kind: components["schemas"]["TaskKind"];
-            /** Specialization */
+            /**
+             * Specialization
+             * @description При need_id берётся из потребности
+             */
             specialization: string;
+            /** @description null — для всех грейдов специализации */
             grade?: components["schemas"]["Grade"] | null;
             /** Need Id */
             need_id?: number | null;
@@ -2092,7 +2142,7 @@ export interface components {
             prompt?: string | null;
             /**
              * Rubric
-             * @description Бинарные критерии оценки подхода
+             * @description Бинарные критерии оценки подхода (лимит — content/tasks.yaml)
              */
             rubric?: string[];
         };
@@ -2101,8 +2151,12 @@ export interface components {
             /** Title */
             title: string;
             kind: components["schemas"]["TaskKind"];
-            /** Specialization */
+            /**
+             * Specialization
+             * @description При need_id берётся из потребности
+             */
             specialization: string;
+            /** @description null — для всех грейдов специализации */
             grade?: components["schemas"]["Grade"] | null;
             /** Need Id */
             need_id?: number | null;
@@ -2118,15 +2172,26 @@ export interface components {
             prompt?: string | null;
             /**
              * Rubric
-             * @description Бинарные критерии оценки подхода
+             * @description Бинарные критерии оценки подхода (лимит — content/tasks.yaml)
              */
             rubric?: string[];
             /** Id */
             id: number;
-            /** Assignments Total */
+            /**
+             * Assignments Total
+             * @description Скольким кандидатам задание предложено
+             */
             assignments_total: number;
-            /** Submissions */
+            /**
+             * Submissions
+             * @description Сколько решений прислано
+             */
             submissions: number;
+            /**
+             * Awaiting Rating
+             * @description Решения на подход без оценки — ждут работодателя
+             */
+            awaiting_rating: number;
             /**
              * Created At
              * Format: date-time
@@ -3050,10 +3115,15 @@ export interface components {
             /** Title */
             title: string;
             kind: components["schemas"]["TaskKind"];
-            /** @description Для kind=auto — экземпляр задания */
+            /** @description Для kind=auto — экземпляр задания (без ключа) */
             item: components["schemas"]["CurrentItem"] | null;
             /** Prompt */
             prompt: string | null;
+            /**
+             * Rubric
+             * @description Критерии, по которым оценят подход
+             */
+            rubric: string[];
             status: components["schemas"]["AssignmentStatus"];
             /**
              * Offered At
@@ -3065,8 +3135,20 @@ export interface components {
              * Format: date-time
              */
             due_at: string;
-            /** Score */
+            /** Submitted At */
+            submitted_at: string | null;
+            response: components["schemas"]["AnswerPayload"] | null;
+            /**
+             * Score
+             * @description 0..1; null — ещё не проверено
+             */
             score: number | null;
+            graded_by: components["schemas"]["GradedBy"] | null;
+            /**
+             * Confirmed Skills
+             * @description Навыки, подтверждённые этим заданием
+             */
+            confirmed_skills: string[];
         };
         /**
          * TaskKind
@@ -3083,6 +3165,7 @@ export interface components {
             /** Assignment Id */
             assignment_id: number;
             candidate: components["schemas"]["CandidateBrief"];
+            status: components["schemas"]["AssignmentStatus"];
             response: components["schemas"]["AnswerPayload"] | null;
             /** Score */
             score: number | null;
@@ -3097,6 +3180,35 @@ export interface components {
         /** TaskSubmit */
         TaskSubmit: {
             response: components["schemas"]["AnswerPayload"];
+        };
+        /**
+         * TaskTemplateOption
+         * @description Шаблон банка для автопроверяемого задания: пример экземпляра без ключа ответа.
+         */
+        TaskTemplateOption: {
+            /** Id */
+            id: string;
+            /** Topic */
+            topic: string;
+            /** Topic Name */
+            topic_name: string;
+            /**
+             * Skills
+             * @description Названия навыков, которые подтвердит верное решение
+             */
+            skills: string[];
+            kind: components["schemas"]["ItemKind"];
+            /** Difficulty B */
+            difficulty_b: number;
+            /** Difficulty */
+            difficulty: string;
+            /** Example Stem */
+            example_stem: string;
+            /**
+             * Matches Need
+             * @description Шаблон проверяет навык потребности
+             */
+            matches_need: boolean;
         };
         /** TeamRoleOut */
         TeamRoleOut: {
@@ -5650,6 +5762,73 @@ export interface operations {
             };
         };
     };
+    skip_task_api_v1_tasks_assignments__assignment_id__skip_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                assignment_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskAssignmentForCandidate"];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Конфликт состояния */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ошибка валидации данных */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     get_company_api_v1_employers_me_get: {
         parameters: {
             query?: never;
@@ -7301,6 +7480,74 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ошибка валидации данных */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_task_templates_api_v1_employer_tasks_templates_get: {
+        parameters: {
+            query?: {
+                specialization?: string | null;
+                need_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskTemplateOption"][];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Ошибка валидации данных */
             422: {
                 headers: {
@@ -7415,6 +7662,15 @@ export interface operations {
             };
             /** @description Не найдено */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Конфликт состояния */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

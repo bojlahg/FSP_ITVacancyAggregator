@@ -3034,6 +3034,7 @@
           "candidate: tasks"
         ],
         "summary": "Регулярные задания от работодателей",
+        "description": "Кандидату с категорией раз в неделю предлагается одно задание по его специализации и грейду, не больше одного активного; просроченные помечаются expired.",
         "operationId": "list_my_tasks_api_v1_candidates_me_tasks_get",
         "responses": {
           "200": {
@@ -3084,6 +3085,7 @@
           "candidate: tasks"
         ],
         "summary": "Отправить решение или подход",
+        "description": "kind=auto проверяется сразу; верное решение подтверждает навыки шаблона (task_confirmed). kind=approach — по чек-листу (LLM отмечает критерии) или ждёт оценки работодателя. 409 assignment_closed — задание уже решено, пропущено или просрочено.",
         "operationId": "submit_task_api_v1_tasks_assignments__assignment_id__submit_post",
         "security": [
           {
@@ -3111,6 +3113,93 @@
             }
           }
         },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskAssignmentForCandidate"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Требуется вход",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Недостаточно прав",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Не найдено",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт состояния",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Ошибка валидации данных",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks/assignments/{assignment_id}/skip": {
+      "post": {
+        "tags": [
+          "candidate: tasks"
+        ],
+        "summary": "Пропустить задание",
+        "operationId": "skip_task_api_v1_tasks_assignments__assignment_id__skip_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "assignment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Assignment Id"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -5701,6 +5790,16 @@
               }
             }
           },
+          "404": {
+            "description": "Не найдено",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Ошибка валидации данных",
             "content": {
@@ -5717,6 +5816,111 @@
             "HTTPBearer": []
           }
         ]
+      }
+    },
+    "/api/v1/employer-tasks/templates": {
+      "get": {
+        "tags": [
+          "employer: tasks"
+        ],
+        "summary": "Шаблоны банка для автопроверяемого задания",
+        "description": "С need_id — специализация из потребности, сначала шаблоны с её навыками.",
+        "operationId": "list_task_templates_api_v1_employer_tasks_templates_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "specialization",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Specialization"
+            }
+          },
+          {
+            "name": "need_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Need Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TaskTemplateOption"
+                  },
+                  "title": "Response List Task Templates Api V1 Employer Tasks Templates Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Требуется вход",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Недостаточно прав",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Не найдено",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Ошибка валидации данных",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/employer-tasks/{task_id}/submissions": {
@@ -5806,6 +6010,7 @@
           "employer: tasks"
         ],
         "summary": "Оценить ответ 1–5",
+        "description": "Для решений без автопроверки и чек-листа оценка становится score: (оценка − 1) / 4.",
         "operationId": "rate_submission_api_v1_employer_tasks__task_id__submissions__assignment_id__rate_post",
         "security": [
           {
@@ -5875,6 +6080,16 @@
           },
           "404": {
             "description": "Не найдено",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт состояния",
             "content": {
               "application/json": {
                 "schema": {
@@ -8497,7 +8712,8 @@
           },
           "specialization": {
             "type": "string",
-            "title": "Specialization"
+            "title": "Specialization",
+            "description": "При need_id берётся из потребности"
           },
           "grade": {
             "anyOf": [
@@ -8507,7 +8723,8 @@
               {
                 "type": "null"
               }
-            ]
+            ],
+            "description": "null — для всех грейдов специализации"
           },
           "need_id": {
             "anyOf": [
@@ -8551,7 +8768,7 @@
             },
             "type": "array",
             "title": "Rubric",
-            "description": "Бинарные критерии оценки подхода"
+            "description": "Бинарные критерии оценки подхода (лимит — content/tasks.yaml)"
           }
         },
         "type": "object",
@@ -8575,7 +8792,8 @@
           },
           "specialization": {
             "type": "string",
-            "title": "Specialization"
+            "title": "Specialization",
+            "description": "При need_id берётся из потребности"
           },
           "grade": {
             "anyOf": [
@@ -8585,7 +8803,8 @@
               {
                 "type": "null"
               }
-            ]
+            ],
+            "description": "null — для всех грейдов специализации"
           },
           "need_id": {
             "anyOf": [
@@ -8629,7 +8848,7 @@
             },
             "type": "array",
             "title": "Rubric",
-            "description": "Бинарные критерии оценки подхода"
+            "description": "Бинарные критерии оценки подхода (лимит — content/tasks.yaml)"
           },
           "id": {
             "type": "integer",
@@ -8637,11 +8856,18 @@
           },
           "assignments_total": {
             "type": "integer",
-            "title": "Assignments Total"
+            "title": "Assignments Total",
+            "description": "Скольким кандидатам задание предложено"
           },
           "submissions": {
             "type": "integer",
-            "title": "Submissions"
+            "title": "Submissions",
+            "description": "Сколько решений прислано"
+          },
+          "awaiting_rating": {
+            "type": "integer",
+            "title": "Awaiting Rating",
+            "description": "Решения на подход без оценки — ждут работодателя"
           },
           "created_at": {
             "type": "string",
@@ -8657,6 +8883,7 @@
           "id",
           "assignments_total",
           "submissions",
+          "awaiting_rating",
           "created_at"
         ],
         "title": "EmployerTaskOut"
@@ -11099,7 +11326,7 @@
                 "type": "null"
               }
             ],
-            "description": "Для kind=auto — экземпляр задания"
+            "description": "Для kind=auto — экземпляр задания (без ключа)"
           },
           "prompt": {
             "anyOf": [
@@ -11111,6 +11338,14 @@
               }
             ],
             "title": "Prompt"
+          },
+          "rubric": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Rubric",
+            "description": "Критерии, по которым оценят подход"
           },
           "status": {
             "$ref": "#/components/schemas/AssignmentStatus"
@@ -11125,6 +11360,28 @@
             "format": "date-time",
             "title": "Due At"
           },
+          "submitted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submitted At"
+          },
+          "response": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AnswerPayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "score": {
             "anyOf": [
               {
@@ -11134,7 +11391,26 @@
                 "type": "null"
               }
             ],
-            "title": "Score"
+            "title": "Score",
+            "description": "0..1; null — ещё не проверено"
+          },
+          "graded_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GradedBy"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "confirmed_skills": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Confirmed Skills",
+            "description": "Навыки, подтверждённые этим заданием"
           }
         },
         "type": "object",
@@ -11145,10 +11421,15 @@
           "kind",
           "item",
           "prompt",
+          "rubric",
           "status",
           "offered_at",
           "due_at",
-          "score"
+          "submitted_at",
+          "response",
+          "score",
+          "graded_by",
+          "confirmed_skills"
         ],
         "title": "TaskAssignmentForCandidate"
       },
@@ -11183,6 +11464,9 @@
           },
           "candidate": {
             "$ref": "#/components/schemas/CandidateBrief"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AssignmentStatus"
           },
           "response": {
             "anyOf": [
@@ -11250,6 +11534,7 @@
         "required": [
           "assignment_id",
           "candidate",
+          "status",
           "response",
           "score",
           "graded_by",
@@ -11269,6 +11554,64 @@
           "response"
         ],
         "title": "TaskSubmit"
+      },
+      "TaskTemplateOption": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "topic": {
+            "type": "string",
+            "title": "Topic"
+          },
+          "topic_name": {
+            "type": "string",
+            "title": "Topic Name"
+          },
+          "skills": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Skills",
+            "description": "Названия навыков, которые подтвердит верное решение"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ItemKind"
+          },
+          "difficulty_b": {
+            "type": "number",
+            "title": "Difficulty B"
+          },
+          "difficulty": {
+            "type": "string",
+            "title": "Difficulty"
+          },
+          "example_stem": {
+            "type": "string",
+            "title": "Example Stem"
+          },
+          "matches_need": {
+            "type": "boolean",
+            "title": "Matches Need",
+            "description": "Шаблон проверяет навык потребности"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "topic",
+          "topic_name",
+          "skills",
+          "kind",
+          "difficulty_b",
+          "difficulty",
+          "example_stem",
+          "matches_need"
+        ],
+        "title": "TaskTemplateOption",
+        "description": "Шаблон банка для автопроверяемого задания: пример экземпляра без ключа ответа."
       },
       "TeamRoleOut": {
         "properties": {

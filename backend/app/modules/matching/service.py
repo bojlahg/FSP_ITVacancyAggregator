@@ -38,6 +38,7 @@ from app.modules.matching.schemas import (
     TalentSearchOut,
 )
 from app.modules.needs.models import HiringNeed
+from app.modules.tasks import service as tasks_service
 from app.modules.testing.engine.bank import GRADE_ORDER, get_blueprints
 from app.modules.testing.models import TestAttempt
 from app.modules.testing.schemas import TopicScore
@@ -92,8 +93,14 @@ async def refresh_candidate(db: AsyncSession, candidate_id: int) -> None:
         if skills.get(skill.skill_id) in (None, "declared"):
             skills[skill.skill_id] = status
     published = await auth_service.has_active_consent(db, candidate.user_id, ConsentKind.profile_publication)
-    fresh = freshness(current.assigned_at, now)
-    approach = attempt.approach_score if attempt else None
+    # Проверенные решения регулярных заданий тоже освежают профиль и дают approach (§11)
+    tasks = await tasks_service.signals(db, candidate_id)
+    last_activity = max(filter(None, [current.assigned_at, tasks.last_graded_at]))
+    fresh = freshness(last_activity, now)
+    approach_scores = [
+        s for s in [attempt.approach_score if attempt else None, *tasks.approach_scores] if s is not None
+    ]
+    approach = round(sum(approach_scores) / len(approach_scores), 4) if approach_scores else None
 
     row = await db.get(CandidateSearchIndex, candidate_id) or CandidateSearchIndex(candidate_id=candidate_id)
     row.visible = published and candidate.search_status != SearchStatus.hidden
@@ -115,7 +122,7 @@ async def refresh_candidate(db: AsyncSession, candidate_id: int) -> None:
     row.city = candidate.city
     row.relocation = candidate.relocation
     row.hidden_employer_ids = list(candidate.hidden_employer_ids or [])
-    row.last_activity_at = current.assigned_at
+    row.last_activity_at = last_activity
     row.updated_at = now
     db.add(row)
 

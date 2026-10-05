@@ -10,6 +10,8 @@ from app.core.types import enum_type
 
 
 class EmployerTask(Base):
+    """Короткое задание работодателя (§11): шаблон банка с автопроверкой или вопрос о подходе."""
+
     __tablename__ = "employer_tasks"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
@@ -26,6 +28,8 @@ class EmployerTask(Base):
 
 
 class TaskAssignment(Base):
+    """Задание, предложенное кандидату; payload — экземпляр без ключа, answer_key не уходит на фронт."""
+
     __tablename__ = "task_assignments"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
@@ -39,6 +43,8 @@ class TaskAssignment(Base):
     payload: Mapped[dict | None] = mapped_column(JSONB)
     answer_key: Mapped[dict | None] = mapped_column(JSONB)
     response: Mapped[dict | None] = mapped_column(JSONB)
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    rubric_hits: Mapped[list | None] = mapped_column(JSONB)
     score: Mapped[float | None] = mapped_column(Float)
     graded_by: Mapped[GradedBy | None] = mapped_column(enum_type(GradedBy))
     employer_rating: Mapped[int | None] = mapped_column(Integer)

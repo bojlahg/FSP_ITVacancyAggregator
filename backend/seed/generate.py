@@ -19,6 +19,7 @@ from app.core.config import get_settings
 from app.core.db import SessionFactory
 from app.core.enums import (
     ApplicationStatus,
+    AssignmentStatus,
     AttemptPurpose,
     AttemptResult,
     AttemptStatus,
@@ -26,11 +27,13 @@ from app.core.enums import (
     DeclineReason,
     FspLinkMethod,
     Grade,
+    GradedBy,
     InvitationStatus,
     NeedStatus,
     Role,
     SearchStatus,
     SkillSource,
+    TaskKind,
     TemplateStatus,
     UnlockSource,
     WorkFormat,
@@ -45,10 +48,12 @@ from app.models import (
     Consent,
     ContactUnlock,
     Employer,
+    EmployerTask,
     HiringNeed,
     Invitation,
     NeedShortlist,
     SurveyResponse,
+    TaskAssignment,
     TemplateStat,
     TestAttempt,
     TestAttemptItem,
@@ -71,6 +76,27 @@ THETA_BY_GRADE = {"below": -2.4, "intern": -1.3, "junior": -0.3, "middle": 0.7, 
 GRADE_SHARE = [("below", 5), ("intern", 10), ("junior", 30), ("middle", 33), ("senior", 22)]
 DEMO_DOMAIN = "demo.itscout.ru"
 FREE_FSP_ID = "FSP-2026-7781"  # участник реестра без профиля на платформе — для живой демонстрации привязки
+DEMO_TASK_TEMPLATE = "be.db.composite_index"
+DEMO_APPROACH_RUBRIC = [
+    "Клиент передаёт ключ идемпотентности",
+    "Результат первой операции сохраняется вместе с ключом",
+    "Уникальное ограничение в БД защищает от гонки",
+    "Повтор с тем же ключом возвращает сохранённый ответ",
+]
+DEMO_APPROACH_ANSWERS = [
+    (
+        "Клиент шлёт Idempotency-Key, на сервере таблица ключей с уникальным индексом: вставляем ключ в той же транзакции, что и платёж, а при повторе отдаём сохранённый ответ.",
+        5,
+    ),
+    (
+        "Проверяем, был ли уже платёж с такой суммой и счётом за последние 5 минут, и если был — не проводим второй раз.",
+        2,
+    ),
+    (
+        "Передаём ключ идемпотентности в заголовке и кладём его в Redis с TTL; если ключ уже есть — возвращаем 409.",
+        None,
+    ),
+]
 
 
 def weighted(rng: random.Random, pairs: list[tuple]) -> object:
@@ -1048,6 +1074,103 @@ class Seeder:
         ][:2]:
             self.db.add(NeedShortlist(need_id=demo_need.id, candidate_id=record["candidate"].id))
 
+    async def build_tasks(self) -> None:
+        """Регулярные задания «Демо Банка» (§11) с решениями; герои заданий не получают — им предложат живьём."""
+        rng = self.rng
+        need = self.needs[0]
+        bank_employer = self.employers[0]
+        created = self.now - timedelta(days=12)
+        auto = EmployerTask(
+            employer_id=bank_employer.id,
+            need_id=need.id,
+            specialization=need.specialization,
+            grade=need.grade,
+            kind=TaskKind.auto,
+            template_id=DEMO_TASK_TEMPLATE,
+            title="Индекс для ленты платежей",
+            rubric=[],
+            created_at=created,
+        )
+        approach = EmployerTask(
+            employer_id=bank_employer.id,
+            need_id=need.id,
+            specialization=need.specialization,
+            grade=need.grade,
+            kind=TaskKind.approach,
+            title="Повторная оплата без двойного списания",
+            prompt="Клиент мобильного банка может отправить запрос оплаты дважды (повтор по таймауту). Как сделать так, чтобы деньги списались ровно один раз?",
+            rubric=DEMO_APPROACH_RUBRIC,
+            created_at=created + timedelta(hours=1),
+        )
+        self.db.add_all([auto, approach])
+        await self.db.flush()
+
+        heroes = {id(hero["candidate"]) for hero in self.heroes.values()}
+        pool = [
+            c
+            for c in self.candidates
+            if c["category"] is not None
+            and c["category"].specialization == need.specialization
+            and c["category"].grade == need.grade
+            and id(c["candidate"]) not in heroes
+        ]
+        template = self.bank.templates[DEMO_TASK_TEMPLATE]
+        for index, record in enumerate(pool[:3]):
+            offered = created + timedelta(days=1, hours=index * 5)
+            instance = render(template, rng.getrandbits(31))
+            correct = index != 2
+            response = self.response_for(instance, correct)
+            assignment = TaskAssignment(
+                task_id=auto.id,
+                candidate_id=record["candidate"].id,
+                offered_at=offered,
+                due_at=offered + timedelta(days=7),
+                status=AssignmentStatus.submitted,
+                payload=instance.public_payload(),
+                answer_key=instance.key,
+                response=response,
+                submitted_at=offered + timedelta(hours=3),
+                score=score(instance.kind, instance.key, response),
+                graded_by=GradedBy.auto,
+            )
+            self.db.add(assignment)
+            await self.db.flush()
+            if correct:
+                for skill in template.skills:
+                    self.db.add(
+                        CandidateSkill(
+                            candidate_id=record["candidate"].id,
+                            skill_id=skill,
+                            source=SkillSource.task,
+                            evidence={
+                                "task_id": auto.id,
+                                "assignment_id": assignment.id,
+                                "template_id": template.id,
+                            },
+                            updated_at=assignment.submitted_at,
+                        )
+                    )
+        # Ответы на подход: два оценены работодателем (LLM на демо выключен), третий ждёт оценки
+        for index, (record, (text_answer, rating)) in enumerate(
+            zip(pool[3:6], DEMO_APPROACH_ANSWERS, strict=False)
+        ):
+            offered = created + timedelta(days=2, hours=index * 7)
+            self.db.add(
+                TaskAssignment(
+                    task_id=approach.id,
+                    candidate_id=record["candidate"].id,
+                    offered_at=offered,
+                    due_at=offered + timedelta(days=7),
+                    status=AssignmentStatus.submitted,
+                    response={"text": text_answer},
+                    submitted_at=offered + timedelta(hours=5),
+                    score=(rating - 1) / 4 if rating else None,
+                    graded_by=GradedBy.employer if rating else None,
+                    employer_rating=rating,
+                )
+            )
+        await self.db.flush()
+
     # ---------- финал ----------
 
     async def finalize(self) -> None:
@@ -1082,6 +1205,7 @@ class Seeder:
         self.build_admin()
         await self.build_needs()
         await self.build_interactions()
+        await self.build_tasks()
         await self.finalize()
         await self.db.commit()
         self.write_registry()
