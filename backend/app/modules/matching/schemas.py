@@ -83,6 +83,9 @@ class RecommendationsOut(ApiModel):
     candidates: list[CandidateMatch]
     out_of_filter: list[CandidateMatch] = Field(description="Не прошли жёсткие фильтры — с причиной")
     shortlist: list[CandidateMatch] = Field(description="Закреплённые кандидаты — не теряются при уточнении")
+    shortlist_outside: list[CandidateBrief] = Field(
+        description="Закреплены, но после правки не подходят под категорию потребности: score не считается",
+    )
     total: int
 
 

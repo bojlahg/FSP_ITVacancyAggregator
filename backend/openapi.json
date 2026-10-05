@@ -17294,6 +17294,14 @@
             "title": "Shortlist",
             "description": "Закреплённые кандидаты — не теряются при уточнении"
           },
+          "shortlist_outside": {
+            "items": {
+              "$ref": "#/components/schemas/CandidateBrief"
+            },
+            "type": "array",
+            "title": "Shortlist Outside",
+            "description": "Закреплены, но после правки не подходят под категорию потребности: score не считается"
+          },
           "total": {
             "type": "integer",
             "title": "Total"
@@ -17307,6 +17315,7 @@
           "candidates",
           "out_of_filter",
           "shortlist",
+          "shortlist_outside",
           "total"
         ],
         "title": "RecommendationsOut"

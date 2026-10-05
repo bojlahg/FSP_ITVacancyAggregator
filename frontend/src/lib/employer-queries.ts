@@ -227,9 +227,11 @@ function withShortlisted(match: CandidateMatch, candidateId: number, value: bool
   return match.candidate.id === candidateId ? { ...match, shortlisted: value } : match;
 }
 
-interface ShortlistToggle {
-  match: CandidateMatch;
-  add: boolean;
+/** Добавить можно только кандидата из подборки (нужен match), убрать — любого закреплённого по id. */
+type ShortlistToggle = { add: true; match: CandidateMatch } | { add: false; candidateId: number };
+
+export function shortlistTarget(toggle: ShortlistToggle): number {
+  return toggle.add ? toggle.match.candidate.id : toggle.candidateId;
 }
 
 /** Шорт-лист с оптимистичным обновлением всех закэшированных подборок этой потребности. */
@@ -237,18 +239,19 @@ export function useToggleShortlist(needId: number) {
   const queryClient = useQueryClient();
   const prefix = employerKeys.recommendationsOf(needId);
   return useMutation({
-    mutationFn: async ({ match, add }: ShortlistToggle) => {
-      const params = { path: { need_id: needId, candidate_id: match.candidate.id } };
-      const { data, error, response } = add
+    mutationFn: async (toggle: ShortlistToggle) => {
+      const params = { path: { need_id: needId, candidate_id: shortlistTarget(toggle) } };
+      const { data, error, response } = toggle.add
         ? await api.POST("/api/v1/needs/{need_id}/shortlist/{candidate_id}", { params, body: {} })
         : await api.DELETE("/api/v1/needs/{need_id}/shortlist/{candidate_id}", { params });
       if (!data) throw toApiError(response, error);
       return data;
     },
-    onMutate: async ({ match, add }) => {
+    onMutate: async (toggle) => {
       await queryClient.cancelQueries({ queryKey: prefix });
       const snapshot = queryClient.getQueriesData<RecommendationsOut>({ queryKey: prefix });
-      const id = match.candidate.id;
+      const id = shortlistTarget(toggle);
+      const add = toggle.add;
       queryClient.setQueriesData<RecommendationsOut>({ queryKey: prefix }, (current) => {
         if (!current) return current;
         const rest = current.shortlist.filter((item) => item.candidate.id !== id);
@@ -256,7 +259,8 @@ export function useToggleShortlist(needId: number) {
           ...current,
           candidates: current.candidates.map((item) => withShortlisted(item, id, add)),
           out_of_filter: current.out_of_filter.map((item) => withShortlisted(item, id, add)),
-          shortlist: add ? [...rest, { ...match, shortlisted: true }] : rest,
+          shortlist: toggle.add ? [...rest, { ...toggle.match, shortlisted: true }] : rest,
+          shortlist_outside: current.shortlist_outside.filter((item) => item.id !== id),
         };
       });
       return { snapshot };

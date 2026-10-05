@@ -374,7 +374,11 @@ def _brief(row: CandidateSearchIndex, candidate: Candidate, fsp_count: int) -> C
 
 
 async def _visible_rows(
-    db: AsyncSession, employer_id: int, specs: set[str] | None = None, grades: set[str] | None = None
+    db: AsyncSession,
+    employer_id: int,
+    specs: set[str] | None = None,
+    grades: set[str] | None = None,
+    ids: list[int] | None = None,
 ) -> list[tuple[CandidateSearchIndex, Candidate]]:
     query = (
         select(CandidateSearchIndex, Candidate)
@@ -386,6 +390,8 @@ async def _visible_rows(
         query = query.where(CandidateSearchIndex.specialization.in_(specs))
     if grades:
         query = query.where(CandidateSearchIndex.grade.in_([Grade(g) for g in grades]))
+    if ids is not None:
+        query = query.where(CandidateSearchIndex.candidate_id.in_(ids))
     return [(row, candidate) for row, candidate in (await db.execute(query)).all()]
 
 
@@ -524,7 +530,8 @@ async def recommendations(
     employer_id = await _employer_id(db, user_id)
     spec = need_spec(need)
     scored = await _scored_pool(db, need, employer_id, spec)
-    shortlist_ids = set(await needs_service.shortlist_candidate_ids(db, need.id))
+    pinned = await needs_service.shortlist_candidate_ids(db, need.id)
+    shortlist_ids = set(pinned)
     ids = [item.row.candidate_id for item in scored]
 
     matched: list[CandidateMatch] = []
@@ -549,6 +556,13 @@ async def recommendations(
         matched.sort(key=_sort_key)
     outside.sort(key=_sort_key)
     shortlist.sort(key=_sort_key)
+    # §8.1 п.4: закреплённый остаётся в шорт-листе при любой правке. Кто после правки вне категорий
+    # потребности, для того score не определён — показываем карточкой, с теми же проверками видимости
+    in_pool = set(ids)
+    dropped = [cid for cid in pinned if cid not in in_pool]
+    visible = {row.candidate_id: (row, c) for row, c in await _visible_rows(db, employer_id, ids=dropped)}
+    counts = await _fsp_counts(db, list(visible))
+    shortlist_outside = [_brief(*visible[cid], counts.get(cid, 0)) for cid in dropped if cid in visible]
     statuses = await invitation_statuses(db, employer_id, ids)
     for match in (*matched, *outside, *shortlist):
         match.invitation_status = statuses.get(match.candidate.id)
@@ -559,6 +573,7 @@ async def recommendations(
         candidates=matched[: filters.limit],
         out_of_filter=outside[:20],
         shortlist=shortlist,
+        shortlist_outside=shortlist_outside,
         total=len(matched),
     )
 

@@ -55,6 +55,7 @@ import {
   useNeeds,
   useRecommendations,
   useSetNeedPublished,
+  shortlistTarget,
   useToggleShortlist,
 } from "@/lib/employer-queries";
 import { formatNumber, plural, toPercent } from "@/lib/format";
@@ -161,10 +162,9 @@ function NeedView({ need }: { need: Need }) {
   }, [recs.data, recs.isPlaceholderData]);
 
   const toggleShortlist = (match: CandidateMatch) => {
-    const add = !match.shortlisted;
-    shortlist.mutate({ match, add });
+    shortlist.mutate(match.shortlisted ? { add: false, candidateId: match.candidate.id } : { add: true, match });
   };
-  const pendingShortlistId = shortlist.isPending ? shortlist.variables?.match.candidate.id : undefined;
+  const pendingShortlistId = shortlist.isPending && shortlist.variables ? shortlistTarget(shortlist.variables) : undefined;
 
   const renderRow = (match: CandidateMatch) => {
     const invitedStatus = invited.get(match.candidate.id) ?? openInvitation(match.invitation_status);
@@ -304,7 +304,7 @@ function NeedView({ need }: { need: Need }) {
               <CardTitle className="flex items-center gap-2">
                 <Pin className="size-4 text-primary" aria-hidden /> Шорт-лист
                 <Badge variant="soft" className="ml-auto">
-                  {data?.shortlist.length ?? need.stats.shortlisted}
+                  {data ? data.shortlist.length + data.shortlist_outside.length : need.stats.shortlisted}
                 </Badge>
               </CardTitle>
               <CardDescription>Закреплён за потребностью: не меняется при смене фильтров и правке.</CardDescription>
@@ -312,7 +312,7 @@ function NeedView({ need }: { need: Need }) {
             <CardContent>
               {recs.isPending ? (
                 <SkeletonCards count={1} />
-              ) : !data || data.shortlist.length === 0 ? (
+              ) : !data || data.shortlist.length + data.shortlist_outside.length === 0 ? (
                 <p className="rounded-lg border border-dashed px-3 py-4 text-center text-xs text-muted-foreground">
                   Нажмите «В шорт-лист» у кандидата, чтобы закрепить его здесь.
                 </p>
@@ -346,9 +346,32 @@ function NeedView({ need }: { need: Need }) {
                         variant="ghost"
                         size="icon-sm"
                         className="size-7"
-                        onClick={() => shortlist.mutate({ match, add: false })}
+                        onClick={() => shortlist.mutate({ add: false, candidateId: match.candidate.id })}
                         disabled={pendingShortlistId === match.candidate.id}
                         aria-label={`Убрать ${match.candidate.display_name} из шорт-листа`}
+                      >
+                        <X />
+                      </Button>
+                    </li>
+                  ))}
+                  {data.shortlist_outside.map((brief) => (
+                    <li key={brief.id} className="flex items-center gap-2 rounded-lg border border-dashed px-2 py-1.5">
+                      <Link
+                        to={candidateHref(brief.id, need.id)}
+                        className="min-w-0 flex-1 truncate text-sm font-medium hover:text-primary"
+                      >
+                        {brief.display_name}
+                        <span className="block truncate font-mono text-[11px] text-muted-foreground">
+                          {brief.category.label} · не подходит под новые требования
+                        </span>
+                      </Link>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="size-7"
+                        onClick={() => shortlist.mutate({ add: false, candidateId: brief.id })}
+                        disabled={pendingShortlistId === brief.id}
+                        aria-label={`Убрать ${brief.display_name} из шорт-листа`}
                       >
                         <X />
                       </Button>

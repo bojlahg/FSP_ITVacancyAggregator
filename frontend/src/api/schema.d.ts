@@ -5260,6 +5260,11 @@ export interface components {
              * @description Закреплённые кандидаты — не теряются при уточнении
              */
             shortlist: components["schemas"]["CandidateMatch"][];
+            /**
+             * Shortlist Outside
+             * @description Закреплены, но после правки не подходят под категорию потребности: score не считается
+             */
+            shortlist_outside: components["schemas"]["CandidateBrief"][];
             /** Total */
             total: number;
         };
