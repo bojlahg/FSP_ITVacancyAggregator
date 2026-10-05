@@ -11,7 +11,7 @@ from app.modules.employers.models import Employer
 from app.modules.expert.models import AngoffRating, ExpertLabel, ExpertPair
 from app.modules.fsp.models import CandidateCompetency, FspAchievement, FspRank
 from app.modules.integrations.models import EmployerApiKey, EmployerWebhook, WebhookDelivery
-from app.modules.invitations.models import ContactUnlock, Invitation
+from app.modules.invitations.models import ContactUnlock, Invitation, InvitationReport
 from app.modules.matching.models import CandidateSearchIndex
 from app.modules.needs.models import HiringNeed, NeedShortlist
 from app.modules.resume.models import Resume
@@ -45,6 +45,7 @@ __all__ = [
     "FspRank",
     "HiringNeed",
     "Invitation",
+    "InvitationReport",
     "NeedShortlist",
     "RateLimitHit",
     "RefreshToken",

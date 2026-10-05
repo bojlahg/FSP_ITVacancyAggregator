@@ -148,6 +148,8 @@ class Settings(BaseSettings):
     # Проверка текста потребности на запрещённые требования (content/need_text_rules.yaml):
     # off — не проверять; warn — только подсказки; block — правила с severity=block запрещают публикацию
     need_text_check: Literal["off", "warn", "block"] = "block"
+    # Предупреждение кандидату о признаках мошенничества в приглашении (content/invitation_scam_rules.yaml)
+    invitation_scam_check: bool = True
 
     # Правила грейда и подбора — см. docs/implementation.md §6.3, §8.6
     grade_change_cooldown_days: int = 90

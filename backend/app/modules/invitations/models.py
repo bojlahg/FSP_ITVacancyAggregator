@@ -5,7 +5,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
-from app.core.enums import DeclineReason, InvitationStatus, UnlockSource
+from app.core.enums import DeclineReason, InvitationStatus, ReportReason, ReportStatus, UnlockSource
 from app.core.types import enum_type
 
 
@@ -48,3 +48,20 @@ class ContactUnlock(Base):
     source: Mapped[UnlockSource] = mapped_column(enum_type(UnlockSource))
     source_id: Mapped[int] = mapped_column(BigInteger)
     unlocked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class InvitationReport(Base):
+    """Жалоба кандидата на приглашение (§8.5): одна на приглашение, разбирает администратор."""
+
+    __tablename__ = "invitation_reports"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    invitation_id: Mapped[int] = mapped_column(
+        ForeignKey("invitations.id", ondelete="CASCADE"), unique=True, index=True
+    )
+    reason: Mapped[ReportReason] = mapped_column(enum_type(ReportReason))
+    comment: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[ReportStatus] = mapped_column(enum_type(ReportStatus), default=ReportStatus.open)
+    resolution: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

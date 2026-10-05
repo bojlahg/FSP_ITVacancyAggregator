@@ -7,6 +7,7 @@ type Schemas = components["schemas"];
 
 export type InvitationForCandidate = Schemas["InvitationForCandidate"];
 export type DeclineRequest = Schemas["DeclineRequest"];
+export type ReportRequest = Schemas["ReportRequest"];
 
 export const candidateInvitationKeys = {
   all: ["candidates", "me", "invitations"] as const,
@@ -66,6 +67,21 @@ export function useDeclineInvitation() {
   return useMutation({
     mutationFn: async ({ invitationId, body }: { invitationId: number; body: DeclineRequest }) => {
       const { data, error, response } = await api.POST("/api/v1/invitations/{invitation_id}/decline", {
+        params: { path: { invitation_id: invitationId } },
+        body,
+      });
+      if (!data) throw toApiError(response, error);
+      return data;
+    },
+    onSuccess: replace,
+  });
+}
+
+export function useReportInvitation() {
+  const replace = useReplaceInCache();
+  return useMutation({
+    mutationFn: async ({ invitationId, body }: { invitationId: number; body: ReportRequest }) => {
+      const { data, error, response } = await api.POST("/api/v1/invitations/{invitation_id}/report", {
         params: { path: { invitation_id: invitationId } },
         body,
       });

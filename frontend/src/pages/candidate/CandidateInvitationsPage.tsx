@@ -1,5 +1,20 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Building2, Check, ChevronDown, Clock, Globe, Loader2, Mail, MessageCircle, Phone, Unlock, User, X } from "lucide-react";
+import {
+  Building2,
+  Check,
+  ChevronDown,
+  Clock,
+  Flag,
+  Globe,
+  Loader2,
+  Mail,
+  MessageCircle,
+  Phone,
+  ShieldAlert,
+  Unlock,
+  User,
+  X,
+} from "lucide-react";
 import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -33,12 +48,21 @@ import {
   useAcceptInvitation,
   useDeclineInvitation,
   useMyInvitations,
+  useReportInvitation,
   useViewInvitation,
 } from "@/lib/invitation-queries";
 import { DECLINE_REASON_LABELS } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 
 const DECLINE_REASONS = ["salary", "stack", "work_format", "company", "not_looking", "other"] as const;
+const REPORT_REASONS = ["scam", "discrimination", "fake_company", "spam", "other"] as const;
+const REPORT_REASON_LABELS: Record<(typeof REPORT_REASONS)[number], string> = {
+  scam: "Мошенничество: просят деньги или данные",
+  discrimination: "Дискриминация",
+  fake_company: "Компания не та, за кого себя выдаёт",
+  spam: "Спам или не по профилю",
+  other: "Другое",
+};
 const OPEN_STATUSES: readonly InvitationForCandidate["status"][] = ["sent", "viewed"];
 
 export default function CandidateInvitationsPage() {
@@ -47,6 +71,7 @@ export default function CandidateInvitationsPage() {
   const accept = useAcceptInvitation();
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [declining, setDeclining] = useState<InvitationForCandidate | null>(null);
+  const [reporting, setReporting] = useState<InvitationForCandidate | null>(null);
   // POST /view — один раз за сессию на приглашение, даже если карточку раскрыли несколько раз.
   const viewSent = useRef(new Set<number>());
 
@@ -100,6 +125,7 @@ export default function CandidateInvitationsPage() {
               accepting={accept.isPending && accept.variables === invitation.id}
               onAccept={() => accept.mutate(invitation.id)}
               onDecline={() => setDeclining(invitation)}
+              onReport={() => setReporting(invitation)}
             />
           ))}
         </div>
@@ -108,6 +134,11 @@ export default function CandidateInvitationsPage() {
       <Dialog open={declining !== null} onOpenChange={(open) => !open && setDeclining(null)}>
         <DialogContent>
           {declining && <DeclineForm key={declining.id} invitation={declining} onDone={() => setDeclining(null)} />}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={reporting !== null} onOpenChange={(open) => !open && setReporting(null)}>
+        <DialogContent>
+          {reporting && <ReportForm key={reporting.id} invitation={reporting} onDone={() => setReporting(null)} />}
         </DialogContent>
       </Dialog>
     </>
@@ -121,9 +152,10 @@ interface InvitationCardProps {
   accepting: boolean;
   onAccept: () => void;
   onDecline: () => void;
+  onReport: () => void;
 }
 
-function InvitationCard({ invitation, open, onToggle, accepting, onAccept, onDecline }: InvitationCardProps) {
+function InvitationCard({ invitation, open, onToggle, accepting, onAccept, onDecline, onReport }: InvitationCardProps) {
   const { company } = invitation;
   const industries = useIndustries();
   const industry = company.industry
@@ -189,6 +221,7 @@ function InvitationCard({ invitation, open, onToggle, accepting, onAccept, onDec
         <>
           <CardContent id={detailsId} className="grid gap-5 md:grid-cols-2">
             <div className="space-y-4">
+              <ScamWarnings invitation={invitation} />
               <p className="text-sm leading-relaxed whitespace-pre-line">{invitation.message}</p>
               {invitation.salary_market && <SalaryMarketNote market={invitation.salary_market} />}
               <ContactBlock invitation={invitation} />
@@ -206,6 +239,18 @@ function InvitationCard({ invitation, open, onToggle, accepting, onAccept, onDec
               </p>
             </div>
           </CardContent>
+          <div className="flex justify-end px-6">
+            {invitation.report ? (
+              <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground" role="status">
+                <Flag className="size-3.5" aria-hidden /> Жалоба отправлена {formatDate(invitation.report.created_at)}
+                {invitation.report.status === "resolved" ? " · рассмотрена" : " · на рассмотрении"}
+              </span>
+            ) : (
+              <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={onReport}>
+                <Flag /> Пожаловаться
+              </Button>
+            )}
+          </div>
           {canRespond && (
             <CardFooter className="flex-wrap gap-2 border-t border-border-subtle pt-5">
               <Button onClick={onAccept} disabled={accepting}>
@@ -355,6 +400,97 @@ function DeclineForm({ invitation, onDone }: { invitation: InvitationForCandidat
         </DialogClose>
         <Button type="submit" form="decline-form" disabled={decline.isPending}>
           {decline.isPending && <Loader2 className="animate-spin" />} Отклонить
+        </Button>
+      </DialogFooter>
+    </>
+  );
+}
+
+/** Признаки мошенничества в тексте (§8.5): предупреждение, решение остаётся за кандидатом. */
+function ScamWarnings({ invitation }: { invitation: InvitationForCandidate }) {
+  const warnings = invitation.warnings ?? [];
+  if (warnings.length === 0) return null;
+  return (
+    <div role="status" className="grid gap-2 rounded-lg border border-destructive/30 bg-destructive-tint px-3 py-2 text-sm">
+      <div className="flex items-center gap-2 font-medium text-destructive-strong">
+        <ShieldAlert className="size-4 shrink-0" aria-hidden /> Будьте осторожны: в приглашении есть признаки мошенничества
+      </div>
+      <ul className="grid gap-1.5">
+        {warnings.map((warning) => (
+          <li key={warning.rule}>
+            <span className="font-mono text-xs">«{warning.fragment}»</span>{" "}
+            <span className="text-muted-foreground">— {warning.message}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+const reportSchema = z.object({
+  reason: z.enum(REPORT_REASONS, { error: "Выберите причину" }),
+  comment: z.string().trim().max(1000, "Не больше 1000 символов"),
+});
+
+type ReportValues = z.infer<typeof reportSchema>;
+
+function ReportForm({ invitation, onDone }: { invitation: InvitationForCandidate; onDone: () => void }) {
+  const report = useReportInvitation();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<ReportValues>({
+    resolver: zodResolver(reportSchema),
+    defaultValues: { comment: "", reason: (invitation.warnings ?? []).length > 0 ? "scam" : undefined },
+  });
+
+  const onSubmit = (values: ReportValues) =>
+    report.mutate(
+      { invitationId: invitation.id, body: { reason: values.reason, comment: values.comment || null } },
+      { onSuccess: onDone },
+    );
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>Пожаловаться на приглашение</DialogTitle>
+        <DialogDescription>
+          {invitation.company.company_name}: «{invitation.title}». Жалобу проверит администратор ITScout, работодатель не
+          узнает, кто её отправил. Статус приглашения не изменится — отклонить его можно отдельно.
+        </DialogDescription>
+      </DialogHeader>
+      <form id="report-form" className="grid gap-4" onSubmit={handleSubmit(onSubmit)} noValidate>
+        <FormAlert message={report.isError ? apiError(report.error).message : null} />
+        <fieldset className="grid gap-2" aria-describedby={errors.reason ? "report-reason-error" : undefined}>
+          <legend className="mb-1 text-sm font-medium">Причина *</legend>
+          <div className="grid gap-2">
+            {REPORT_REASONS.map((reason) => (
+              <label
+                key={reason}
+                className="flex cursor-pointer items-center gap-2.5 rounded-md border px-3 py-2 text-sm has-[:checked]:border-primary has-[:checked]:bg-primary-tint"
+              >
+                <input type="radio" value={reason} className="accent-primary" {...register("reason")} />
+                {REPORT_REASON_LABELS[reason]}
+              </label>
+            ))}
+          </div>
+          {errors.reason && (
+            <p id="report-reason-error" className="text-xs font-medium text-destructive-strong" role="alert">
+              {errors.reason.message}
+            </p>
+          )}
+        </fieldset>
+        <FormField id="report-comment" label="Что произошло" error={errors.comment?.message} hint="Необязательно">
+          <Textarea id="report-comment" rows={3} aria-invalid={!!errors.comment} {...register("comment")} />
+        </FormField>
+      </form>
+      <DialogFooter>
+        <DialogClose asChild>
+          <Button variant="ghost">Отмена</Button>
+        </DialogClose>
+        <Button type="submit" form="report-form" disabled={report.isPending}>
+          {report.isPending && <Loader2 className="animate-spin" />} Отправить жалобу
         </Button>
       </DialogFooter>
     </>

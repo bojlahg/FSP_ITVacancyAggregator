@@ -135,6 +135,19 @@ class ApplicationStatus(StrEnum):
     rejected = "rejected"
 
 
+class ReportReason(StrEnum):
+    scam = "scam"
+    discrimination = "discrimination"
+    fake_company = "fake_company"
+    spam = "spam"
+    other = "other"
+
+
+class ReportStatus(StrEnum):
+    open = "open"
+    resolved = "resolved"
+
+
 class UnlockSource(StrEnum):
     invitation = "invitation"
     application = "application"

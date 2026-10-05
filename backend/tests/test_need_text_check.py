@@ -3,7 +3,8 @@
 import pytest
 
 from app.core.config import get_settings
-from app.modules.needs.text_check import check_texts
+from app.core.text_rules import check_texts
+from app.modules.needs.text_check import RULES_FILE
 from tests.test_needs import API, NEED, no_llm, signup  # noqa: F401
 
 DISCRIMINATORY = "Ищем девушку до 30 лет, прописка в Москве обязательна"
@@ -22,7 +23,7 @@ DISCRIMINATORY = "Ищем девушку до 30 лет, прописка в М
     ],
 )
 def test_rules_golden(text, rules):
-    assert sorted(issue.rule for issue in check_texts(text)) == sorted(rules)
+    assert sorted(issue.rule for issue in check_texts(RULES_FILE, text)) == sorted(rules)
 
 
 async def _published_ready(client) -> tuple[dict, dict]:

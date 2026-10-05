@@ -2819,6 +2819,103 @@
         }
       }
     },
+    "/api/v1/invitations/{invitation_id}/report": {
+      "post": {
+        "tags": [
+          "candidate: invitations"
+        ],
+        "summary": "Пожаловаться на приглашение (409 report_exists — жалоба уже подана)",
+        "operationId": "report_invitation_api_v1_invitations__invitation_id__report_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "invitation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Invitation Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationForCandidate"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Требуется вход",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Недостаточно прав",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Не найдено",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт состояния",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Ошибка валидации данных",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/vacancies": {
       "get": {
         "tags": [
@@ -7890,6 +7987,171 @@
             "HTTPBearer": []
           }
         ]
+      }
+    },
+    "/api/v1/admin/invitation-reports": {
+      "get": {
+        "tags": [
+          "admin: reports"
+        ],
+        "summary": "Жалобы кандидатов на приглашения",
+        "operationId": "list_reports_api_v1_admin_invitation_reports_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ReportStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReportForAdmin"
+                  },
+                  "title": "Response List Reports Api V1 Admin Invitation Reports Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Требуется вход",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Недостаточно прав",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Ошибка валидации данных",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/invitation-reports/{report_id}/resolve": {
+      "post": {
+        "tags": [
+          "admin: reports"
+        ],
+        "summary": "Закрыть жалобу с описанием принятых мер",
+        "operationId": "resolve_report_api_v1_admin_invitation_reports__report_id__resolve_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Report Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportResolve"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportForAdmin"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Требуется вход",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Недостаточно прав",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Не найдено",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Ошибка валидации данных",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/debug/status": {
@@ -13069,6 +13331,25 @@
             "type": "string",
             "format": "date-time",
             "title": "Expires At"
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/InvitationWarning"
+            },
+            "type": "array",
+            "title": "Warnings",
+            "description": "Признаки мошенничества в тексте: оплата, крипта, мессенджер, документы"
+          },
+          "report": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReportBrief"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Жалоба кандидата, если подана"
           }
         },
         "type": "object",
@@ -13241,6 +13522,36 @@
           "withdrawn"
         ],
         "title": "InvitationStatus"
+      },
+      "InvitationWarning": {
+        "properties": {
+          "rule": {
+            "type": "string",
+            "title": "Rule",
+            "description": "id правила из content/invitation_scam_rules.yaml"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "fragment": {
+            "type": "string",
+            "title": "Fragment",
+            "description": "Найденный фрагмент текста приглашения"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rule",
+          "label",
+          "message",
+          "fragment"
+        ],
+        "title": "InvitationWarning"
       },
       "ItemKind": {
         "type": "string",
@@ -14897,6 +15208,191 @@
           "consent_pd_processing"
         ],
         "title": "RegisterRequest"
+      },
+      "ReportBrief": {
+        "properties": {
+          "reason": {
+            "$ref": "#/components/schemas/ReportReason"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ReportStatus"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reason",
+          "status",
+          "created_at"
+        ],
+        "title": "ReportBrief"
+      },
+      "ReportForAdmin": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "invitation_id": {
+            "type": "integer",
+            "title": "Invitation Id"
+          },
+          "employer_id": {
+            "type": "integer",
+            "title": "Employer Id"
+          },
+          "company_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Name"
+          },
+          "invitation_title": {
+            "type": "string",
+            "title": "Invitation Title"
+          },
+          "invitation_message": {
+            "type": "string",
+            "title": "Invitation Message"
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/InvitationWarning"
+            },
+            "type": "array",
+            "title": "Warnings"
+          },
+          "reason": {
+            "$ref": "#/components/schemas/ReportReason"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ReportStatus"
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "invitation_id",
+          "employer_id",
+          "company_name",
+          "invitation_title",
+          "invitation_message",
+          "warnings",
+          "reason",
+          "comment",
+          "status",
+          "resolution",
+          "created_at",
+          "resolved_at"
+        ],
+        "title": "ReportForAdmin"
+      },
+      "ReportReason": {
+        "type": "string",
+        "enum": [
+          "scam",
+          "discrimination",
+          "fake_company",
+          "spam",
+          "other"
+        ],
+        "title": "ReportReason"
+      },
+      "ReportRequest": {
+        "properties": {
+          "reason": {
+            "$ref": "#/components/schemas/ReportReason"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "title": "ReportRequest"
+      },
+      "ReportResolve": {
+        "properties": {
+          "resolution": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Resolution",
+            "description": "Что сделано по жалобе"
+          }
+        },
+        "type": "object",
+        "required": [
+          "resolution"
+        ],
+        "title": "ReportResolve"
+      },
+      "ReportStatus": {
+        "type": "string",
+        "enum": [
+          "open",
+          "resolved"
+        ],
+        "title": "ReportStatus"
       },
       "ResumeParseResult": {
         "properties": {

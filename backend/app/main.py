@@ -149,6 +149,7 @@ def create_app() -> FastAPI:
         explainer_router,
         expert_router,
         admin_router,
+        invitations.admin_router,
         debug_router,
     ):
         api.include_router(router)

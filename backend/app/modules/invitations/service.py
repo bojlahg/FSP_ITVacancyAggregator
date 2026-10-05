@@ -9,17 +9,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core import mail_templates
 from app.core.audit import audit
 from app.core.config import get_settings
-from app.core.enums import DeclineReason, InvitationStatus, UnlockSource
+from app.core.enums import DeclineReason, InvitationStatus, ReportStatus, UnlockSource
 from app.core.errors import ConflictError, NotFoundError
 from app.core.mail import Mail
 from app.core.schemas import Explanation
+from app.core.text_rules import check_texts
 from app.modules.auth import service as auth_service
 from app.modules.candidates import service as candidates_service
 from app.modules.candidates.models import Candidate
 from app.modules.employers import service as employers_service
 from app.modules.employers.models import Employer
 from app.modules.integrations import service as integrations_service
-from app.modules.invitations.models import ContactUnlock, Invitation
+from app.modules.invitations.models import ContactUnlock, Invitation, InvitationReport
 from app.modules.invitations.schemas import (
     ContactMethod,
     DeclineRequest,
@@ -27,6 +28,11 @@ from app.modules.invitations.schemas import (
     InvitationCreate,
     InvitationForCandidate,
     InvitationForEmployer,
+    InvitationWarning,
+    ReportBrief,
+    ReportForAdmin,
+    ReportRequest,
+    ReportResolve,
 )
 from app.modules.matching import service as matching_service
 from app.modules.needs import service as needs_service
@@ -149,8 +155,22 @@ async def _for_employer(db: AsyncSession, items: list[Invitation]) -> list[Invit
     return result
 
 
+SCAM_RULES_FILE = "invitation_scam_rules.yaml"
+
+
+def scam_warnings(title: str, message: str) -> list[InvitationWarning]:
+    """Признаки мошенничества (§8.5): только предупреждение кандидату, приглашение не блокируется."""
+    if not get_settings().invitation_scam_check:
+        return []
+    return [
+        InvitationWarning(rule=i.rule, label=i.label, message=i.message, fragment=i.fragment)
+        for i in check_texts(SCAM_RULES_FILE, title, message)
+    ]
+
+
 async def _for_candidate(db: AsyncSession, item: Invitation) -> InvitationForCandidate:
     employer = await db.get(Employer, item.employer_id)
+    report = await db.scalar(select(InvitationReport).where(InvitationReport.invitation_id == item.id))
     return InvitationForCandidate(
         id=item.id,
         company=await employers_service.company_public(db, employer),
@@ -171,6 +191,10 @@ async def _for_candidate(db: AsyncSession, item: Invitation) -> InvitationForCan
         viewed_at=item.viewed_at,
         responded_at=item.responded_at,
         expires_at=item.expires_at,
+        warnings=scam_warnings(item.title, item.message),
+        report=ReportBrief(reason=report.reason, status=report.status, created_at=report.created_at)
+        if report
+        else None,
     )
 
 
@@ -405,3 +429,79 @@ async def unlock_contacts(
         object_id=source_id,
         meta={"employer_id": employer_id, "candidate_id": candidate_id},
     )
+
+
+# ---------- жалобы ----------
+
+
+async def report(
+    db: AsyncSession, user_id: int, invitation_id: int, body: ReportRequest
+) -> InvitationForCandidate:
+    """Одна жалоба на приглашение; статус приглашения не меняется — отклонить кандидат может отдельно."""
+    _, invitation = await _own(db, user_id, invitation_id)
+    exists = await db.scalar(
+        select(InvitationReport.id).where(InvitationReport.invitation_id == invitation.id)
+    )
+    if exists is not None:
+        raise ConflictError("Жалоба на это приглашение уже отправлена", code="report_exists")
+    db.add(InvitationReport(invitation_id=invitation.id, reason=body.reason, comment=body.comment))
+    audit(
+        db,
+        actor_user_id=user_id,
+        action="invitation.report",
+        object_type="invitation",
+        object_id=invitation.id,
+        meta={"reason": body.reason.value},
+    )
+    await db.commit()
+    await db.refresh(invitation)
+    return await _for_candidate(db, invitation)
+
+
+async def _report_for_admin(db: AsyncSession, row: InvitationReport) -> ReportForAdmin:
+    invitation = await db.get(Invitation, row.invitation_id)
+    employer = await db.get(Employer, invitation.employer_id)
+    return ReportForAdmin(
+        id=row.id,
+        invitation_id=invitation.id,
+        employer_id=invitation.employer_id,
+        company_name=employer.company_name if employer else None,
+        invitation_title=invitation.title,
+        invitation_message=invitation.message,
+        warnings=scam_warnings(invitation.title, invitation.message),
+        reason=row.reason,
+        comment=row.comment,
+        status=row.status,
+        resolution=row.resolution,
+        created_at=row.created_at,
+        resolved_at=row.resolved_at,
+    )
+
+
+async def list_reports(db: AsyncSession, status: ReportStatus | None) -> list[ReportForAdmin]:
+    query = select(InvitationReport)
+    if status is not None:
+        query = query.where(InvitationReport.status == status)
+    rows = await db.scalars(query.order_by(InvitationReport.created_at.desc(), InvitationReport.id.desc()))
+    return [await _report_for_admin(db, row) for row in rows]
+
+
+async def resolve_report(
+    db: AsyncSession, user_id: int, report_id: int, body: ReportResolve
+) -> ReportForAdmin:
+    row = await db.get(InvitationReport, report_id)
+    if row is None:
+        raise NotFoundError("Жалоба не найдена")
+    row.status = ReportStatus.resolved
+    row.resolution = body.resolution
+    row.resolved_at = _now()
+    audit(
+        db,
+        actor_user_id=user_id,
+        action="invitation_report.resolve",
+        object_type="invitation_report",
+        object_id=row.id,
+    )
+    await db.commit()
+    await db.refresh(row)
+    return await _report_for_admin(db, row)

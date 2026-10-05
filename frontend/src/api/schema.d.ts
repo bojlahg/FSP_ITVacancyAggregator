@@ -734,6 +734,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/invitations/{invitation_id}/report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Пожаловаться на приглашение (409 report_exists — жалоба уже подана) */
+        post: operations["report_invitation_api_v1_invitations__invitation_id__report_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/vacancies": {
         parameters: {
             query?: never;
@@ -1719,6 +1736,40 @@ export interface paths {
         put?: never;
         /** Вернуть демо-данные к исходному состоянию (только DEMO_MODE и роль admin) */
         post: operations["reseed_api_v1_admin_reseed_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/invitation-reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Жалобы кандидатов на приглашения */
+        get: operations["list_reports_api_v1_admin_invitation_reports_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/invitation-reports/{report_id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Закрыть жалобу с описанием принятых мер */
+        post: operations["resolve_report_api_v1_admin_invitation_reports__report_id__resolve_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3654,6 +3705,13 @@ export interface components {
              * Format: date-time
              */
             expires_at: string;
+            /**
+             * Warnings
+             * @description Признаки мошенничества в тексте: оплата, крипта, мессенджер, документы
+             */
+            warnings?: components["schemas"]["InvitationWarning"][];
+            /** @description Жалоба кандидата, если подана */
+            report?: components["schemas"]["ReportBrief"] | null;
         };
         /** InvitationForEmployer */
         InvitationForEmployer: {
@@ -3698,6 +3756,23 @@ export interface components {
          * @enum {string}
          */
         InvitationStatus: "sent" | "viewed" | "accepted" | "declined" | "expired" | "withdrawn";
+        /** InvitationWarning */
+        InvitationWarning: {
+            /**
+             * Rule
+             * @description id правила из content/invitation_scam_rules.yaml
+             */
+            rule: string;
+            /** Label */
+            label: string;
+            /** Message */
+            message: string;
+            /**
+             * Fragment
+             * @description Найденный фрагмент текста приглашения
+             */
+            fragment: string;
+        };
         /**
          * ItemKind
          * @enum {string}
@@ -4374,6 +4449,70 @@ export interface components {
              */
             consent_profile_publication: boolean;
         };
+        /** ReportBrief */
+        ReportBrief: {
+            reason: components["schemas"]["ReportReason"];
+            status: components["schemas"]["ReportStatus"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** ReportForAdmin */
+        ReportForAdmin: {
+            /** Id */
+            id: number;
+            /** Invitation Id */
+            invitation_id: number;
+            /** Employer Id */
+            employer_id: number;
+            /** Company Name */
+            company_name: string | null;
+            /** Invitation Title */
+            invitation_title: string;
+            /** Invitation Message */
+            invitation_message: string;
+            /** Warnings */
+            warnings: components["schemas"]["InvitationWarning"][];
+            reason: components["schemas"]["ReportReason"];
+            /** Comment */
+            comment: string | null;
+            status: components["schemas"]["ReportStatus"];
+            /** Resolution */
+            resolution: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Resolved At */
+            resolved_at: string | null;
+        };
+        /**
+         * ReportReason
+         * @enum {string}
+         */
+        ReportReason: "scam" | "discrimination" | "fake_company" | "spam" | "other";
+        /** ReportRequest */
+        ReportRequest: {
+            reason: components["schemas"]["ReportReason"];
+            /** Comment */
+            comment?: string | null;
+        };
+        /** ReportResolve */
+        ReportResolve: {
+            /**
+             * Resolution
+             * @description Что сделано по жалобе
+             */
+            resolution: string;
+        };
+        /**
+         * ReportStatus
+         * @enum {string}
+         */
+        ReportStatus: "open" | "resolved";
         /** ResumeParseResult */
         ResumeParseResult: {
             /** Resume Id */
@@ -7042,6 +7181,77 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["DeclineRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationForCandidate"];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Конфликт состояния */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ошибка валидации данных */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    report_invitation_api_v1_invitations__invitation_id__report_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invitation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportRequest"];
             };
         };
         responses: {
@@ -10514,6 +10724,117 @@ export interface operations {
             };
             /** @description Конфликт состояния */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_reports_api_v1_admin_invitation_reports_get: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["ReportStatus"] | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportForAdmin"][];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ошибка валидации данных */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    resolve_report_api_v1_admin_invitation_reports__report_id__resolve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportResolve"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportForAdmin"];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ошибка валидации данных */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, BackgroundTasks, Query
 
-from app.core.deps import CurrentCandidate, CurrentEmployer, DbSession
-from app.core.enums import InvitationStatus
+from app.core.deps import CurrentAdmin, CurrentCandidate, CurrentEmployer, DbSession
+from app.core.enums import InvitationStatus, ReportStatus
 from app.core.errors import error_responses
 from app.core.mail import Mail, send_all
 from app.modules.integrations import service as integrations_service
@@ -12,10 +12,14 @@ from app.modules.invitations.schemas import (
     InvitationCreate,
     InvitationForCandidate,
     InvitationForEmployer,
+    ReportForAdmin,
+    ReportRequest,
+    ReportResolve,
 )
 
 candidate_router = APIRouter(tags=["candidate: invitations"])
 employer_router = APIRouter(tags=["employer: invitations"])
+admin_router = APIRouter(prefix="/admin/invitation-reports", tags=["admin: reports"])
 
 OWNED = error_responses(401, 403, 404)
 TRANSITION = error_responses(401, 403, 404, 409)
@@ -137,3 +141,39 @@ async def get_decline_stats(
     user: CurrentEmployer, db: DbSession, need_id: int | None = Query(default=None)
 ) -> DeclineStats:
     return await service.decline_stats(db, user.id, need_id)
+
+
+@candidate_router.post(
+    "/invitations/{invitation_id}/report",
+    response_model=InvitationForCandidate,
+    summary="Пожаловаться на приглашение (409 report_exists — жалоба уже подана)",
+    responses=error_responses(401, 403, 404, 409, 422),
+)
+async def report_invitation(
+    invitation_id: int, body: ReportRequest, user: CurrentCandidate, db: DbSession
+) -> InvitationForCandidate:
+    return await service.report(db, user.id, invitation_id, body)
+
+
+@admin_router.get(
+    "",
+    response_model=list[ReportForAdmin],
+    summary="Жалобы кандидатов на приглашения",
+    responses=error_responses(401, 403),
+)
+async def list_reports(
+    user: CurrentAdmin, db: DbSession, status: ReportStatus | None = Query(default=None)
+) -> list[ReportForAdmin]:
+    return await service.list_reports(db, status)
+
+
+@admin_router.post(
+    "/{report_id}/resolve",
+    response_model=ReportForAdmin,
+    summary="Закрыть жалобу с описанием принятых мер",
+    responses=error_responses(401, 403, 404, 422),
+)
+async def resolve_report(
+    report_id: int, body: ReportResolve, user: CurrentAdmin, db: DbSession
+) -> ReportForAdmin:
+    return await service.resolve_report(db, user.id, report_id, body)
