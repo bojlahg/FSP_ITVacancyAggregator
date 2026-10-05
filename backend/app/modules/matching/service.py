@@ -30,6 +30,7 @@ from app.modules.invitations.models import ContactUnlock, Invitation
 from app.modules.matching import market, scoring
 from app.modules.matching.models import CandidateSearchIndex
 from app.modules.matching.schemas import (
+    AcceptanceOut,
     CandidateBrief,
     CandidateCard,
     CandidateMarketOut,
@@ -257,9 +258,60 @@ async def _fsp_counts(db: AsyncSession, candidate_ids: list[int]) -> dict[int, i
     return dict(rows.all())
 
 
-def _facts(row: CandidateSearchIndex, best_fsp: str | None, now: datetime) -> scoring.CandidateFacts:
+@dataclass
+class _InvitationHistory:
+    """Для вероятности принятия (§8.3.1): активные приглашения по компаниям и причины прошлых отказов."""
+
+    active: Counter = field(default_factory=Counter)
+    declines: dict[str, int] = field(default_factory=dict)
+
+    def active_except(self, employer_id: int | None) -> int:
+        # Своё приглашение компания и так видит статусом; «занятость» кандидата — это чужие приглашения
+        return sum(count for employer, count in self.active.items() if employer != employer_id)
+
+
+async def _invitation_history(db: AsyncSession, candidate_ids: list[int]) -> dict[int, _InvitationHistory]:
+    if not candidate_ids:
+        return {}
+    history: dict[int, _InvitationHistory] = defaultdict(_InvitationHistory)
+    active = await db.execute(
+        select(Invitation.candidate_id, Invitation.employer_id, func.count())
+        .where(
+            Invitation.candidate_id.in_(candidate_ids),
+            Invitation.status.in_([InvitationStatus.sent, InvitationStatus.viewed]),
+            Invitation.expires_at > datetime.now(UTC),
+        )
+        .group_by(Invitation.candidate_id, Invitation.employer_id)
+    )
+    for candidate_id, employer_id, count in active.all():
+        history[candidate_id].active[employer_id] = count
+    declined = await db.execute(
+        select(Invitation.candidate_id, Invitation.decline_reason, func.count())
+        .where(
+            Invitation.candidate_id.in_(candidate_ids),
+            Invitation.status == InvitationStatus.declined,
+            Invitation.decline_reason.is_not(None),
+        )
+        .group_by(Invitation.candidate_id, Invitation.decline_reason)
+    )
+    for candidate_id, reason, count in declined.all():
+        history[candidate_id].declines[reason.value] = count
+    return history
+
+
+def _facts(
+    row: CandidateSearchIndex,
+    best_fsp: str | None,
+    now: datetime,
+    candidate: Candidate | None = None,
+    history: _InvitationHistory | None = None,
+    employer_id: int | None = None,
+) -> scoring.CandidateFacts:
     days = int((now - row.last_activity_at).total_seconds() // 86400) if row.last_activity_at else None
     return scoring.CandidateFacts(
+        search_status=candidate.search_status.value if candidate is not None else None,
+        active_invitations=history.active_except(employer_id) if history else 0,
+        declines=dict(history.declines) if history else {},
         candidate_id=row.candidate_id,
         specialization=row.specialization,
         grade=row.grade.value,
@@ -358,8 +410,20 @@ def _match(result: scoring.MatchResult, brief: CandidateBrief, shortlisted: bool
         score=result.score,
         components=MatchComponents(**result.components),
         explanation=Explanation(lines=[ExplanationLine(**line) for line in result.lines]),
+        acceptance=_acceptance(result.acceptance),
         shortlisted=shortlisted,
         out_of_filter_reasons=result.out_of_filter,
+    )
+
+
+def _acceptance(value: scoring.Acceptance | None) -> AcceptanceOut | None:
+    if value is None:
+        return None
+    return AcceptanceOut(
+        probability=value.probability,
+        level=value.level,
+        text=value.text,
+        affects_score=scoring.get_rules().acceptance.get("rank_weight", 0.0) > 0,
     )
 
 
@@ -418,10 +482,13 @@ async def _scored_pool(
     ids = [row.candidate_id for row, _ in rows]
     best = await _best_fsp(db, ids)
     counts = await _fsp_counts(db, ids)
+    history = await _invitation_history(db, ids)
     now = datetime.now(UTC)
     scored = []
     for row, candidate in rows:
-        facts = _facts(row, best.get(row.candidate_id), now)
+        facts = _facts(
+            row, best.get(row.candidate_id), now, candidate, history.get(row.candidate_id), employer_id
+        )
         result = scoring.evaluate(facts, spec, _labels(row))
         if result is not None:
             scored.append(
@@ -634,7 +701,7 @@ async def match_for(
     db: AsyncSession, employer_id: int, candidate_id: int, need: HiringNeed
 ) -> CandidateMatch | None:
     """Совпадение одного кандидата с потребностью — для карточки и снимка в приглашении."""
-    return await _match_one(db, candidate_id, lambda row: need_spec(need))
+    return await _match_one(db, employer_id, candidate_id, lambda row: need_spec(need))
 
 
 async def matches_for_needs(
@@ -647,10 +714,12 @@ async def matches_for_needs(
         return dict.fromkeys((need.id for need in needs), None)
     best = await _best_fsp(db, [candidate_id])
     counts = await _fsp_counts(db, [candidate_id])
-    facts = _facts(row, best.get(candidate_id), datetime.now(UTC))
+    history = (await _invitation_history(db, [candidate_id])).get(candidate_id)
+    now = datetime.now(UTC)
     brief = _brief(row, candidate, counts.get(candidate_id, 0))
     found: dict[int, CandidateMatch | None] = {}
     for need in needs:
+        facts = _facts(row, best.get(candidate_id), now, candidate, history, need.employer_id)
         result = scoring.evaluate(facts, need_spec(need), _labels(row))
         found[need.id] = _match(result, brief.model_copy(), False) if result is not None else None
     return found
@@ -666,20 +735,25 @@ async def snapshot_for(
             return match
     return await _match_one(
         db,
+        employer_id,
         candidate_id,
         lambda row: scoring.NeedSpec(specialization=row.specialization, grade=row.grade.value),
     )
 
 
 async def _match_one(
-    db: AsyncSession, candidate_id: int, spec_of: Callable[[CandidateSearchIndex], scoring.NeedSpec]
+    db: AsyncSession,
+    employer_id: int,
+    candidate_id: int,
+    spec_of: Callable[[CandidateSearchIndex], scoring.NeedSpec],
 ) -> CandidateMatch | None:
     row = await db.get(CandidateSearchIndex, candidate_id)
     candidate = await db.get(Candidate, candidate_id)
     if row is None or candidate is None:
         return None
     best = await _best_fsp(db, [candidate_id])
-    facts = _facts(row, best.get(candidate_id), datetime.now(UTC))
+    history = (await _invitation_history(db, [candidate_id])).get(candidate_id)
+    facts = _facts(row, best.get(candidate_id), datetime.now(UTC), candidate, history, employer_id)
     result = scoring.evaluate(facts, spec_of(row), _labels(row))
     if result is None:
         return None
@@ -770,11 +844,15 @@ async def rank_for_need(db: AsyncSession, need: HiringNeed) -> list[tuple[int, i
     spec = need_spec(need)
     specs, grades = _neighbourhood(spec)
     rows = await _visible_rows(db, need.employer_id, specs, grades)
-    best = await _best_fsp(db, [row.candidate_id for row, _ in rows])
+    ids = [row.candidate_id for row, _ in rows]
+    best = await _best_fsp(db, ids)
+    history = await _invitation_history(db, ids)
     now = datetime.now(UTC)
     ranked = []
-    for row, _candidate in rows:
-        facts = _facts(row, best.get(row.candidate_id), now)
+    for row, candidate in rows:
+        facts = _facts(
+            row, best.get(row.candidate_id), now, candidate, history.get(row.candidate_id), need.employer_id
+        )
         result = scoring.evaluate(facts, spec, _labels(row))
         if result is None:
             continue

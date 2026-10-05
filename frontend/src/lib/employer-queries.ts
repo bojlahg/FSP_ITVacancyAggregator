@@ -15,6 +15,7 @@ export type NeedParseResult = Schemas["NeedParseResult"];
 export type RecommendationsOut = Schemas["RecommendationsOut"];
 export type CandidateMatch = Schemas["CandidateMatch"];
 export type CandidateBrief = Schemas["CandidateBrief"];
+export type Acceptance = Schemas["AcceptanceOut"];
 export type CandidateCard = Schemas["CandidateCard"];
 export type CategoryRecommendation = Schemas["CategoryRecommendation"];
 export type CategoryCatalogItem = Schemas["CategoryCatalogItem"];

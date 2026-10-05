@@ -175,6 +175,7 @@ function NeedView({ need }: { need: Need }) {
         href={candidateHref(match.candidate.id, need.id)}
         score={match.score}
         explanation={match.explanation.lines}
+        acceptance={match.acceptance}
         salaryTo={need.salary_to}
         shortlisted={match.shortlisted}
         shortlistPending={pendingShortlistId === match.candidate.id}

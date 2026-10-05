@@ -41,11 +41,23 @@ class MatchComponents(ApiModel):
     conditions: float
 
 
+class AcceptanceOut(ApiModel):
+    """Вероятность, что кандидат примет приглашение (§8.3.1): правила content/matching.yaml, без обучения."""
+
+    probability: float = Field(ge=0, le=1, description="Оценка p = σ(Σ вкладов факторов), 0..1")
+    level: Literal["high", "medium", "low"]
+    text: str = Field(description="«Вероятность, что кандидат примет приглашение: высокая — …»")
+    affects_score: bool = Field(description="Учитывается ли в score множителем (acceptance.rank_weight > 0)")
+
+
 class CandidateMatch(ApiModel):
     candidate: CandidateBrief
     score: int = Field(ge=0, le=100)
     components: MatchComponents
     explanation: Explanation
+    acceptance: AcceptanceOut | None = Field(
+        default=None, description="Только для работодателя; в снимок «почему вы» для кандидата не входит"
+    )
     shortlisted: bool = False
     out_of_filter_reasons: list[str] = Field(default_factory=list)
     invitation_status: InvitationStatus | None = Field(

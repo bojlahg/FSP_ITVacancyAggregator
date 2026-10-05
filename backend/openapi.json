@@ -9176,6 +9176,45 @@
   },
   "components": {
     "schemas": {
+      "AcceptanceOut": {
+        "properties": {
+          "probability": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Probability",
+            "description": "Оценка p = σ(Σ вкладов факторов), 0..1"
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ],
+            "title": "Level"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "«Вероятность, что кандидат примет приглашение: высокая — …»"
+          },
+          "affects_score": {
+            "type": "boolean",
+            "title": "Affects Score",
+            "description": "Учитывается ли в score множителем (acceptance.rank_weight > 0)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "probability",
+          "level",
+          "text",
+          "affects_score"
+        ],
+        "title": "AcceptanceOut",
+        "description": "Вероятность, что кандидат примет приглашение (§8.3.1): правила content/matching.yaml, без обучения."
+      },
       "AdminAppealOut": {
         "properties": {
           "id": {
@@ -11381,6 +11420,17 @@
           },
           "explanation": {
             "$ref": "#/components/schemas/Explanation"
+          },
+          "acceptance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AcceptanceOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Только для работодателя; в снимок «почему вы» для кандидата не входит"
           },
           "shortlisted": {
             "type": "boolean",

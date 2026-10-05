@@ -2028,6 +2028,32 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AcceptanceOut
+         * @description Вероятность, что кандидат примет приглашение (§8.3.1): правила content/matching.yaml, без обучения.
+         */
+        AcceptanceOut: {
+            /**
+             * Probability
+             * @description Оценка p = σ(Σ вкладов факторов), 0..1
+             */
+            probability: number;
+            /**
+             * Level
+             * @enum {string}
+             */
+            level: "high" | "medium" | "low";
+            /**
+             * Text
+             * @description «Вероятность, что кандидат примет приглашение: высокая — …»
+             */
+            text: string;
+            /**
+             * Affects Score
+             * @description Учитывается ли в score множителем (acceptance.rank_weight > 0)
+             */
+            affects_score: boolean;
+        };
         /** AdminAppealOut */
         AdminAppealOut: {
             /** Id */
@@ -2984,6 +3010,8 @@ export interface components {
             score: number;
             components: components["schemas"]["MatchComponents"];
             explanation: components["schemas"]["Explanation"];
+            /** @description Только для работодателя; в снимок «почему вы» для кандидата не входит */
+            acceptance?: components["schemas"]["AcceptanceOut"] | null;
             /**
              * Shortlisted
              * @default false

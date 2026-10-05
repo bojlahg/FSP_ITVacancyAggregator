@@ -2,11 +2,12 @@ import { Clock, Loader2, MapPin, Pin, PinOff, ShieldCheck, Trophy } from "lucide
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { CategoryBadge } from "@/components/CategoryBadge";
+import { AcceptanceLine } from "@/components/employer/AcceptanceLine";
 import { ExplanationList, type ExplanationLine } from "@/components/ExplanationList";
 import { ScoreBadge } from "@/components/ScoreBadge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { CandidateBrief } from "@/lib/employer-queries";
+import type { Acceptance, CandidateBrief } from "@/lib/employer-queries";
 import { daysSince, formatDaysAgo, formatNumber, toPercent } from "@/lib/format";
 import { workFormatsLabel } from "@/lib/labels";
 import { useSkillCatalog } from "@/lib/testing-queries";
@@ -21,6 +22,8 @@ interface CandidateRowProps {
   /** match-score с потребностью; без потребности (поиск) — не показывается. */
   score?: number;
   explanation?: ExplanationLine[];
+  /** Вероятность, что кандидат примет приглашение — отдельной строкой под объяснением. */
+  acceptance?: Acceptance | null;
   /** Верхняя граница вилки потребности — для пометки «ожидания выше вилки». */
   salaryTo?: number;
   shortlisted?: boolean;
@@ -45,6 +48,7 @@ export function CandidateRow({
   href,
   score,
   explanation,
+  acceptance,
   salaryTo,
   shortlisted = false,
   shortlistPending = false,
@@ -151,6 +155,7 @@ export function CandidateRow({
           )}
 
           {explanation && explanation.length > 0 && <ExplanationList items={explanation} limit={explanationLimit} />}
+          {acceptance && <AcceptanceLine acceptance={acceptance} />}
 
           {actions && <div className="flex flex-wrap gap-2 pt-1">{actions}</div>}
         </div>
