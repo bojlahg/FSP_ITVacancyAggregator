@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>ITScout — профиль кандидата</title>
+<style>
+  /* Брендбук ФСП: docs/brandook, токены — как во frontend/src/index.css */
+  @font-face { font-family: "JetBrains Mono"; src: url("fonts/JetBrainsMono-Regular.woff2") format("woff2"); font-weight: 400; }
+  @font-face { font-family: "JetBrains Mono"; src: url("fonts/JetBrainsMono-Bold.woff2") format("woff2"); font-weight: 700; }
+  @font-face { font-family: "Inter Latin"; src: url("fonts/inter-latin-400-normal.woff2") format("woff2"); font-weight: 400; }
+  @font-face { font-family: "Inter Latin"; src: url("fonts/inter-latin-600-normal.woff2") format("woff2"); font-weight: 600; }
+  @font-face { font-family: "Inter Cyrillic"; src: url("fonts/inter-cyrillic-400-normal.woff2") format("woff2"); font-weight: 400; }
+  @font-face { font-family: "Inter Cyrillic"; src: url("fonts/inter-cyrillic-600-normal.woff2") format("woff2"); font-weight: 600; }
+
+  :root {
+    --primary: #402FFF;
+    --primary-soft: #A097FF;
+    --primary-tint: #ECEAFF;
+    --accent: #EC1D35;
+    --dark: #1B1C21;
+    --muted: #EDEDED;
+    --border: #C8C9CA;
+    --muted-text: #5C5D63;
+  }
+
+  @page {
+    size: A4;
+    margin: 12mm 15mm 16mm 15mm;
+    @bottom-left {
+      content: "ITScout · itscout.ru";
+      font-family: "JetBrains Mono", monospace; font-size: 7.5pt; color: #5C5D63;
+    }
+    @bottom-right {
+      content: counter(page) " / " counter(pages);
+      font-family: "JetBrains Mono", monospace; font-size: 7.5pt; color: #5C5D63;
+    }
+  }
+
+  body {
+    font-family: "Inter Latin", "Inter Cyrillic", "JetBrains Mono", sans-serif;
+    font-size: 9.5pt; line-height: 1.45; color: var(--dark); margin: 0;
+  }
+  .mono, h1, h2, .badge, .num { font-family: "JetBrains Mono", monospace; }
+
+  .top { width: 100%; border-collapse: collapse; margin-bottom: 4mm; }
+  .top td { vertical-align: top; padding: 0; }
+  .logo { height: 9mm; }
+  .wordmark { font-family: "JetBrains Mono", monospace; font-weight: 700; font-size: 13pt; color: var(--primary); margin-top: 1.5mm; }
+  .wordmark span { color: var(--dark); }
+  .meta { text-align: right; font-size: 8pt; color: var(--muted-text); }
+  .variant { display: inline-block; font-family: "JetBrains Mono", monospace; font-size: 7.5pt; font-weight: 700;
+             text-transform: uppercase; letter-spacing: 0.04em; padding: 1mm 2.5mm; border-radius: 1.5mm;
+             background: var(--primary-tint); color: var(--primary); }
+  .variant.public { background: var(--muted); color: var(--dark); }
+
+  .hero { position: relative; padding: 5mm 6mm; border-radius: 3mm; background: var(--dark); color: #FFFFFF; }
+  .hero h1 { font-size: 20pt; line-height: 1.15; margin: 0 0 2.5mm 0; font-weight: 700; }
+  .badge { display: inline-block; font-size: 9pt; font-weight: 700; padding: 1.2mm 3mm; border-radius: 1.5mm;
+           background: var(--primary); color: #FFFFFF; }
+  .badge.none { background: #3A3B42; color: #FFFFFF; }
+  .percentile { font-family: "JetBrains Mono", monospace; font-size: 9pt; margin-left: 3mm; color: var(--primary-soft); }
+  .facts { margin-top: 3mm; font-size: 9pt; color: #E4E4E7; }
+  .facts b { font-family: "JetBrains Mono", monospace; color: #FFFFFF; font-weight: 700; }
+  .trace { position: absolute; right: 6mm; top: 5mm; }
+
+  .contacts { margin-top: 4mm; padding: 3mm 4mm; border: 0.3mm solid var(--primary); border-radius: 2mm; }
+  .contacts table { border-collapse: collapse; }
+  .contacts td { padding: 0.6mm 4mm 0.6mm 0; }
+  .contacts .label { color: var(--muted-text); font-size: 8pt; }
+  .locked { margin-top: 4mm; padding: 2.5mm 4mm; border-radius: 2mm; background: var(--muted); font-size: 8.5pt; }
+  .locked b { color: var(--accent); }
+
+  h2 { font-size: 10.5pt; font-weight: 700; margin: 4.5mm 0 2mm 0; padding-bottom: 1.2mm;
+       border-bottom: 0.3mm solid var(--border); text-transform: uppercase; letter-spacing: 0.03em; }
+  h2 small { font-family: "Inter Latin", "Inter Cyrillic", sans-serif; text-transform: none; letter-spacing: 0;
+             font-weight: 400; font-size: 8pt; color: var(--muted-text); margin-left: 2mm; }
+  section { page-break-inside: auto; }
+
+  .topics { width: 100%; border-collapse: collapse; }
+  .topics td { padding: 1mm 0; vertical-align: middle; }
+  .topics .name { width: 46%; padding-right: 3mm; }
+  .bar { height: 2.2mm; border-radius: 1.1mm; background: var(--muted); }
+  .bar div { height: 2.2mm; border-radius: 1.1mm; background: var(--primary); }
+  .topics .pct { width: 22%; text-align: right; font-family: "JetBrains Mono", monospace; font-weight: 700; }
+  .topics .pct span { font-weight: 400; color: var(--muted-text); font-size: 7.5pt; }
+
+  .chips { margin: 0; padding: 0; }
+  .chip { display: inline-block; margin: 0 1.5mm 1.5mm 0; padding: 0.8mm 2.5mm; border-radius: 3mm;
+          font-family: "JetBrains Mono", monospace; font-size: 8pt; }
+  .chip.verified { background: var(--primary); color: #FFFFFF; }
+  .chip.other { background: var(--muted); color: var(--dark); }
+  .chip.other i { font-style: normal; color: var(--muted-text); font-family: "Inter Latin", "Inter Cyrillic", sans-serif; font-size: 7pt; }
+  .caption { font-size: 8pt; color: var(--muted-text); margin: 0 0 1.5mm 0; }
+
+  ul.plain { margin: 0; padding-left: 4mm; }
+  ul.plain li { margin-bottom: 1mm; }
+  ul.plain li::marker { color: var(--primary); }
+
+  .job { margin-bottom: 3.5mm; page-break-inside: avoid; }
+  .job .period { font-family: "JetBrains Mono", monospace; font-size: 8pt; color: var(--primary); }
+  .job .title { font-weight: 600; }
+  .job .company { color: var(--muted-text); }
+  .job p { margin: 1mm 0 0 0; }
+
+  .tags { color: var(--dark); }
+  .tags b { font-weight: 600; }
+
+  .top .qr { width: 21mm; padding-left: 3mm; text-align: right; }
+  .top .qr img { width: 18mm; height: 18mm; }
+  .url { margin-top: 1mm; font-family: "JetBrains Mono", monospace; font-size: 7pt; color: var(--primary); }
+  .note { margin-top: 4mm; font-size: 7.5pt; color: var(--muted-text); }
+</style>
+</head>
+<body>
+
+<table class="top">
+  <tr>
+    <td>
+      <img class="logo" src="logo.svg" alt="ФСП">
+      <div class="wordmark">IT<span>Scout</span></div>
+    </td>
+    <td class="meta">
+      {% if doc.variant == "full" %}
+      <span class="variant">Полная версия</span>
+      {% else %}
+      <span class="variant public">Обезличенная версия</span>
+      {% endif %}
+      <div style="margin-top: 2mm;">Профиль кандидата · сформирован {{ today }}</div>
+      <div class="url">{{ url }}</div>
+    </td>
+    <td class="qr"><img src="{{ qr }}" alt="QR-ссылка на профиль"></td>
+  </tr>
+</table>
+
+<div class="hero">
+  <svg class="trace" width="120" height="44" viewBox="0 0 120 44" aria-hidden="true">
+    <path d="M 120 5 H 25 Q 5 5 5 25 V 39" fill="none" stroke="#402FFF" stroke-width="1.5" stroke-linecap="round"/>
+    <circle cx="5" cy="39" r="4" fill="#402FFF"/>
+  </svg>
+  <h1>{{ doc.name }}</h1>
+  {% if doc.category_label %}
+  <span class="badge">{{ doc.category_label }}</span>
+  {% if doc.percentile is not none %}<span class="percentile">{{ (doc.percentile * 100) | round | int }}-й перцентиль в категории</span>{% endif %}
+  {% else %}
+  <span class="badge none">Категория ещё не подтверждена тестом</span>
+  {% endif %}
+  <div class="facts">
+    {% if doc.city %}<b>{{ doc.city }}</b>{% if doc.relocation %}, готов(а) к переезду{% endif %} · {% endif %}
+    {% if formats %}{{ formats | join(" / ") }} · {% endif %}
+    {% if doc.experience_years is not none %}опыт <b>{{ doc.experience_years | years }}</b> · {% endif %}
+    {% if doc.salary_min %}ожидания от <b>{{ doc.salary_min | money }} ₽</b>{% else %}ожидания не указаны{% endif %}
+  </div>
+</div>
+
+{% if doc.contacts %}
+<div class="contacts">
+  <table>
+    <tr>
+      <td class="label">ФИО</td><td>{{ doc.contacts.full_name }}</td>
+    </tr>
+    {% if doc.contacts.email %}<tr><td class="label">Email</td><td class="mono">{{ doc.contacts.email }}</td></tr>{% endif %}
+    {% if doc.contacts.phone %}<tr><td class="label">Телефон</td><td class="mono">{{ doc.contacts.phone }}</td></tr>{% endif %}
+    {% if doc.contacts.telegram %}<tr><td class="label">Telegram</td><td class="mono">{{ doc.contacts.telegram }}</td></tr>{% endif %}
+  </table>
+</div>
+{% else %}
+<div class="locked">
+  <b>Контакты скрыты.</b> Они откроются работодателю после принятого приглашения или отклика кандидата.
+  Названия компаний в опыте тоже скрыты до контакта.
+</div>
+{% endif %}
+
+<section>
+  <h2>Результат теста по темам{% if doc.category_label %}<small>категория и грейд определены только тестом</small>{% endif %}</h2>
+  {% if doc.topics %}
+  <table class="topics">
+    {% for topic in doc.topics %}
+    <tr>
+      <td class="name">{{ topic.name }}</td>
+      <td><div class="bar"><div style="width: {{ topic.percent }}%"></div></div></td>
+      <td class="pct">{{ topic.percent }}% <span>· {{ topic.items }} зад.</span></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="caption">Тест ещё не пройден — разбивки по темам нет.</p>
+  {% endif %}
+</section>
+
+<section>
+  <h2>Стек</h2>
+  {% if doc.verified_skills %}
+  <p class="caption">Проверено тестом</p>
+  <p class="chips">{% for skill in doc.verified_skills %}<span class="chip verified">{{ skill }}</span>{% endfor %}</p>
+  {% endif %}
+  {% if doc.other_skills %}
+  <p class="caption">Подтверждено ФСП, заданиями или заявлено кандидатом</p>
+  <p class="chips">{% for name, status in doc.other_skills %}<span class="chip other">{{ name }} <i>· {{ status }}</i></span>{% endfor %}</p>
+  {% endif %}
+  {% if not doc.verified_skills and not doc.other_skills %}
+  <p class="caption">Навыки не указаны.</p>
+  {% endif %}
+</section>
+
+{% if doc.fsp_achievements or doc.fsp_ranks %}
+<section>
+  <h2>Достижения ФСП<small>данные реестра Федерации спортивного программирования</small></h2>
+  {% if doc.fsp_ranks %}<p><span class="caption">Разряды:</span> {{ doc.fsp_ranks | join("; ") }}</p>{% endif %}
+  {% if doc.fsp_achievements %}
+  <ul class="plain">{% for line in doc.fsp_achievements %}<li>{{ line }}</li>{% endfor %}</ul>
+  {% endif %}
+  {% if doc.fsp_competencies %}<p class="caption" style="margin-top: 2mm;">Компетенции: {{ doc.fsp_competencies | join("; ") }}</p>{% endif %}
+</section>
+{% endif %}
+
+{% if doc.experience %}
+<section>
+  <h2>Опыт</h2>
+  {% for job in doc.experience %}
+  <div class="job">
+    <div class="period">{{ job | period }}</div>
+    <div><span class="title">{{ job.position or "Должность не указана" }}</span>{% if job.company %} <span class="company">· {{ job.company }}</span>{% endif %}</div>
+    {% if job.description %}<p>{{ job.description }}</p>{% endif %}
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+{% if doc.about or doc.roles or doc.industries or doc.soft_skills %}
+<section>
+  <h2>О кандидате</h2>
+  {% if doc.about %}<p>{{ doc.about }}</p>{% endif %}
+  <p class="tags">
+    {% if doc.roles %}<b>Роли:</b> {{ doc.roles | join(", ") }}<br>{% endif %}
+    {% if doc.industries %}<b>Отрасли:</b> {{ doc.industries | join(", ") }}<br>{% endif %}
+    {% if doc.soft_skills %}<b>Софт-скиллы:</b> {{ doc.soft_skills | join(", ") }}{% endif %}
+  </p>
+</section>
+{% endif %}
+
+<p class="note">Категория «специализация × грейд» и статус «проверено тестом» выставлены по результатам теста ITScout;
+  навыки со статусом «заявлено» указал сам кандидат. QR-код ведёт на карточку кандидата (для работодателей после входа).</p>
+
+</body>
+</html>

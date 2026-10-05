@@ -356,7 +356,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Загрузить PDF-резюме и получить предзаполнение профиля */
+        /**
+         * Загрузить PDF-резюме и получить предзаполнение профиля
+         * @description PDF до 5 МБ → текст (pdfplumber) → словарный разбор, при подключённом LLM — дополнение. Профиль не меняется: кандидат правит prefill и сохраняет его через PUT /candidates/me. Навыки из резюме сохраняются только как «заявлено», грейд и категорию определяет тест. 422 с кодом file_too_large, not_pdf или invalid_pdf — файл не подходит.
+         */
         post: operations["upload_resume_api_v1_candidates_me_resume_post"];
         delete?: never;
         options?: never;
@@ -371,7 +374,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Стандартизированный PDF-профиль */
+        /**
+         * Стандартизированный PDF-профиль
+         * @description full — полная версия с контактами; public — так профиль видит работодатель до контакта.
+         */
         get: operations["my_profile_pdf_api_v1_candidates_me_profile_pdf_get"];
         put?: never;
         post?: never;
@@ -1011,7 +1017,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** PDF-профиль кандидата (полный — только после раскрытия контактов) */
+        /**
+         * PDF-профиль кандидата (полный — только после раскрытия контактов)
+         * @description Обезличенная версия до раскрытия контактов; полная — при записи в contact_unlocks.
+         */
         get: operations["get_candidate_pdf_api_v1_talent_candidates__candidate_id__profile_pdf_get"];
         put?: never;
         post?: never;
@@ -2838,10 +2847,15 @@ export interface components {
             resume_id: number;
             /** @description dict — словарь и регулярки; llm — с разбором Yandex AI Studio */
             parser: components["schemas"]["ParserKind"];
-            /** @description Предзаполнение формы — сохраняется только после подтверждения */
+            /** @description Предзаполнение формы: текущий профиль, дополненный данными резюме. Сохраняется только после подтверждения через PUT /candidates/me; навыки из резюме — только «заявлено» */
             prefill: components["schemas"]["CandidateProfileUpdate"];
-            /** Suggested Grade */
-            suggested_grade?: string | null;
+            /**
+             * From Resume
+             * @description Поля prefill, которые заполнены или дополнены из резюме
+             */
+            from_resume?: string[];
+            /** @description Подсказка по стажу из резюме; грейд выбирает кандидат, а определяет тест */
+            suggested_grade?: components["schemas"]["Grade"] | null;
             /**
              * Unmapped Terms
              * @description Термины, которых нет в онтологии навыков

@@ -5,7 +5,7 @@ from fastapi.responses import Response
 
 from app.core.deps import CurrentEmployer, DbSession
 from app.core.enums import Grade, WorkFormat
-from app.core.errors import NotImplementedApiError, error_responses
+from app.core.errors import error_responses
 from app.modules.matching import service
 from app.modules.matching.schemas import (
     CandidateCard,
@@ -91,13 +91,17 @@ async def get_candidate_card(
     "/candidates/{candidate_id}/profile.pdf",
     response_class=Response,
     summary="PDF-профиль кандидата (полный — только после раскрытия контактов)",
+    description="Обезличенная версия до раскрытия контактов; полная — при записи в contact_unlocks.",
     responses={
         200: {"content": {"application/pdf": {}}, "description": "PDF-файл"},
         **error_responses(401, 403, 404),
     },
 )
 async def get_candidate_pdf(candidate_id: int, user: CurrentEmployer, db: DbSession) -> Response:
-    raise NotImplementedApiError()
+    from app.modules.resume import service as resume_service
+    from app.modules.resume.router import pdf_response
+
+    return pdf_response(*await resume_service.employer_candidate_pdf(db, user.id, candidate_id))
 
 
 # Подборка по потребности живёт в matching: здесь весь расчёт score и объяснений (§8.3–8.4)

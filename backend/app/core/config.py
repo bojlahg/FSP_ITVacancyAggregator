@@ -79,6 +79,10 @@ class Settings(BaseSettings):
     fsp_oidc_cookie_name: str = "itscout_fsp_oidc"
 
     upload_dir: str = "/data/uploads"
+    # Резюме (§7): PDF до 5 МБ; меньше символов текста — считаем сканом без текстового слоя
+    resume_max_bytes: int = 5 * 1024 * 1024
+    resume_max_pages: int = 10
+    resume_min_text_chars: int = 40
 
     # full — полный тест (§10.3), short — сокращённый для демо жюри
     test_mode: Literal["full", "short"] = "full"
