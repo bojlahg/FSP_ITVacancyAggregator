@@ -23,6 +23,7 @@ import { InviteDialog } from "@/components/employer/InviteDialog";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { ExplanationList } from "@/components/ExplanationList";
+import { GradeEvidenceCard } from "@/components/GradeConfidence";
 import { PageHeader } from "@/components/PageHeader";
 import { ScoreBadge } from "@/components/ScoreBadge";
 import { SkeletonCards } from "@/components/SkeletonCards";
@@ -191,6 +192,10 @@ export default function CandidateCardPage() {
               )}
             </CardContent>
           </Card>
+
+          {data.grade_evidence && (
+            <GradeEvidenceCard evidence={data.grade_evidence} integrity={data.integrity} audience="employer" />
+          )}
 
           {data.integrity?.flagged ? <IntegrityCard signals={data.integrity} /> : null}
 

@@ -3,6 +3,7 @@ import { Link, Navigate, useParams } from "react-router";
 import { CategoryBadge } from "@/components/CategoryBadge";
 import { StartAttemptButton } from "@/components/candidate/StartAttemptButton";
 import { EmptyState } from "@/components/EmptyState";
+import { GradeConfidenceBar } from "@/components/GradeConfidence";
 import { ErrorState } from "@/components/ErrorState";
 import { PageHeader } from "@/components/PageHeader";
 import { SkeletonCards } from "@/components/SkeletonCards";
@@ -129,6 +130,7 @@ function ResultView({ data }: { data: AttemptResultOut }) {
             <div className="font-mono text-xs text-muted-foreground tabular-nums">
               θ = {data.theta.toFixed(2)} ± {data.se.toFixed(2)}
             </div>
+            <GradeConfidenceBar confidence={data.confidence} />
             <NextActions data={data} />
             <Button asChild variant="ghost">
               <Link to="/candidate">В кабинет</Link>

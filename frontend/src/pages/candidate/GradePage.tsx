@@ -6,6 +6,7 @@ import { GradeExplanationCard } from "@/components/candidate/GradeExplanationCar
 import { StartAttemptButton } from "@/components/candidate/StartAttemptButton";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
+import { GradeEvidenceCard } from "@/components/GradeConfidence";
 import { PageHeader } from "@/components/PageHeader";
 import { SkeletonCards } from "@/components/SkeletonCards";
 import { Badge } from "@/components/ui/badge";
@@ -172,6 +173,8 @@ function GradeView({ status, specialization }: { status: GradeStatus; specializa
           </div>
         </CardContent>
       </Card>
+
+      {current?.evidence && <GradeEvidenceCard evidence={current.evidence} audience="candidate" />}
 
       <Card>
         <CardHeader>
