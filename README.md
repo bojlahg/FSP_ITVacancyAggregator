@@ -52,7 +52,7 @@ flowchart LR
 | Библиотеки и компоненты с версиями | [docs/versions.md](docs/versions.md) |
 | Сборка, развёртывание и локальный запуск | [docs/deploy.md](docs/deploy.md) |
 
-Дополнительно: [безопасность и 152-ФЗ](docs/security.md), [концепция защиты от фиктивных вакансий и интеграции с ATS](docs/anti-fraud-ats.md), [нагрузочное тестирование](docs/performance.md), [ограничения и планы](docs/limitations.md). ТЗ на реализацию для команды и агентов — [docs/implementation.md](docs/implementation.md).
+Дополнительно: [безопасность и 152-ФЗ](docs/security.md), [концепция защиты от фиктивных вакансий и интеграции с ATS](docs/anti-fraud-ats.md), [нагрузочное тестирование](docs/performance.md), [исследование и план улучшений](docs/research/README.md), [ограничения и планы](docs/limitations.md). ТЗ на реализацию для команды и агентов — [docs/implementation.md](docs/implementation.md).
 
 ## Быстрый старт
 
