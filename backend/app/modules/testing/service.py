@@ -95,6 +95,11 @@ def _total_estimate(planner: Planner) -> int:
     return mode.stage1_items + mode.stage2_items + mode.pilot_slots + int(open_item)
 
 
+def _total_max(planner: Planner) -> int:
+    # §10.3: у порога грейда добавляется до extra_items_max уточняющих заданий
+    return _total_estimate(planner) + planner.mode.extra_items_max
+
+
 def _attempt_out(attempt: TestAttempt, items: list[TestAttemptItem], planner: Planner) -> AttemptOut:
     return AttemptOut(
         id=attempt.id,
@@ -103,7 +108,8 @@ def _attempt_out(attempt: TestAttempt, items: list[TestAttemptItem], planner: Pl
         purpose=attempt.purpose,
         status=attempt.status,
         answered=sum(item.answered_at is not None for item in items),
-        total_estimate=max(_total_estimate(planner), len(items)),
+        total_estimate=_total_estimate(planner),
+        total_max=max(_total_max(planner), len(items)),
         started_at=attempt.started_at,
         finished_at=attempt.finished_at,
     )
@@ -167,13 +173,14 @@ def _is_late(item: TestAttemptItem, at: datetime) -> bool:
     return at > _deadline(item) + timedelta(seconds=get_settings().answer_grace_seconds)
 
 
-def _current_out(item: TestAttemptItem, total: int) -> CurrentItem:
+def _current_out(item: TestAttemptItem, planner: Planner) -> CurrentItem:
     payload = item.payload
     return CurrentItem(
         finished=False,
         item_id=item.id,
         position=item.position + 1,
-        total_estimate=max(total, item.position + 1),
+        total_estimate=_total_estimate(planner),
+        total_max=max(_total_max(planner), item.position + 1),
         kind=payload["kind"],
         stem=payload["stem"],
         code=payload.get("code"),
@@ -229,7 +236,7 @@ async def current_item(db: AsyncSession, candidate: Candidate, attempt_id: int) 
     pending = next((item for item in items if item.answered_at is None), None)
     if pending is not None:
         if not _is_late(pending, now):
-            return _current_out(pending, _total_estimate(planner))
+            return _current_out(pending, planner)
         _mark_answered(pending, None, now, late=True)  # время вышло — засчитывается как неверный
 
     next_item = planner.next_item(_history(items))
@@ -255,7 +262,7 @@ async def current_item(db: AsyncSession, candidate: Candidate, attempt_id: int) 
     await _record_stat(db, instance.template_id, shown=1)
     attempt.stage = max(attempt.stage, next_item.stage)
     await db.commit()
-    return _current_out(item, _total_estimate(planner))
+    return _current_out(item, planner)
 
 
 async def answer(db: AsyncSession, candidate: Candidate, attempt_id: int, body: AnswerRequest) -> AnswerAck:

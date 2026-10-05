@@ -2759,9 +2759,14 @@ export interface components {
             answered: number;
             /**
              * Total Estimate
-             * @description Ожидаемое число заданий (может вырасти у порога грейда)
+             * @description Ожидаемое число заданий без уточняющих у порога грейда
              */
             total_estimate: number;
+            /**
+             * Total Max
+             * @description Наибольшее число заданий: ожидаемое плюс уточняющие у порога грейда
+             */
+            total_max: number;
             /**
              * Started At
              * Format: date-time
@@ -3318,8 +3323,16 @@ export interface components {
             item_id?: number | null;
             /** Position */
             position?: number | null;
-            /** Total Estimate */
+            /**
+             * Total Estimate
+             * @description Число заданий без уточняющих у порога
+             */
             total_estimate?: number | null;
+            /**
+             * Total Max
+             * @description Наибольшее число заданий с уточняющими у порога
+             */
+            total_max?: number | null;
             kind?: components["schemas"]["ItemKind"] | null;
             /** Stem */
             stem?: string | null;

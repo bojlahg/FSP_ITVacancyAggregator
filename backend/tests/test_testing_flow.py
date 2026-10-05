@@ -54,11 +54,17 @@ async def onboard(client, headers) -> None:
 
 
 async def answer_all(client, session, headers, attempt_id: int, correct: bool) -> None:
+    first_max = None
     while True:
         current = (await client.get(f"{API}/tests/attempts/{attempt_id}/current", headers=headers)).json()
         if current["finished"]:
             return
         assert "answer_key" not in current and "key" not in current
+        # Граница «из 20–24», названная на первом вопросе, не превышается и с уточняющими заданиями (§10.3)
+        if first_max is None:
+            first_max = current["total_max"]
+            assert first_max > current["total_estimate"]
+        assert current["position"] <= first_max == current["total_max"]
         item = await session.get(AttemptItem, current["item_id"])
         await session.refresh(item)
         if item.payload["kind"] == "open_approach":

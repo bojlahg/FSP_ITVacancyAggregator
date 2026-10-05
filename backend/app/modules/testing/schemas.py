@@ -21,7 +21,8 @@ class AttemptOut(ApiModel):
     purpose: AttemptPurpose
     status: AttemptStatus
     answered: int
-    total_estimate: int = Field(description="Ожидаемое число заданий (может вырасти у порога грейда)")
+    total_estimate: int = Field(description="Ожидаемое число заданий без уточняющих у порога грейда")
+    total_max: int = Field(description="Наибольшее число заданий: ожидаемое плюс уточняющие у порога грейда")
     started_at: datetime
     finished_at: datetime | None
 
@@ -37,7 +38,8 @@ class CurrentItem(ApiModel):
     finished: bool = Field(description="true — заданий больше нет, смотрите /result")
     item_id: int | None = None
     position: int | None = None
-    total_estimate: int | None = None
+    total_estimate: int | None = Field(default=None, description="Число заданий без уточняющих у порога")
+    total_max: int | None = Field(default=None, description="Наибольшее число заданий с уточняющими у порога")
     kind: ItemKind | None = None
     stem: str | None = None
     code: str | None = Field(default=None, description="Фрагмент кода к заданию, если есть")

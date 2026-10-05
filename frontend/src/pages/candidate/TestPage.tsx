@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Clock, EyeOff, Loader2, Send } from "lucide-react";
+import { AlertTriangle, Clock, EyeOff, Info, Loader2, Send } from "lucide-react";
 import { useEffect, useRef, useState, type ClipboardEvent, type MouseEvent } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router";
 import { CategoryBadge } from "@/components/CategoryBadge";
@@ -128,7 +128,11 @@ export default function TestPage() {
   if (item.finished) return <Navigate to={resultPath} replace />;
 
   const position = item.position ?? (attempt.data ? attempt.data.answered + 1 : null);
-  const total = item.total_estimate ?? attempt.data?.total_estimate ?? null;
+  // §10.3: base — задания без уточняющих, max — с уточняющими у порога грейда («из 20–24»)
+  const base = item.total_estimate ?? attempt.data?.total_estimate ?? null;
+  const max = item.total_max ?? attempt.data?.total_max ?? base;
+  const upper = max !== null && position !== null ? Math.max(max, position) : max;
+  const clarifying = position !== null && base !== null && position > base;
   const busy = answer.isPending || current.isFetching;
 
   return (
@@ -143,12 +147,20 @@ export default function TestPage() {
         {position !== null && (
           <span className="font-mono text-sm font-medium tabular-nums">
             Вопрос {position}
-            {total !== null && ` из ~${Math.max(total, position)}`}
+            {base !== null && upper !== null && (upper > base ? ` из ${base}–${upper}` : ` из ${upper}`)}
           </span>
         )}
       </div>
-      {position !== null && total !== null && (
-        <Progress value={(position / Math.max(total, position)) * 100} className="mb-6" aria-label="Прогресс теста" />
+      {position !== null && upper !== null && (
+        <Progress value={(position / upper) * 100} className="mb-6" aria-label="Прогресс теста" />
+      )}
+
+      {clarifying && upper !== null && (
+        <div role="status" className="mb-4 flex items-start gap-2 rounded-lg bg-primary-tint px-4 py-3 text-sm">
+          <Info className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+          Результат близок к порогу грейда, поэтому тест задаёт уточняющие вопросы — не больше {upper - (base ?? 0)}.
+          Так решение о грейде будет точнее.
+        </div>
       )}
 
       {lateNotice && (

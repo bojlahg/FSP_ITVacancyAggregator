@@ -10718,7 +10718,12 @@
           "total_estimate": {
             "type": "integer",
             "title": "Total Estimate",
-            "description": "Ожидаемое число заданий (может вырасти у порога грейда)"
+            "description": "Ожидаемое число заданий без уточняющих у порога грейда"
+          },
+          "total_max": {
+            "type": "integer",
+            "title": "Total Max",
+            "description": "Наибольшее число заданий: ожидаемое плюс уточняющие у порога грейда"
           },
           "started_at": {
             "type": "string",
@@ -10747,6 +10752,7 @@
           "status",
           "answered",
           "total_estimate",
+          "total_max",
           "started_at",
           "finished_at"
         ],
@@ -12461,7 +12467,20 @@
                 "type": "null"
               }
             ],
-            "title": "Total Estimate"
+            "title": "Total Estimate",
+            "description": "Число заданий без уточняющих у порога"
+          },
+          "total_max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Max",
+            "description": "Наибольшее число заданий с уточняющими у порога"
           },
           "kind": {
             "anyOf": [
