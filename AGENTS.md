@@ -142,6 +142,8 @@ infra/                       compose, Caddyfile, keycloak realm, заглушк�
 
 - Прод: `ssh itscout` (root@94.103.87.151, Ubuntu 26.04, 2 vCPU, 3,3 ГБ RAM). Приложение — `/opt/itscout/app` (туда rsync'ает CI), секреты — `/opt/itscout/app/.env` (права 600, в git нет).
 - Docker Hub с сервера работает только через зеркало `mirror.gcr.io` (настроено в `/etc/docker/daemon.json`).
+- **Без SSH (облачные сессии):** операции с продом — через workflow `Server ops` на ключе деплоя из GitHub Secrets: `gh workflow run server-ops.yml -f action=status|logs|reseed|restart [-f service=backend] [-f lines=200]`, результат — `gh run watch <id>` и `gh run view <id> --log`. Произвольных команд там нет намеренно. После того как репозиторий станет публичным, логи Actions видны всем — `logs` запускай только при необходимости.
+- Тесты с БД без доступа к серверу: локальный Postgres 16 в песочнице (`DATABASE_URL=postgresql+psycopg://...`), у каждой параллельной задачи своя база — тесты делают drop_all/create_all.
 - Деплой — только через CI/CD или файлы из `infra/`. Ручные правки на сервере не делаем: следующий деплой их затрёт. Если без ручного вмешательства не обойтись — повтори его в `infra/` и в `docs/deploy.md`.
 - Не выполнять на проде без подтверждения пользователя: удаление volume'ов и БД, `docker system prune`, изменение `ufw` и `sshd_config`.
 - Демо-режим `DEMO_MODE=true` даёт `POST /admin/reseed` и сброс ограничений. Перед показом жюри — `make reseed`.

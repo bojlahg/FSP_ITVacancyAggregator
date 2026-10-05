@@ -1,0 +1,62 @@
+name: Server ops
+
+# Операции с продом без SSH-доступа у разработчика: `gh workflow run server-ops.yml -f action=status`.
+# Только фиксированный набор действий — произвольные команды на сервере отсюда не выполняются.
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "status | logs | reseed | restart"
+        required: true
+        type: choice
+        options: [status, logs, reseed, restart]
+      service:
+        description: "Сервис для logs/restart"
+        required: false
+        default: backend
+        type: choice
+        options: [backend, web, db, keycloak, fsp-mock, mail]
+      lines:
+        description: "Сколько строк логов"
+        required: false
+        default: "200"
+
+env:
+  DEPLOY_HOST: 94.103.87.151
+  DEPLOY_PATH: /opt/itscout/app
+  DEPLOY_KNOWN_HOST: "94.103.87.151 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINVPCF8guOIy7eb6bXHzy+zNJMVjJWGJSWFBpm6740MA"
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    # Не пересекаемся с деплоем
+    concurrency:
+      group: deploy-prod
+      cancel-in-progress: false
+    steps:
+      - name: SSH setup
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
+          echo "$DEPLOY_KNOWN_HOST" > ~/.ssh/known_hosts
+      - name: Run
+        env:
+          ACTION: ${{ inputs.action }}
+          SERVICE: ${{ inputs.service }}
+          LINES: ${{ inputs.lines }}
+        run: |
+          case "$LINES" in ''|*[!0-9]*) LINES=200 ;; esac
+          DC="cd ${DEPLOY_PATH} && docker compose --env-file .env -f infra/docker-compose.yml"
+          case "$ACTION" in
+            status)
+              ssh -i ~/.ssh/deploy "root@${DEPLOY_HOST}" "uptime; free -m; df -h / | tail -1; \
+                docker stats --no-stream --format '{{.Name}} {{.CPUPerc}} {{.MemUsage}}'; ${DC} ps"
+              curl -fsS "https://itscout.ru/api/v1/health"; echo ;;
+            logs)
+              ssh -i ~/.ssh/deploy "root@${DEPLOY_HOST}" "${DC} logs --no-color --tail ${LINES} ${SERVICE}" ;;
+            reseed)
+              ssh -i ~/.ssh/deploy "root@${DEPLOY_HOST}" "${DC} exec -T backend python -m seed.generate" ;;
+            restart)
+              ssh -i ~/.ssh/deploy "root@${DEPLOY_HOST}" "${DC} restart ${SERVICE}"
+              sleep 10; curl -fsS "https://itscout.ru/api/v1/health"; echo ;;
+          esac
