@@ -20,7 +20,7 @@ from app.modules.testing.engine.angoff import (
     tcc,
     theta_to_share,
 )
-from tests.conftest import bearer
+from tests.conftest import bearer_for
 from tests.test_expert import invite_code, register_expert  # noqa: F401
 from tests.test_explainer import KEY_FIELDS, _keys
 from tests.test_needs import API, signup
@@ -94,10 +94,10 @@ def test_template_set_is_deterministic_and_auto_graded():
 # ——— API ———
 
 
-async def test_only_experts_rate_and_tasks_have_no_keys(client, db):
+async def test_only_experts_rate_and_tasks_have_no_keys(client, session):
     employer = await signup(client, "hr@bank.ru")
     params = {"specialization": "backend", "grade": "middle"}
-    for headers in (employer, bearer(Role.candidate)):
+    for headers in (employer, await bearer_for(session, Role.candidate)):
         assert (await client.get(f"{ANGOFF}/tasks", params=params, headers=headers)).status_code == 403
         assert (await client.get(f"{ANGOFF}/summary", params=params, headers=headers)).status_code == 403
         body = {**params, "template_id": "x", "rating": 0.5}
@@ -145,7 +145,7 @@ async def _rate_all(client, headers, grade: str, ratings: list[float]) -> None:
         assert (await client.put(f"{ANGOFF}/ratings", json=body, headers=headers)).status_code == 200
 
 
-async def test_summary_math_on_two_raters(client, db):
+async def test_summary_math_on_two_raters(client, session):
     alice = await register_expert(client, "alice@example.com")
     bob = await register_expert(client, "bob@example.com")
     carol = await register_expert(client, "carol@example.com")
@@ -184,7 +184,9 @@ async def test_summary_math_on_two_raters(client, db):
     assert cuts[0] < cuts[1], "выше оценки — выше порог"
 
     admin = await client.get(
-        f"{ANGOFF}/summary", params={"specialization": "backend"}, headers=bearer(Role.admin)
+        f"{ANGOFF}/summary",
+        params={"specialization": "backend"},
+        headers=await bearer_for(session, Role.admin),
     )
     assert admin.status_code == 200
     assert not any(c["you"] for c in admin.json()["grades"][0]["rounds"][0]["rater_cuts"])
@@ -242,11 +244,15 @@ def test_share_theta_roundtrip_and_box():
 # ——— раунды, данные о последствиях, Hofstee: API ———
 
 
-async def test_new_endpoints_require_expert(client, db):
+async def test_new_endpoints_require_expert(client, session):
     employer = await signup(client, "hr@bank.ru")
     params = {"specialization": "backend", "grade": "middle"}
     hofstee_body = {**params, "min_cut": 0.4, "max_cut": 0.7, "min_fail": 0.3, "max_fail": 0.6}
-    for headers in (employer, bearer(Role.candidate), bearer(Role.admin)):
+    for headers in (
+        employer,
+        await bearer_for(session, Role.candidate),
+        await bearer_for(session, Role.admin),
+    ):
         assert (await client.get(f"{ANGOFF}/impact", params=params, headers=headers)).status_code == 403
         assert (await client.post(f"{ANGOFF}/round2", json=params, headers=headers)).status_code == 403
         assert (await client.put(f"{ANGOFF}/hofstee", json=hofstee_body, headers=headers)).status_code == 403

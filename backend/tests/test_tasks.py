@@ -12,7 +12,7 @@ from app.modules.matching import service as matching_service
 from app.modules.matching.models import CandidateSearchIndex
 from app.modules.tasks import service as tasks_service
 from app.modules.tasks.models import TaskAssignment
-from tests.conftest import bearer
+from tests.conftest import bearer_for
 from tests.test_needs import NEED, candidate_id, employer_of, signup
 
 API = "/api/v1"
@@ -310,8 +310,12 @@ async def test_isolation_between_candidates_and_employers(client, session):
     assert rate.status_code == 404
     assert (await client.get(f"{API}/employer-tasks", headers=stranger)).json() == []
 
-    assert (await client.get(f"{API}/employer-tasks", headers=bearer(Role.candidate))).status_code == 403
-    assert (await client.get(f"{API}/candidates/me/tasks", headers=bearer(Role.employer))).status_code == 403
+    assert (
+        await client.get(f"{API}/employer-tasks", headers=await bearer_for(session, Role.candidate))
+    ).status_code == 403
+    assert (
+        await client.get(f"{API}/candidates/me/tasks", headers=await bearer_for(session, Role.employer))
+    ).status_code == 403
 
 
 async def test_create_validation(client, db):

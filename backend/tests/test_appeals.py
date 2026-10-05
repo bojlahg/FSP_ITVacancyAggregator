@@ -7,7 +7,7 @@ from app.core.security import hash_password
 from app.modules.appeals.models import GradeAppeal
 from app.modules.auth.models import User
 from app.modules.categories.models import CandidateCategory
-from tests.conftest import bearer
+from tests.conftest import bearer, bearer_for
 from tests.test_invitations import make_candidate
 from tests.test_needs import API, signup
 
@@ -69,7 +69,7 @@ async def test_admin_endpoints_forbidden_for_other_roles(client, session):
     appeal = (await client.post(f"{API}/candidates/me/appeals", json=COMMENT, headers=candidate)).json()
     employer = await signup(client, "hr@bank.ru")
 
-    for headers in (candidate, employer, bearer(Role.expert)):
+    for headers in (candidate, employer, await bearer_for(session, Role.expert)):
         assert (await client.get(f"{API}/admin/appeals", headers=headers)).status_code == 403
         resolved = await client.post(
             f"{API}/admin/appeals/{appeal['id']}/resolve", json={"reply": "ок"}, headers=headers

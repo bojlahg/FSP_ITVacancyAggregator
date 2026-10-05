@@ -4,7 +4,7 @@ from pydantic import ValidationError
 from app.core.enums import Role
 from app.main import app
 from app.modules.invitations.schemas import ContactMethod, InvitationCreate
-from tests.conftest import bearer
+from tests.conftest import bearer_for
 
 API = "/api/v1"
 
@@ -21,14 +21,16 @@ async def test_protected_endpoint_without_token_returns_unified_401(client):
     assert response.json()["error"]["code"] == "unauthorized"
 
 
-async def test_candidate_cannot_call_employer_endpoint(client):
-    response = await client.get(f"{API}/talent/categories", headers=bearer(Role.candidate))
+async def test_candidate_cannot_call_employer_endpoint(client, session):
+    response = await client.get(f"{API}/talent/categories", headers=await bearer_for(session, Role.candidate))
     assert response.status_code == 403
     assert response.json()["error"]["code"] == "forbidden"
 
 
-async def test_employer_cannot_read_candidate_invitations(client):
-    response = await client.get(f"{API}/candidates/me/invitations", headers=bearer(Role.employer))
+async def test_employer_cannot_read_candidate_invitations(client, session):
+    response = await client.get(
+        f"{API}/candidates/me/invitations", headers=await bearer_for(session, Role.employer)
+    )
     assert response.status_code == 403
 
 

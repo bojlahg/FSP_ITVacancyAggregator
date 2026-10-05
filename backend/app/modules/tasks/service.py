@@ -577,3 +577,12 @@ async def signals(db: AsyncSession, candidate_id: int) -> TaskSignals:
         last_graded_at=max((at for at, _, _ in rows if at is not None), default=None),
         approach_scores=[score for _, score, kind in rows if kind == TaskKind.approach],
     )
+
+
+async def forget_candidate(db: AsyncSession, candidate_id: int) -> None:
+    """Удаление аккаунта: текст решений — ПДн и удаляется, оценка остаётся. Коммитит вызывающий."""
+    await db.execute(
+        update(TaskAssignment)
+        .where(TaskAssignment.candidate_id == candidate_id, TaskAssignment.response.has_key("text"))
+        .values(response=TaskAssignment.response.op("-")("text"))
+    )

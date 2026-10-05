@@ -132,12 +132,16 @@ async def update_consent(db: AsyncSession, candidate: Candidate, body: ConsentUp
 async def delete_account(db: AsyncSession, candidate: Candidate) -> None:
     """Мягкое удаление: учётная запись закрыта, ПДн обезличены, профиль исчезает из выдачи (§13)."""
     from app.modules.appeals import service as appeals_service
+    from app.modules.applications import service as applications_service
     from app.modules.expert import service as expert_service
     from app.modules.fsp import service as fsp_service
     from app.modules.integrations import service as integrations_service
+    from app.modules.invitations import service as invitations_service
     from app.modules.invitations.models import Invitation
     from app.modules.matching import service as matching_service
     from app.modules.resume.models import Resume
+    from app.modules.tasks import service as tasks_service
+    from app.modules.testing import service as testing_service
 
     now = _now()
     user = await db.get(User, candidate.user_id)
@@ -153,6 +157,11 @@ async def delete_account(db: AsyncSession, candidate: Candidate) -> None:
     await integrations_service.forget_candidate(db, candidate.id)
     await expert_service.forget_candidate(db, candidate.id)
     await appeals_service.forget_candidate(db, candidate.id)
+    # Свободный текст кандидата в решениях, ответах теста, откликах, отказах и жалобах (§13)
+    await tasks_service.forget_candidate(db, candidate.id)
+    await testing_service.forget_candidate(db, candidate.id)
+    await applications_service.forget_candidate(db, candidate.id)
+    await invitations_service.forget_candidate(db, candidate.id)
     await db.execute(
         update(Invitation)
         .where(

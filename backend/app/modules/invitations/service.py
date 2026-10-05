@@ -505,3 +505,17 @@ async def resolve_report(
     await db.commit()
     await db.refresh(row)
     return await _report_for_admin(db, row)
+
+
+async def forget_candidate(db: AsyncSession, candidate_id: int) -> None:
+    """Удаление аккаунта: комментарии к отказам и жалобам — ПДн; причина и статус жалобы остаются.
+
+    Коммитит вызывающий.
+    """
+    invitations = select(Invitation.id).where(Invitation.candidate_id == candidate_id)
+    await db.execute(
+        update(Invitation).where(Invitation.candidate_id == candidate_id).values(decline_comment=None)
+    )
+    await db.execute(
+        update(InvitationReport).where(InvitationReport.invitation_id.in_(invitations)).values(comment=None)
+    )

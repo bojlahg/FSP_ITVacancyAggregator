@@ -1,4 +1,5 @@
 import asyncio
+import secrets
 import sys
 from collections.abc import AsyncIterator
 
@@ -53,3 +54,13 @@ async def client(db_schema) -> AsyncIterator[AsyncClient]:
 def bearer(role: Role, user_id: int = 1) -> dict[str, str]:
     token, _ = create_access_token(user_id, role.value)
     return {"Authorization": f"Bearer {token}"}
+
+
+async def bearer_for(session, role: Role) -> dict[str, str]:
+    """Токен настоящего пользователя: авторизация проверяет, что аккаунт есть и не удалён."""
+    from app.modules.auth.models import User
+
+    user = User(email=f"{role.value}-{secrets.token_hex(4)}@test.local", password_hash="!", role=role)
+    session.add(user)
+    await session.commit()
+    return bearer(role, user.id)

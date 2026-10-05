@@ -9,7 +9,7 @@ from app.modules.testing import preview_service
 from app.modules.testing.engine import vacancy
 from app.modules.testing.engine.bank import get_bank, get_blueprints
 from app.modules.testing.engine.render import render
-from tests.conftest import bearer
+from tests.conftest import bearer_for
 from tests.test_needs import NEED, signup
 
 API = "/api/v1"
@@ -124,11 +124,15 @@ async def test_preview_from_own_need_and_foreign_need_is_404(client, db):
     assert foreign.status_code == 404
 
 
-async def test_candidate_cannot_preview(client):
+async def test_candidate_cannot_preview(client, session):
     response = await client.post(
-        f"{API}/vacancy-tests/preview", json={"raw_text": BACKEND_TEXT}, headers=bearer(Role.candidate)
+        f"{API}/vacancy-tests/preview",
+        json={"raw_text": BACKEND_TEXT},
+        headers=await bearer_for(session, Role.candidate),
     )
-    examples = await client.get(f"{API}/vacancy-tests/examples", headers=bearer(Role.candidate))
+    examples = await client.get(
+        f"{API}/vacancy-tests/examples", headers=await bearer_for(session, Role.candidate)
+    )
 
     assert response.status_code == 403
     assert examples.status_code == 403

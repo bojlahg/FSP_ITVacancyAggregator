@@ -3,7 +3,7 @@
 import secrets
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.dialects.postgresql import distinct_on, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -558,3 +558,16 @@ async def latest_thetas(db: AsyncSession, specialization: str) -> list[float]:
         .ext(distinct_on(TestAttempt.candidate_id))
     )
     return [float(theta) for theta in await db.scalars(query)]
+
+
+async def forget_candidate(db: AsyncSession, candidate_id: int) -> None:
+    """Удаление аккаунта: текст открытых ответов — ПДн и удаляется, θ̂ и баллы остаются для статистики теста.
+
+    Коммитит вызывающий.
+    """
+    attempts = select(TestAttempt.id).where(TestAttempt.candidate_id == candidate_id)
+    await db.execute(
+        update(TestAttemptItem)
+        .where(TestAttemptItem.attempt_id.in_(attempts), TestAttemptItem.response.has_key("text"))
+        .values(response=TestAttemptItem.response.op("-")("text"))
+    )

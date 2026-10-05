@@ -2,11 +2,19 @@
 
 from sqlalchemy import select
 
+from app.core.enums import AttemptPurpose, Grade
+from app.modules.applications.models import Application
 from app.modules.auth.models import AuditLog, User
 from app.modules.candidates.models import Candidate
+from app.modules.invitations.models import Invitation, InvitationReport
 from app.modules.matching.models import CandidateSearchIndex
+from app.modules.tasks import service as tasks_service
+from app.modules.tasks.models import TaskAssignment
+from app.modules.testing.models import TestAttempt as Attempt
+from app.modules.testing.models import TestAttemptItem as AttemptItem
 from tests.test_invitations import invite, make_candidate
-from tests.test_needs import API, employer_of, signup
+from tests.test_needs import API, NEED, employer_of, signup
+from tests.test_tasks import APPROACH, candidate_with_category
 
 
 async def test_privacy_controls_what_employer_sees(client, session):
@@ -113,6 +121,89 @@ async def test_delete_account_anonymizes_and_hides(client, session):
         f"{API}/auth/login", json={"email": "anna@example.com", "password": "password-123"}
     )
     assert login.status_code == 401
+
+
+async def test_deleted_account_old_jwt_is_rejected(client, session):
+    """Ревью 06.10, №1: выданный до удаления access JWT больше ничего не может."""
+    candidate, cid = await make_candidate(client, session, "anna@example.com")
+    assert (await client.delete(f"{API}/candidates/me", headers=candidate)).status_code == 200
+
+    profile = await client.get(f"{API}/candidates/me", headers=candidate)
+    publish = {"kind": "profile_publication", "granted": True}
+    consent = await client.put(f"{API}/candidates/me/consents", json=publish, headers=candidate)
+    status = await client.put(
+        f"{API}/candidates/me/search-status", json={"search_status": "active"}, headers=candidate
+    )
+    for response in (profile, consent, status):
+        assert response.status_code == 401, response.text
+    session.expire_all()
+    assert await session.get(CandidateSearchIndex, cid) is None
+
+
+async def test_delete_account_erases_free_text_copies(client, session, monkeypatch):
+    """Ревью 06.10, №3: email из свободного текста не переживает удаление аккаунта (§13)."""
+    monkeypatch.setattr(tasks_service.llm, "is_enabled", lambda: False)
+    email = "anna.k@mail.ru"
+    employer = await signup(client, "hr@bank.ru")
+    other = await signup(client, "hr@shop.ru")
+    candidate, cid = await candidate_with_category(client, session, "anna@example.com")
+
+    task_id = (await client.post(f"{API}/employer-tasks", json=APPROACH, headers=employer)).json()["id"]
+    [offered] = (await client.get(f"{API}/candidates/me/tasks", headers=candidate)).json()
+    submit = {"response": {"text": f"Ключ идемпотентности, пишите {email}"}}
+    await client.post(f"{API}/tasks/assignments/{offered['id']}/submit", json=submit, headers=candidate)
+    declined = (await client.post(f"{API}/invitations", json=invite(cid), headers=employer)).json()
+    await client.post(
+        f"{API}/invitations/{declined['id']}/decline",
+        json={"reason": "salary", "comment": f"Мало, пишите {email}"},
+        headers=candidate,
+    )
+    reported = (await client.post(f"{API}/invitations", json=invite(cid), headers=other)).json()
+    await client.post(
+        f"{API}/invitations/{reported['id']}/report",
+        json={"reason": "scam", "comment": f"Мне ответили на {email}"},
+        headers=candidate,
+    )
+    need_id = (await client.post(f"{API}/needs", json=NEED, headers=employer)).json()["id"]
+    session.add(Application(need_id=need_id, candidate_id=cid, cover_note=f"Готова, {email}"))
+    attempt = Attempt(
+        candidate_id=cid,
+        specialization="backend",
+        grade_target=Grade.middle,
+        purpose=AttemptPurpose.calibration,
+        blueprint={},
+        seed=1,
+    )
+    session.add(attempt)
+    await session.flush()
+    attempt_id = attempt.id
+    session.add(
+        AttemptItem(
+            attempt_id=attempt_id,
+            template_id="t",
+            instance_seed=1,
+            stage=1,
+            position=0,
+            payload={"kind": "open_approach"},
+            answer_key={},
+            response={"text": f"Подход: {email}"},
+            score=0.5,
+        )
+    )
+    await session.commit()
+
+    assert (await client.delete(f"{API}/candidates/me", headers=candidate)).status_code == 200
+
+    submissions = await client.get(f"{API}/employer-tasks/{task_id}/submissions", headers=employer)
+    assert email not in submissions.text
+    session.expire_all()
+    assignment = await session.scalar(select(TaskAssignment).where(TaskAssignment.candidate_id == cid))
+    item = await session.scalar(select(AttemptItem).where(AttemptItem.attempt_id == attempt_id))
+    report = await session.scalar(select(InvitationReport))
+    assert "text" not in assignment.response and "text" not in item.response and item.score == 0.5
+    assert (await session.scalar(select(Application))).cover_note is None
+    assert (await session.get(Invitation, declined["id"])).decline_comment is None
+    assert report.comment is None and report.reason.value == "scam"
 
 
 async def test_search_status_and_company_lookup(client, session):

@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import mail_templates
@@ -306,3 +306,9 @@ async def decide(
     application.viewed_at = application.viewed_at or now
     application.responded_at = now
     return await _respond(db, application)
+
+
+async def forget_candidate(db: AsyncSession, candidate_id: int) -> None:
+    """Удаление аккаунта: сопроводительный текст откликов — ПДн. Коммитит вызывающий."""
+    query = update(Application).where(Application.candidate_id == candidate_id).values(cover_note=None)
+    await db.execute(query)

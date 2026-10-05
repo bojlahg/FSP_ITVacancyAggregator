@@ -28,16 +28,23 @@ class AuthUser:
     role: Role
 
 
-def get_current_user(
+async def get_current_user(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
+    db: DbSession,
 ) -> AuthUser:
+    from app.modules.auth.models import User
+
     if credentials is None:
         raise UnauthorizedError()
     try:
         payload = decode_access_token(credentials.credentials)
     except jwt.InvalidTokenError as exc:
         raise UnauthorizedError("Токен недействителен или истёк") from exc
-    return AuthUser(id=int(payload["sub"]), role=Role(payload["role"]))
+    # Access JWT живёт до истечения срока: удалённый аккаунт отсекаем здесь, до бизнес-логики (§13)
+    user = await db.get(User, int(payload["sub"]))
+    if user is None or user.deleted_at is not None:
+        raise UnauthorizedError("Аккаунт удалён")
+    return AuthUser(id=user.id, role=Role(payload["role"]))
 
 
 def _require(role: Role):
@@ -75,7 +82,7 @@ async def _employer_or_api_key(
         from app.modules.integrations.service import authenticate_key
 
         return AuthUser(id=await authenticate_key(db, api_key), role=Role.employer)
-    user = get_current_user(credentials)
+    user = await get_current_user(credentials, db)
     if user.role != Role.employer:
         raise ForbiddenError()
     return user
