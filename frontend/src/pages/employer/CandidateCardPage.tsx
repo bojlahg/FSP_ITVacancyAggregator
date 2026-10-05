@@ -16,6 +16,7 @@ import {
 import { useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import { CategoryBadge } from "@/components/CategoryBadge";
+import { CandidatePdfButton } from "@/components/employer/CandidatePdfButton";
 import { InviteDialog } from "@/components/employer/InviteDialog";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
@@ -122,15 +123,18 @@ export default function CandidateCardPage() {
           </>
         }
         actions={
-          invited || ["sent", "viewed", "accepted"].includes(data.invitation_status ?? "") ? (
-            <Button variant="secondary" disabled>
-              <CheckCircle2 /> Приглашение отправлено
-            </Button>
-          ) : (
-            <Button onClick={() => setInviteOpen(true)} disabled={needId !== null && need.isPending}>
-              <Send /> Пригласить
-            </Button>
-          )
+          <>
+            <CandidatePdfButton candidateId={brief.id} unlocked={data.contacts_unlocked} />
+            {invited || ["sent", "viewed", "accepted"].includes(data.invitation_status ?? "") ? (
+              <Button variant="secondary" disabled>
+                <CheckCircle2 /> Приглашение отправлено
+              </Button>
+            ) : (
+              <Button onClick={() => setInviteOpen(true)} disabled={needId !== null && need.isPending}>
+                <Send /> Пригласить
+              </Button>
+            )}
+          </>
         }
       />
 

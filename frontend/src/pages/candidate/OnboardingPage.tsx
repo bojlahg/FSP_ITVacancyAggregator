@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Award, Check, PlayCircle } from "lucide-react";
+import { ArrowRight, Award, Check, FileUp, PlayCircle } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
 import { CategoryBadge } from "@/components/CategoryBadge";
@@ -40,6 +40,14 @@ export default function OnboardingPage() {
         eyebrow="Онбординг"
         title="Получите категорию"
         description="Короткий опрос, подтверждение специализации, выбор грейда и адаптивный тест. Категорию определяет только тест."
+        actions={
+          // §6.2 п.2: резюме необязательно и только предзаполняет профиль
+          <Button asChild variant="ghost">
+            <Link to="/candidate/profile">
+              <FileUp /> Заполнить профиль из PDF-резюме
+            </Link>
+          </Button>
+        }
       />
       {me.isPending && <SkeletonCards count={1} />}
       {me.isError && (
