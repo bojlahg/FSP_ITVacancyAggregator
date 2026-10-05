@@ -25,6 +25,7 @@ from app.modules.categories import service as categories_service
 from app.modules.employers import service as employers_service
 from app.modules.employers.models import Employer
 from app.modules.needs import service as needs_service
+from app.modules.resume.pdf import redact_contacts
 from app.modules.survey import service as survey_service
 from app.modules.tasks.models import EmployerTask, TaskAssignment
 from app.modules.tasks.schemas import (
@@ -234,15 +235,27 @@ async def submissions(db: AsyncSession, user_id: int, task_id: int) -> list[Task
         )
     )
     briefs = await matching_service.briefs(db, [row.candidate_id for row in rows])
-    return [_submission_out(row, briefs[row.candidate_id]) for row in rows if row.candidate_id in briefs]
+    return [
+        _submission_out(
+            row,
+            briefs[row.candidate_id],
+            await matching_service.contacts_unlocked(db, employer.id, row.candidate_id),
+        )
+        for row in rows
+        if row.candidate_id in briefs
+    ]
 
 
-def _submission_out(assignment: TaskAssignment, brief) -> TaskSubmissionForEmployer:
+def _submission_out(assignment: TaskAssignment, brief, unlocked: bool) -> TaskSubmissionForEmployer:
+    response = _payload_of(assignment)
+    # До раскрытия контактов свободный текст решения их не выдаёт (инвариант contact_unlocks, §13)
+    if response is not None and not unlocked:
+        response = response.model_copy(update={"text": redact_contacts(response.text)})
     return TaskSubmissionForEmployer(
         assignment_id=assignment.id,
         candidate=brief,
         status=assignment.status,
-        response=_payload_of(assignment),
+        response=response,
         score=assignment.score,
         graded_by=assignment.graded_by,
         rubric_hits=list(assignment.rubric_hits or []),
@@ -273,7 +286,8 @@ async def rate(
     briefs = await matching_service.briefs(db, [assignment.candidate_id])
     if assignment.candidate_id not in briefs:
         raise NotFoundError("Кандидат больше не в выдаче")
-    return _submission_out(assignment, briefs[assignment.candidate_id])
+    unlocked = await matching_service.contacts_unlocked(db, employer.id, assignment.candidate_id)
+    return _submission_out(assignment, briefs[assignment.candidate_id], unlocked)
 
 
 # ---------- кандидат ----------

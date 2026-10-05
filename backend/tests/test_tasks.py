@@ -5,14 +5,15 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from sqlalchemy import select, update
 
-from app.core.enums import Grade, Role
+from app.core.enums import Grade, Role, UnlockSource
 from app.modules.categories.models import CandidateCategory
+from app.modules.invitations.models import ContactUnlock
 from app.modules.matching import service as matching_service
 from app.modules.matching.models import CandidateSearchIndex
 from app.modules.tasks import service as tasks_service
 from app.modules.tasks.models import TaskAssignment
 from tests.conftest import bearer
-from tests.test_needs import NEED, candidate_id, signup
+from tests.test_needs import NEED, candidate_id, employer_of, signup
 
 API = "/api/v1"
 TEMPLATE = "be.db.composite_index"
@@ -207,6 +208,36 @@ async def test_approach_checklist_by_llm_scored_by_code(client, session, monkeyp
         and rated["employer_rating"] == 2
         and rated["rubric_hits"] == [True, False, True, True]
     )
+
+
+async def test_submission_text_hides_contacts_until_unlock(client, session):
+    """Ревью 06.10, №2: свободный текст решения не раскрывает контакты без contact_unlocks."""
+    employer = await signup(client, "hr@bank.ru")
+    task_id = (await client.post(f"{API}/employer-tasks", json=APPROACH, headers=employer)).json()["id"]
+    headers, cid = await candidate_with_category(client, session, "anna@example.com")
+    [offered] = (await client.get(f"{API}/candidates/me/tasks", headers=headers)).json()
+    text = "Ключ идемпотентности. Пишите на anna.k@mail.ru или +7 916 123-45-67"
+    submitted = await client.post(
+        f"{API}/tasks/assignments/{offered['id']}/submit", json={"response": {"text": text}}, headers=headers
+    )
+    assert submitted.status_code == 200, submitted.text
+
+    listed = await client.get(f"{API}/employer-tasks/{task_id}/submissions", headers=employer)
+    rate_url = f"{API}/employer-tasks/{task_id}/submissions/{offered['id']}/rate"
+    rated = await client.post(rate_url, json={"rating": 4}, headers=employer)
+    for response in (listed, rated):
+        assert response.status_code == 200, response.text
+        assert "anna.k@mail.ru" not in response.text and "123-45-67" not in response.text
+    assert "Ключ идемпотентности" in listed.text
+
+    owner = await employer_of(session, "hr@bank.ru")
+    unlock = ContactUnlock(
+        employer_id=owner.id, candidate_id=cid, source=UnlockSource.invitation, source_id=1
+    )
+    session.add(unlock)
+    await session.commit()
+    unlocked = await client.get(f"{API}/employer-tasks/{task_id}/submissions", headers=employer)
+    assert "anna.k@mail.ru" in unlocked.text
 
 
 async def test_one_active_task_weekly_and_expiry(client, session):
