@@ -33,6 +33,7 @@ SkillFamily = Literal[
 class Specialization(BaseModel):
     slug: str
     name: str
+    short_name: str = Field(description="Для меток категорий: «Backend · Middle»")
     has_test: bool
     adjacent: list[str] = Field(default_factory=list)
     description: str = ""

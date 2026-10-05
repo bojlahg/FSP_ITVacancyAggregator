@@ -763,7 +763,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Профиль компании */
+        /** Профиль компании и репутация по приглашениям и откликам */
         get: operations["get_company_api_v1_employers_me_get"];
         /** Обновить профиль компании */
         put: operations["update_company_api_v1_employers_me_put"];
@@ -781,7 +781,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Мои потребности и вакансии */
+        /** Мои потребности и вакансии (последние версии, новые сверху) */
         get: operations["list_needs_api_v1_needs_get"];
         put?: never;
         /** Создать потребность (вилка обязательна) */
@@ -854,7 +854,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Опубликовать как вакансию */
+        /** Опубликовать как вакансию (нужно название компании в профиле) */
         post: operations["publish_need_api_v1_needs__need_id__publish_post"];
         delete?: never;
         options?: never;
@@ -4647,6 +4647,15 @@ export interface operations {
                     "application/json": components["schemas"]["FspProfileOut"];
                 };
             };
+            /** @description Некорректный запрос */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Требуется вход */
             401: {
                 headers: {
@@ -5683,6 +5692,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Конфликт состояния */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Ошибка валидации данных */
             422: {
                 headers: {
@@ -5739,6 +5757,15 @@ export interface operations {
             };
             /** @description Не найдено */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Конфликт состояния */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5805,6 +5832,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Конфликт состояния */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Ошибка валидации данных */
             422: {
                 headers: {
@@ -5863,6 +5899,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Конфликт состояния */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Ошибка валидации данных */
             422: {
                 headers: {
@@ -5914,6 +5959,15 @@ export interface operations {
             };
             /** @description Не найдено */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Конфликт состояния */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

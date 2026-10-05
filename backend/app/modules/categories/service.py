@@ -17,10 +17,9 @@ from app.modules.testing.models import TestAttempt
 
 
 def category_label(specialization: str, grade: str) -> str:
-    specs = {spec.slug: spec.name for spec in get_catalog().specializations}
+    specs = {spec.slug: spec.short_name for spec in get_catalog().specializations}
     grades = {item.slug.value: item.name for item in get_catalog().grades}
-    spec_name = specs.get(specialization, specialization).split()[0]
-    return f"{spec_name} · {grades.get(grade, grade)}"
+    return f"{specs.get(specialization, specialization)} · {grades.get(grade, grade)}"
 
 
 def category_ref(specialization: str, grade: str) -> CategoryRef:

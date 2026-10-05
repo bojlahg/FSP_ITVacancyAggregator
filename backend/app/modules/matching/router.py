@@ -6,6 +6,7 @@ from fastapi.responses import Response
 from app.core.deps import CurrentEmployer, DbSession
 from app.core.enums import Grade, WorkFormat
 from app.core.errors import NotImplementedApiError, error_responses
+from app.modules.matching import service
 from app.modules.matching.schemas import (
     CandidateCard,
     CategoryCatalogItem,
@@ -13,6 +14,7 @@ from app.modules.matching.schemas import (
     SalaryCoverage,
     TalentSearchOut,
 )
+from app.modules.matching.service import Filters, SearchFilters
 
 router = APIRouter(prefix="/talent", tags=["employer: talent pool"])
 
@@ -24,7 +26,7 @@ router = APIRouter(prefix="/talent", tags=["employer: talent pool"])
     responses=error_responses(401, 403),
 )
 async def list_categories(user: CurrentEmployer, db: DbSession) -> list[CategoryCatalogItem]:
-    raise NotImplementedApiError()
+    return await service.categories_catalog(db, user.id)
 
 
 @router.get(
@@ -51,7 +53,23 @@ async def search_talent(
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=30, ge=1, le=100),
 ) -> TalentSearchOut:
-    raise NotImplementedApiError()
+    filters = SearchFilters(
+        specialization=specialization,
+        grade=grade.value if grade else None,
+        skills=skills,
+        verified_only=verified_only,
+        has_fsp=has_fsp,
+        fsp_discipline=fsp_discipline,
+        fsp_min_rank=fsp_min_rank,
+        salary_max=salary_max,
+        work_format=work_format.value if work_format else None,
+        city=city,
+        fresh_days=fresh_days,
+        sort=sort,
+        offset=offset,
+        limit=limit,
+    )
+    return await service.search(db, user.id, filters)
 
 
 @router.get(
@@ -66,7 +84,7 @@ async def get_candidate_card(
     db: DbSession,
     need_id: int | None = Query(default=None, description="Добавить объяснение совпадения с потребностью"),
 ) -> CandidateCard:
-    raise NotImplementedApiError()
+    return await service.candidate_card(db, user.id, candidate_id, need_id)
 
 
 @router.get(
@@ -109,7 +127,19 @@ async def get_recommendations(
     group_by: Literal["category", "none"] = Query(default="category"),
     limit: int = Query(default=50, ge=1, le=200),
 ) -> RecommendationsOut:
-    raise NotImplementedApiError()
+    filters = Filters(
+        grade=grade.value if grade else None,
+        has_fsp=has_fsp,
+        verified_only=verified_only,
+        salary_max=salary_max,
+        work_format=work_format.value if work_format else None,
+        city=city,
+        fresh_days=fresh_days,
+        apply_hard_filters=apply_hard_filters,
+        group_by=group_by,
+        limit=limit,
+    )
+    return await service.recommendations(db, user.id, need_id, filters)
 
 
 @need_router.get(
@@ -119,4 +149,4 @@ async def get_recommendations(
     responses=OWNED,
 )
 async def get_salary_coverage(need_id: int, user: CurrentEmployer, db: DbSession) -> SalaryCoverage:
-    raise NotImplementedApiError()
+    return await service.salary_coverage(db, user.id, need_id)

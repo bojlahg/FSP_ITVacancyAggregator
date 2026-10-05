@@ -1937,6 +1937,16 @@
               }
             }
           },
+          "400": {
+            "description": "Некорректный запрос",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Требуется вход",
             "content": {
@@ -2932,7 +2942,7 @@
         "tags": [
           "employer: company"
         ],
-        "summary": "Профиль компании",
+        "summary": "Профиль компании и репутация по приглашениям и откликам",
         "operationId": "get_company_api_v1_employers_me_get",
         "responses": {
           "200": {
@@ -3042,7 +3052,7 @@
         "tags": [
           "employer: needs & matching"
         ],
-        "summary": "Мои потребности и вакансии",
+        "summary": "Мои потребности и вакансии (последние версии, новые сверху)",
         "operationId": "list_needs_api_v1_needs_get",
         "responses": {
           "200": {
@@ -3366,6 +3376,16 @@
               }
             }
           },
+          "409": {
+            "description": "Конфликт состояния",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Ошибка валидации данных",
             "content": {
@@ -3462,6 +3482,16 @@
               }
             }
           },
+          "409": {
+            "description": "Конфликт состояния",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Ошибка валидации данных",
             "content": {
@@ -3546,6 +3576,16 @@
               }
             }
           },
+          "409": {
+            "description": "Конфликт состояния",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Ошибка валидации данных",
             "content": {
@@ -3564,7 +3604,7 @@
         "tags": [
           "employer: needs & matching"
         ],
-        "summary": "Опубликовать как вакансию",
+        "summary": "Опубликовать как вакансию (нужно название компании в профиле)",
         "operationId": "publish_need_api_v1_needs__need_id__publish_post",
         "security": [
           {
@@ -3615,6 +3655,16 @@
           },
           "404": {
             "description": "Не найдено",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт состояния",
             "content": {
               "application/json": {
                 "schema": {
@@ -3692,6 +3742,16 @@
           },
           "404": {
             "description": "Не найдено",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт состояния",
             "content": {
               "application/json": {
                 "schema": {

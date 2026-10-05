@@ -1,0 +1,37 @@
+# Веса и пороги ранжирования — docs/implementation.md §8.3. Проверяются процедурой валидации (§12).
+
+weights:          # match = 100 × Σ weight·component
+  skills: 0.30
+  strength: 0.30
+  category: 0.15
+  fsp: 0.10
+  fresh: 0.05
+  conditions: 0.10
+
+category_fit:     # насколько категория кандидата подходит потребности
+  exact: 1.0
+  adjacent_grade: 0.6
+  adjacent_specialization: 0.6
+  adjacent_both: 0.3
+
+skill_value:      # ценность навыка кандидата для требования
+  verified: 1.0
+  fsp_confirmed: 0.9
+  task_confirmed: 0.9
+  declared: 0.5
+  parent_only: 0.3
+required_weight: 1.0
+optional_weight: 0.3
+
+strength:
+  ability_share: 0.7     # 0.7·Φ((θ − cut_грейда)/scale) + 0.3·topic_fit
+  scale: 0.6
+
+conditions:
+  salary_share: 0.6
+  format_share: 0.4
+  salary_tolerance: 0.3  # ожидания выше вилки на 30% — salary_fit = 0 и жёсткий фильтр
+
+recommendations:
+  default_limit: 50
+  max_explanation_lines: 6

@@ -1,16 +1,45 @@
-"""Индекс выдачи кандидатов (§14): денормализованная строка на кандидата, пересчитывается при изменениях."""
+"""Индекс выдачи (§14) и подбор (§8): подборка по потребности, поиск по базе, каталог категорий, карточка."""
 
+from collections import Counter, defaultdict
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from statistics import median
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.enums import ConsentKind, SearchStatus, SkillSource
+from app.core.enums import ConsentKind, Grade, SearchStatus, SkillSource, WorkFormat
+from app.core.errors import NotFoundError
+from app.core.schemas import CategoryRef, Explanation, ExplanationLine, FspBadge
 from app.modules.auth import service as auth_service
-from app.modules.candidates.models import Candidate, CandidateSkill
+from app.modules.auth.models import User
+from app.modules.candidates import service as candidates_service
+from app.modules.candidates.models import Candidate, CandidateExperience, CandidateSkill
+from app.modules.candidates.schemas import Contacts, ExperienceItem
+from app.modules.catalog.service import get_catalog
 from app.modules.categories import service as categories_service
+from app.modules.categories.models import CandidateCategory
+from app.modules.fsp import service as fsp_service
+from app.modules.fsp.models import FspAchievement
+from app.modules.invitations.models import ContactUnlock
+from app.modules.matching import scoring
 from app.modules.matching.models import CandidateSearchIndex
+from app.modules.matching.schemas import (
+    CandidateBrief,
+    CandidateCard,
+    CandidateMatch,
+    CategoryCatalogItem,
+    CategoryRecommendation,
+    MatchComponents,
+    RecommendationsOut,
+    SalaryBucket,
+    SalaryCoverage,
+    TalentSearchOut,
+)
+from app.modules.needs.models import HiringNeed
+from app.modules.testing.engine.bank import GRADE_ORDER, get_blueprints
 from app.modules.testing.models import TestAttempt
+from app.modules.testing.schemas import TopicScore
 
 FRESH_HALF_LIFE_DAYS = 90
 SKILL_STATUS_PRIORITY = {
@@ -18,6 +47,15 @@ SKILL_STATUS_PRIORITY = {
     SkillSource.fsp: "fsp_confirmed",
     SkillSource.task: "task_confirmed",
 }
+FIT_ORDER = {"exact": 0, "adjacent_grade": 1, "adjacent_specialization": 2, "adjacent_both": 3}
+LEVEL_NAMES = {
+    "international": "международные",
+    "national": "всероссийские",
+    "interregional": "межрегиональные",
+    "regional": "региональные",
+    "municipal": "муниципальные",
+}
+SALARY_BUCKET = 50_000
 
 
 def freshness(last_activity: datetime | None, now: datetime) -> float:
@@ -31,6 +69,9 @@ def freshness(last_activity: datetime | None, now: datetime) -> float:
 def vps(percentile: float | None, fsp: float, fresh: float, approach: float | None) -> float:
     """Сила подтверждённого профиля внутри категории — §8.3."""
     return round(0.60 * (percentile or 0.0) + 0.15 * fsp + 0.15 * fresh + 0.10 * (approach or 0.0), 4)
+
+
+# ---------- индекс ----------
 
 
 async def refresh_candidate(db: AsyncSession, candidate_id: int) -> None:
@@ -59,7 +100,9 @@ async def refresh_candidate(db: AsyncSession, candidate_id: int) -> None:
     row.grade = current.grade
     row.theta = current.theta
     row.percentile = current.percentile
-    row.fsp_score = row.fsp_score or 0.0
+    row.fsp_score, row.has_fsp, row.max_rank = await fsp_service.candidate_fsp_score(
+        db, candidate_id, current.specialization
+    )
     row.fresh = fresh
     row.approach = approach
     row.vps = vps(current.percentile, row.fsp_score, fresh, approach)
@@ -70,7 +113,6 @@ async def refresh_candidate(db: AsyncSession, candidate_id: int) -> None:
     row.city = candidate.city
     row.relocation = candidate.relocation
     row.hidden_employer_ids = list(candidate.hidden_employer_ids or [])
-    row.has_fsp = row.has_fsp or False
     row.last_activity_at = current.assigned_at
     row.updated_at = now
     db.add(row)
@@ -85,3 +127,527 @@ async def refresh_category(db: AsyncSession, specialization: str, grade) -> None
     )
     for candidate_id in list(rows):
         await refresh_candidate(db, candidate_id)
+
+
+# ---------- общие строительные блоки ----------
+
+
+@dataclass
+class Filters:
+    grade: str | None = None
+    has_fsp: bool | None = None
+    verified_only: bool = False
+    salary_max: int | None = None
+    work_format: str | None = None
+    city: str | None = None
+    fresh_days: int | None = None
+    apply_hard_filters: bool = True
+    group_by: str = "category"
+    limit: int = 50
+
+
+@dataclass
+class SearchFilters:
+    specialization: str | None = None
+    grade: str | None = None
+    skills: list[str] = field(default_factory=list)
+    verified_only: bool = False
+    has_fsp: bool | None = None
+    fsp_discipline: str | None = None
+    fsp_min_rank: str | None = None
+    salary_max: int | None = None
+    work_format: str | None = None
+    city: str | None = None
+    fresh_days: int | None = None
+    sort: str = "vps"
+    offset: int = 0
+    limit: int = 30
+
+
+def need_spec(need: HiringNeed) -> scoring.NeedSpec:
+    return scoring.NeedSpec(
+        specialization=need.specialization,
+        grade=need.grade.value,
+        required=tuple(need.required_skills or ()),
+        optional=tuple(need.optional_skills or ()),
+        work_format=need.work_format.value if need.work_format else None,
+        city=need.city,
+        salary_from=need.salary_from,
+        salary_to=need.salary_to,
+    )
+
+
+def _skill_names() -> dict[str, str]:
+    return {skill.id: skill.name for skill in get_catalog().skills}
+
+
+def _labels(row: CandidateSearchIndex) -> dict[str, str]:
+    labels = {
+        **_skill_names(),
+        "category": categories_service.category_label(row.specialization, row.grade.value),
+    }
+    labels.update({f"topic:{topic}": name for topic, name in get_blueprints().topic_names.items()})
+    return labels
+
+
+async def _best_fsp(db: AsyncSession, candidate_ids: list[int]) -> dict[int, str]:
+    if not candidate_ids:
+        return {}
+    rows = await db.scalars(
+        select(FspAchievement)
+        .where(FspAchievement.candidate_id.in_(candidate_ids))
+        .order_by(FspAchievement.candidate_id, FspAchievement.strength.desc())
+    )
+    best: dict[int, str] = {}
+    for row in rows:
+        if row.candidate_id in best:
+            continue
+        role = f", роль {row.team_role}" if row.team_role else ""
+        best[row.candidate_id] = (
+            f"{row.place} место из {row.participants} — {row.competition_name} "
+            f"({LEVEL_NAMES.get(row.level, row.level)}{role})"
+        )
+    return best
+
+
+async def _fsp_counts(db: AsyncSession, candidate_ids: list[int]) -> dict[int, int]:
+    if not candidate_ids:
+        return {}
+    rows = await db.execute(
+        select(FspAchievement.candidate_id, func.count())
+        .where(FspAchievement.candidate_id.in_(candidate_ids))
+        .group_by(FspAchievement.candidate_id)
+    )
+    return dict(rows.all())
+
+
+def _facts(row: CandidateSearchIndex, best_fsp: str | None, now: datetime) -> scoring.CandidateFacts:
+    days = int((now - row.last_activity_at).total_seconds() // 86400) if row.last_activity_at else None
+    return scoring.CandidateFacts(
+        candidate_id=row.candidate_id,
+        specialization=row.specialization,
+        grade=row.grade.value,
+        theta=row.theta,
+        percentile=row.percentile,
+        topic_scores=row.topic_scores or {},
+        skills_status=row.skills_status or {},
+        fsp_score=row.fsp_score,
+        has_fsp=row.has_fsp,
+        fresh=freshness(row.last_activity_at, now),
+        fresh_days=days,
+        salary_min=row.salary_min,
+        work_formats=list(row.work_formats or []),
+        city=row.city,
+        relocation=row.relocation,
+        best_fsp=best_fsp,
+    )
+
+
+def _brief(row: CandidateSearchIndex, candidate: Candidate, fsp_count: int) -> CandidateBrief:
+    privacy = candidates_service.privacy_of(candidate)
+    last = candidate.last_name or ""
+    shown_last = last if privacy.show_last_name else (f"{last[:1]}." if last else "")
+    names = _skill_names()
+    statuses = row.skills_status or {}
+    return CandidateBrief(
+        id=candidate.id,
+        display_name=f"{candidate.first_name or 'Кандидат'} {shown_last}".strip(),
+        category=categories_service.category_ref(row.specialization, row.grade.value),
+        percentile=row.percentile,
+        vps=row.vps,
+        city=row.city,
+        relocation=row.relocation,
+        work_formats=[WorkFormat(value) for value in row.work_formats or []],
+        salary_min=row.salary_min if privacy.show_salary else None,
+        fsp=FspBadge(
+            has_fsp=row.has_fsp and privacy.show_fsp,
+            max_rank=row.max_rank if privacy.show_fsp else None,
+            achievements_count=fsp_count if privacy.show_fsp else 0,
+        ),
+        verified_skills=sorted(names.get(s, s) for s, status in statuses.items() if status == "verified"),
+        declared_skills=sorted(names.get(s, s) for s, status in statuses.items() if status != "verified"),
+        last_activity_at=row.last_activity_at,
+    )
+
+
+async def _visible_rows(
+    db: AsyncSession, employer_id: int, specs: set[str] | None = None, grades: set[str] | None = None
+) -> list[tuple[CandidateSearchIndex, Candidate]]:
+    query = (
+        select(CandidateSearchIndex, Candidate)
+        .join(Candidate, Candidate.id == CandidateSearchIndex.candidate_id)
+        .where(CandidateSearchIndex.visible.is_(True))
+        .where(~CandidateSearchIndex.hidden_employer_ids.any(employer_id))
+    )
+    if specs:
+        query = query.where(CandidateSearchIndex.specialization.in_(specs))
+    if grades:
+        query = query.where(CandidateSearchIndex.grade.in_([Grade(g) for g in grades]))
+    return [(row, candidate) for row, candidate in (await db.execute(query)).all()]
+
+
+def _neighbourhood(need: scoring.NeedSpec) -> tuple[set[str], set[str]]:
+    adjacent = next(
+        (set(s.adjacent) for s in get_catalog().specializations if s.slug == need.specialization), set()
+    )
+    index = GRADE_ORDER.index(need.grade)
+    grades = {GRADE_ORDER[i] for i in (index - 1, index, index + 1) if 0 <= i < len(GRADE_ORDER)}
+    return {need.specialization} | adjacent, grades
+
+
+def _passes(
+    row: CandidateSearchIndex, facts: scoring.CandidateFacts, filters: Filters, need: scoring.NeedSpec
+) -> bool:
+    if filters.grade and row.grade.value != filters.grade:
+        return False
+    if filters.has_fsp is not None and row.has_fsp != filters.has_fsp:
+        return False
+    if filters.verified_only and any((row.skills_status or {}).get(s) != "verified" for s in need.required):
+        return False
+    if filters.salary_max and row.salary_min and row.salary_min > filters.salary_max:
+        return False
+    if filters.work_format and row.work_formats and filters.work_format not in row.work_formats:
+        return False
+    if filters.city and row.city != filters.city and not row.relocation:
+        return False
+    return not (
+        filters.fresh_days is not None and (facts.fresh_days is None or facts.fresh_days > filters.fresh_days)
+    )
+
+
+def _match(result: scoring.MatchResult, brief: CandidateBrief, shortlisted: bool) -> CandidateMatch:
+    return CandidateMatch(
+        candidate=brief,
+        score=result.score,
+        components=MatchComponents(**result.components),
+        explanation=Explanation(lines=[ExplanationLine(**line) for line in result.lines]),
+        shortlisted=shortlisted,
+        out_of_filter_reasons=result.out_of_filter,
+    )
+
+
+def _sort_key(match: CandidateMatch) -> tuple:
+    # При равенстве score — ФСП, затем свежесть (§8.3)
+    return (-match.score, -match.components.fsp, -match.components.fresh, match.candidate.id)
+
+
+def _coverage(salaries: list[int | None], salary_to: int) -> float | None:
+    known = [s for s in salaries if s]
+    return round(sum(s <= salary_to for s in known) / len(known), 3) if known else None
+
+
+async def _employer_id(db: AsyncSession, user_id: int) -> int:
+    from app.modules.employers import service as employers_service
+
+    return (await employers_service.get_by_user(db, user_id)).id
+
+
+# ---------- подборка по потребности ----------
+
+
+async def recommendations(
+    db: AsyncSession, user_id: int, need_id: int, filters: Filters
+) -> RecommendationsOut:
+    from app.modules.needs import service as needs_service
+
+    need = await needs_service.get_own_need(db, user_id, need_id)
+    employer_id = await _employer_id(db, user_id)
+    spec = need_spec(need)
+    specs, grades = _neighbourhood(spec)
+    rows = await _visible_rows(db, employer_id, specs, grades)
+    shortlist_ids = set(await needs_service.shortlist_candidate_ids(db, need.id))
+    ids = [row.candidate_id for row, _ in rows]
+    best = await _best_fsp(db, ids)
+    counts = await _fsp_counts(db, ids)
+    now = datetime.now(UTC)
+
+    matched: list[CandidateMatch] = []
+    outside: list[CandidateMatch] = []
+    shortlist: list[CandidateMatch] = []
+    by_category: dict[tuple[str, str], list[CandidateSearchIndex]] = defaultdict(list)
+    fit_of: dict[int, str] = {}
+    for row, candidate in rows:
+        facts = _facts(row, best.get(row.candidate_id), now)
+        result = scoring.evaluate(facts, spec, _labels(row))
+        if result is None:
+            continue
+        by_category[(row.specialization, row.grade.value)].append(row)
+        fit_of[candidate.id] = result.fit
+        match = _match(
+            result, _brief(row, candidate, counts.get(row.candidate_id, 0)), candidate.id in shortlist_ids
+        )
+        if match.shortlisted:
+            shortlist.append(match)
+        if not _passes(row, facts, filters, spec):
+            continue
+        (outside if filters.apply_hard_filters and result.out_of_filter else matched).append(match)
+
+    if filters.group_by == "category":
+        matched.sort(key=lambda m: (FIT_ORDER[fit_of[m.candidate.id]], *_sort_key(m)))
+    else:
+        matched.sort(key=_sort_key)
+    outside.sort(key=_sort_key)
+    shortlist.sort(key=_sort_key)
+    return RecommendationsOut(
+        need_id=need.id,
+        need_version=need.version,
+        categories=_category_cards(by_category, spec),
+        candidates=matched[: filters.limit],
+        out_of_filter=outside[:20],
+        shortlist=shortlist,
+        total=len(matched),
+    )
+
+
+def _category_cards(by_category: dict, spec: scoring.NeedSpec) -> list[CategoryRecommendation]:
+    cards = []
+    for (specialization, grade), rows in by_category.items():
+        fit = scoring.category_fit(specialization, grade, spec)
+        coverage = _coverage([row.salary_min for row in rows], spec.salary_to)
+        higher = GRADE_ORDER.index(grade) > GRADE_ORDER.index(spec.grade)
+        reason = {
+            "exact": "Точное совпадение",
+            "adjacent_grade": "Грейд выше" if higher else "Грейд ниже",
+            "adjacent_specialization": "Смежная специализация",
+            "adjacent_both": "Смежная специализация и соседний грейд",
+        }[fit]
+        if coverage is not None:
+            reason += f" · ваша вилка покрывает ожидания {round(coverage * 100)}%"
+        cards.append(
+            CategoryRecommendation(
+                category=categories_service.category_ref(specialization, grade),
+                fit=fit,
+                candidates_count=len(rows),
+                with_fsp_count=sum(row.has_fsp for row in rows),
+                salary_coverage=coverage,
+                reason=reason,
+            )
+        )
+    return sorted(cards, key=lambda card: (FIT_ORDER[card.fit], -card.candidates_count))
+
+
+async def salary_coverage(db: AsyncSession, user_id: int, need_id: int) -> SalaryCoverage:
+    from app.modules.needs import service as needs_service
+
+    need = await needs_service.get_own_need(db, user_id, need_id)
+    salaries = list(
+        await db.scalars(
+            select(CandidateSearchIndex.salary_min).where(
+                CandidateSearchIndex.visible.is_(True),
+                CandidateSearchIndex.specialization == need.specialization,
+                CandidateSearchIndex.grade == need.grade,
+                CandidateSearchIndex.salary_min.is_not(None),
+            )
+        )
+    )
+    buckets = Counter((salary // SALARY_BUCKET) * SALARY_BUCKET for salary in salaries)
+    return SalaryCoverage(
+        category=categories_service.category_ref(need.specialization, need.grade.value),
+        coverage=_coverage(salaries, need.salary_to) or 0.0,
+        median_expectation=int(median(salaries)) if salaries else None,
+        histogram=[
+            SalaryBucket(salary_from=bucket, salary_to=bucket + SALARY_BUCKET, count=count)
+            for bucket, count in sorted(buckets.items())
+        ],
+    )
+
+
+async def match_for(
+    db: AsyncSession, employer_id: int, candidate_id: int, need: HiringNeed
+) -> CandidateMatch | None:
+    """Совпадение одного кандидата с потребностью — для карточки и снимка в приглашении."""
+    row = await db.get(CandidateSearchIndex, candidate_id)
+    candidate = await db.get(Candidate, candidate_id)
+    if row is None or candidate is None:
+        return None
+    best = await _best_fsp(db, [candidate_id])
+    result = scoring.evaluate(
+        _facts(row, best.get(candidate_id), datetime.now(UTC)), need_spec(need), _labels(row)
+    )
+    if result is None:
+        return None
+    counts = await _fsp_counts(db, [candidate_id])
+    return _match(result, _brief(row, candidate, counts.get(candidate_id, 0)), False)
+
+
+# ---------- каталог и поиск ----------
+
+
+async def categories_catalog(db: AsyncSession, user_id: int) -> list[CategoryCatalogItem]:
+    rows = await _visible_rows(db, await _employer_id(db, user_id))
+    groups: dict[tuple[str, str], list[CandidateSearchIndex]] = defaultdict(list)
+    for row, _ in rows:
+        groups[(row.specialization, row.grade.value)].append(row)
+    spec_order = [spec.slug for spec in get_catalog().specializations]
+    items = []
+    for (specialization, grade), members in groups.items():
+        percentiles = [m.percentile for m in members if m.percentile is not None]
+        salaries = [m.salary_min for m in members if m.salary_min]
+        items.append(
+            CategoryCatalogItem(
+                category=categories_service.category_ref(specialization, grade),
+                candidates_count=len(members),
+                with_fsp_count=sum(m.has_fsp for m in members),
+                median_percentile=round(median(percentiles), 3) if percentiles else None,
+                median_salary=int(median(salaries)) if salaries else None,
+            )
+        )
+    return sorted(
+        items,
+        key=lambda i: (
+            spec_order.index(i.category.specialization),
+            GRADE_ORDER.index(i.category.grade.value),
+        ),
+    )
+
+
+async def search(db: AsyncSession, user_id: int, filters: SearchFilters) -> TalentSearchOut:
+    employer_id = await _employer_id(db, user_id)
+    rows = await _visible_rows(
+        db,
+        employer_id,
+        {filters.specialization} if filters.specialization else None,
+        {filters.grade} if filters.grade else None,
+    )
+    disciplines: set[int] | None = None
+    if filters.fsp_discipline:
+        disciplines = set(
+            await db.scalars(
+                select(FspAchievement.candidate_id).where(FspAchievement.discipline == filters.fsp_discipline)
+            )
+        )
+    rank_order = get_catalog().rules.fsp.rank_order
+    now = datetime.now(UTC)
+    selected = []
+    for row, candidate in rows:
+        statuses = row.skills_status or {}
+        if any(skill not in statuses for skill in filters.skills):
+            continue
+        if filters.verified_only and any(statuses.get(skill) != "verified" for skill in filters.skills):
+            continue
+        if filters.has_fsp is not None and row.has_fsp != filters.has_fsp:
+            continue
+        if disciplines is not None and row.candidate_id not in disciplines:
+            continue
+        if filters.fsp_min_rank and (
+            not row.max_rank or rank_order.index(row.max_rank) < rank_order.index(filters.fsp_min_rank)
+        ):
+            continue
+        if filters.salary_max and row.salary_min and row.salary_min > filters.salary_max:
+            continue
+        if filters.work_format and row.work_formats and filters.work_format not in row.work_formats:
+            continue
+        if filters.city and row.city != filters.city and not row.relocation:
+            continue
+        days = (now - row.last_activity_at).days if row.last_activity_at else None
+        if filters.fresh_days is not None and (days is None or days > filters.fresh_days):
+            continue
+        selected.append((row, candidate))
+
+    sort_keys = {
+        "vps": lambda pair: -pair[0].vps,
+        "percentile": lambda pair: -(pair[0].percentile or 0.0),
+        "fresh": lambda pair: -(pair[0].last_activity_at or datetime.min.replace(tzinfo=UTC)).timestamp(),
+    }
+    selected.sort(key=sort_keys.get(filters.sort, sort_keys["vps"]))
+    page = selected[filters.offset : filters.offset + filters.limit]
+    counts = await _fsp_counts(db, [row.candidate_id for row, _ in page])
+    return TalentSearchOut(
+        items=[_brief(row, candidate, counts.get(row.candidate_id, 0)) for row, candidate in page],
+        total=len(selected),
+    )
+
+
+# ---------- карточка кандидата ----------
+
+
+async def contacts_unlocked(db: AsyncSession, employer_id: int, candidate_id: int) -> bool:
+    unlock = await db.scalar(
+        select(ContactUnlock.candidate_id).where(
+            ContactUnlock.employer_id == employer_id, ContactUnlock.candidate_id == candidate_id
+        )
+    )
+    return unlock is not None
+
+
+async def contacts_of(db: AsyncSession, candidate: Candidate) -> Contacts:
+    user = await db.get(User, candidate.user_id)
+    full_name = " ".join(filter(None, [candidate.last_name, candidate.first_name, candidate.middle_name]))
+    return Contacts(
+        full_name=full_name or "Кандидат",
+        email=candidate.contact_email or (user.email if user else None),
+        phone=candidate.phone,
+        telegram=candidate.telegram,
+    )
+
+
+async def candidate_card(
+    db: AsyncSession, user_id: int, candidate_id: int, need_id: int | None
+) -> CandidateCard:
+    employer_id = await _employer_id(db, user_id)
+    row = await db.get(CandidateSearchIndex, candidate_id)
+    candidate = await db.get(Candidate, candidate_id)
+    unlocked = candidate is not None and await contacts_unlocked(db, employer_id, candidate_id)
+    visible = row is not None and row.visible and employer_id not in (row.hidden_employer_ids or [])
+    # Кандидат, скрывший профиль, остаётся доступен только тем, кому уже открыл контакты
+    if row is None or candidate is None or not (visible or unlocked):
+        raise NotFoundError("Кандидат не найден")
+
+    privacy = candidates_service.privacy_of(candidate)
+    counts = await _fsp_counts(db, [candidate_id])
+    experience = list(
+        await db.scalars(
+            select(CandidateExperience)
+            .where(CandidateExperience.candidate_id == candidate_id)
+            .order_by(CandidateExperience.started_on.desc().nulls_last())
+        )
+    )
+    topic_names = get_blueprints().topic_names
+    history = list(
+        await db.scalars(
+            select(CandidateCategory)
+            .where(CandidateCategory.candidate_id == candidate_id)
+            .order_by(CandidateCategory.assigned_at)
+        )
+    )
+    match = None
+    if need_id is not None:
+        from app.modules.needs import service as needs_service
+
+        need = await needs_service.get_own_need(db, user_id, need_id)
+        match = await match_for(db, employer_id, candidate_id, need)
+
+    return CandidateCard(
+        brief=_brief(row, candidate, counts.get(candidate_id, 0)),
+        about=candidate.about,
+        experience_years=float(candidate.experience_years)
+        if candidate.experience_years is not None
+        else None,
+        roles=list(candidate.roles or []),
+        industries_exp=list(candidate.industries_exp or []),
+        soft_skills=list(candidate.soft_skills or []),
+        experience=[
+            ExperienceItem(
+                company=item.company if unlocked else "Компания скрыта до контакта",
+                position=item.position,
+                started_on=item.started_on,
+                ended_on=item.ended_on,
+                description=item.description,
+            )
+            for item in experience
+        ],
+        skills=await candidates_service.skill_states(db, candidate_id),
+        topic_scores=[
+            TopicScore(topic=topic, name=topic_names.get(topic, topic), score=s["score"], items=s["items"])
+            for topic, s in sorted((row.topic_scores or {}).items())
+        ],
+        approach_answers=[],
+        fsp=await fsp_service.profile(db, candidate) if privacy.show_fsp and row.has_fsp else None,
+        contacts_unlocked=unlocked,
+        contacts=await contacts_of(db, candidate) if unlocked else None,
+        match=match,
+        grade_history=[
+            CategoryRef(**categories_service.category_ref(item.specialization, item.grade.value).model_dump())
+            for item in history
+        ],
+    )
