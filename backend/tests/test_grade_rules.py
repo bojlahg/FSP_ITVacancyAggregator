@@ -66,3 +66,19 @@ def test_reconfirm_after_cooldown_expires():
     category = current("middle", "pass", days_ago=200)
     history = [attempt("senior", "fail", 95, purpose="upgrade")]
     assert decide("senior", NOW, category, history, CONFIG).allowed
+
+
+def test_expired_category_can_be_reconfirmed_on_same_grade():
+    """Ревью 06.10, №7: через 12 месяцев тест на текущий грейд снова доступен (§6.3)."""
+    expired = CurrentCategory("middle", "pass", NOW - timedelta(days=370), NOW - timedelta(days=5))
+    assert decide("middle", NOW, expired, [], CONFIG) == decide("middle", NOW, None, [], CONFIG)
+    assert decide("middle", NOW, expired, [], CONFIG).allowed
+    valid = CurrentCategory("middle", "pass", NOW - timedelta(days=200), NOW + timedelta(days=165))
+    assert decide("middle", NOW, valid, [], CONFIG).code == "same_grade"
+
+
+def test_failed_reconfirmation_waits_30_days():
+    expired = CurrentCategory("middle", "pass", NOW - timedelta(days=370), NOW - timedelta(days=5))
+    decision = decide("middle", NOW, expired, [attempt("middle", "fail", 3)], CONFIG)
+    assert not decision.allowed and decision.code == "grade_cooldown"
+    assert decision.available_at == NOW + timedelta(days=27)

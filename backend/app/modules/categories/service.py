@@ -74,7 +74,10 @@ async def _current_view(db: AsyncSession, current: CandidateCategory | None) -> 
         attempt = await db.get(TestAttempt, current.attempt_id)
         result = attempt.result.value if attempt and attempt.result else None
     return CurrentCategory(
-        grade=current.grade.value, assigned_by_attempt_result=result, assigned_at=current.assigned_at
+        grade=current.grade.value,
+        assigned_by_attempt_result=result,
+        assigned_at=current.assigned_at,
+        valid_until=current.valid_until,
     )
 
 
@@ -111,6 +114,8 @@ async def grade_status(db: AsyncSession, candidate: Candidate) -> GradeStatus:
             if decision.code == "same_grade":
                 continue
             action = "calibrate" if current is None else decision.purpose
+            if current is not None and grade == current.grade:
+                action = "reconfirm"  # истёкшая категория (§6.3)
             if decision.code == "grade_cooldown" and current is None:
                 action = "retry"
             actions.append(

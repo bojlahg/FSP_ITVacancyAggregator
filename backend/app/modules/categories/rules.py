@@ -20,6 +20,7 @@ class CurrentCategory:
     grade: str
     assigned_by_attempt_result: str | None
     assigned_at: datetime
+    valid_until: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -52,7 +53,9 @@ def decide(
     failed_same = [a for a in attempts if a.grade == grade and a.status == "completed" and a.result == "fail"]
     retry_at = max((a.started_at + failed_retry for a in failed_same), default=None)
 
-    if current is None:
+    # §6.3: через 12 месяцев результат требует подтверждения — тест на тот же грейд идёт как калибровка
+    expired = current is not None and current.valid_until is not None and current.valid_until <= now
+    if current is None or (expired and grade == current.grade):
         if retry_at and retry_at > now:
             return Decision(
                 False,

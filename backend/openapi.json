@@ -14455,7 +14455,7 @@
           "action": {
             "type": "string",
             "title": "Action",
-            "description": "calibrate | upgrade | downgrade | retry"
+            "description": "calibrate | upgrade | downgrade | retry | reconfirm"
           },
           "grade": {
             "$ref": "#/components/schemas/Grade"

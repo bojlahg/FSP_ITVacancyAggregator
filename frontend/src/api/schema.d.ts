@@ -4104,7 +4104,7 @@ export interface components {
         GradeAction: {
             /**
              * Action
-             * @description calibrate | upgrade | downgrade | retry
+             * @description calibrate | upgrade | downgrade | retry | reconfirm
              */
             action: string;
             grade: components["schemas"]["Grade"];

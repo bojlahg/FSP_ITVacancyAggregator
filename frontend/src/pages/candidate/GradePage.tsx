@@ -30,6 +30,8 @@ const actionView: Record<string, { label: string; icon: LucideIcon }> = {
   upgrade: { label: "Повысить до", icon: ArrowUp },
   downgrade: { label: "Понизить до", icon: ArrowDown },
   retry: { label: "Повторить тест на", icon: RotateCw },
+  // Срок категории истёк (§6.3): тот же грейд — подтверждение
+  reconfirm: { label: "Подтвердить", icon: RotateCw },
 };
 
 export default function GradePage() {

@@ -1,11 +1,14 @@
 import asyncio
 import contextlib
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import func, select
 
 from app.core.config import get_settings
+from app.core.enums import Grade
+from app.modules.candidates.models import Candidate
+from app.modules.categories.models import CandidateCategory
 from app.modules.testing import service as testing_service
 from app.modules.testing.models import TestAttemptItem as AttemptItem
 from tests.test_engine import synthetic_bank
@@ -210,6 +213,36 @@ async def test_parallel_current_requests_give_one_item(client, session, monkeypa
     assert first.json()["item_id"] == second.json()["item_id"]
     count = select(func.count()).select_from(AttemptItem).where(AttemptItem.attempt_id == attempt_id)
     assert await session.scalar(count) == 1
+
+
+async def test_expired_category_is_reconfirmed_by_same_grade_test(client, session):
+    """Ревью 06.10, №7: после 12 месяцев тест на текущий грейд доступен как подтверждение (§6.3)."""
+    headers = await signup(client, "anna@example.com")
+    await onboard(client, headers)
+    cid = (await session.scalars(select(Candidate.id))).one()
+    now = datetime.now(UTC)
+    session.add(
+        CandidateCategory(
+            candidate_id=cid,
+            specialization="backend",
+            grade=Grade.junior,
+            theta=-0.5,
+            percentile=0.5,
+            assigned_at=now - timedelta(days=370),
+            valid_until=now - timedelta(days=5),
+            is_current=True,
+        )
+    )
+    await session.commit()
+
+    status = (await client.get(f"{API}/candidates/me/grade-status", headers=headers)).json()
+    [reconfirm] = [a for a in status["actions"] if a["grade"] == "junior"]
+    assert reconfirm["action"] == "reconfirm" and reconfirm["allowed"] is True
+    started = await client.post(
+        f"{API}/tests/attempts", json={"specialization": "backend", "grade_target": "junior"}, headers=headers
+    )
+    assert started.status_code == 201, started.text
+    assert started.json()["purpose"] == "calibration"
 
 
 async def test_late_answer_scores_zero(client, session):

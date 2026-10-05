@@ -33,7 +33,7 @@ class AttemptSummary(ApiModel):
 
 
 class GradeAction(ApiModel):
-    action: str = Field(description="calibrate | upgrade | downgrade | retry")
+    action: str = Field(description="calibrate | upgrade | downgrade | retry | reconfirm")
     grade: Grade
     allowed: bool
     available_at: datetime | None = Field(description="Когда станет доступно, если сейчас нельзя")
