@@ -14,6 +14,7 @@
 | PostgreSQL 16 | основная БД |
 | `postgres:16-alpine` | compose |
 | `boky/postfix:latest` | compose |
+| `postgres:16-alpine` | compose |
 | `axllent/mailpit:latest` | compose (dev) |
 | `python:3.12-slim` | backend |
 | `python:3.12-slim` | fsp-mock |
@@ -99,6 +100,7 @@
 
 | Пакет | Версия | Тип |
 |---|---|---|
+| `@axe-core/playwright` | 4.13.0 | dev |
 | `@playwright/test` | 1.63.0 | dev |
 | `@types/node` | 22.20.5 | dev |
 | `typescript` | 5.9.3 | dev |
