@@ -460,6 +460,8 @@ class Seeder:
         salary: tuple[int, int] | None = None,
         hero: bool = False,
         skills: list[str] | None = None,
+        formats: list[str] | None = None,
+        wanted: set[str] | None = None,
     ) -> dict:
         rng = self.rng
         first, last = name or self.person()[:2]
@@ -489,7 +491,7 @@ class Seeder:
             [ConsentKind.pd_processing] + ([ConsentKind.profile_publication] if publication else []),
             created,
         )
-        formats = rng.choice(
+        formats = formats or rng.choice(
             [
                 ["remote"],
                 ["hybrid"],
@@ -575,7 +577,7 @@ class Seeder:
             modules,
             created + timedelta(minutes=20),
             allow_upgrade=not hero,
-            wanted={"pass", "confident_pass"} if hero else None,
+            wanted=wanted or ({"pass", "confident_pass"} if hero else None),
         )
 
         has_fsp = with_fsp if with_fsp is not None else rng.random() < data.FSP_PROBABILITY[spec]
@@ -610,6 +612,8 @@ class Seeder:
                 module="python",
                 declared="middle",
                 salary=(240000, 290000),
+                formats=["hybrid", "office"],
+                wanted={"confident_pass"},
                 hero=True,
                 skills=["python", "fastapi", "postgresql", "kafka", "docker", "redis", "sql", "git"],
                 with_fsp=True,
