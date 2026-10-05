@@ -97,6 +97,7 @@ DEMO_APPROACH_ANSWERS = [
         None,
     ),
 ]
+E2E_CANDIDATE_EMAIL = "e2e-candidate@itscout.ru"  # служебный кандидат e2e (§18), не герой показа
 
 
 def weighted(rng: random.Random, pairs: list[tuple]) -> object:
@@ -107,6 +108,7 @@ def weighted(rng: random.Random, pairs: list[tuple]) -> object:
 class Seeder:
     def __init__(self, db: AsyncSession, seed: int = SEED):
         self.db = db
+        self.seed = seed
         self.rng = random.Random(seed)
         self.now = datetime.now(UTC).replace(microsecond=0)
         self.today = self.now.date()
@@ -709,6 +711,33 @@ class Seeder:
             "backend", 1.2, [("algorithmic", None, 0.93), ("product", "backend", 0.9)]
         )
         self.register_participant(FREE_FSP_ID, "Участник для демонстрации", results, ranks)
+        await self.build_e2e_candidate(index)
+
+    async def build_e2e_candidate(self, index: int) -> None:
+        """Кандидат для e2e (§18): принимает приглашения тестовых работодателей вместо героев показа.
+
+        Своя ветка RNG — данные остальных кандидатов и история взаимодействий не сдвигаются.
+        """
+        main_rng, self.rng = self.rng, random.Random(f"{self.seed}:e2e")
+        try:
+            self.e2e_candidate = await self.candidate(
+                index,
+                "backend",
+                "middle",
+                email=E2E_CANDIDATE_EMAIL,
+                name=("Тест", "Автотестов"),
+                theta=THETA_BY_GRADE["middle"],
+                city="Казань",
+                module="python",
+                declared="middle",
+                salary=(200000, 240000),
+                formats=["remote", "hybrid"],
+                skills=["python", "django", "postgresql", "docker", "git"],
+                with_fsp=False,
+                wanted={"pass"},
+            )
+        finally:
+            self.rng = main_rng
 
     # ---------- работодатели ----------
 
@@ -981,7 +1010,8 @@ class Seeder:
             (InvitationStatus.sent, 20),
             (InvitationStatus.expired, 10),
         ]
-        heroes = {id(hero["candidate"]) for hero in self.heroes.values()}
+        # Герои и служебный e2e-кандидат не получают синтетических приглашений и откликов
+        heroes = {id(hero["candidate"]) for hero in [*self.heroes.values(), self.e2e_candidate]}
         unlocked: set[tuple[int, int]] = set()
         self.interactions: list[tuple[HiringNeed, Invitation | Application]] = []
 
@@ -1112,7 +1142,7 @@ class Seeder:
         self.db.add_all([auto, approach])
         await self.db.flush()
 
-        heroes = {id(hero["candidate"]) for hero in self.heroes.values()}
+        heroes = {id(hero["candidate"]) for hero in [*self.heroes.values(), self.e2e_candidate]}
         pool = [
             c
             for c in self.candidates
