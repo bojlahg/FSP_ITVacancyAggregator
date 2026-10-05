@@ -1,0 +1,105 @@
+# Близость навыков для частичного зачёта в skills-компоненте score — docs/implementation.md §8.3.
+# Таблица построена офлайн вручную по иерархии ESCO и семействам content/skills.yaml (одна роль в стеке,
+# переносимые знания, похожая модель) и заморожена: в рантайме ничего не вычисляется, LLM не участвует.
+# Пары симметричны; значение — доля ценности навыка кандидата, которая засчитывается за требуемый
+# близкий навык. Ограничение сверху и выключатель — skill_similarity в content/matching.yaml.
+# Ориентиры: 0.7 — почти взаимозаменяемы; 0.5–0.6 — та же роль, другая модель; 0.3–0.4 — смежная область.
+# Пары «родитель — потомок» (CI/CD — GitLab CI) допустимы: parent_only засчитывает 0.3 только в сторону
+# «есть родитель, нужен потомок», а близость — в обе; берётся больший из зачётов.
+
+pairs:
+  # Реляционные СУБД
+  - [postgresql, mysql, 0.7]
+  - [postgresql, mssql, 0.6]
+  - [postgresql, oracle, 0.6]
+  - [mysql, mssql, 0.6]
+  - [mysql, oracle, 0.5]
+  - [mssql, oracle, 0.6]
+  - [postgresql, sqlite, 0.4]
+  - [mysql, sqlite, 0.4]
+  # Нереляционные хранилища
+  - [elasticsearch, clickhouse, 0.3]
+  - [mongodb, redis, 0.3]
+  # Брокеры сообщений
+  - [kafka, rabbitmq, 0.5]
+  - [kafka, nats, 0.5]
+  - [rabbitmq, nats, 0.6]
+  # Python-фреймворки
+  - [fastapi, flask, 0.7]
+  - [fastapi, django, 0.5]
+  - [django, flask, 0.5]
+  # JVM, .NET, Node.js
+  - [spring, spring_boot, 0.8]
+  - [java, kotlin, 0.6]
+  - [java, scala, 0.4]
+  - [java, csharp, 0.5]
+  - [dotnet, aspnet, 0.7]
+  - [express, nestjs, 0.6]
+  - [javascript, typescript, 0.8]
+  # Фронтенд
+  - [react, vue, 0.5]
+  - [react, angular, 0.4]
+  - [vue, angular, 0.4]
+  - [nextjs, nuxt, 0.6]
+  - [webpack, vite, 0.7]
+  - [css, sass, 0.7]
+  - [css, tailwind, 0.6]
+  - [sass, tailwind, 0.5]
+  # Мобильная разработка
+  - [android, ios, 0.3]
+  - [jetpack_compose, swiftui, 0.4]
+  - [flutter, react_native, 0.5]
+  - [kotlin, swift, 0.4]
+  # Контейнеры, оркестрация, IaC, CI/CD
+  - [docker, docker_compose, 0.7]
+  - [kubernetes, helm, 0.6]
+  - [helm, argocd, 0.5]
+  - [terraform, ansible, 0.5]
+  - [gitlab_ci, github_actions, 0.7]
+  - [gitlab_ci, jenkins, 0.6]
+  - [github_actions, jenkins, 0.6]
+  - [ci_cd, gitlab_ci, 0.6]
+  - [ci_cd, github_actions, 0.6]
+  - [ci_cd, jenkins, 0.6]
+  - [aws, yandex_cloud, 0.6]
+  - [prometheus, grafana, 0.5]
+  - [linux, linux_cli, 0.7]
+  # Тестирование
+  - [selenium, playwright, 0.6]
+  - [selenium, cypress, 0.5]
+  - [playwright, cypress, 0.6]
+  - [pytest, junit, 0.5]
+  - [pytest, jest, 0.4]
+  - [junit, jest, 0.4]
+  - [pytest, unit_testing, 0.6]
+  - [junit, unit_testing, 0.6]
+  - [jest, unit_testing, 0.6]
+  - [jmeter, load_testing, 0.6]
+  - [postman, api_testing, 0.6]
+  - [selenium, test_automation, 0.5]
+  - [playwright, test_automation, 0.5]
+  # Данные и ML
+  - [pytorch, tensorflow, 0.7]
+  - [scikit_learn, catboost, 0.5]
+  - [pandas, numpy, 0.5]
+  - [pandas, spark, 0.4]
+  - [airflow, dbt, 0.4]
+  - [power_bi, data_visualization, 0.6]
+  - [mlflow, mlops, 0.6]
+  - [nlp, transformers, 0.5]
+  - [llm, rag, 0.5]
+  - [llm, transformers, 0.5]
+  # Архитектура и протоколы
+  - [rest, grpc, 0.5]
+  - [rest, graphql, 0.5]
+  - [grpc, graphql, 0.3]
+  - [microservices, event_driven, 0.5]
+  - [clean_architecture, ddd, 0.5]
+  - [solid, design_patterns, 0.5]
+  # Анализ и игровые движки
+  - [system_analysis, business_analysis, 0.5]
+  - [bpmn, uml, 0.5]
+  - [user_stories, requirements, 0.5]
+  - [unity, unreal, 0.5]
+  - [unity, godot, 0.5]
+  - [unreal, godot, 0.4]

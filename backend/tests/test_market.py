@@ -49,7 +49,7 @@ POOL = [
     need(1, ["python"], ["kafka"], salary=(240_000, 300_000)),  # 0.77 — подходит уже сейчас
     need(1, ["kafka", "docker"], salary=(260_000, 320_000), published=False),  # 0.00 → 0.50
     need(2, ["python", "postgresql"], salary=(280_000, 340_000)),  # 0.75 — подходит
-    need(3, ["python", "rabbitmq"], salary=(300_000, 360_000)),  # 0.50 → с заявленным RabbitMQ 0.75
+    need(3, ["python", "rabbitmq"], salary=(300_000, 360_000)),  # 0.50 → с RabbitMQ или Kafka 0.75
     need(3, ["python", "postgresql", "redis"], grade="senior", salary=(400_000, 500_000)),  # соседний грейд
 ]
 
@@ -81,19 +81,20 @@ def test_market_golden_case():
         ("rabbitmq", 0.167, 0.0, "missing"),
     ]
     assert result.matching_needs == 2
-    # Kafka проверяется тестом: +2 потребности; RabbitMQ — только заявить: +1; PostgreSQL и Docker — 0
+    # Kafka проверяется тестом: +3 (две с Kafka и одна с близким RabbitMQ — зачёт 50%);
+    # RabbitMQ — только заявить: +1; PostgreSQL и Docker — 0
     assert [(s.skill_id, s.action, s.extra_matches) for s in result.suggestions] == [
-        ("kafka", "confirm", 2),
+        ("kafka", "confirm", 3),
         ("rabbitmq", "declare", 1),
     ]
     assert result.suggestions[0].text == (
-        "Подтвердите Kafka тестом или заданием — подходящих потребностей станет больше на 2"
+        "Подтвердите Kafka тестом или заданием — подходящих потребностей станет больше на 3"
     )
 
 
 def test_counterfactual_matches_scoring_component():
     assert market.matching_count(facts(), POOL) == 2
-    assert market.counterfactual(facts(), POOL, "kafka", "verified") == 2
+    assert market.counterfactual(facts(), POOL, "kafka", "verified") == 3
     assert market.counterfactual(facts(), POOL, "postgresql", "verified") == 0
     assert get_rules().insights["skills_match"] == 0.75
 

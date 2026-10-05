@@ -169,3 +169,125 @@ def test_salary_market_verdicts_golden():
     assert salary_market(expectations, 100_000, 150_000).verdict == "below_market"  # покрывает 0%
     assert salary_market(expectations, 500_000, 600_000).verdict == "suspicious_high"  # от ≥ 2 × медианы
     assert salary_market(expectations[:4], 200_000, 260_000).verdict == "unknown"  # меньше 5 ожиданий
+
+
+# ---------- C2: частичный зачёт близких навыков (§8.3, content/skill_similarity.yaml) ----------
+
+SIMILAR_LABELS = LABELS | {"mysql": "MySQL", "rabbitmq": "RabbitMQ"}
+
+
+def test_similarity_table_is_valid():
+    import yaml
+
+    from app.modules.catalog.service import CONTENT_DIR, get_catalog
+
+    ids = {skill.id for skill in get_catalog().skills}
+    with (CONTENT_DIR / "skill_similarity.yaml").open(encoding="utf-8") as file:
+        pairs = yaml.safe_load(file)["pairs"]
+    assert 40 <= len(pairs) <= 100
+    seen = set()
+    for left, right, value in pairs:
+        assert left in ids and right in ids, (left, right)
+        assert left != right and 0 < value <= 1
+        key = frozenset((left, right))
+        assert key not in seen, (left, right)
+        seen.add(key)
+
+
+def test_similar_skill_partial_credit_golden(monkeypatch):
+    # PostgreSQL ← проверенный MySQL: min(0.6, 0.7 · 1.0) = 0.6; Kafka ← заявленный RabbitMQ: 0.5 · 0.5 = 0.25
+    # skills = (1.0 + 0.6 + 0.25 + 0.3·0) / 3.3
+    candidate = facts(1, skills_status={"python": "verified", "mysql": "verified", "rabbitmq": "declared"})
+    result = evaluate(candidate, NEED, SIMILAR_LABELS)
+    assert result.components["skills"] == pytest.approx(1.85 / 3.3, abs=1e-4)
+    texts = [line["text"] for line in result.lines]
+    assert "PostgreSQL — нет, есть близкий MySQL (зачтено 60%)" in texts
+    assert "Kafka — нет, есть близкий RabbitMQ (зачтено 25%)" in texts
+    without_similar = evaluate(facts(2, skills_status={"python": "verified"}), NEED, SIMILAR_LABELS)
+    assert result.score > without_similar.score
+    # Близкий навык не дороже самого навыка: проверенный PostgreSQL выше проверенного MySQL
+    exact = facts(3, skills_status={"python": "verified", "postgresql": "verified", "rabbitmq": "declared"})
+    assert evaluate(exact, NEED, SIMILAR_LABELS).score > result.score
+
+    monkeypatch.setitem(get_rules().skill_similarity, "enabled", False)
+    disabled = evaluate(candidate, NEED, SIMILAR_LABELS)
+    assert disabled.components["skills"] == pytest.approx(1.0 / 3.3, abs=1e-4)
+    assert "PostgreSQL — нет данных" in [line["text"] for line in disabled.lines]
+
+
+def test_similarity_does_not_change_market_status():
+    from app.modules.matching.scoring import skill_status
+
+    candidate = facts(1, skills_status={"mysql": "verified"})
+    assert skill_status(candidate, "postgresql") == "missing"
+
+
+def test_similarity_respects_cap_and_parent_only(monkeypatch):
+    # Нужен CI/CD, у кандидата проверенный GitLab CI: 0.6 × 1.0 = 0.6 (без близости — 0: parent_only
+    # работает только в сторону «есть родитель, нужен потомок»)
+    need = NeedSpec(specialization="devops", grade="middle", required=("ci_cd",))
+    candidate = facts(1, specialization="devops", skills_status={"gitlab_ci": "verified"})
+    assert evaluate(candidate, need, {}).components["skills"] == pytest.approx(0.6)
+    monkeypatch.setitem(get_rules().skill_similarity, "max_credit", 0.4)
+    assert evaluate(candidate, need, {}).components["skills"] == pytest.approx(0.4)
+
+
+# ---------- C1: вероятность принятия приглашения (§8.3.1) ----------
+
+
+def test_acceptance_high_golden():
+    # Логит: 0.2 + 4·(280 − 240)/240 + 0.3 (формат) = 1.1667 → p = 0.763
+    accept = evaluate(facts(1), NEED, LABELS).acceptance
+    assert accept.probability == pytest.approx(0.763, abs=1e-3)
+    assert accept.level == "high"
+    assert accept.text == (
+        "Вероятность, что кандидат примет приглашение: высокая — вилка покрывает ожидания, "
+        "формат работы совпадает"
+    )
+
+
+def test_acceptance_low_golden_with_decline_history():
+    # Зарплата: 4·(280 − 320)/320 = −0.5, отказы по зарплате 3 из 4 → × 1.75 = −0.875;
+    # формат +0.3; 3 активных приглашения −0.45. Логит −0.825 → p = 0.305
+    candidate = facts(1, salary_min=320_000, active_invitations=3, declines={"salary": 3, "other": 1})
+    accept = evaluate(candidate, NEED, LABELS).acceptance
+    assert accept.probability == pytest.approx(0.305, abs=1e-3)
+    assert accept.level == "low"
+    assert accept.text == (
+        "Вероятность, что кандидат примет приглашение: низкая — вилка ниже ожиданий (прошлые отказы — чаще "
+        "из-за зарплаты), у кандидата уже есть активные приглашения (3)"
+    )
+    # Одного отказа мало для вывода: история не учитывается
+    single = facts(2, salary_min=320_000, declines={"salary": 1})
+    factors = {name: value for name, value, _ in evaluate(single, NEED, LABELS).acceptance.factors}
+    assert factors["salary"] == pytest.approx(-0.5)
+
+
+def test_acceptance_factors_direction():
+    base = evaluate(facts(1), NEED, LABELS).acceptance.probability
+    assert evaluate(facts(2, search_status="active"), NEED, LABELS).acceptance.probability > base
+    relocating = evaluate(facts(3, city="Казань", relocation=True), NEED, LABELS).acceptance.probability
+    assert relocating < base
+    assert evaluate(facts(4, city="Казань"), NEED, LABELS).acceptance.probability < relocating
+    assert evaluate(facts(5, declines={"not_looking": 2}), NEED, LABELS).acceptance.probability < base
+    covered = evaluate(facts(6, salary_min=200_000), NEED, LABELS).acceptance
+    assert covered.probability > base and "вся вилка не ниже ожиданий" in covered.text
+
+
+def test_acceptance_is_shown_only_by_default(monkeypatch):
+    unlikely = facts(1, salary_min=320_000, active_invitations=5)
+    shown = evaluate(unlikely, NEED, LABELS)
+    assert get_rules().acceptance["rank_weight"] == 0.0
+    monkeypatch.setitem(get_rules().acceptance, "enabled", False)
+    hidden = evaluate(unlikely, NEED, LABELS)
+    assert hidden.acceptance is None and hidden.score == shown.score
+
+
+def test_acceptance_multiplier_behind_flag(monkeypatch):
+    likely, unlikely = facts(1, search_status="active"), facts(2, theta=0.8, active_invitations=5)
+    assert score(unlikely) > score(likely)
+    monkeypatch.setitem(get_rules().acceptance, "rank_weight", 0.5)
+    result = evaluate(unlikely, NEED, LABELS)
+    plain = sum(get_rules().weights[name] * value for name, value in result.components.items())
+    assert result.score == round(100 * plain * (0.5 + 0.5 * result.acceptance.probability))
+    assert score(likely) > score(unlikely)

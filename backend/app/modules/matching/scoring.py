@@ -22,6 +22,8 @@ class MatchingRules(BaseModel):
     optional_weight: float
     strength: dict[str, float]
     conditions: dict[str, float]
+    skill_similarity: dict[str, float]
+    acceptance: dict[str, float]
     freshness: dict[str, float]
     vps_weights: dict[str, float]
     market: dict[str, float]
@@ -34,6 +36,18 @@ class MatchingRules(BaseModel):
 def get_rules() -> MatchingRules:
     with (CONTENT_DIR / "matching.yaml").open(encoding="utf-8") as file:
         return MatchingRules.model_validate(yaml.safe_load(file))
+
+
+@lru_cache
+def similar_skills() -> dict[str, dict[str, float]]:
+    """Замороженная таблица близости навыков (content/skill_similarity.yaml), симметричная."""
+    with (CONTENT_DIR / "skill_similarity.yaml").open(encoding="utf-8") as file:
+        pairs = yaml.safe_load(file)["pairs"]
+    table: dict[str, dict[str, float]] = {}
+    for left, right, value in pairs:
+        table.setdefault(left, {})[right] = float(value)
+        table.setdefault(right, {})[left] = float(value)
+    return table
 
 
 def freshness_from_days(days: float) -> float:
@@ -110,6 +124,21 @@ class CandidateFacts:
     relocation: bool = False
     best_fsp: str | None = None
     skill_scores: dict[str, dict] = field(default_factory=dict)
+    # Для вероятности принятия приглашения (§8.3.1)
+    search_status: str | None = None
+    active_invitations: int = 0
+    declines: dict[str, int] = field(default_factory=dict)
+
+
+AcceptanceLevel = Literal["high", "medium", "low"]
+
+
+@dataclass(frozen=True)
+class Acceptance:
+    probability: float
+    level: AcceptanceLevel
+    text: str
+    factors: tuple[tuple[str, float, str], ...]
 
 
 @dataclass
@@ -119,6 +148,7 @@ class MatchResult:
     fit: Fit
     lines: list[dict]
     out_of_filter: list[str]
+    acceptance: Acceptance | None = None
 
 
 def normal_cdf(value: float) -> float:
@@ -155,35 +185,64 @@ def skill_topics(specialization: str) -> dict[str, frozenset[str]]:
     return {skill: frozenset(topics) for skill, topics in mapping.items()}
 
 
-def _skill_value(skill: str, facts: CandidateFacts) -> tuple[float, str]:
-    rules = get_rules()
+def _status_value(status: str) -> float:
+    values = get_rules().skill_value
+    return values.get(status, values["declared"])
+
+
+def _similar_credit(skill: str, facts: CandidateFacts) -> tuple[float, str | None]:
+    """Лучший зачёт за близкий навык: близость × ценность его статуса, не больше max_credit (§8.3)."""
+    rules = get_rules().skill_similarity
+    if not rules.get("enabled", 0):
+        return 0.0, None
+    best, source = 0.0, None
+    for other, similarity in sorted(similar_skills().get(skill, {}).items()):
+        status = facts.skills_status.get(other)
+        if status and similarity >= rules["min_similarity"]:
+            credit = min(rules["max_credit"], similarity * _status_value(status))
+            if credit > best:
+                best, source = credit, other
+    return best, source
+
+
+def _skill_value(skill: str, facts: CandidateFacts) -> tuple[float, str, str | None]:
+    """(ценность, статус, близкий навык кандидата — только для статуса similar)."""
     status = facts.skills_status.get(skill)
     if status:
-        return rules.skill_value.get(status, rules.skill_value["declared"]), status
+        return _status_value(status), status, None
     parents = {s.id: s.parent for s in get_catalog().skills}
     parent = parents.get(skill)
-    if parent and parent in facts.skills_status:
-        return rules.skill_value["parent_only"], "parent_only"
-    return 0.0, "missing"
+    base = get_rules().skill_value["parent_only"] if parent and parent in facts.skills_status else 0.0
+    credit, similar = _similar_credit(skill, facts)
+    if similar is not None and credit > base:
+        return credit, "similar", similar
+    if base:
+        return base, "parent_only", None
+    return 0.0, "missing", None
 
 
 def skill_status(facts: CandidateFacts, skill: str) -> str:
-    """Статус навыка так, как его видит skills-компонент: verified … declared, parent_only, missing."""
-    return _skill_value(skill, facts)[1]
+    """Статус навыка так, как его видит skills-компонент: verified … declared, parent_only, missing.
+
+    Зачёт за близкий навык — не сам навык: для кандидата («Рынок категории») это по-прежнему «нет».
+    """
+    status = _skill_value(skill, facts)[1]
+    return "missing" if status == "similar" else status
 
 
-def skills_component(
-    facts: CandidateFacts, need: NeedSpec
-) -> tuple[float, list[tuple[str, bool, float, str]]]:
+# (навык, обязательный, ценность v, статус, близкий навык кандидата — для статуса similar)
+SkillDetail = tuple[str, bool, float, str, str | None]
+
+
+def skills_component(facts: CandidateFacts, need: NeedSpec) -> tuple[float, list[SkillDetail]]:
     rules = get_rules()
     details = [(skill, True, *_skill_value(skill, facts)) for skill in need.required]
     details += [(skill, False, *_skill_value(skill, facts)) for skill in need.optional]
-    total = sum(rules.required_weight if required else rules.optional_weight for _, required, _, _ in details)
+    weights = [rules.required_weight if detail[1] else rules.optional_weight for detail in details]
+    total = sum(weights)
     if not total:
         return 1.0, details
-    value = (
-        sum((rules.required_weight if req else rules.optional_weight) * v for _, req, v, _ in details) / total
-    )
+    value = sum(w * detail[2] for w, detail in zip(weights, details, strict=True)) / total
     return value, details
 
 
@@ -245,6 +304,85 @@ def conditions_component(facts: CandidateFacts, need: NeedSpec) -> tuple[float, 
     return value, salary_fit, format_fit, hard
 
 
+def acceptance_factors(facts: CandidateFacts, need: NeedSpec) -> list[tuple[str, float, str]]:
+    """Вклады в логит вероятности принятия: (фактор, вклад, причина по-русски) — §8.3.1."""
+    rules = get_rules().acceptance
+    factors: list[tuple[str, float, str]] = []
+    declines = sum(facts.declines.values())
+    shares = (
+        {reason: count / declines for reason, count in facts.declines.items()}
+        if declines >= rules["min_declines"]
+        else {}
+    )
+
+    def amplified(reason: str) -> float:
+        return 1.0 + rules["decline_amplify"] * shares.get(reason, 0.0)
+
+    def history(reason: str, name: str) -> str:
+        return f" (прошлые отказы — чаще из-за {name})" if shares.get(reason, 0.0) >= 0.5 else ""
+
+    if facts.salary_min and need.salary_to:
+        clip = rules["salary_clip"]
+        gap = max(-clip, min(clip, (need.salary_to - facts.salary_min) / facts.salary_min))
+        covered = need.salary_from >= facts.salary_min
+        value = (rules["salary_slope"] * gap + (rules["salary_floor_bonus"] if covered else 0.0)) * amplified(
+            "salary"
+        )
+        if gap < 0:
+            text = "вилка ниже ожиданий" + history("salary", "зарплаты")
+        else:
+            text = "вся вилка не ниже ожиданий" if covered else "вилка покрывает ожидания"
+        factors.append(("salary", value, text))
+
+    if need.work_format and facts.work_formats:
+        if need.work_format in facts.work_formats:
+            factors.append(("format", rules["format_match"], "формат работы совпадает"))
+        else:
+            text = "формат работы не совпадает" + history("work_format", "формата")
+            factors.append(("format", rules["format_mismatch"] * amplified("work_format"), text))
+    if need.work_format != "remote" and need.city and facts.city and facts.city != need.city:
+        if facts.relocation:
+            value, text = rules["relocation"], "нужен переезд из другого города"
+        else:
+            value, text = rules["no_relocation"], "другой город, переезд не рассматривает"
+        factors.append(("city", value * amplified("work_format"), text))
+
+    if facts.search_status == "active":
+        factors.append(("search", rules["active_search"], "кандидат активно ищет работу"))
+    if facts.active_invitations:
+        count = min(facts.active_invitations, int(rules["active_invitations_cap"]))
+        text = f"у кандидата уже есть активные приглашения ({facts.active_invitations})"
+        factors.append(("invitations", rules["active_invitation"] * count, text))
+    if shares.get("not_looking"):
+        text = "среди прошлых отказов есть «сейчас не ищу»"
+        factors.append(("not_looking", rules["not_looking"] * shares["not_looking"], text))
+    return factors
+
+
+ACCEPTANCE_LEVEL_NAMES = {"high": "высокая", "medium": "средняя", "low": "низкая"}
+
+
+def acceptance(facts: CandidateFacts, need: NeedSpec) -> Acceptance:
+    """p = σ(intercept + Σ вкладов); текст — из тех же вкладов, поэтому совпадает с числом (§8.3.1)."""
+    rules = get_rules().acceptance
+    factors = acceptance_factors(facts, need)
+    probability = 1.0 / (1.0 + math.exp(-(rules["intercept"] + sum(value for _, value, _ in factors))))
+    level: AcceptanceLevel = "low"
+    if probability >= rules["high_from"]:
+        level = "high"
+    elif probability >= rules["medium_from"]:
+        level = "medium"
+    if level == "high":
+        reasons = sorted((f for f in factors if f[1] > 0), key=lambda f: -f[1])
+    elif level == "low":
+        reasons = sorted((f for f in factors if f[1] < 0), key=lambda f: f[1])
+    else:
+        reasons = sorted(factors, key=lambda f: -abs(f[1]))
+    because = ", ".join(text for _, _, text in reasons[:2]) or "явных причин за или против нет"
+    text = f"Вероятность, что кандидат примет приглашение: {ACCEPTANCE_LEVEL_NAMES[level]} — {because}"
+    return Acceptance(round(probability, 3), level, text, tuple(factors))
+
+
 def evaluate(facts: CandidateFacts, need: NeedSpec, labels: dict[str, str]) -> MatchResult | None:
     """labels: skill id → название, category → «Backend · Middle», topic id → название темы."""
     fit = category_fit(facts.specialization, facts.grade, need)
@@ -263,15 +401,20 @@ def evaluate(facts: CandidateFacts, need: NeedSpec, labels: dict[str, str]) -> M
         "conditions": round(conditions, 4),
     }
     total = sum(rules.weights[name] * value for name, value in components.items())
+    accept = acceptance(facts, need) if rules.acceptance.get("enabled", 0) else None
+    weight = rules.acceptance.get("rank_weight", 0.0)
+    if accept is not None and weight > 0:
+        # Множитель за флагом (§8.3.1): тот же accept уходит в ответ — строка и score не расходятся
+        total *= (1 - weight) + weight * accept.probability
     lines = explain(facts, need, fit, details, salary_fit, format_fit, labels)
-    return MatchResult(round(100 * total), components, fit, lines, hard)
+    return MatchResult(round(100 * total), components, fit, lines, hard, accept)
 
 
 def explain(
     facts: CandidateFacts,
     need: NeedSpec,
     fit: Fit,
-    details: list[tuple[str, bool, float, str]],
+    details: list[SkillDetail],
     salary_fit: float,
     format_fit: float,
     labels: dict[str, str],
@@ -299,7 +442,7 @@ def explain(
         text = f"По тесту уже ближе к уровню {name} — задачи и ожидания могут быть выше"
         lines.append(_line("warning", "test", text))
 
-    for skill, required, _value, status in details:
+    for skill, required, value, status, similar in details:
         name = labels.get(skill, skill)
         if status == "verified":
             stats = facts.skill_scores.get(skill)
@@ -310,6 +453,10 @@ def explain(
             lines.append(_line("positive", "skills", f"{name} — подтверждено {source}"))
         elif status == "declared":
             lines.append(_line("neutral", "skills", f"{name} — заявлено"))
+        elif status == "similar":
+            other = labels.get(similar or "", similar or "")
+            text = f"{name} — нет, есть близкий {other} (зачтено {round(value * 100)}%)"
+            lines.append(_line("neutral", "skills", text))
         elif status == "parent_only":
             lines.append(_line("neutral", "skills", f"{name} — есть базовый навык, сам не указан"))
         elif required:
