@@ -1,0 +1,66 @@
+# QA · стек-модуль qa_automation_python (§10.2). Формат: content/templates/README.md
+
+- id: qa.py.parametrize_count
+  specializations: [qa]
+  topic: stack
+  stack_module: qa_automation_python
+  skills: [pytest, python]
+  kind: numeric
+  irt: {a: 1.1, b: -0.8}
+  time_limit_sec: 120
+  generator: qa.pytest_parametrize
+
+- id: qa.py.fixture_scope
+  specializations: [qa]
+  topic: stack
+  stack_module: qa_automation_python
+  skills: [pytest, python]
+  kind: numeric
+  irt: {a: 1.2, b: 0.0}
+  time_limit_sec: 120
+  generator: qa.pytest_fixture_scope
+
+- id: qa.py.fixture_order
+  specializations: [qa]
+  topic: stack
+  stack_module: qa_automation_python
+  skills: [pytest, python]
+  kind: ordering
+  irt: {a: 1.1, b: 0.5}
+  params:
+    outer: {choice: [app, browser, api_server]}
+    inner: {choice: [db, page, client]}
+    test: {choice: [test_checkout, test_login, test_search]}
+  stem: >-
+    Фикстура {{outer}} имеет scope="session", фикстура {{inner}} — scope="function" и зависит от {{outer}};
+    обе используют yield. В прогоне один тест {{test}}({{inner}}). Расположите этапы в порядке выполнения.
+  order_items:
+    - "Код {{outer}} до yield"
+    - "Код {{inner}} до yield"
+    - "Тело {{test}}"
+    - "Код {{inner}} после yield"
+    - "Код {{outer}} после yield"
+
+- id: qa.py.playwright_waiting
+  specializations: [qa]
+  topic: stack
+  stack_module: qa_automation_python
+  skills: [playwright, python]
+  kind: multi_choice
+  irt: {a: 1.2, b: 1.0}
+  n_options: 5
+  params:
+    case: {choice: ["«Оформить заказ» и проверяет текст «Заказ оформлен»", "«Войти» и проверяет приветствие в шапке", "«Сохранить» и проверяет текст «Изменения сохранены»", "«Найти» и проверяет заголовок результатов"]}
+  stem: >-
+    Автотест на Playwright для Python кликает по кнопке {{case}}. Какие утверждения об ожиданиях в
+    Playwright верны?
+  options:
+    correct:
+      - "locator.click() автоматически ждёт, пока элемент станет видимым, стабильным и доступным для событий"
+      - "expect(locator).to_have_text(...) повторяет проверку до истечения таймаута"
+      - "Локатор ленивый: элемент ищется заново при каждом действии с ним"
+    wrong:
+      - "page.wait_for_timeout(3000) — рекомендуемый способ дождаться ответа сервера"
+      - "assert locator.inner_text() == ... автоматически повторяется до таймаута"
+      - "Локатор находит элемент один раз при создании и дальше работает с сохранённой ссылкой"
+      - "Без явного time.sleep клик выполнится до появления элемента и упадёт"

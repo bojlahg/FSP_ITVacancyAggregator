@@ -1,0 +1,201 @@
+# Frontend · веб-платформа: HTML, CSS, браузер (§10.2). Формат: content/templates/README.md
+
+- id: fe.web.semantic_button
+  specializations: [frontend]
+  topic: web_platform
+  skills: [html]
+  kind: single_choice
+  irt: {a: 1.0, b: -1.4}
+  params:
+    label: {choice: ["Добавить в корзину", "Сохранить черновик", "Открыть фильтры", "Показать пароль", "Удалить комментарий"]}
+  stem_variants:
+    - "Нужен элемент «{{label}}», который выполняет действие на странице (без перехода по адресу). Какая разметка корректна с точки зрения семантики и доступности?"
+    - "Кнопка «{{label}}» запускает JavaScript-обработчик и никуда не ведёт. Какую разметку выбрать, чтобы она работала с клавиатуры и скринридеров без доработок?"
+  options:
+    correct:
+      - "<button type=\"button\">{{label}}</button>"
+    wrong:
+      - "<div class=\"btn\" onclick=\"handle()\">{{label}}</div>"
+      - "<a href=\"#\">{{label}}</a>"
+      - "<span role=\"button\">{{label}}</span> без tabindex и обработки клавиш"
+      - "<p class=\"button\">{{label}}</p> с обработчиком click"
+
+- id: fe.web.box_model_width
+  specializations: [frontend]
+  topic: web_platform
+  skills: [css]
+  kind: numeric
+  irt: {a: 1.1, b: -1.0}
+  time_limit_sec: 120
+  generator: frontend.box_model_width
+
+- id: fe.web.render_pipeline_order
+  specializations: [frontend]
+  topic: web_platform
+  skills: [html, css]
+  kind: ordering
+  irt: {a: 1.0, b: -0.8}
+  params:
+    page: {choice: [главной страницы, карточки товара, страницы статьи, личного кабинета]}
+  stem_variants:
+    - "Расположите этапы первой отрисовки {{page}} браузером в правильном порядке."
+    - "Браузер получил HTML {{page}}. В каком порядке выполняются этапы, пока пиксели не появятся на экране?"
+  order_items:
+    - "Разбор HTML и CSS: построение DOM и CSSOM"
+    - "Построение дерева рендеринга (render tree)"
+    - "Layout: расчёт размеров и положения элементов"
+    - "Paint: отрисовка пикселей в слоях"
+    - "Composite: сборка слоёв в итоговый кадр"
+
+- id: fe.web.script_loading
+  specializations: [frontend]
+  topic: web_platform
+  skills: [html, javascript]
+  kind: code_output
+  irt: {a: 1.1, b: -0.6}
+  time_limit_sec: 120
+  generator: frontend.script_loading
+
+- id: fe.web.css_specificity_basic
+  specializations: [frontend]
+  topic: web_platform
+  skills: [css]
+  kind: code_output
+  irt: {a: 1.3, b: -0.1}
+  time_limit_sec: 120
+  generator: frontend.css_specificity_basic
+
+- id: fe.web.storage_properties
+  specializations: [frontend]
+  topic: web_platform
+  skills: [javascript, html]
+  kind: multi_choice
+  irt: {a: 1.1, b: 0.0}
+  n_options: 5
+  params:
+    data: {choice: [тему оформления, содержимое корзины, черновик комментария, выбранный язык интерфейса]}
+  stem_variants:
+    - "Команда выбирает, где хранить {{data}} в браузере. Какие утверждения о хранилищах верны?"
+    - "Нужно сохранять {{data}} на стороне клиента. Какие утверждения о localStorage, sessionStorage и cookie верны?"
+  options:
+    correct:
+      - "Значения в localStorage хранятся как строки, объекты нужно сериализовать"
+      - "sessionStorage изолирован по вкладке: другая вкладка того же сайта видит своё хранилище"
+      - "Cookie с флагом HttpOnly недоступна через document.cookie"
+      - "localStorage доступен только страницам с тем же origin (схема, хост и порт)"
+    wrong:
+      - "Содержимое localStorage автоматически отправляется на сервер с каждым запросом"
+      - "sessionStorage общий для всех вкладок одного сайта"
+      - "Cookie с флагом Secure нельзя прочитать из JavaScript"
+      - "localStorage очищается при закрытии вкладки"
+      - "Объём localStorage не ограничен браузером"
+
+- id: fe.web.event_propagation_order
+  specializations: [frontend]
+  topic: web_platform
+  skills: [javascript, html]
+  kind: ordering
+  irt: {a: 1.2, b: 0.3}
+  time_limit_sec: 120
+  params:
+    event: {choice: [click, pointerdown, mouseup, dblclick]}
+    outer: {choice: ["form#checkout", "ul.menu", "div.modal", "nav#sidebar"]}
+    target: {choice: ["button.submit", "a.link", "span.icon", "button#save"]}
+  stem: >-
+    Пользователь вызвал событие {{event}} на элементе {{target}}, который вложен в {{outer}}. На document,
+    {{outer}} и {{target}} навешаны обработчики через addEventListener, на {{target}} — один обработчик.
+    Расположите вызовы обработчиков в порядке срабатывания.
+  order_items:
+    - "document — обработчик с { capture: true }"
+    - "{{outer}} — обработчик с { capture: true }"
+    - "{{target}} — обработчик на целевом элементе"
+    - "{{outer}} — обработчик без capture"
+    - "document — обработчик без capture"
+
+- id: fe.web.cascade_priority
+  specializations: [frontend]
+  topic: web_platform
+  skills: [css]
+  kind: ordering
+  irt: {a: 1.2, b: 0.4}
+  params:
+    prop: {choice: [color, font-size, margin-top, background-color]}
+    cls: {choice: [title, note, price, badge]}
+    id: {choice: [hero, total, promo, header]}
+  stem: >-
+    На элемент <p id="{{id}}" class="{{cls}}"> действуют несколько объявлений свойства {{prop}}. Расположите
+    источники по возрастанию приоритета в каскаде (последний побеждает).
+  order_items:
+    - "Стиль браузера по умолчанию (user-agent)"
+    - "Правило .{{cls}} { {{prop}}: … } в CSS-файле автора"
+    - "Правило #{{id}} { {{prop}}: … } в CSS-файле автора"
+    - "Атрибут style=\"{{prop}}: …\" на самом элементе"
+    - "Правило .{{cls}} { {{prop}}: … !important } в CSS-файле автора"
+
+- id: fe.web.flex_grow_width
+  specializations: [frontend]
+  topic: web_platform
+  skills: [css]
+  kind: numeric
+  irt: {a: 1.2, b: 0.6}
+  time_limit_sec: 150
+  generator: frontend.flex_grow_width
+
+- id: fe.web.stacking_context
+  specializations: [frontend]
+  topic: web_platform
+  skills: [css]
+  kind: multi_choice
+  irt: {a: 1.2, b: 1.2}
+  n_options: 5
+  params:
+    op: {choice: ["0.5", "0.9", "0.99"]}
+    tr: {choice: ["translateZ(0)", "scale(1)", "rotate(0deg)"]}
+    z: {choice: ["0", "1", "10"]}
+  stem_variants:
+    - "Какие объявления сами по себе создают новый контекст наложения (stacking context) у элемента?"
+    - "Выпадающее меню с большим z-index оказывается под соседним блоком. Какие свойства родителя меню создают новый stacking context?"
+  options:
+    correct:
+      - "opacity: {{op}}"
+      - "transform: {{tr}}"
+      - "position: fixed"
+      - "isolation: isolate"
+      - "position: relative; z-index: {{z}}"
+    wrong:
+      - "position: relative без z-index"
+      - "display: flex (элемент не является flex-элементом)"
+      - "overflow: hidden"
+      - "float: left"
+      - "margin: 0 auto"
+
+- id: fe.web.css_specificity_functional
+  specializations: [frontend]
+  topic: web_platform
+  skills: [css]
+  kind: code_output
+  irt: {a: 1.3, b: 1.3}
+  time_limit_sec: 150
+  generator: frontend.css_specificity_functional
+
+- id: fe.web.container_queries
+  specializations: [frontend]
+  topic: web_platform
+  skills: [css]
+  kind: single_choice
+  status: pilot
+  irt: {a: 1.0, b: 0.6}
+  params:
+    width: {choice: [400, 480, 600, 720]}
+    card: {choice: [product-card, user-card, news-card]}
+  stem: >-
+    Есть правило @container (min-width: {{width}}px) { .{{card}} { display: grid; } }. От чего зависит,
+    применится ли оно к .{{card}}?
+  options:
+    correct:
+      - "От ширины ближайшего предка с container-type: inline-size (или size)"
+    wrong:
+      - "От ширины окна браузера, как у @media (min-width: {{width}}px)"
+      - "От ширины самого элемента .{{card}}"
+      - "От ширины ближайшего предка с position: relative"
+      - "От ширины родительского элемента, даже если container-type ни у кого не задан"

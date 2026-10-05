@@ -1,0 +1,183 @@
+# Frontend · стек-модуль react (§10.2). Формат: content/templates/README.md
+
+- id: fe.react.index_as_key
+  specializations: [frontend]
+  topic: stack
+  stack_module: react
+  skills: [react]
+  kind: single_choice
+  irt: {a: 1.1, b: -0.9}
+  params:
+    items: {choice: [задач, комментариев, позиций заказа, участников]}
+    op: {choice: [удаляет первый элемент, добавляет элемент в начало, сортирует список по дате]}
+  stem: >-
+    Список {{items}} рендерится через map с key={index}, в каждой строке есть поле ввода со своим
+    состоянием. Пользователь {{op}}. Что может пойти не так?
+  options:
+    correct:
+      - "Состояние и DOM полей привяжутся не к тем элементам: ключи сместятся вместе с индексами"
+    wrong:
+      - "React выбросит ошибку о повторяющихся ключах"
+      - "Список перестанет обновляться до перезагрузки страницы"
+      - "Ничего: индекс — рекомендуемый key для изменяемых списков"
+      - "React при каждом рендере размонтирует и смонтирует заново весь список"
+
+- id: fe.react.effect_deps
+  specializations: [frontend]
+  topic: stack
+  stack_module: react
+  skills: [react]
+  kind: single_choice
+  irt: {a: 1.1, b: -0.8}
+  generator: frontend.react_effect_deps
+
+- id: fe.react.controlled_input
+  specializations: [frontend]
+  topic: stack
+  stack_module: react
+  skills: [react]
+  kind: single_choice
+  irt: {a: 1.0, b: -0.7}
+  params:
+    state: {choice: [query, email, title, city]}
+  stem: >-
+    В компоненте написано <input value={{{state}}} /> без onChange и без readOnly, {{state}} хранится в
+    useState. Что произойдёт, когда пользователь попытается ввести текст?
+  options:
+    correct:
+      - "Значение поля не изменится, а React предупредит в консоли о value без onChange"
+    wrong:
+      - "Поле будет меняться, а {{state}} обновится автоматически"
+      - "Поле будет меняться, но {{state}} останется прежним"
+      - "React выбросит исключение и размонтирует компонент"
+      - "Поле станет неконтролируемым, и React перестанет управлять его значением"
+
+- id: fe.react.hooks_rules
+  specializations: [frontend]
+  topic: stack
+  stack_module: react
+  skills: [react]
+  kind: multi_choice
+  irt: {a: 1.1, b: -0.6}
+  n_options: 5
+  params:
+    comp: {choice: [ProductCard, UserMenu, OrderForm, Dashboard]}
+  stem: "Какие вызовы хуков в компоненте {{comp}} нарушают правила хуков React?"
+  options:
+    correct:
+      - "useState внутри if (isOpen) { … }"
+      - "useEffect внутри цикла for по элементам списка"
+      - "useContext внутри обработчика onClick"
+      - "useMemo после раннего return null"
+    wrong:
+      - "useState на верхнем уровне {{comp}}"
+      - "useEffect внутри собственного хука useFetch, вызванного на верхнем уровне"
+      - "Несколько вызовов useState подряд на верхнем уровне"
+      - "useRef в компоненте, обёрнутом в React.memo"
+
+- id: fe.react.usecallback_equivalent
+  specializations: [frontend]
+  topic: stack
+  stack_module: react
+  skills: [react]
+  kind: single_choice
+  irt: {a: 1.1, b: 0.0}
+  params:
+    fn: {choice: [handleSave, handleSelect, onSubmit, toggleItem]}
+    dep: {choice: [userId, items, filter, page]}
+  stem: "Какой вызов эквивалентен useCallback({{fn}}, [{{dep}}])?"
+  options:
+    correct:
+      - "useMemo(() => {{fn}}, [{{dep}}])"
+    wrong:
+      - "useMemo({{fn}}, [{{dep}}])"
+      - "useRef({{fn}})"
+      - "useEffect(() => {{fn}}, [{{dep}}])"
+      - "useState({{fn}})"
+
+- id: fe.react.state_batching
+  specializations: [frontend]
+  topic: stack
+  stack_module: react
+  skills: [react]
+  kind: code_output
+  irt: {a: 1.4, b: 0.4}
+  time_limit_sec: 120
+  generator: frontend.react_state_batching
+
+- id: fe.react.effect_cleanup_order
+  specializations: [frontend]
+  topic: stack
+  stack_module: react
+  skills: [react]
+  kind: ordering
+  irt: {a: 1.2, b: 0.5}
+  params:
+    dep: {choice: [roomId, userId, channel, symbol]}
+    comp: {choice: [ChatRoom, Profile, Ticker, Feed]}
+  stem: >-
+    Компонент {{comp}} подписывается в useEffect(() => { subscribe({{dep}}); return () => unsubscribe({{dep}}); },
+    [{{dep}}]). Родитель передал новое значение {{dep}}. Расположите события в порядке выполнения.
+  order_items:
+    - "React вызывает функцию {{comp}} с новым {{dep}} (render)"
+    - "React применяет изменения к DOM (commit)"
+    - "Выполняется cleanup предыдущего эффекта: unsubscribe со старым {{dep}}"
+    - "Выполняется эффект: subscribe с новым {{dep}}"
+
+- id: fe.react.memo_rerender
+  specializations: [frontend]
+  topic: stack
+  stack_module: react
+  skills: [react]
+  kind: multi_choice
+  irt: {a: 1.2, b: 1.0}
+  n_options: 5
+  params:
+    comp: {choice: [PriceTable, UserList, ChartPanel, OrderRow]}
+  stem: >-
+    Компонент {{comp}} обёрнут в React.memo, но перерисовывается при каждом рендере родителя. Какие
+    причины возможны?
+  options:
+    correct:
+      - "Родитель передаёт объект или массив, созданный литералом прямо в JSX"
+      - "Родитель передаёт функцию, которая создаётся заново без useCallback"
+      - "{{comp}} читает контекст через useContext, а value провайдера — новый объект на каждом рендере"
+    wrong:
+      - "React.memo сравнивает props глубоко, и сравнение всегда находит различия"
+      - "React.memo действует только в development-сборке"
+      - "React.memo несовместим с компонентами, у которых есть useState"
+      - "Функции в props сравниваются по исходному коду, а он формируется заново"
+
+- id: fe.react.stale_interval
+  specializations: [frontend]
+  topic: stack
+  stack_module: react
+  skills: [react, javascript]
+  kind: code_output
+  irt: {a: 1.3, b: 1.1}
+  time_limit_sec: 120
+  generator: frontend.react_stale_interval
+
+- id: fe.react.subtree_remount
+  specializations: [frontend]
+  topic: stack
+  stack_module: react
+  skills: [react]
+  kind: multi_choice
+  irt: {a: 1.2, b: 1.3}
+  n_options: 5
+  params:
+    comp: {choice: [EditorForm, VideoPlayer, CommentBox, Wizard]}
+  stem: >-
+    Компонент {{comp}} хранит состояние в useState. Какие изменения на месте {{comp}} в дереве
+    приведут к его размонтированию и потере состояния?
+  options:
+    correct:
+      - "Родительский элемент на той же позиции сменил тип с <div> на <section>"
+      - "У {{comp}} изменился проп key"
+      - "{{comp}} объявлен внутри функции родительского компонента и создаётся заново при каждом рендере"
+    wrong:
+      - "У {{comp}} изменились обычные props"
+      - "Родитель перерисовался из-за изменения своего состояния"
+      - "{{comp}} обёрнут в React.memo, и его props изменились"
+      - "У родительского <div> изменился className"

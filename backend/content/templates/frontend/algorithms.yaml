@@ -1,0 +1,84 @@
+# Frontend · алгоритмы и структуры данных (§10.2). Формат: content/templates/README.md
+
+- id: fe.algo.collection_complexity
+  specializations: [frontend]
+  topic: algorithms
+  skills: [algorithms, data_structures, javascript]
+  kind: multi_choice
+  irt: {a: 1.1, b: -0.9}
+  n_options: 5
+  params:
+    n: {choice: ["10 тысяч", "100 тысяч", "1 миллион"]}
+    arr: {choice: [ids, users, tags, prices]}
+  stem: >-
+    Массив {{arr}} и Set с теми же значениями содержат {{n}} элементов. Какие оценки средней сложности
+    операций верны?
+  options:
+    correct:
+      - "{{arr}}.includes(x) — O(n)"
+      - "set.has(x) — O(1) в среднем"
+      - "Доступ по индексу {{arr}}[i] — O(1)"
+      - "Вложенный цикл по двум массивам длиной n и m — O(n·m)"
+    wrong:
+      - "{{arr}}.includes(x) — O(log n)"
+      - "set.has(x) — O(n)"
+      - "{{arr}}.push(x) — O(n) в среднем"
+      - "{{arr}}.sort() — O(n)"
+
+- id: fe.algo.bracket_depth
+  specializations: [frontend]
+  topic: algorithms
+  skills: [algorithms, data_structures]
+  kind: numeric
+  irt: {a: 1.0, b: -0.7}
+  time_limit_sec: 120
+  generator: frontend.bracket_depth
+
+- id: fe.algo.dedupe_complexity
+  specializations: [frontend]
+  topic: algorithms
+  skills: [algorithms, javascript]
+  kind: multi_choice
+  irt: {a: 1.1, b: 0.2}
+  n_options: 5
+  params:
+    n: {choice: ["50 тысяч", "200 тысяч", "1 миллион"]}
+    what: {choice: [идентификаторов, email-адресов, тегов]}
+  stem: "Нужно удалить дубликаты из массива {{what}} длиной {{n}}. Какие оценки сложности верны?"
+  options:
+    correct:
+      - "[...new Set(arr)] — O(n) в среднем"
+      - "arr.filter((x, i) => arr.indexOf(x) === i) — O(n²)"
+      - "Сортировка и один проход по соседним элементам — O(n log n)"
+    wrong:
+      - "arr.filter((x, i) => arr.indexOf(x) === i) — O(n)"
+      - "Сортировка и один проход по соседним элементам — O(n)"
+      - "[...new Set(arr)] — O(n²)"
+      - "arr.reduce с проверкой acc.includes(x) — O(n)"
+
+- id: fe.algo.dom_document_order
+  specializations: [frontend]
+  topic: algorithms
+  skills: [algorithms, html, javascript]
+  kind: code_output
+  irt: {a: 1.1, b: 0.3}
+  time_limit_sec: 120
+  generator: frontend.dom_document_order
+
+- id: fe.algo.fib_calls
+  specializations: [frontend]
+  topic: algorithms
+  skills: [algorithms]
+  kind: numeric
+  irt: {a: 1.1, b: 0.9}
+  time_limit_sec: 180
+  generator: frontend.fib_calls
+
+- id: fe.algo.loop_complexity
+  specializations: [frontend]
+  topic: algorithms
+  skills: [algorithms]
+  kind: code_output
+  irt: {a: 1.2, b: 1.1}
+  time_limit_sec: 120
+  generator: frontend.loop_complexity

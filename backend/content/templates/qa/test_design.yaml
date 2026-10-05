@@ -1,0 +1,117 @@
+# QA · тест-дизайн (§10.2). Формат: content/templates/README.md
+
+- id: qa.td.full_combinations
+  specializations: [qa]
+  topic: test_design
+  skills: [test_design]
+  kind: numeric
+  irt: {a: 1.0, b: -1.3}
+  params:
+    browsers: {int: [2, 4]}
+    os: {int: [2, 3]}
+    langs: {int: [2, 5]}
+    roles: {int: [2, 4]}
+  stem: >-
+    Форму нужно проверить в {{browsers}} браузерах, на {{os}} ОС, с {{langs}} языками интерфейса и для
+    {{roles}} ролей пользователя. Все сочетания допустимы. Сколько тестов потребуется при полном переборе
+    всех комбинаций?
+  answer:
+    expr: "{{browsers}} * {{os}} * {{langs}} * {{roles}}"
+
+- id: qa.td.boundary_inclusive
+  specializations: [qa]
+  topic: test_design
+  skills: [test_design]
+  kind: single_choice
+  irt: {a: 1.1, b: -1.0}
+  generator: qa.boundary_values_inclusive
+
+- id: qa.td.equivalence_classes
+  specializations: [qa]
+  topic: test_design
+  skills: [test_design]
+  kind: numeric
+  irt: {a: 1.1, b: -0.8}
+  time_limit_sec: 120
+  generator: qa.equivalence_classes
+
+- id: qa.td.technique_choice
+  specializations: [qa]
+  topic: test_design
+  skills: [test_design]
+  kind: single_choice
+  irt: {a: 1.0, b: -0.7}
+  generator: qa.technique_choice
+
+- id: qa.td.severity_priority
+  specializations: [qa]
+  topic: test_design
+  skills: [manual_testing]
+  kind: single_choice
+  irt: {a: 1.0, b: -0.2}
+  generator: qa.severity_priority
+
+- id: qa.td.boundary_exclusive
+  specializations: [qa]
+  topic: test_design
+  skills: [test_design]
+  kind: single_choice
+  irt: {a: 1.3, b: 0.0}
+  generator: qa.boundary_values_exclusive
+
+- id: qa.td.state_transition_invalid
+  specializations: [qa]
+  topic: test_design
+  skills: [test_design]
+  kind: numeric
+  irt: {a: 1.1, b: 0.5}
+  time_limit_sec: 180
+  generator: qa.state_transition_invalid
+
+- id: qa.td.pairwise_lower_bound
+  specializations: [qa]
+  topic: test_design
+  skills: [test_design]
+  kind: numeric
+  irt: {a: 1.2, b: 0.7}
+  time_limit_sec: 120
+  generator: qa.pairwise_lower_bound
+
+- id: qa.td.branch_coverage
+  specializations: [qa]
+  topic: test_design
+  skills: [test_design, unit_testing]
+  kind: numeric
+  irt: {a: 1.2, b: 1.0}
+  time_limit_sec: 150
+  generator: qa.branch_coverage
+
+- id: qa.td.mcdc
+  specializations: [qa]
+  topic: test_design
+  skills: [test_design]
+  kind: numeric
+  irt: {a: 1.1, b: 1.4}
+  time_limit_sec: 120
+  generator: qa.mcdc_tests
+
+- id: qa.td.promo_code_strategy
+  specializations: [qa]
+  topic: test_design
+  skills: [test_design, api_testing]
+  kind: open_approach
+  irt: {a: 1.0, b: 0.8}
+  time_limit_sec: 600
+  params:
+    pct: {choice: [10, 15, 20]}
+    min: {choice: ["1 000", "3 000", "5 000"]}
+  stem: >-
+    В интернет-магазин добавляют промокоды: скидка {{pct}}% на заказ от {{min}} ₽, промокод одноразовый для
+    каждого пользователя и имеет срок действия. Опишите, как вы будете тестировать эту функцию: что
+    проверите и в каком порядке.
+  rubric:
+    - "Применяет техники тест-дизайна: граничные значения суммы и даты окончания, классы эквивалентности"
+    - Описывает негативные сценарии (истёкший, чужой, повторно использованный, несуществующий промокод)
+    - Проверяет не только UI, но и API или БД (пересчёт суммы на сервере, а не только на клиенте)
+    - Учитывает конкурентное применение одного промокода (два заказа одновременно)
+    - Расставляет приоритеты по риску (деньги, повторное использование) и упоминает регрессию корзины и оплаты

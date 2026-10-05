@@ -1,0 +1,90 @@
+# Frontend · HTTP и API (§10.2). Формат: content/templates/README.md
+
+- id: fe.http.status_scenario
+  specializations: [frontend]
+  topic: http_api
+  skills: [http, rest]
+  kind: single_choice
+  irt: {a: 1.0, b: -1.0}
+  generator: frontend.http_status_scenario
+
+- id: fe.http.fetch_http_error
+  specializations: [frontend]
+  topic: http_api
+  skills: [javascript, http]
+  kind: single_choice
+  irt: {a: 1.2, b: -0.6}
+  params:
+    code: {choice: ["400", "404", "500", "503"]}
+    path: {choice: [/api/orders, /api/profile, /api/search, /api/cart]}
+  stem_variants:
+    - "Код вызывает fetch('{{path}}'), сервер отвечает статусом {{code}}. Что произойдёт с промисом, который вернул fetch?"
+    - "await fetch('{{path}}') получил ответ с кодом {{code}}. Как поведёт себя промис fetch?"
+  options:
+    correct:
+      - "Промис выполнится (fulfilled), а response.ok будет false"
+    wrong:
+      - "Промис отклонится с TypeError"
+      - "Промис отклонится с ошибкой, в которой есть статус {{code}}"
+      - "Промис выполнится, и response.ok будет true, раз ответ получен"
+      - "Промис не завершится, пока не истечёт таймаут"
+
+- id: fe.http.cors_preflight
+  specializations: [frontend]
+  topic: http_api
+  skills: [http, appsec]
+  kind: multi_choice
+  irt: {a: 1.2, b: 0.5}
+  n_options: 5
+  time_limit_sec: 150
+  generator: frontend.cors_preflight
+
+- id: fe.http.samesite_cookie
+  specializations: [frontend]
+  topic: http_api
+  skills: [http, appsec]
+  kind: multi_choice
+  irt: {a: 1.2, b: 0.7}
+  n_options: 5
+  params:
+    site: {choice: [shop.example, bank.example, mail.example, crm.example]}
+    cookie: {choice: [session_id, sid, auth]}
+  stem: >-
+    Сайт https://{{site}} ставит cookie {{cookie}}. Пользователь находится на другом сайте (с другим
+    регистрируемым доменом). Какие утверждения об атрибуте SameSite верны?
+  options:
+    correct:
+      - "Cookie с SameSite=Lax отправится при переходе по обычной ссылке на {{site}} (GET-навигация верхнего уровня)"
+      - "Cookie с SameSite=Strict не отправится ни в одном запросе, инициированном с другого сайта, включая переход по ссылке"
+      - "Cookie с SameSite=None браузер примет только вместе с атрибутом Secure"
+      - "Cookie с SameSite=Lax не отправится в fetch-запросе к {{site}} со стороннего сайта"
+    wrong:
+      - "Cookie с SameSite=Lax отправится при отправке POST-формы на {{site}} с другого сайта"
+      - "SameSite защищает cookie от кражи через XSS"
+      - "Cookie с SameSite=Strict отправится при переходе по ссылке с другого сайта"
+      - "SameSite запрещает чтение cookie из JavaScript"
+
+- id: fe.http.cache_headers
+  specializations: [frontend]
+  topic: http_api
+  skills: [http, caching]
+  kind: multi_choice
+  irt: {a: 1.2, b: 1.1}
+  n_options: 5
+  params:
+    hash: {choice: [3f9a1c, a81b2e, 7c0d44, e5f019]}
+    name: {choice: [app, vendor, main, runtime]}
+  stem_variants:
+    - "Фронтенд раздаёт {{name}}.{{hash}}.js и index.html. Какие утверждения о кэшировании HTTP верны?"
+    - "Настраиваете заголовки кэширования для index.html и бандла {{name}}.{{hash}}.js. Какие утверждения верны?"
+  options:
+    correct:
+      - "Cache-Control: no-cache разрешает хранить ответ, но требует ревалидации перед каждым использованием"
+      - "Cache-Control: no-store запрещает сохранять ответ в кэше"
+      - "Для {{name}}.{{hash}}.js подходит max-age=31536000, immutable: при изменении файла меняется имя"
+      - "ETag из ответа отправляется в If-None-Match, и при совпадении сервер может вернуть 304"
+    wrong:
+      - "Cache-Control: no-cache полностью запрещает сохранять ответ"
+      - "Cache-Control: private разрешает хранить ответ в CDN, но не в браузере"
+      - "s-maxage задаёт время жизни только в кэше браузера"
+      - "Заголовок Expires имеет приоритет над max-age"

@@ -1,0 +1,164 @@
+# Frontend · JavaScript и TypeScript (§10.2). Формат: content/templates/README.md
+
+- id: fe.js.const_object_mutation
+  specializations: [frontend]
+  topic: javascript
+  skills: [javascript]
+  kind: code_output
+  irt: {a: 1.0, b: -1.4}
+  params:
+    name: {choice: [config, settings, profile, state, options]}
+    field: {choice: [count, limit, retries, timeout]}
+    a: {int: [1, 9]}
+    b: {int: [10, 30]}
+  stem: "Что выведет этот код?"
+  code: |
+    const {{name}} = { {{field}}: {{a}} };
+    {{name}}.{{field}} = {{b}};
+    console.log({{name}}.{{field}});
+  code_language: javascript
+  options:
+    correct: ["{{b}}"]
+    wrong:
+      - "{{a}}"
+      - "TypeError: Assignment to constant variable."
+      - "undefined"
+      - "SyntaxError"
+
+- id: fe.js.array_chain
+  specializations: [frontend]
+  topic: javascript
+  skills: [javascript]
+  kind: code_output
+  irt: {a: 1.1, b: -1.0}
+  time_limit_sec: 120
+  generator: frontend.js_array_chain
+
+- id: fe.js.typeof
+  specializations: [frontend]
+  topic: javascript
+  skills: [javascript]
+  kind: code_output
+  irt: {a: 1.1, b: -0.9}
+  generator: frontend.js_typeof
+
+- id: fe.js.default_sort
+  specializations: [frontend]
+  topic: javascript
+  skills: [javascript]
+  kind: code_output
+  irt: {a: 1.2, b: -0.6}
+  generator: frontend.js_default_sort
+
+- id: fe.js.closure_loop
+  specializations: [frontend]
+  topic: javascript
+  skills: [javascript]
+  kind: code_output
+  irt: {a: 1.4, b: -0.2}
+  time_limit_sec: 120
+  generator: frontend.js_closure_loop
+
+- id: fe.js.event_loop_basic
+  specializations: [frontend]
+  topic: javascript
+  skills: [javascript, concurrency]
+  kind: code_output
+  irt: {a: 1.4, b: 0.3}
+  time_limit_sec: 150
+  generator: frontend.js_event_loop_basic
+
+- id: fe.js.loose_equality
+  specializations: [frontend]
+  topic: javascript
+  skills: [javascript]
+  kind: multi_choice
+  irt: {a: 1.1, b: 0.4}
+  n_options: 5
+  time_limit_sec: 120
+  generator: frontend.js_loose_equality
+
+- id: fe.js.this_binding
+  specializations: [frontend]
+  topic: javascript
+  skills: [javascript]
+  kind: code_output
+  irt: {a: 1.3, b: 0.5}
+  time_limit_sec: 120
+  generator: frontend.js_this_binding
+
+- id: fe.js.promise_combinators
+  specializations: [frontend]
+  topic: javascript
+  skills: [javascript, concurrency]
+  kind: multi_choice
+  irt: {a: 1.2, b: 0.6}
+  n_options: 5
+  params:
+    n: {int: [3, 6]}
+    what: {choice: [загрузку виджетов дашборда, запросы к нескольким зеркалам API, загрузку файлов, проверку нескольких сервисов]}
+  stem: >-
+    Приложение параллельно запускает промисы ({{what}}, всего {{n}}), и один из них отклоняется. Какие
+    утверждения о комбинаторах промисов верны?
+  options:
+    correct:
+      - "Promise.all отклоняется с причиной первого отклонённого промиса"
+      - "Promise.allSettled выполняется массивом объектов { status, value } или { status, reason }"
+      - "Promise.race завершается так же, как первый завершившийся промис — успехом или ошибкой"
+      - "Promise.any отклоняется с AggregateError, только если отклонены все промисы"
+    wrong:
+      - "Promise.all дожидается всех промисов и возвращает массив, где на месте отклонённого — объект ошибки"
+      - "Promise.allSettled отклоняется, если хотя бы один промис отклонён"
+      - "Promise.any возвращает первый завершившийся промис, даже если он отклонён"
+      - "Promise.race игнорирует отклонённые промисы и ждёт первый успешный"
+
+- id: fe.js.ts_utility_type
+  specializations: [frontend]
+  topic: javascript
+  skills: [typescript]
+  kind: code_output
+  irt: {a: 1.2, b: 0.6}
+  time_limit_sec: 120
+  generator: frontend.ts_utility_type
+
+- id: fe.js.ts_type_system
+  specializations: [frontend]
+  topic: javascript
+  skills: [typescript]
+  kind: multi_choice
+  irt: {a: 1.2, b: 0.9}
+  n_options: 5
+  params:
+    type: {choice: [User, Order, Invoice, Session]}
+  stem_variants:
+    - "Команда описывает тип {{type}} в TypeScript. Какие утверждения о системе типов TypeScript верны?"
+    - "На ревью обсуждают, как TypeScript проверяет значения типа {{type}}. Какие утверждения верны?"
+  options:
+    correct:
+      - "Типы стираются при компиляции и недоступны во время выполнения"
+      - "Совместимость структурная: объект с нужными полями подходит под {{type}} без явного implements"
+      - "Значение типа unknown нельзя использовать без сужения типа (проверки или утверждения)"
+      - "Если в switch обработаны все варианты объединения, в ветке default значение имеет тип never"
+    wrong:
+      - "any и unknown эквивалентны: оба отключают проверку типов"
+      - "Проверку x instanceof {{type}} можно применить, если {{type}} объявлен как interface"
+      - "readonly-свойство защищено и во время выполнения: компилятор замораживает объект"
+      - "Объектный литерал с лишним свойством всегда принимается, если обязательные поля на месте"
+
+- id: fe.js.prototype_shadowing
+  specializations: [frontend]
+  topic: javascript
+  skills: [javascript]
+  kind: code_output
+  irt: {a: 1.3, b: 1.0}
+  time_limit_sec: 120
+  generator: frontend.js_prototype_shadowing
+
+- id: fe.js.event_loop_async
+  specializations: [frontend]
+  topic: javascript
+  skills: [javascript, concurrency]
+  kind: code_output
+  irt: {a: 1.4, b: 1.3}
+  time_limit_sec: 180
+  generator: frontend.js_event_loop_async

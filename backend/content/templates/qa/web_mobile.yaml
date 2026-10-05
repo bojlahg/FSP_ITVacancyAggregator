@@ -1,0 +1,85 @@
+# QA · веб и мобильные клиенты (§10.2). Формат: content/templates/README.md
+
+- id: qa.web.devtools_tab
+  specializations: [qa]
+  topic: web_mobile
+  skills: [manual_testing]
+  kind: single_choice
+  irt: {a: 1.0, b: -1.2}
+  generator: qa.devtools_tab
+
+- id: qa.mob.mobile_specific_checks
+  specializations: [qa]
+  topic: web_mobile
+  skills: [manual_testing]
+  kind: multi_choice
+  irt: {a: 1.0, b: -0.7}
+  n_options: 5
+  params:
+    app: {choice: [такси, доставки еды, мобильного банка, фитнес-трекера]}
+  stem: "Какие проверки специфичны для мобильного приложения {{app}} и не нужны для веб-версии на десктопе?"
+  options:
+    correct:
+      - "Входящий звонок или push-уведомление во время оформления операции"
+      - "Смена ориентации экрана с сохранением введённых данных"
+      - "Сворачивание приложения в фон и возврат через несколько минут"
+      - "Отказ пользователя в системном разрешении (геолокация, камера)"
+    wrong:
+      - "Проверка обязательных полей формы"
+      - "Проверка текстов сообщений об ошибках"
+      - "Сортировка списка по дате"
+      - "Ответ сервера с кодом 500 при оформлении"
+
+- id: qa.mob.tools
+  specializations: [qa]
+  topic: web_mobile
+  skills: [manual_testing, android]
+  kind: single_choice
+  irt: {a: 1.0, b: 0.0}
+  generator: qa.mobile_tool
+
+- id: qa.web.xss_checks
+  specializations: [qa]
+  topic: web_mobile
+  skills: [manual_testing, owasp]
+  kind: multi_choice
+  irt: {a: 1.1, b: 0.4}
+  n_options: 5
+  params:
+    field: {choice: [имя в профиле, текст отзыва, название проекта, комментарий к заказу]}
+    param: {choice: [q, search, name]}
+  stem: "Какие проверки помогают найти XSS в поле «{{field}}», которое потом отображается на странице?"
+  options:
+    correct:
+      - "Ввести <img src=x onerror=alert(1)> и проверить, выполнится ли скрипт при отображении"
+      - "Проверить, что символы < и > выводятся экранированными (&lt; и &gt;)"
+      - "Подставить payload в параметр URL ?{{param}}=, значение которого отражается на странице"
+    wrong:
+      - "Ввести ' OR 1=1 -- в поле логина"
+      - "Проверить, что пароль хранится в БД в виде хеша"
+      - "Отправить 1000 запросов в секунду на форму"
+      - "Проверить, что страница открывается по HTTPS"
+
+- id: qa.mob.traffic_not_visible
+  specializations: [qa]
+  topic: web_mobile
+  skills: [manual_testing, android, ios]
+  kind: multi_choice
+  irt: {a: 1.1, b: 1.1}
+  n_options: 5
+  params:
+    proxy: {choice: [Charles, Proxyman, mitmproxy, Fiddler]}
+    app: {choice: [банковского приложения, приложения доставки, маркетплейса]}
+  stem: >-
+    Тестировщик настроил прокси {{proxy}} и установил его сертификат на телефон, но HTTPS-трафик
+    {{app}} не расшифровывается. Какие причины возможны?
+  options:
+    correct:
+      - "В приложении включён SSL pinning"
+      - "На Android 7+ приложение по умолчанию не доверяет пользовательским сертификатам без network_security_config"
+      - "Приложение ходит по HTTP/3 (QUIC поверх UDP), который HTTP-прокси не перехватывает"
+    wrong:
+      - "{{proxy}} в принципе не умеет работать с HTTPS"
+      - "Сертификат нужно было установить на компьютер, а не на телефон"
+      - "Мобильные приложения не используют HTTPS"
+      - "Прокси работает только с эмуляторами, а не с реальными устройствами"

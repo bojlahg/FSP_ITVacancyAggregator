@@ -1,0 +1,54 @@
+# QA · стек-модуль qa_automation_java (§10.2). Формат: content/templates/README.md
+
+- id: qa.java.junit5_lifecycle
+  specializations: [qa]
+  topic: stack
+  stack_module: qa_automation_java
+  skills: [junit, java]
+  kind: ordering
+  irt: {a: 1.0, b: -1.0}
+  params:
+    cls: {choice: [CartTest, LoginTest, PaymentApiTest]}
+    test: {choice: [returnsResult, validatesInput, handlesError]}
+  stem: >-
+    В классе {{cls}} (JUnit 5) один тест {{test}}() и методы с аннотациями @BeforeAll, @BeforeEach,
+    @AfterEach, @AfterAll. Расположите вызовы в порядке выполнения.
+  order_items:
+    - "@BeforeAll"
+    - "@BeforeEach"
+    - "{{test}}() с аннотацией @Test"
+    - "@AfterEach"
+    - "@AfterAll"
+
+- id: qa.java.before_each_count
+  specializations: [qa]
+  topic: stack
+  stack_module: qa_automation_java
+  skills: [junit, java]
+  kind: numeric
+  irt: {a: 1.2, b: 0.3}
+  time_limit_sec: 120
+  generator: qa.junit_before_each
+
+- id: qa.java.selenium_waits
+  specializations: [qa]
+  topic: stack
+  stack_module: qa_automation_java
+  skills: [selenium, java]
+  kind: multi_choice
+  irt: {a: 1.2, b: 1.0}
+  n_options: 5
+  params:
+    element: {choice: [кнопка «Оплатить», таблица заказов, модальное окно, поле поиска]}
+  stem: "Тесты на Selenium WebDriver (Java) нестабильно находят элемент: {{element}}. Какие утверждения об ожиданиях верны?"
+  options:
+    correct:
+      - "Implicit wait применяется ко всем вызовам findElement и задерживает NoSuchElementException"
+      - "Смешивание implicit и explicit ожиданий может давать непредсказуемое время ожидания"
+      - "WebDriverWait с ExpectedConditions ждёт конкретного условия, например elementToBeClickable"
+      - "StaleElementReferenceException возникает, если элемент перерисовали после того, как его нашли"
+    wrong:
+      - "Thread.sleep надёжнее явных ожиданий, потому что ждёт фиксированное время"
+      - "Implicit wait дожидается завершения всех AJAX-запросов на странице"
+      - "Explicit wait, однажды созданный, действует на все последующие поиски элементов"
+      - "StaleElementReferenceException означает, что элемент ещё не появился в DOM"

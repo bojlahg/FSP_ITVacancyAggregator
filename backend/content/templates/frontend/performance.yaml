@@ -1,0 +1,157 @@
+# Frontend · производительность (§10.2). Формат: content/templates/README.md
+
+- id: fe.perf.debounce_or_throttle
+  specializations: [frontend]
+  topic: performance
+  skills: [javascript]
+  kind: single_choice
+  irt: {a: 1.0, b: -1.0}
+  generator: frontend.debounce_or_throttle
+
+- id: fe.perf.web_vitals_metric
+  specializations: [frontend]
+  topic: performance
+  skills: [javascript, html]
+  kind: single_choice
+  irt: {a: 1.0, b: -0.7}
+  generator: frontend.web_vitals_metric
+
+- id: fe.perf.initial_bundle
+  specializations: [frontend]
+  topic: performance
+  skills: [javascript, vite, webpack]
+  kind: multi_choice
+  irt: {a: 1.1, b: -0.1}
+  n_options: 5
+  params:
+    app: {choice: [интернет-магазин, админка, личный кабинет банка, сервис бронирования]}
+    size: {choice: ["900 КБ", "1,4 МБ", "2 МБ"]}
+  stem: >-
+    Приложение ({{app}}) загружает {{size}} JavaScript при первом открытии страницы. Какие техники уменьшат объём
+    JavaScript, загружаемого на старте?
+  options:
+    correct:
+      - "Разделить код по маршрутам через динамический import()"
+      - "Использовать ES-модули, чтобы сборщик выполнил tree shaking неиспользуемых экспортов"
+      - "Собирать под современные браузеры без лишних полифилов"
+      - "Лениво загружать тяжёлые компоненты (React.lazy, defineAsyncComponent)"
+    wrong:
+      - "Объединить все чанки в один файл"
+      - "Заменить import на require() во всех модулях"
+      - "Подключить тот же бандл с атрибутом defer"
+      - "Перенести тег script из <head> в конец <body>"
+
+- id: fe.perf.layout_triggers
+  specializations: [frontend]
+  topic: performance
+  skills: [css, javascript]
+  kind: multi_choice
+  irt: {a: 1.2, b: 0.4}
+  n_options: 5
+  params:
+    el: {choice: [карточки, модального окна, строки таблицы, баннера]}
+    w: {int: [200, 600], step: 50}
+    x: {int: [10, 200], step: 10}
+  stem_variants:
+    - "Анимация {{el}} подтормаживает. Какие изменения заставят браузер заново выполнить layout (reflow)?"
+    - "Какие операции с элементом {{el}} требуют пересчёта геометрии (layout), а не только перерисовки или композиции?"
+  options:
+    correct:
+      - "Изменение width на {{w}}px"
+      - "Изменение font-size"
+      - "Добавление нового элемента в DOM рядом с ним"
+      - "Чтение offsetHeight сразу после изменения стилей, влияющих на размеры (принудительный layout)"
+    wrong:
+      - "Изменение transform: translateX({{x}}px)"
+      - "Изменение opacity"
+      - "Изменение color"
+      - "Изменение background-color"
+
+- id: fe.perf.debounce_calls
+  specializations: [frontend]
+  topic: performance
+  skills: [javascript]
+  kind: numeric
+  irt: {a: 1.1, b: 0.3}
+  time_limit_sec: 150
+  generator: frontend.debounce_calls
+
+- id: fe.perf.total_blocking_time
+  specializations: [frontend]
+  topic: performance
+  skills: [javascript]
+  kind: numeric
+  irt: {a: 1.2, b: 0.7}
+  time_limit_sec: 150
+  generator: frontend.total_blocking_time
+
+- id: fe.perf.memory_leaks
+  specializations: [frontend]
+  topic: performance
+  skills: [javascript, react]
+  kind: multi_choice
+  irt: {a: 1.2, b: 1.0}
+  n_options: 5
+  params:
+    comp: {choice: [ChatWidget, LiveChart, Notifications, MapView]}
+    event: {choice: [resize, scroll, online, message]}
+  stem: >-
+    В SPA память растёт при каждом открытии и закрытии компонента {{comp}}. Какие причины утечки
+    возможны?
+  options:
+    correct:
+      - "window.addEventListener('{{event}}', …) без removeEventListener при размонтировании"
+      - "setInterval без clearInterval при размонтировании"
+      - "Глобальный кэш Map, который только растёт и хранит ссылки на объекты"
+      - "Ссылки на удалённые из DOM узлы в замыканиях или массивах (detached DOM)"
+    wrong:
+      - "Хранение данных в WeakMap с DOM-узлами в качестве ключей"
+      - "Стрелочные функции в обработчиках событий"
+      - "Большое количество CSS-классов на элементах"
+      - "Объявление переменных через let вместо const"
+
+- id: fe.perf.lcp_image
+  specializations: [frontend]
+  topic: performance
+  skills: [html]
+  kind: multi_choice
+  irt: {a: 1.2, b: 1.3}
+  n_options: 5
+  params:
+    img: {choice: [hero.jpg, banner.jpg, cover.png, promo.jpg]}
+    page: {choice: [лендинга, карточки товара, главной страницы]}
+  stem: >-
+    LCP-элемент {{page}} — изображение {{img}} в первом экране, подключённое тегом <img loading="lazy">.
+    LCP равен 4,1 с. Какие изменения ускорят LCP?
+  options:
+    correct:
+      - "Убрать loading=\"lazy\" с этого изображения"
+      - "Добавить fetchpriority=\"high\""
+      - "Отдавать изображение подходящего размера в AVIF или WebP через srcset"
+      - "Предзагрузить изображение через <link rel=\"preload\" as=\"image\">"
+    wrong:
+      - "Вставлять изображение из JavaScript после события load"
+      - "Задать изображение фоном в CSS-файле, подключённом в конце <body>"
+      - "Перенести изображение на отдельный домен без preconnect"
+      - "Заменить <img> на элемент, который показывается после гидрации приложения"
+
+- id: fe.perf.diagnose_slow_input
+  specializations: [frontend]
+  topic: performance
+  skills: [react, javascript]
+  kind: open_approach
+  irt: {a: 1.0, b: 0.8}
+  time_limit_sec: 600
+  params:
+    n: {choice: ["2 000", "5 000", "10 000"]}
+    entity: {choice: [товаров, заказов, сотрудников]}
+  stem: >-
+    На странице со списком из {{n}} {{entity}} есть поле фильтра. При вводе каждый символ появляется с
+    заметной задержкой, особенно на слабых ноутбуках. Опишите, как найдёте причину и какие решения
+    рассмотрите.
+  rubric:
+    - "Сначала измеряет: Performance в DevTools или React Profiler, ищет долгие задачи и лишние рендеры"
+    - Проверяет причину лишних перерисовок (состояние поднято слишком высоко, нестабильные props, отсутствие мемоизации)
+    - Предлагает виртуализацию длинного списка
+    - Предлагает отложить тяжёлую работу (debounce фильтрации, useDeferredValue или startTransition, Web Worker)
+    - Подтверждает эффект повторным измерением после изменений

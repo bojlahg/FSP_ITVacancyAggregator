@@ -1,0 +1,113 @@
+# QA · тестирование API (§10.2). Формат: content/templates/README.md
+
+- id: qa.api.status_scenario
+  specializations: [qa]
+  topic: api_testing
+  skills: [api_testing, rest]
+  kind: single_choice
+  irt: {a: 1.0, b: -1.0}
+  generator: qa.api_status_scenario
+
+- id: qa.api.negative_checks
+  specializations: [qa]
+  topic: api_testing
+  skills: [api_testing, test_design]
+  kind: multi_choice
+  irt: {a: 1.0, b: -0.8}
+  n_options: 5
+  params:
+    resource: {choice: [/api/v1/users, /api/v1/tickets, /api/v1/comments, /api/v1/products]}
+    field: {choice: [name, title, text]}
+    max: {choice: [50, 100, 255]}
+  stem: >-
+    Для POST {{resource}} поле {{field}} обязательно, это строка длиной от 1 до {{max}} символов, запрос
+    требует токен. Какие проверки относятся к негативным?
+  options:
+    correct:
+      - "Запрос без поля {{field}}"
+      - "Поле {{field}} длиной на 1 символ больше {{max}}"
+      - "Поле {{field}} передано числом вместо строки"
+      - "Запрос без заголовка Authorization"
+    wrong:
+      - "Поле {{field}} длиной ровно {{max}} символов"
+      - "Поле {{field}} длиной 1 символ"
+      - "Корректный запрос со всеми полями и валидным токеном"
+      - "Поле {{field}} с кириллицей длиной 10 символов"
+
+- id: qa.api.idempotent_methods
+  specializations: [qa]
+  topic: api_testing
+  skills: [api_testing, http]
+  kind: multi_choice
+  irt: {a: 1.1, b: -0.2}
+  n_options: 5
+  params:
+    resource: {choice: [заказа, платежа, профиля, бронирования]}
+  stem_variants:
+    - "Клиент API {{resource}} автоматически повторяет запрос после таймаута. Какие HTTP-методы по RFC 9110 идемпотентны?"
+    - "Проверяете, безопасно ли повторять запросы к API {{resource}}. Какие методы по RFC 9110 идемпотентны?"
+  options:
+    correct: [GET, PUT, DELETE, HEAD, OPTIONS]
+    wrong: [POST, PATCH, CONNECT]
+
+- id: qa.api.jsonpath_filter
+  specializations: [qa]
+  topic: api_testing
+  skills: [api_testing]
+  kind: code_output
+  irt: {a: 1.2, b: 0.3}
+  time_limit_sec: 150
+  generator: qa.jsonpath_filter
+
+- id: qa.api.json_schema_invalid
+  specializations: [qa]
+  topic: api_testing
+  skills: [api_testing, openapi_spec]
+  kind: single_choice
+  irt: {a: 1.2, b: 0.6}
+  time_limit_sec: 150
+  generator: qa.json_schema_invalid
+
+- id: qa.api.jwt_checks
+  specializations: [qa]
+  topic: api_testing
+  skills: [api_testing, oauth]
+  kind: multi_choice
+  irt: {a: 1.2, b: 1.1}
+  n_options: 5
+  params:
+    service: {choice: [платёжного сервиса, личного кабинета, API партнёров, мобильного банка]}
+  stem: "API {{service}} принимает JWT в заголовке Authorization: Bearer. Какие утверждения и проверки верны?"
+  options:
+    correct:
+      - "Payload JWT не зашифрован: его может прочитать любой, у кого есть токен"
+      - "Нужно проверить, что сервер отклоняет токен с alg: none"
+      - "Токен с изменённым payload без новой подписи должен отклоняться"
+      - "Токен с истёкшим exp должен приводить к 401"
+    wrong:
+      - "Подпись JWT шифрует payload, поэтому в нём можно хранить пароль"
+      - "Сервер обязан хранить все выданные JWT, иначе подпись не проверить"
+      - "Токен с истёкшим exp должен приводить к 403"
+      - "Base64url-кодирование частей JWT защищает данные от чтения"
+
+- id: qa.api.graphql_partial_error
+  specializations: [qa]
+  topic: api_testing
+  skills: [api_testing, graphql]
+  kind: single_choice
+  status: pilot
+  irt: {a: 1.0, b: 0.5}
+  params:
+    field: {choice: [reviews, recommendations, deliveryInfo]}
+    root: {choice: [product, order, user]}
+  stem: >-
+    GraphQL-запрос { {{root}}(id: 1) { name {{field}} { id } } } выполняется, но резолвер поля {{field}}
+    падает с ошибкой. Как обычно выглядит ответ сервера (application/json) и что проверить?
+  options:
+    correct:
+      - "HTTP 200; в теле есть data с частичными данными ({{field}}: null) и массив errors с path к {{field}}"
+    wrong:
+      - "HTTP 500 и пустое тело"
+      - "HTTP 404, потому что поле {{field}} не найдено"
+      - "HTTP 200 и только data без errors: ошибки резолверов не возвращаются"
+      - "HTTP 400, потому что запрос считается синтаксически неверным"

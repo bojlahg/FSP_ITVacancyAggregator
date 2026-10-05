@@ -1,0 +1,81 @@
+# Frontend · тестирование (§10.2). Формат: content/templates/README.md
+
+- id: fe.test.mock_called_times
+  specializations: [frontend]
+  topic: testing
+  skills: [jest, unit_testing]
+  kind: single_choice
+  irt: {a: 1.0, b: -1.2}
+  params:
+    fn: {choice: [onSave, onSubmit, onSelect, onClose, trackEvent]}
+    n: {int: [2, 4]}
+    lib: {choice: [Jest, Vitest]}
+  stem: >-
+    В тесте на {{lib}} колбэк {{fn}} — мок-функция (jest.fn() или vi.fn()). Нужно проверить, что он был
+    вызван ровно {{n}} раза. Какая проверка это делает?
+  options:
+    correct:
+      - "expect({{fn}}).toHaveBeenCalledTimes({{n}})"
+    wrong:
+      - "expect({{fn}}).toBe({{n}})"
+      - "expect({{fn}}).toHaveLength({{n}})"
+      - "expect({{fn}}).toHaveBeenCalledWith({{n}})"
+      - "expect({{fn}}()).toEqual({{n}})"
+
+- id: fe.test.rtl_query_choice
+  specializations: [frontend]
+  topic: testing
+  skills: [react, unit_testing]
+  kind: single_choice
+  irt: {a: 1.1, b: -0.1}
+  generator: frontend.rtl_query_choice
+
+- id: fe.test.debounced_search
+  specializations: [frontend]
+  topic: testing
+  skills: [jest, unit_testing]
+  kind: multi_choice
+  irt: {a: 1.1, b: 0.5}
+  n_options: 5
+  params:
+    ms: {choice: [300, 400, 500]}
+    comp: {choice: [SearchBox, CitySelect, ProductFilter]}
+  stem: >-
+    Компонент {{comp}} отправляет запрос к API через debounce {{ms}} мс после ввода. В тесте включены
+    фейковые таймеры (vi.useFakeTimers() или jest.useFakeTimers()). Какие действия делают тест
+    корректным и быстрым?
+  options:
+    correct:
+      - "Продвинуть время на {{ms}} мс через vi.advanceTimersByTime или jest.advanceTimersByTime"
+      - "Подменить сетевой слой (MSW или мок fetch), чтобы не ходить в реальный API"
+      - "Проверять отправку запроса после продвижения таймеров, а не сразу после ввода"
+    wrong:
+      - "Сразу после ввода синхронно проверить, что запрос уже отправлен"
+      - "Ждать реальные {{ms}} мс через await new Promise(r => setTimeout(r, {{ms}})) при включённых фейковых таймерах"
+      - "Увеличить таймаут теста до 30 секунд"
+      - "Убрать debounce из кода компонента, чтобы тест проходил"
+
+- id: fe.test.flaky_e2e
+  specializations: [frontend]
+  topic: testing
+  skills: [playwright, test_automation]
+  kind: multi_choice
+  irt: {a: 1.2, b: 1.0}
+  n_options: 5
+  params:
+    flow: {choice: [оформления заказа, регистрации, оплаты подписки, загрузки аватара]}
+    pct: {choice: ["5%", "10%", "15%"]}
+  stem: >-
+    E2E-тест сценария {{flow}} на Playwright падает примерно в {{pct}} запусков без изменений кода.
+    Какие причины нестабильности типичны?
+  options:
+    correct:
+      - "Фиксированные паузы (waitForTimeout, sleep) вместо ожидания нужного состояния"
+      - "Тесты зависят от общего состояния и порядка выполнения"
+      - "Тест обращается к реальному внешнему API с нестабильными ответами"
+      - "Селекторы привязаны к сгенерированным CSS-классам, которые меняются между сборками"
+    wrong:
+      - "Поиск элементов через getByRole и доступное имя"
+      - "Проверки через expect(locator).toBeVisible() с автоматическим ожиданием"
+      - "Запуск каждого теста в отдельном browser context"
+      - "Подготовка тестовых данных через API перед тестом"

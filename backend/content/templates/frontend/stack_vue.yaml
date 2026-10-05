@@ -1,0 +1,120 @@
+# Frontend · стек-модуль vue (§10.2). Формат: content/templates/README.md
+
+- id: fe.vue.if_vs_show
+  specializations: [frontend]
+  topic: stack
+  stack_module: vue
+  skills: [vue]
+  kind: single_choice
+  irt: {a: 1.0, b: -0.9}
+  generator: frontend.vue_if_show
+
+- id: fe.vue.prop_mutation
+  specializations: [frontend]
+  topic: stack
+  stack_module: vue
+  skills: [vue]
+  kind: single_choice
+  irt: {a: 1.0, b: -0.7}
+  params:
+    prop: {choice: [selected, count, title, isOpen]}
+    child: {choice: [TodoItem, CounterButton, ModalDialog, TagInput]}
+  stem: >-
+    Дочерний компонент {{child}} получает prop {{prop}} и должен сообщить, что значение нужно изменить.
+    Как это сделать правильно в Vue 3?
+  options:
+    correct:
+      - "Сгенерировать событие через emit, чтобы родитель сам изменил своё состояние"
+    wrong:
+      - "Присвоить новое значение props.{{prop}} прямо в дочернем компоненте"
+      - "Изменить данные родителя через this.$parent"
+      - "Обернуть props в reactive() и изменить {{prop}}"
+      - "Объявить prop с опцией mutable: true"
+
+- id: fe.vue.computed_vs_watch
+  specializations: [frontend]
+  topic: stack
+  stack_module: vue
+  skills: [vue]
+  kind: multi_choice
+  irt: {a: 1.1, b: 0.0}
+  n_options: 5
+  params:
+    value: {choice: [итоговую сумму корзины, отфильтрованный список задач, полное имя пользователя]}
+  stem: >-
+    В компоненте Vue нужно показывать {{value}}, а при смене фильтра ещё и отправлять запрос к API.
+    Какие утверждения о computed и watch верны?
+  options:
+    correct:
+      - "computed кэшируется и пересчитывается только при изменении своих реактивных зависимостей"
+      - "watch подходит для побочных эффектов, например запроса к API при изменении значения"
+      - "Метод, вызванный в шаблоне, выполняется заново при каждом рендере компонента"
+    wrong:
+      - "computed пересчитывается при каждом рендере, как метод"
+      - "watch возвращает значение, которое можно вывести в шаблоне"
+      - "computed предназначен для асинхронных вычислений с await внутри геттера"
+      - "watch срабатывает только при первом монтировании компонента"
+
+- id: fe.vue.v_model_component
+  specializations: [frontend]
+  topic: stack
+  stack_module: vue
+  skills: [vue]
+  kind: single_choice
+  irt: {a: 1.1, b: 0.3}
+  params:
+    comp: {choice: [DatePicker, ColorInput, RatingStars, PhoneField]}
+  stem: >-
+    Родитель использует <{{comp}} v-model="value" /> в Vue 3 (без аргумента у v-model). Что должен
+    реализовать {{comp}}, если не использовать макрос defineModel?
+  options:
+    correct:
+      - "Принимать prop modelValue и генерировать событие update:modelValue"
+    wrong:
+      - "Принимать prop value и генерировать событие input"
+      - "Принимать prop model и изменять его напрямую"
+      - "Генерировать событие change с новым значением"
+      - "Получать значение через inject('v-model')"
+
+- id: fe.vue.mount_order
+  specializations: [frontend]
+  topic: stack
+  stack_module: vue
+  skills: [vue]
+  kind: ordering
+  irt: {a: 1.2, b: 0.8}
+  params:
+    parent: {choice: [App, CheckoutPage, Dashboard]}
+    child: {choice: [CartSummary, UserAvatar, ChartWidget]}
+  stem: >-
+    Родитель {{parent}} содержит в шаблоне дочерний компонент {{child}}. Оба используют Composition API.
+    Расположите вызовы при первом монтировании в правильном порядке.
+  order_items:
+    - "{{parent}}: setup()"
+    - "{{parent}}: onBeforeMount"
+    - "{{child}}: setup()"
+    - "{{child}}: onBeforeMount"
+    - "{{child}}: onMounted"
+    - "{{parent}}: onMounted"
+
+- id: fe.vue.reactivity_pitfalls
+  specializations: [frontend]
+  topic: stack
+  stack_module: vue
+  skills: [vue]
+  kind: multi_choice
+  irt: {a: 1.2, b: 1.1}
+  n_options: 5
+  params:
+    state: {choice: [form, filters, cart, profile]}
+  stem: "Какие утверждения о реактивности Vue 3 верны (состояние {{state}} создано через reactive() или ref())?"
+  options:
+    correct:
+      - "Деструктуризация const { a } = {{state}} из reactive() теряет реактивность; помогает toRefs"
+      - "В шаблоне ref верхнего уровня разворачивается автоматически, без .value"
+      - "Присваивание переменной {{state}} нового объекта reactive({...}) разрывает связь с уже отрисованным шаблоном"
+    wrong:
+      - "ref() работает только с примитивами, объекты в него класть нельзя"
+      - "reactive() делает реактивным переданный примитив, например число"
+      - "Vue 3 не отслеживает добавление нового свойства в reactive-объект"
+      - "watch не может следить за свойствами вложенных объектов"

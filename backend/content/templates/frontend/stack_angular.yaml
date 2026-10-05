@@ -1,0 +1,112 @@
+# Frontend · стек-модуль angular (§10.2). Формат: content/templates/README.md
+
+- id: fe.ng.binding_syntax
+  specializations: [frontend]
+  topic: stack
+  stack_module: angular
+  skills: [angular]
+  kind: single_choice
+  irt: {a: 1.0, b: -1.1}
+  generator: frontend.ng_binding_syntax
+
+- id: fe.ng.lifecycle_order
+  specializations: [frontend]
+  topic: stack
+  stack_module: angular
+  skills: [angular]
+  kind: ordering
+  irt: {a: 1.1, b: -0.6}
+  params:
+    comp: {choice: [UserCardComponent, OrderListComponent, ChartComponent]}
+    input: {choice: [user, orders, data]}
+  stem: >-
+    Компонент {{comp}} имеет @Input() {{input}}, который родитель привязывает в шаблоне. Расположите
+    вызовы в порядке их первого выполнения за время жизни компонента.
+  order_items:
+    - "constructor"
+    - "ngOnChanges (первое значение {{input}})"
+    - "ngOnInit"
+    - "ngAfterViewInit"
+    - "ngOnDestroy"
+
+- id: fe.ng.unsubscribe
+  specializations: [frontend]
+  topic: stack
+  stack_module: angular
+  skills: [angular]
+  kind: multi_choice
+  irt: {a: 1.1, b: -0.2}
+  n_options: 5
+  params:
+    stream: {choice: ["interval(1000)", "поток WebSocket-сообщений", "store.select(...)", "router.events"]}
+  stem: >-
+    Компонент подписывается на {{stream}} — поток, который сам не завершается. Какие способы
+    предотвращают утечку подписки после уничтожения компонента?
+  options:
+    correct:
+      - "Использовать async pipe в шаблоне вместо ручного subscribe"
+      - "Применить оператор takeUntilDestroyed() из @angular/core/rxjs-interop"
+      - "Сохранить Subscription и вызвать unsubscribe() в ngOnDestroy"
+    wrong:
+      - "Подписаться в конструкторе — тогда Angular отпишет автоматически"
+      - "Заменить Subject на BehaviorSubject"
+      - "Повторно вызвать subscribe() — предыдущая подписка отменится"
+      - "Объявить поле с подпиской как private"
+
+- id: fe.ng.di_scopes
+  specializations: [frontend]
+  topic: stack
+  stack_module: angular
+  skills: [angular]
+  kind: multi_choice
+  irt: {a: 1.1, b: 0.3}
+  n_options: 5
+  params:
+    service: {choice: [CartService, AuthService, ThemeService, LoggerService]}
+    comp: {choice: [ProductCardComponent, ModalComponent, TabComponent]}
+  stem: "Какие утверждения о внедрении зависимостей в Angular верны для сервиса {{service}}?"
+  options:
+    correct:
+      - "С @Injectable({ providedIn: 'root' }) создаётся один экземпляр {{service}} на всё приложение"
+      - "Если {{service}} указан в providers у {{comp}}, каждый экземпляр {{comp}} получает свой экземпляр сервиса"
+      - "Сервис с providedIn: 'root', который нигде не внедряется, может быть удалён из бандла при tree shaking"
+    wrong:
+      - "С providedIn: 'root' новый экземпляр {{service}} создаётся при каждом inject()"
+      - "Сервис из providers компонента {{comp}} доступен всем компонентам приложения"
+      - "Все сервисы создаются при старте приложения, даже если нигде не используются"
+      - "Сервис нельзя внедрить через функцию inject(), только через конструктор"
+
+- id: fe.ng.rxjs_flattening
+  specializations: [frontend]
+  topic: stack
+  stack_module: angular
+  skills: [angular]
+  kind: single_choice
+  irt: {a: 1.2, b: 0.5}
+  generator: frontend.rxjs_flattening
+
+- id: fe.ng.onpush_triggers
+  specializations: [frontend]
+  topic: stack
+  stack_module: angular
+  skills: [angular]
+  kind: multi_choice
+  irt: {a: 1.2, b: 1.2}
+  n_options: 5
+  params:
+    comp: {choice: [PriceTagComponent, UserBadgeComponent, OrderRowComponent]}
+    input: {choice: [product, user, order]}
+  stem: >-
+    Компонент {{comp}} использует ChangeDetectionStrategy.OnPush и получает @Input() {{input}} (объект).
+    Сигналы не используются, приложение работает с Zone.js. В каких случаях Angular проверит его шаблон
+    при ближайшем цикле обнаружения изменений?
+  options:
+    correct:
+      - "Родитель передал в {{input}} новый объект (изменилась ссылка)"
+      - "В шаблоне {{comp}} сработал обработчик DOM-события, например (click)"
+      - "Через async pipe в шаблоне пришло новое значение"
+      - "Код компонента вызвал ChangeDetectorRef.markForCheck()"
+    wrong:
+      - "Родитель изменил поле внутри объекта {{input}}, не меняя ссылку"
+      - "Сработал setTimeout в стороннем сервисе, не связанном с компонентом"
+      - "Изменилось обычное поле сервиса-синглтона, который внедрён в компонент"

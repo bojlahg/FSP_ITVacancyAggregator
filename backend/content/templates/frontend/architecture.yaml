@@ -1,0 +1,99 @@
+# Frontend · архитектура (§10.2). Формат: content/templates/README.md
+
+- id: fe.arch.prop_drilling
+  specializations: [frontend]
+  topic: architecture
+  skills: [react, design_patterns]
+  kind: single_choice
+  irt: {a: 1.0, b: -1.0}
+  params:
+    prop: {choice: [currentUser, theme, locale, permissions]}
+    n: {choice: [3 уровня, 4 уровня, 5 уровней, 6 уровней]}
+  stem: >-
+    Значение {{prop}} передаётся через props на {{n}} вниз, и промежуточные компоненты сами его не
+    используют. Как называется проблема и что обычно применяют?
+  options:
+    correct:
+      - "Prop drilling; применяют контекст (Context, provide/inject) или композицию компонентов"
+    wrong:
+      - "Tree shaking; применяют динамический import()"
+      - "Гидрация; применяют серверный рендеринг"
+      - "Мемоизация; применяют useMemo в каждом промежуточном компоненте"
+      - "Race condition; применяют AbortController"
+
+- id: fe.arch.state_placement
+  specializations: [frontend]
+  topic: architecture
+  skills: [react, tanstack_query]
+  kind: single_choice
+  irt: {a: 1.1, b: -0.2}
+  generator: frontend.state_placement
+
+- id: fe.arch.ssr_tradeoffs
+  specializations: [frontend]
+  topic: architecture
+  skills: [nextjs, react]
+  kind: multi_choice
+  irt: {a: 1.1, b: 0.5}
+  n_options: 5
+  params:
+    page: {choice: [каталог товаров, блог компании, страницу вакансии, карточку товара]}
+    framework: {choice: [Next.js, Nuxt]}
+  stem: >-
+    Команда переводит {{page}} с клиентского рендеринга (CSR) на серверный (SSR) на {{framework}}. Какие
+    утверждения верны?
+  options:
+    correct:
+      - "SSR отдаёт готовый HTML, что обычно улучшает FCP и LCP и упрощает индексацию"
+      - "После SSR нужна гидрация: пока она не завершилась, интерактивные элементы могут не реагировать"
+      - "Код, обращающийся к window или localStorage, нельзя выполнять во время серверного рендера"
+      - "SSG генерирует HTML при сборке и подходит для страниц, которые меняются редко"
+    wrong:
+      - "SSR сокращает объём JavaScript, загружаемого клиентом, до нуля"
+      - "При гидрации браузер заново запрашивает HTML страницы с сервера"
+      - "SSG подходит для персональных данных каждого пользователя, вычисляемых при запросе"
+      - "При SSR состояние компонентов автоматически сохраняется между переходами по страницам на сервере"
+
+- id: fe.arch.microfrontends
+  specializations: [frontend]
+  topic: architecture
+  skills: [microservices, webpack]
+  kind: multi_choice
+  irt: {a: 1.1, b: 1.2}
+  n_options: 5
+  params:
+    teams: {int: [5, 9]}
+    product: {choice: [маркетплейса, банковского портала, CRM-системы]}
+  stem: >-
+    {{teams}} команд разрабатывают фронтенд {{product}} и обсуждают переход на микрофронтенды. Какие
+    утверждения о микрофронтендах верны?
+  options:
+    correct:
+      - "Они позволяют командам независимо собирать и деплоить свои части приложения"
+      - "Есть риск загрузить несколько копий общих зависимостей (например, React), если не настроить shared-зависимости"
+      - "Нужны общие договорённости: маршрутизация, обмен событиями, дизайн-система"
+    wrong:
+      - "Они автоматически уменьшают размер загружаемого JavaScript"
+      - "Они избавляют от необходимости версионировать общие библиотеки"
+      - "Они особенно выгодны маленькой команде с одним приложением"
+      - "Они гарантируют единый стиль интерфейса без общей дизайн-системы"
+
+- id: fe.arch.design_infinite_feed
+  specializations: [frontend]
+  topic: architecture
+  skills: [react, tanstack_query, system_design]
+  kind: open_approach
+  irt: {a: 1.0, b: 1.2}
+  time_limit_sec: 600
+  params:
+    feed: {choice: [ленту новостей, каталог объявлений, ленту отзывов]}
+  stem: >-
+    Нужно спроектировать на клиенте {{feed}} с бесконечной прокруткой: десятки тысяч элементов, новые
+    записи появляются постоянно, пользователь уходит на детальную страницу и возвращается назад. Опишите
+    подход к загрузке данных, рендерингу и состоянию.
+  rubric:
+    - Пагинация курсором (cursor/keyset), а не offset, с учётом новых записей
+    - Виртуализация списка, чтобы в DOM было ограниченное число элементов
+    - Кэш серверного состояния (TanStack Query и т.п.) с дедупликацией запросов и инвалидацией
+    - Состояния загрузки, ошибки и повтора запроса, отмена устаревших запросов
+    - Восстановление позиции прокрутки и загруженных страниц при возврате назад

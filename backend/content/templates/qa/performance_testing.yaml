@@ -1,0 +1,77 @@
+# QA · нагрузочное тестирование (§10.2). Формат: content/templates/README.md
+
+- id: qa.perf.test_type
+  specializations: [qa]
+  topic: performance_testing
+  skills: [load_testing]
+  kind: single_choice
+  irt: {a: 1.0, b: -0.8}
+  generator: qa.perf_test_type
+
+- id: qa.perf.littles_law
+  specializations: [qa]
+  topic: performance_testing
+  skills: [load_testing]
+  kind: numeric
+  irt: {a: 1.2, b: 0.4}
+  time_limit_sec: 150
+  generator: qa.littles_law
+
+- id: qa.perf.percentile
+  specializations: [qa]
+  topic: performance_testing
+  skills: [load_testing, statistics]
+  kind: numeric
+  irt: {a: 1.1, b: 0.5}
+  time_limit_sec: 180
+  generator: qa.percentile_nearest_rank
+
+- id: qa.perf.latency_interpretation
+  specializations: [qa]
+  topic: performance_testing
+  skills: [load_testing]
+  kind: multi_choice
+  irt: {a: 1.2, b: 1.0}
+  n_options: 5
+  params:
+    avg: {int: [120, 300], step: 20}
+    p99: {choice: ["2,5", "3", "4"]}
+    service: {choice: [поиска, оформления заказа, авторизации]}
+  stem: >-
+    В отчёте нагрузочного теста сервиса {{service}}: среднее время ответа {{avg}} мс, p99 — {{p99}} с.
+    Какие выводы верны?
+  options:
+    correct:
+      - "Среднее скрывает хвост распределения: SLO лучше задавать по перцентилям"
+      - "Рост p99 при стабильном среднем может указывать на блокировки, паузы GC или очереди"
+      - "Перцентили нескольких серверов нельзя усреднить, чтобы получить общий перцентиль"
+    wrong:
+      - "p99 = {{p99}} с означает, что 99% запросов выполняются за {{p99}} с и дольше"
+      - "Если среднее в норме, на перцентили можно не смотреть"
+      - "Медиана (p50) всегда равна среднему времени ответа"
+      - "p99 = {{p99}} с означает, что ровно 1 запрос из 99 был медленным"
+
+- id: qa.perf.workload_model
+  specializations: [qa]
+  topic: performance_testing
+  skills: [load_testing, jmeter]
+  kind: multi_choice
+  irt: {a: 1.2, b: 1.3}
+  n_options: 5
+  params:
+    vu: {int: [100, 500], step: 50}
+    rps: {int: [200, 1000], step: 100}
+  stem: >-
+    Сравниваются две модели нагрузки: закрытая ({{vu}} виртуальных пользователей, каждый шлёт следующий
+    запрос после ответа) и открытая (поступает {{rps}} запросов в секунду независимо от ответов). Сервер
+    начинает деградировать. Какие утверждения верны?
+  options:
+    correct:
+      - "В закрытой модели при росте времени ответа интенсивность запросов падает, и деградация может быть незаметна по RPS"
+      - "В открытой модели при замедлении сервера растёт число одновременных запросов и очередь"
+      - "Открытая модель лучше описывает публичный сайт, куда пользователи приходят независимо друг от друга"
+    wrong:
+      - "В закрытой модели интенсивность не зависит от времени ответа сервера"
+      - "Модели эквивалентны: {{vu}} пользователей всегда дают {{rps}} RPS"
+      - "В открытой модели генератор ждёт ответа перед отправкой следующего запроса"
+      - "Закрытая модель лучше выявляет переполнение очередей при наплыве пользователей"
