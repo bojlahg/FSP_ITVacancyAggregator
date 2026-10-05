@@ -87,12 +87,12 @@ export default function LandingPage() {
         <div className="mt-10 flex flex-wrap items-center gap-3">
           <Button asChild size="lg">
             <Link to="/register?role=candidate">
-              <UserRound /> Я кандидат
+              <UserRound /> Регистрация кандидата
             </Link>
           </Button>
           <Button asChild size="lg" variant="outline">
             <Link to="/register?role=employer">
-              <Building2 /> Я работодатель
+              <Building2 /> Регистрация работодателя
             </Link>
           </Button>
           <Button asChild size="lg" variant="link">

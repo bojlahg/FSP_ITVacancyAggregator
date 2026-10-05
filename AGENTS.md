@@ -141,7 +141,7 @@ infra/                       compose, Caddyfile, keycloak realm, заглушк�
 
 ## Сервер
 
-- Прод: `ssh itscout` (root@94.103.87.151, Ubuntu 26.04, 7,25 ГБ RAM + своп 2 ГБ). Приложение — `/opt/itscout/app` (туда rsync'ает CI), секреты — `/opt/itscout/app/.env` (права 600, в git нет).
+- Прод: `ssh itscout` (root@94.103.87.151, Ubuntu 26.04, 4 vCPU, 7,25 ГБ RAM + своп 2 ГБ). Приложение — `/opt/itscout/app` (туда rsync'ает CI), секреты — `/opt/itscout/app/.env` (права 600, в git нет).
 - Docker Hub с сервера работает только через зеркало `mirror.gcr.io` (настроено в `/etc/docker/daemon.json`).
 - **Без SSH (облачные сессии):** операции с продом — через workflow `Server ops` на ключе деплоя из GitHub Secrets: `gh workflow run server-ops.yml -f action=status|logs|reseed|restart|swap [-f service=backend] [-f lines=200]`, результат — `gh run watch <id>` и `gh run view <id> --log`. Произвольных команд там нет намеренно. После того как репозиторий станет публичным, логи Actions видны всем — `logs` запускай только при необходимости.
 - Тесты с БД без доступа к серверу: локальный Postgres 16 в песочнице (`DATABASE_URL=postgresql+psycopg://...`), у каждой параллельной задачи своя база — тесты делают drop_all/create_all.

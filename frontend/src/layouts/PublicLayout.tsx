@@ -23,11 +23,18 @@ export default function PublicLayout() {
               <Link to={homePathFor(user.role)}>В кабинет</Link>
             </Button>
           ) : (
-            pathname !== "/login" && (
-              <Button asChild variant={isLanding ? "outline" : "ghost"} size="sm">
-                <Link to="/login">Войти</Link>
-              </Button>
-            )
+            <>
+              {pathname !== "/login" && (
+                <Button asChild variant={isLanding ? "outline" : "ghost"} size="sm">
+                  <Link to="/login">Войти</Link>
+                </Button>
+              )}
+              {pathname !== "/register" && (
+                <Button asChild size="sm">
+                  <Link to="/register">Зарегистрироваться</Link>
+                </Button>
+              )}
+            </>
           )}
         </div>
       </header>
