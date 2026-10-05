@@ -86,7 +86,7 @@ function Decision({ decision }: { decision: GradeDecision }) {
     <div className="space-y-4">
       <p>
         Категорию <b>{decision.category.label}</b> присвоил тест, завершённый{" "}
-        <b className="font-mono">{formatDate(decision.tested_at)}</b>. Оценка способности θ̂ сравнивается с порогом
+        <b className="font-mono">{formatDate(decision.tested_at)}</b> Оценка способности θ̂ сравнивается с порогом
         грейда на шкале специализации: θ̂ не ниже порога — грейд подтверждён.
         {decision.result === "confident_pass" && " Результат с запасом больше погрешности — можно пробовать следующий грейд."}
       </p>
@@ -142,7 +142,7 @@ function Decision({ decision }: { decision: GradeDecision }) {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Результат действует до {formatDate(decision.valid_until)}. Подробно о заданиях и шкале —{" "}
+        Результат действует до {formatDate(decision.valid_until)} Подробно о заданиях и шкале —{" "}
         <Link to="/how-it-works" className="text-primary underline underline-offset-4">
           как работает тест
         </Link>

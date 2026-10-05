@@ -103,7 +103,7 @@ export function GradeEvidenceCard({
             {evidence.short_mode ? " (сокращённый демо-режим)" : ""}: {items} с оценкой, задания подбирались по
             ответам;{" "}
             <span className="font-mono whitespace-nowrap tabular-nums">
-              θ = {evidence.theta.toFixed(2)} ± {evidence.se.toFixed(2)}
+              θ = {evidence.theta.toFixed(2).replace(".", ",")} ± {evidence.se.toFixed(2).replace(".", ",")}
             </span>
           </Fact>
           {audience === "employer" && integrity && (
