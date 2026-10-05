@@ -32,8 +32,8 @@ openapi:       ## выгрузить backend/openapi.json и перегенер�
 migration:     ## make migration m="описание"
 	cd backend && uv run alembic revision --autogenerate -m "$(m)"
 
-reseed:
-	@echo "TODO(T07): генератор демо-данных"
+reseed:        ## демо-данные заново (на сервере: в контейнере backend)
+	$(DC) exec -T backend python -m seed.generate
 
 validate:
 	@echo "TODO(T19): процедура валидации"

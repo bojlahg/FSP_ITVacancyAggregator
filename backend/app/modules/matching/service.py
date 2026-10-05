@@ -108,6 +108,7 @@ async def refresh_candidate(db: AsyncSession, candidate_id: int) -> None:
     row.vps = vps(current.percentile, row.fsp_score, fresh, approach)
     row.skills_status = skills
     row.topic_scores = (attempt.topic_scores or {}) if attempt else {}
+    row.skill_scores = (attempt.skill_scores or {}) if attempt else {}
     row.salary_min = candidate.salary_min
     row.work_formats = list(candidate.work_formats or [])
     row.city = candidate.city
@@ -230,6 +231,7 @@ def _facts(row: CandidateSearchIndex, best_fsp: str | None, now: datetime) -> sc
         theta=row.theta,
         percentile=row.percentile,
         topic_scores=row.topic_scores or {},
+        skill_scores=row.skill_scores or {},
         skills_status=row.skills_status or {},
         fsp_score=row.fsp_score,
         has_fsp=row.has_fsp,

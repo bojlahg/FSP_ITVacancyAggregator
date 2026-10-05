@@ -37,6 +37,7 @@ def facts(candidate_id: int, **overrides) -> CandidateFacts:
         salary_min=240_000,
         work_formats=["hybrid"],
         city="Москва",
+        skill_scores={"postgresql": {"correct": 3, "items": 4}},
     )
     return CandidateFacts(**(base | overrides))
 
@@ -101,7 +102,7 @@ def test_explanation_matches_components():
     result = evaluate(facts(1, salary_min=300_000, fsp_score=0.5, best_fsp="2 место из 412"), NEED, LABELS)
     texts = [line["text"] for line in result.lines]
     assert texts[0].startswith("Категория совпадает: Backend · Middle")
-    assert any(text == "PostgreSQL — проверено тестом: «Базы данных» 80%" for text in texts)
+    assert "PostgreSQL — проверено тестом: 3 из 4 заданий" in texts
     assert any(text.startswith("ФСП: 2 место") for text in texts)
     assert result.lines[-1]["kind"] == "warning" and "выше вилки" in result.lines[-1]["text"]
     assert result.components["conditions"] < 1.0

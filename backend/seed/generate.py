@@ -62,7 +62,7 @@ from app.modules.testing.engine.bank import GRADE_ORDER, get_bank, get_blueprint
 from app.modules.testing.engine.irt import probability
 from app.modules.testing.engine.render import render
 from app.modules.testing.engine.scoring import score
-from app.modules.testing.engine.session import STAGE_OPEN, Answered, AttemptConfig, Planner
+from app.modules.testing.engine.session import Answered, AttemptConfig, Planner
 from seed import data
 
 SEED = 2026
@@ -159,8 +159,14 @@ class Seeder:
             for _ in range(self.rng.choices([1, 2, 3, 4, 5], [30, 30, 20, 12, 8])[0])
         ]
         used = set()
-        for discipline, role, wanted_pct in plan:
-            pool = [c for c in self.competitions if c["discipline"] == discipline and c["id"] not in used]
+        for discipline, role, wanted_pct, *level in plan:
+            pool = [
+                c
+                for c in self.competitions
+                if c["discipline"] == discipline
+                and c["id"] not in used
+                and (not level or c["level"] == level[0])
+            ]
             if not pool:
                 continue
             competition = self.rng.choice(pool)
@@ -231,35 +237,13 @@ class Seeder:
         total = max(self.attempts_by_spec[spec], 1)
         return {template_id: count / total for template_id, count in self.exposures.items()}
 
-    async def take_test(
-        self,
-        candidate: Candidate,
-        spec: str,
-        grade: str,
-        purpose: AttemptPurpose,
-        theta: float,
-        stack_modules: list[str],
-        started_at: datetime,
-    ) -> TestAttempt:
+    def simulate(self, spec: str, grade: str, theta: float, modules: list[str], started_at: datetime) -> dict:
+        """Прохождение теста движком без записи в БД: ответы по 3PL от θ кандидата (§12.1)."""
         rng = self.rng
-        config = AttemptConfig(spec, grade, rng.getrandbits(31), "full", tuple(stack_modules))
+        config = AttemptConfig(spec, grade, rng.getrandbits(31), "full", tuple(modules))
         planner = Planner(config, self.bank, self.blueprints, self.exposure(spec))
-        self.attempts_by_spec[spec] += 1
-        attempt = TestAttempt(
-            candidate_id=candidate.id,
-            specialization=spec,
-            grade_target=Grade(grade),
-            purpose=purpose,
-            blueprint={"mode": "full", "stack_modules": stack_modules},
-            seed=config.seed,
-            status=AttemptStatus.completed,
-            flags={},
-            started_at=started_at,
-        )
-        self.db.add(attempt)
-        await self.db.flush()
-
         history: list[Answered] = []
+        items: list[dict] = []
         moment = started_at
         open_scores = []
         while (next_item := planner.next_item(history)) is not None:
@@ -276,43 +260,94 @@ class Seeder:
                 correct = rng.random() < float(probability(theta, template.irt.a, b, template.guessing))
                 response = self.response_for(instance, correct)
                 item_score = score(instance.kind, instance.key, response)
+            items.append(
+                {
+                    "template": template,
+                    "instance": instance,
+                    "seed": next_item.instance_seed,
+                    "stage": next_item.stage,
+                    "scored": next_item.scored,
+                    "response": response,
+                    "score": item_score,
+                    "shown_at": moment,
+                    "elapsed": elapsed,
+                }
+            )
+            moment += elapsed
+            history.append(Answered(template.id, next_item.stage, next_item.scored, item_score))
+        return {
+            "config": config,
+            "items": items,
+            "summary": planner.summarize(history),
+            "open_scores": open_scores,
+            "finished_at": moment,
+            "history": history,
+        }
+
+    async def take_test(
+        self,
+        candidate: Candidate,
+        spec: str,
+        grade: str,
+        purpose: AttemptPurpose,
+        theta: float,
+        stack_modules: list[str],
+        started_at: datetime,
+        wanted: set[str] | None = None,
+    ) -> TestAttempt:
+        run = self.simulate(spec, grade, theta, stack_modules, started_at)
+        # Герои демо: перебрасываем попытку, пока результат не совпадёт со сценарием показа
+        for _ in range(40):
+            if wanted is None or run["summary"].result in wanted:
+                break
+            run = self.simulate(spec, grade, theta, stack_modules, started_at)
+        self.attempts_by_spec[spec] += 1
+        summary = run["summary"]
+        attempt = TestAttempt(
+            candidate_id=candidate.id,
+            specialization=spec,
+            grade_target=Grade(grade),
+            purpose=purpose,
+            blueprint={"mode": "full", "stack_modules": stack_modules},
+            seed=run["config"].seed,
+            status=AttemptStatus.completed,
+            flags={},
+            started_at=started_at,
+            theta=round(summary.theta, 4),
+            se=round(summary.se, 4),
+            result=AttemptResult(summary.result),
+            topic_scores=summary.topic_scores,
+            skill_scores=summary.skill_scores,
+            finished_at=run["finished_at"],
+            stage=max((a.stage for a in run["history"]), default=1),
+        )
+        if run["open_scores"]:
+            attempt.approach_score = round(sum(run["open_scores"]) / len(run["open_scores"]), 3)
+            attempt.flags = {"approach_graded_by": "seed"}
+        self.db.add(attempt)
+        await self.db.flush()
+        for position, item in enumerate(run["items"]):
+            template, instance = item["template"], item["instance"]
             self.exposures[template.id] += 1
-            self.correct[template.id] += int(item_score or 0)
+            self.correct[template.id] += int(item["score"] or 0)
             self.db.add(
                 TestAttemptItem(
                     attempt_id=attempt.id,
                     template_id=template.id,
                     template_version=template.version,
-                    instance_seed=next_item.instance_seed,
-                    stage=next_item.stage,
-                    position=len(history),
-                    scored=next_item.scored,
+                    instance_seed=item["seed"],
+                    stage=item["stage"],
+                    position=position,
+                    scored=item["scored"],
                     payload=instance.public_payload(),
                     answer_key=instance.key,
-                    response=response,
-                    score=item_score,
-                    shown_at=moment,
-                    answered_at=moment + elapsed,
-                    time_ms=int(elapsed.total_seconds() * 1000),
+                    response=item["response"],
+                    score=item["score"],
+                    shown_at=item["shown_at"],
+                    answered_at=item["shown_at"] + item["elapsed"],
+                    time_ms=int(item["elapsed"].total_seconds() * 1000),
                 )
             )
-            moment += elapsed
-            history.append(Answered(template.id, next_item.stage, next_item.scored, item_score))
-
-        summary = planner.summarize(history)
-        attempt.theta = round(summary.theta, 4)
-        attempt.se = round(summary.se, 4)
-        attempt.result = AttemptResult(summary.result)
-        attempt.topic_scores = summary.topic_scores
-        attempt.skill_scores = summary.skill_scores
-        attempt.finished_at = moment
-        if open_scores:
-            attempt.approach_score = round(sum(open_scores) / len(open_scores), 3)
-            attempt.flags = {
-                "approach_graded_by": "seed",
-                "open_answers": [a.template_id for a in history if a.stage == STAGE_OPEN],
-            }
-        attempt.stage = max((a.stage for a in history), default=1)
         self.verified[attempt.id] = summary.verified_skills
         return attempt
 
@@ -356,6 +391,7 @@ class Seeder:
         modules: list[str],
         start: datetime,
         allow_upgrade: bool = True,
+        wanted: set[str] | None = None,
     ) -> CandidateCategory | None:
         """Путь кандидата по §6.3: тест на заявленный грейд → вниз при провале → один раз вверх при уверенном."""
         grade, moment, category, last = declared, start, None, None
@@ -363,7 +399,7 @@ class Seeder:
         while grade and grade not in tried:
             tried.add(grade)
             attempt = await self.take_test(
-                candidate, spec, grade, AttemptPurpose.calibration, theta, modules, moment
+                candidate, spec, grade, AttemptPurpose.calibration, theta, modules, moment, wanted
             )
             moment = attempt.finished_at + timedelta(minutes=self.rng.randint(5, 90))
             last = attempt
@@ -423,13 +459,14 @@ class Seeder:
         declared: str | None = None,
         salary: tuple[int, int] | None = None,
         hero: bool = False,
+        skills: list[str] | None = None,
     ) -> dict:
         rng = self.rng
         first, last = name or self.person()[:2]
         theta = theta if theta is not None else rng.gauss(THETA_BY_GRADE[true_grade], 0.35)
         stacks = data.SPEC_STACKS[spec]
         module = module if module is not None else rng.choice(list(stacks))
-        skills = rng.sample(stacks[module], k=min(len(stacks[module]), rng.randint(4, 8)))
+        skills = skills or rng.sample(stacks[module], k=min(len(stacks[module]), rng.randint(4, 8)))
         if declared is None:
             ladder = GRADE_ORDER
             base = ladder.index(true_grade) if true_grade in ladder else 0
@@ -531,7 +568,14 @@ class Seeder:
         modules = [module] if module else []
 
         category = await self.calibrate(
-            candidate, spec, declared, theta, modules, created + timedelta(minutes=20), allow_upgrade=not hero
+            candidate,
+            spec,
+            declared,
+            theta,
+            modules,
+            created + timedelta(minutes=20),
+            allow_upgrade=not hero,
+            wanted={"pass", "confident_pass"} if hero else None,
         )
 
         has_fsp = with_fsp if with_fsp is not None else rng.random() < data.FSP_PROBABILITY[spec]
@@ -567,11 +611,12 @@ class Seeder:
                 declared="middle",
                 salary=(240000, 290000),
                 hero=True,
+                skills=["python", "fastapi", "postgresql", "kafka", "docker", "redis", "sql", "git"],
                 with_fsp=True,
                 fsp_plan=[
-                    ("product", "backend", 0.995),
-                    ("algorithmic", None, 0.96),
-                    ("product", "lead", 0.9),
+                    ("product", "backend", 0.996, "national"),
+                    ("algorithmic", None, 0.98, "national"),
+                    ("product", "lead", 0.9, "interregional"),
                 ],
             ),
             "ilya": await self.candidate(
@@ -584,6 +629,7 @@ class Seeder:
                 theta=-0.2,
                 city="Казань",
                 module="react",
+                skills=["javascript", "typescript", "react", "redux", "html", "css", "git"],
                 declared="junior",
                 salary=(110000, 140000),
                 with_fsp=False,
@@ -601,7 +647,17 @@ class Seeder:
                 salary=(380000, 450000),
                 hero=True,
                 with_fsp=True,
-                fsp_plan=[("infosec", None, 0.99), ("infosec", None, 0.95)],
+                skills=[
+                    "linux",
+                    "docker",
+                    "kubernetes",
+                    "terraform",
+                    "prometheus",
+                    "grafana",
+                    "gitlab_ci",
+                    "bash",
+                ],
+                fsp_plan=[("infosec", None, 0.99, "national"), ("infosec", None, 0.95, "interregional")],
             ),
         }
         index = 3

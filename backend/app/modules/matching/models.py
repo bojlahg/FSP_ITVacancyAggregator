@@ -28,6 +28,7 @@ class CandidateSearchIndex(Base):
     approach: Mapped[float | None] = mapped_column(Float)
     skills_status: Mapped[dict] = mapped_column(JSONB, default=dict)
     topic_scores: Mapped[dict] = mapped_column(JSONB, default=dict)
+    skill_scores: Mapped[dict] = mapped_column(JSONB, default=dict, server_default="{}")
     salary_min: Mapped[int | None] = mapped_column(Integer)
     work_formats: Mapped[list[str]] = mapped_column(ARRAY(String(16)), default=list)
     city: Mapped[str | None] = mapped_column(String(100))

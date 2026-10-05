@@ -61,6 +61,7 @@ class CandidateFacts:
     city: str | None = None
     relocation: bool = False
     best_fsp: str | None = None
+    skill_scores: dict[str, dict] = field(default_factory=dict)
 
 
 @dataclass
@@ -222,15 +223,11 @@ def explain(
         }[fit]
         lines.append(_line("neutral", "category", f"{category} — {reason}{percentile}"))
 
-    topics_by_skill = skill_topics(facts.specialization)
     for skill, required, _value, status in details:
         name = labels.get(skill, skill)
         if status == "verified":
-            topic = next(
-                iter(sorted(topics_by_skill.get(skill, frozenset()) & set(facts.topic_scores))), None
-            )
-            topic_name = labels.get(f"topic:{topic}", topic)
-            extra = f": «{topic_name}» {round(facts.topic_scores[topic]['score'] * 100)}%" if topic else ""
+            stats = facts.skill_scores.get(skill)
+            extra = f": {int(stats['correct'])} из {stats['items']} заданий" if stats else ""
             lines.append(_line("positive", "test", f"{name} — проверено тестом{extra}"))
         elif status in {"fsp_confirmed", "task_confirmed"}:
             source = "ФСП" if status == "fsp_confirmed" else "заданием"
