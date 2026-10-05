@@ -8,17 +8,21 @@
   irt: {a: 1.1, b: -1.2}
   params:
     alg: {choice: [ed25519, rsa, ecdsa]}
-    host: {choice: [bastion, deploy-01, db-replica, build-agent]}
-  stem: >-
-    ssh {{host}} отказывается использовать ключ: «WARNING: UNPROTECTED PRIVATE KEY FILE! Permissions 0644 for
-    '~/.ssh/id_{{alg}}' are too open». Какую команду выполнить?
+    host: {choice: [bastion, deploy-01, db-replica, build-agent, gitlab-runner, k8s-master-1]}
+    perm: {choice: ["0644", "0664", "0640", "0755", "0666"]}
+  stem_variants:
+    - "ssh {{host}} отказывается использовать ключ: «WARNING: UNPROTECTED PRIVATE KEY FILE! Permissions {{perm}} for '~/.ssh/id_{{alg}}' are too open». Какую команду выполнить?"
+    - "При подключении к {{host}} ssh пишет, что права {{perm}} на приватный ключ ~/.ssh/id_{{alg}} слишком открытые, и игнорирует ключ. Как исправить?"
   options:
-    correct: ["chmod 600 ~/.ssh/id_{{alg}}"]
+    correct: ["chmod 600 ~/.ssh/id_{{alg}}", "chmod 400 ~/.ssh/id_{{alg}}"]
     wrong:
       - "chmod 644 ~/.ssh/id_{{alg}}.pub"
+      - "chmod 600 ~/.ssh/id_{{alg}}.pub"
       - "chmod 640 ~/.ssh/id_{{alg}}"
       - "chmod 755 ~/.ssh/id_{{alg}}"
       - "chmod 666 ~/.ssh/id_{{alg}}"
+      - "chmod 700 ~/.ssh"
+      - "chmod 660 ~/.ssh/id_{{alg}}"
 
 - id: ops.sec.leaked_secret
   specializations: [devops]
@@ -50,18 +54,23 @@
   irt: {a: 1.2, b: 0.0}
   n_options: 5
   params:
-    app: {choice: [веб-приложения, воркера очереди, API-шлюза, сервиса отчётов]}
-  stem: "Какие меры уменьшают последствия взлома контейнера {{app}}? Отметьте все верные."
+    app: {choice: [веб-приложения, воркера очереди, API-шлюза, сервиса отчётов, сервиса платежей, админ-панели]}
+  stem_variants:
+    - "Какие меры уменьшают последствия взлома контейнера {{app}}? Отметьте все верные."
+    - "Проводится ревью безопасности манифестов {{app}}. Какие настройки ограничат злоумышленника, получившего выполнение кода в контейнере? Отметьте все верные."
   options:
     correct:
       - "Запускать процесс от непривилегированного пользователя (USER в Dockerfile, runAsNonRoot)"
       - "Сделать корневую файловую систему контейнера доступной только для чтения"
       - "Отбросить все Linux capabilities и добавить только необходимые"
       - "Не запускать контейнер с флагом --privileged"
+      - "Запретить повышение привилегий (allowPrivilegeEscalation: false)"
     wrong:
       - "Смонтировать /var/run/docker.sock, чтобы контейнер мог следить за соседями"
       - "Отключить seccomp-профиль ради совместимости"
       - "Использовать тег latest, чтобы образ всегда был свежим"
+      - "Использовать hostNetwork: true, чтобы трафик не шёл через оверлейную сеть"
+      - "Смонтировать каталог хоста / в контейнер только для чтения"
 
 - id: ops.sec.tls_chain
   specializations: [devops]
@@ -70,12 +79,11 @@
   kind: single_choice
   irt: {a: 1.3, b: 0.6}
   params:
-    host: {choice: [api.shop.example, pay.corp.example, itscout.test, lk.media.example]}
-    client: {choice: [curl, "сервис на Python (requests)"]}
-  stem: >-
-    https://{{host}} открывается в браузерах без предупреждений, но {{client}} падает с ошибкой проверки
-    сертификата «unable to get local issuer certificate». Системное хранилище корневых сертификатов на
-    клиенте актуальное. Какая причина наиболее вероятна?
+    host: {choice: [api.shop.example, pay.corp.example, itscout.test, lk.media.example, partners.bank.example, id.service.example]}
+    client: {choice: [curl, "сервис на Python (requests)", "Java-сервис", "клиент на Go", "мобильное приложение на Android"]}
+  stem_variants:
+    - "https://{{host}} открывается в браузерах без предупреждений, но {{client}} падает с ошибкой проверки сертификата «unable to get local issuer certificate». Системное хранилище корневых сертификатов на клиенте актуальное. Какая причина наиболее вероятна?"
+    - "После замены сертификата на {{host}} браузеры работают, а {{client}} перестал доверять серверу: не удаётся построить цепочку до доверенного корня. Корневые сертификаты на клиенте свежие. Что проверить на сервере?"
   options:
     correct:
       - "Сервер отдаёт только конечный сертификат без промежуточного; нужно настроить полную цепочку (fullchain)"
@@ -84,6 +92,8 @@
       - "Сервер не поддерживает TLS 1.3"
       - "Сертификат самоподписанный"
       - "Срок действия сертификата истёк"
+      - "Часы на клиенте отстают, и сертификат ещё не начал действовать"
+      - "На сервере не включён HSTS"
 
 - id: ops.sec.k8s_rbac
   specializations: [devops]
@@ -92,9 +102,11 @@
   kind: single_choice
   irt: {a: 1.2, b: 0.9}
   params:
-    ns: {choice: [billing, orders, reports, search]}
-    sa: {choice: [config-reader, app, watcher, sync-agent]}
-  stem: "ServiceAccount {{sa}} в namespace {{ns}} должен только читать ConfigMap в своём namespace. Как выдать права по принципу наименьших привилегий?"
+    ns: {choice: [billing, orders, reports, search, payments, auth]}
+    sa: {choice: [config-reader, app, watcher, sync-agent, exporter, reloader]}
+  stem_variants:
+    - "ServiceAccount {{sa}} в namespace {{ns}} должен только читать ConfigMap в своём namespace. Как выдать права по принципу наименьших привилегий?"
+    - "Поду с ServiceAccount {{sa}} (namespace {{ns}}) нужно получать и отслеживать ConfigMap только своего namespace. Какая конфигурация RBAC минимально достаточна?"
   options:
     correct:
       - "Role в {{ns}} с verbs get, list, watch на configmaps и RoleBinding этой Role на {{sa}}"
@@ -103,6 +115,8 @@
       - "Role в {{ns}} с нужными правами и ClusterRoleBinding, ссылающийся на эту Role"
       - "RoleBinding в {{ns}} на встроенную ClusterRole admin"
       - "Добавить {{sa}} в группу system:masters"
+      - "Role в {{ns}} с verbs * на configmaps и RoleBinding на {{sa}}"
+      - "RoleBinding в {{ns}} на встроенную ClusterRole edit"
 
 - id: ops.sec.k8s_secrets
   specializations: [devops]
@@ -112,8 +126,11 @@
   irt: {a: 1.2, b: 1.2}
   n_options: 5
   params:
-    ns: {choice: [billing, payments, auth, core]}
-  stem: "В namespace {{ns}} хранятся Secret с паролями БД. Какие утверждения о Kubernetes Secret верны (стандартная установка без дополнительной настройки)? Отметьте все верные."
+    ns: {choice: [billing, payments, auth, core, orders, crm]}
+    what: {choice: [пароли БД, токены внешних API, ключи шифрования, учётные данные реестра образов]}
+  stem_variants:
+    - "В namespace {{ns}} в Secret хранятся {{what}}. Какие утверждения о Kubernetes Secret верны (стандартная установка без дополнительной настройки)? Отметьте все верные."
+    - "Аудитор спрашивает, насколько защищены {{what}}, лежащие в Secret namespace {{ns}} (кластер без дополнительной настройки). Какие утверждения верны? Отметьте все верные."
   options:
     correct:
       - "Данные Secret хранятся в etcd в base64 без шифрования; шифрование at rest включается через EncryptionConfiguration или KMS"
@@ -124,3 +141,71 @@
       - "Secret доступен поду из любого namespace, если знать его имя"
       - "ConfigMap с immutable: true защищает пароли лучше, чем Secret"
       - "Смонтированный Secret записывается на диск ноды и остаётся там после удаления пода"
+      - "Право list на secrets показывает только имена секретов, без содержимого"
+      - "Secret нельзя прочитать через kubectl, только из смонтированного тома"
+
+- id: ops.sec.sshd_password_auth
+  specializations: [devops]
+  topic: security
+  skills: [linux]
+  kind: single_choice
+  irt: {a: 1.0, b: -1.4}
+  params:
+    host: {choice: [bastion, web-01, db-replica, build-agent, vpn-gw, monitoring]}
+    user: {choice: [deploy, admin, ops, ubuntu]}
+  stem_variants:
+    - "На сервере {{host}} всем пользователям (включая {{user}}) уже настроен вход по ключам. Как полностью запретить вход по SSH с паролем?"
+    - "Логи {{host}} показывают перебор паролей по SSH. У {{user}} и остальных есть ключи. Какая настройка sshd отключит парольную аутентификацию?"
+  options:
+    correct:
+      - "Указать PasswordAuthentication no в /etc/ssh/sshd_config (и KbdInteractiveAuthentication no) и перезагрузить sshd"
+    wrong:
+      - "Указать PermitRootLogin no в /etc/ssh/sshd_config"
+      - "Указать PubkeyAuthentication no в /etc/ssh/sshd_config"
+      - "Выполнить chmod 600 ~/.ssh/authorized_keys у пользователя {{user}}"
+      - "Удалить пароль пользователя {{user}} из /etc/passwd"
+      - "Указать PasswordAuthentication no в ~/.ssh/config на сервере"
+
+- id: ops.sec.docker_group
+  specializations: [devops]
+  topic: security
+  skills: [docker, linux]
+  kind: single_choice
+  irt: {a: 1.2, b: 0.8}
+  params:
+    user: {choice: [ci-runner, deploy, intern, analyst, jenkins, monitoring]}
+    host: {choice: [build-01, app-03, worker-7, staging-db, ci-host]}
+  stem_variants:
+    - "Чтобы {{user}} мог запускать контейнеры на {{host}} без sudo, его добавили в группу docker. Почему служба безопасности считает это эквивалентом root-доступа?"
+    - "На {{host}} пользователь {{user}} не в sudoers, но состоит в группе docker. Насколько ограничены его права на хосте?"
+  options:
+    correct:
+      - "Доступ к сокету Docker позволяет запустить контейнер с монтированием / хоста или --privileged и получить root на хосте"
+    wrong:
+      - "Это не эквивалент root: контейнеры изолированы namespace'ами, поэтому {{user}} не выйдет за пределы контейнера"
+      - "Группа docker даёт только право читать логи контейнеров"
+      - "Риск только в том, что {{user}} может удалить чужие образы"
+      - "Риск есть, только если Docker запущен в rootless-режиме"
+      - "Права ограничены, пока на хосте включён SELinux или AppArmor в любом режиме"
+
+- id: ops.sec.ssrf_metadata
+  specializations: [devops]
+  topic: security
+  skills: [appsec, aws, yandex_cloud]
+  kind: single_choice
+  irt: {a: 1.2, b: 1.5}
+  params:
+    feature: {choice: [загрузки аватара по URL, предпросмотра ссылок, вебхуков с адресом от пользователя, импорта файла по ссылке]}
+    app: {choice: [CRM, маркетплейс, сервис уведомлений, личный кабинет]}
+  stem_variants:
+    - "{{app}} на облачной ВМ с привязанным сервисным аккаунтом. В функции {{feature}} сервер сам скачивает указанный пользователем URL. Какая атака здесь самая опасная для облака?"
+    - "Пентестер сообщил, что через функцию {{feature}} в {{app}} может заставить сервер обратиться к http://169.254.169.254/. Почему это критично?"
+  options:
+    correct:
+      - "SSRF к сервису метаданных ВМ (169.254.169.254): можно получить временные учётные данные сервисного аккаунта; защита — фильтровать адреса назначения и требовать IMDSv2 или заголовок Metadata-Flavor"
+    wrong:
+      - "Адрес 169.254.169.254 — link-local и недоступен с самой ВМ, поэтому опасности нет"
+      - "Главная опасность — XSS: браузер жертвы выполнит скачанный скрипт"
+      - "Опасность только в DoS: сервер будет скачивать слишком большие файлы"
+      - "Опасность в CSRF: сервер отправит запрос с cookie пользователя"
+      - "Опасности нет, если сайт работает только по HTTPS"

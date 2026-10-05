@@ -7,11 +7,14 @@
   kind: ordering
   irt: {a: 1.0, b: -1.1}
   params:
-    env: {choice: [prod, staging, dev, sandbox]}
-    plan: {choice: [tfplan, plan.out, release.tfplan]}
-  stem: "В свежем клоне репозитория нужно применить изменения окружения {{env}}. Расположите команды Terraform в правильном порядке."
+    env: {choice: [prod, staging, dev, sandbox, qa, preprod]}
+    dir: {choice: [envs, environments, live, infra/envs]}
+    plan: {choice: [tfplan, plan.out, release.tfplan, changes.plan, deploy.tfplan]}
+  stem_variants:
+    - "В свежем клоне репозитория нужно применить изменения окружения {{env}} (каталог {{dir}}/{{env}}). Расположите команды Terraform в правильном порядке."
+    - "CI-job применяет Terraform-конфигурацию из {{dir}}/{{env}} на чистом runner и должен применить ровно тот план, который был показан. Расположите шаги по порядку."
   order_items:
-    - "cd envs/{{env}}"
+    - "cd {{dir}}/{{env}}"
     - "terraform init"
     - "terraform validate"
     - "terraform plan -out={{plan}}"
@@ -62,12 +65,15 @@
   kind: single_choice
   irt: {a: 1.2, b: 0.0}
   params:
-    line: {choice: ["vm.swappiness=10", "net.core.somaxconn=4096", "fs.file-max=2097152"]}
-    n: {choice: [два раза, три раза, пять раз]}
-  stem: "Плейбук запускают на одном сервере {{n}} подряд. Что будет с файлом и как сделать задачу идемпотентной?"
+    line: {choice: ["vm.swappiness=10", "net.core.somaxconn=4096", "fs.file-max=2097152", "vm.max_map_count=262144", "net.ipv4.tcp_tw_reuse=1", "kernel.pid_max=4194304"]}
+    n: {choice: [два раза, три раза, пять раз, четыре раза]}
+    group: {choice: [app, web, db, workers, k8s_nodes]}
+  stem_variants:
+    - "Плейбук запускают на одном сервере группы {{group}} {{n}} подряд. Что будет с файлом и как сделать задачу идемпотентной?"
+    - "Этот плейбук для группы {{group}} CI выполнил {{n}} подряд на одних и тех же серверах. Каков результат и что нужно исправить?"
   code: |-
     - name: Tune kernel
-      hosts: app
+      hosts: {{group}}
       become: true
       tasks:
         - name: Add sysctl setting
@@ -81,6 +87,8 @@
       - "Начиная со второго запуска задача упадёт с ошибкой"
       - "Строка добавится один раз, потому что Ansible кэширует результат shell между запусками"
       - "Строка допишется при каждом запуске, и это исправляется только флагом --check"
+      - "Строка допишется при каждом запуске; достаточно добавить changed_when: false"
+      - "Строка добавится один раз, потому что become: true выполняет задачу только при первом входе"
 
 - id: ops.iac.terraform_import
   specializations: [devops]
@@ -89,8 +97,12 @@
   kind: single_choice
   irt: {a: 1.2, b: 0.6}
   params:
-    resource: {choice: [бакет объектного хранилища, VPC-сеть, кластер managed PostgreSQL, группу безопасности]}
-  stem: "Коллега создал {{resource}} вручную в консоли облака. Нужно начать управлять этим ресурсом через Terraform без его пересоздания. Что сделать?"
+    resource: {choice: [бакет объектного хранилища, VPC-сеть, кластер managed PostgreSQL, группу безопасности, DNS-зону, сервисный аккаунт, ВМ бастиона]}
+    who: {choice: [Коллега, Дежурный инженер, Подрядчик, Тимлид]}
+    name: {choice: [legacy, main, shared, prod-old, temp]}
+  stem_variants:
+    - "{{who}} создал {{resource}} «{{name}}» вручную в консоли облака. Нужно начать управлять этим ресурсом через Terraform без его пересоздания. Что сделать?"
+    - "В облаке есть {{resource}} «{{name}}», созданный руками ({{who}} — автор). Как перевести его под управление Terraform, не удаляя и не пересоздавая?"
   options:
     correct:
       - "Описать ресурс в конфигурации и импортировать его в state (terraform import или блок import), затем добиться пустого plan"
@@ -99,6 +111,8 @@
       - "Выполнить terraform refresh: он добавит ресурс в state"
       - "Выполнить terraform taint для этого ресурса"
       - "Удалить ресурс в консоли и создать заново через Terraform"
+      - "Описать ресурс как data-источник: так им можно будет управлять через apply"
+      - "Выполнить terraform plan -refresh-only: новые ресурсы попадут в state"
 
 - id: ops.iac.create_before_destroy
   specializations: [devops]
@@ -107,10 +121,12 @@
   kind: single_choice
   irt: {a: 1.1, b: 0.9}
   params:
-    resource: {choice: [TLS-сертификат балансировщика, шаблон группы ВМ, группу безопасности, целевую группу балансировщика]}
-  stem: >-
-    Изменение аргумента вынуждает Terraform пересоздать {{resource}}. По умолчанию старый ресурс удаляется
-    до создания нового, и сервис ненадолго недоступен. Как изменить порядок замены?
+    resource: {choice: [TLS-сертификат балансировщика, шаблон группы ВМ, группу безопасности, целевую группу балансировщика, launch template, DNS-запись сервиса]}
+    arg: {choice: [name, image_id, zone, description, domain]}
+    service: {choice: [billing, orders, gateway, catalog, auth]}
+  stem_variants:
+    - "Изменение аргумента {{arg}} вынуждает Terraform пересоздать {{resource}} сервиса {{service}}. По умолчанию старый ресурс удаляется до создания нового, и сервис ненадолго недоступен. Как изменить порядок замены?"
+    - "terraform plan показывает -/+ для ресурса ({{resource}}, сервис {{service}}) из-за изменения {{arg}}: сначала удаление, потом создание, что даст простой. Как сделать, чтобы новый ресурс создавался до удаления старого?"
   options:
     correct:
       - "Добавить в ресурс lifecycle { create_before_destroy = true }"
@@ -119,6 +135,8 @@
       - "Добавить в ресурс lifecycle { ignore_changes = all }"
       - "Указать depends_on на ресурс, который его использует"
       - "Запускать terraform apply с флагом -parallelism=1"
+      - "Запускать terraform apply -replace с адресом этого ресурса"
+      - "Добавить в ресурс lifecycle { replace_triggered_by = [...] }"
 
 - id: ops.iac.count_shift
   specializations: [devops]
@@ -128,3 +146,57 @@
   irt: {a: 1.2, b: 1.2}
   time_limit_sec: 150
   generator: devops.terraform_count_shift
+
+- id: ops.iac.plan_symbol
+  specializations: [devops]
+  topic: cloud_iac
+  skills: [terraform]
+  kind: single_choice
+  irt: {a: 1.0, b: -1.0}
+  generator: devops.terraform_plan_symbol
+
+- id: ops.iac.ansible_handlers
+  specializations: [devops]
+  topic: cloud_iac
+  skills: [ansible]
+  kind: single_choice
+  irt: {a: 1.1, b: 0.3}
+  params:
+    svc: {choice: [nginx, haproxy, postgresql, redis, chrony, filebeat]}
+    k: {choice: [две, три, четыре]}
+    group: {choice: [web, lb, db, app, monitoring]}
+  stem_variants:
+    - "В плейбуке для группы {{group}} {{k}} задачи меняют разные конфиги {{svc}}, и каждая содержит notify: restart {{svc}}. При запуске все они изменили файлы (changed). Сколько раз и когда выполнится handler restart {{svc}}?"
+    - "Задачи плейбука ({{k}} шт., хосты {{group}}) правят шаблоны {{svc}} и уведомляют один и тот же handler restart {{svc}}. Все они вернули changed. Как поведёт себя handler?"
+  options:
+    correct:
+      - "Один раз, в конце play (после всех задач), если его не вызвали раньше через meta: flush_handlers"
+    wrong:
+      - "Сразу после каждой задачи, вызвавшей notify, — столько раз, сколько было уведомлений"
+      - "Один раз, сразу после первой задачи, вызвавшей notify"
+      - "Ни разу: handler выполняется только с флагом --handlers"
+      - "Один раз, но только при следующем запуске плейбука"
+      - "По одному разу на каждый изменённый файл, в конце play"
+
+- id: ops.iac.moved_block
+  specializations: [devops]
+  topic: cloud_iac
+  skills: [terraform]
+  kind: single_choice
+  irt: {a: 1.2, b: 0.7}
+  params:
+    type: {choice: [yandex_compute_instance, aws_instance, yandex_vpc_network, aws_s3_bucket, yandex_mdb_postgresql_cluster]}
+    old: {choice: [main, this, default, server]}
+    new: {choice: [primary, app, backend, core]}
+  stem_variants:
+    - "В конфигурации ресурс {{type}}.{{old}} переименовали в {{type}}.{{new}}, больше ничего не меняли. terraform plan показывает уничтожение старого и создание нового ресурса. Как переименовать без пересоздания?"
+    - "После рефакторинга адрес ресурса сменился с {{type}}.{{old}} на {{type}}.{{new}}, и plan хочет удалить и заново создать реальный объект в облаке. Что сделать?"
+  options:
+    correct:
+      - "Добавить блок moved { from = {{type}}.{{old}}, to = {{type}}.{{new}} } (или выполнить terraform state mv), чтобы перенести объект в state на новый адрес"
+    wrong:
+      - "Добавить lifecycle { create_before_destroy = true }: тогда ресурс не пересоздастся"
+      - "Выполнить terraform import {{type}}.{{new}} без удаления старой записи из state"
+      - "Выполнить terraform refresh: Terraform сопоставит ресурсы по атрибутам"
+      - "Добавить lifecycle { prevent_destroy = true }: plan станет пустым"
+      - "Ничего: при apply Terraform поймёт, что это тот же ресурс, и только обновит state"

@@ -131,3 +131,121 @@
       - "Требовать два одобрения от ревьюеров перед слиянием"
       - "Ночная сборка main с автоматическим откатом сломавших коммитов"
       - "Squash всех коммитов MR в один при слиянии"
+
+- id: ops.ci.config_file
+  specializations: [devops]
+  topic: ci_cd
+  skills: [ci_cd, gitlab_ci, github_actions, jenkins]
+  kind: single_choice
+  irt: {a: 1.0, b: -1.7}
+  generator: devops.ci_config_file
+
+- id: ops.ci.semver_bump
+  specializations: [devops]
+  topic: ci_cd
+  skills: [ci_cd, git]
+  kind: single_choice
+  irt: {a: 1.0, b: -1.4}
+  generator: devops.semver_bump
+
+- id: ops.ci.stage_failure
+  specializations: [devops]
+  topic: ci_cd
+  skills: [ci_cd, gitlab_ci]
+  kind: numeric
+  irt: {a: 1.1, b: -0.7}
+  time_limit_sec: 120
+  generator: devops.ci_stage_failure
+
+- id: ops.ci.immutable_tags
+  specializations: [devops]
+  topic: ci_cd
+  skills: [ci_cd, docker, kubernetes]
+  kind: single_choice
+  irt: {a: 1.1, b: -0.3}
+  params:
+    app: {choice: [billing, orders, gateway, catalog, auth, notifier, reports]}
+    registry: {choice: [registry.gitlab.example, cr.yandex/crp1, harbor.corp.example, ghcr.io/acme]}
+    env: {choice: [production, staging, pre-prod]}
+  stem_variants:
+    - "CI собирает образ {{registry}}/{{app}}:latest и деплоит в {{env}} манифест с этим тегом. После неудачного релиза откатиться на предыдущую версию оказалось сложно, а на разных нодах крутились разные образы. Как тегировать образы?"
+    - "В {{env}} манифест ссылается на {{registry}}/{{app}}:latest. Команда не может понять, какая версия кода сейчас запущена, и не может быстро откатиться. Какая схема тегов это решает?"
+  options:
+    correct:
+      - "Неизменяемый уникальный тег на каждую сборку (например, SHA коммита) и деплой по нему; откат — деплой предыдущего тега"
+      - "Тегировать образ SHA коммита или номером версии и никогда не перезаписывать существующие теги"
+    wrong:
+      - "Оставить latest, но добавить в манифест imagePullPolicy: Always"
+      - "Тегировать образ именем ветки (main) и перезаписывать его при каждой сборке"
+      - "Тегировать образ датой сборки с точностью до дня и перезаписывать в течение дня"
+      - "Оставить latest и хранить предыдущий образ локально на нодах для отката"
+      - "Использовать тег stable и переносить его на новую сборку после деплоя"
+
+- id: ops.ci.pipeline_duration
+  specializations: [devops]
+  topic: ci_cd
+  skills: [ci_cd, gitlab_ci]
+  kind: numeric
+  irt: {a: 1.1, b: 0.1}
+  time_limit_sec: 150
+  generator: devops.ci_pipeline_duration
+
+- id: ops.ci.shallow_clone
+  specializations: [devops]
+  topic: ci_cd
+  skills: [ci_cd, git, github_actions]
+  kind: single_choice
+  irt: {a: 1.1, b: 0.9}
+  params:
+    tag: {choice: [v1.4.0, v2.0.3, v3.12.1, release-2026.09, v0.9.7]}
+    app: {choice: [billing, orders, gateway, catalog, auth]}
+    step: {choice: [git describe --tags, "git log --oneline origin/main..HEAD", "git diff --name-only origin/main...HEAD"]}
+  stem_variants:
+    - "Локально в репозитории {{app}} команда «{{step}}» работает (последний тег — {{tag}}), а в job GitHub Actions после стандартного actions/checkout падает или выдаёт пустой результат. Почему?"
+    - "Скрипт версионирования {{app}} вызывает «{{step}}». На машине разработчика всё хорошо, а в CI команда завершается ошибкой, хотя тег {{tag}} в репозитории есть. В чём причина?"
+  options:
+    correct:
+      - "CI по умолчанию делает неглубокий клон (shallow clone) одного коммита без истории и тегов; нужно клонировать с полной историей (у actions/checkout — fetch-depth: 0)"
+    wrong:
+      - "У токена CI нет прав на чтение тегов; нужно выдать ему permissions: contents: write"
+      - "В CI не настроены git config user.name и user.email"
+      - "Теги хранятся только локально у разработчика и в принципе не попадают в CI"
+      - "Runner использует слишком старую версию git; нужно обновить образ runner"
+      - "Нужно включить кэширование каталога .git между запусками"
+
+- id: ops.ci.pull_request_target
+  specializations: [devops]
+  topic: ci_cd
+  skills: [ci_cd, github_actions, devsecops]
+  kind: single_choice
+  irt: {a: 1.2, b: 1.5}
+  time_limit_sec: 120
+  params:
+    secret: {choice: [NPM_TOKEN, DEPLOY_KEY, PYPI_TOKEN, CLOUD_API_KEY, REGISTRY_PASSWORD]}
+    script: {choice: [npm test, make test, ./scripts/ci.sh, pytest]}
+    repo: {choice: [открытого SDK, публичной библиотеки, open-source CLI, публичного Helm-чарта]}
+  stem_variants:
+    - "В репозитории {{repo}} workflow запускается на событии pull_request_target, делает checkout ветки автора PR (ref: github.event.pull_request.head.sha) и выполняет {{script}}; в окружении job доступен секрет {{secret}}. В чём опасность?"
+    - "Чтобы тесты PR из форков видели секрет {{secret}}, workflow {{repo}} перевели на pull_request_target, при этом checkout берёт код из PR и запускает {{script}}. Чем это опасно?"
+  code: |-
+    on: pull_request_target
+    jobs:
+      test:
+        runs-on: ubuntu-latest
+        steps:
+          - uses: actions/checkout@v4
+            with:
+              ref: ${{ github.event.pull_request.head.sha }}
+          - run: {{script}}
+            env:
+              TOKEN: ${{ secrets.{{secret}} }}
+  code_language: yaml
+  options:
+    correct:
+      - "pull_request_target выполняется в контексте базового репозитория с доступом к секретам, а здесь исполняется недоверенный код из форка — автор PR может украсть {{secret}}"
+    wrong:
+      - "Опасности нет: секреты никогда не передаются в workflow для PR из форков"
+      - "pull_request_target запускает workflow из ветки форка, поэтому он не увидит изменений в main"
+      - "Опасность только в том, что {{secret}} попадёт в лог: GitHub не маскирует секреты на этом событии"
+      - "Проблема только в производительности: checkout по SHA отключает кэш"
+      - "Опасно, только если в репозитории включены self-hosted runners"

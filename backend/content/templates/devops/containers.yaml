@@ -116,3 +116,134 @@
   irt: {a: 1.2, b: 1.3}
   time_limit_sec: 150
   generator: devops.k8s_rolling_update
+
+- id: ops.cont.port_publish
+  specializations: [devops]
+  topic: containers
+  skills: [docker, networking]
+  kind: single_choice
+  irt: {a: 1.0, b: -1.5}
+  params:
+    hport: {choice: [8080, 8081, 9090, 18080, 3001, 5050, 7000]}
+    cport: {choice: [80, 3000, 8000, 5000, 8888, 4000]}
+    image: {choice: [nginx, my-api, billing, docs-site, grafana-demo, orders]}
+  stem_variants:
+    - "Приложение в контейнере слушает порт {{cport}}. Контейнер запущен командой docker run -d -p {{hport}}:{{cport}} {{image}}. По какому адресу открыть приложение в браузере на этом же хосте?"
+    - "docker run -d -p {{hport}}:{{cport}} {{image}}. Внутри контейнера сервис слушает {{cport}}. Какой адрес нужно открыть на хост-машине?"
+  options:
+    correct: ["http://localhost:{{hport}}"]
+    wrong:
+      - "http://localhost:{{cport}}"
+      - "http://localhost:{{cport}}, а {{hport}} — порт для доступа из других контейнеров"
+      - "Никак: нужно ещё добавить в Dockerfile EXPOSE {{hport}}"
+      - "http://localhost:{{hport}}, но только при запуске с --network host"
+      - "http://localhost:{{cport}}{{hport}}"
+
+- id: ops.cont.docker_logs
+  specializations: [devops]
+  topic: containers
+  skills: [docker]
+  kind: single_choice
+  irt: {a: 0.9, b: -1.7}
+  params:
+    name: {choice: [billing, orders-api, gateway, worker-1, notifier, web, auth-service]}
+    n: {choice: [50, 100, 200, 500]}
+  stem_variants:
+    - "Контейнер {{name}} пишет логи в stdout. Какой командой посмотреть, что он выводил?"
+    - "Сервис {{name}} в контейнере упал при старте. Как посмотреть его вывод в stdout и stderr?"
+    - "Нужно увидеть последние {{n}} строк вывода контейнера {{name}} (приложение пишет в stdout). Какую команду использовать?"
+  options:
+    correct: ["docker logs {{name}}", "docker logs --tail {{n}} {{name}}"]
+    wrong:
+      - "docker inspect {{name}}"
+      - "docker ps -a {{name}}"
+      - "docker top {{name}}"
+      - "docker stats {{name}}"
+      - "docker events {{name}}"
+      - "cat /var/log/{{name}}.log"
+
+- id: ops.cont.volume_persistence
+  specializations: [devops]
+  topic: containers
+  skills: [docker]
+  kind: single_choice
+  irt: {a: 1.1, b: -1.1}
+  generator: devops.volume_persistence
+
+- id: ops.cont.multistage_build
+  specializations: [devops]
+  topic: containers
+  skills: [docker]
+  kind: single_choice
+  irt: {a: 1.1, b: -0.4}
+  params:
+    lang: {choice: [Go, Rust, Java (Maven), TypeScript, C++]}
+    size: {int: [700, 1600], step: 100}
+    app: {choice: [billing, orders, gateway, catalog, notifier, reports]}
+  stem_variants:
+    - "Образ сервиса {{app}} на {{lang}} весит {{size}} МБ: в нём остались компилятор, исходники и кэш зависимостей, хотя для запуска нужен только собранный артефакт. Как уменьшить образ, не меняя процесс сборки?"
+    - "Dockerfile сервиса {{app}} ({{lang}}) собирает приложение и запускает его в одном образе размером {{size}} МБ, вместе со всеми инструментами сборки. Какой приём Docker решает проблему?"
+  options:
+    correct:
+      - "Multi-stage build: собрать в стадии с инструментами, а в финальный минимальный образ скопировать только артефакт (COPY --from=build)"
+    wrong:
+      - "Удалить инструменты сборки отдельной инструкцией RUN rm в конце Dockerfile"
+      - "Выполнить docker image prune после сборки"
+      - "Сжать образ через docker save | gzip перед публикацией"
+      - "Добавить флаг --squash и оставить всё в одном образе"
+      - "Указать в .dockerignore каталог с компилятором"
+
+- id: ops.k8s.service_selector
+  specializations: [devops]
+  topic: containers
+  skills: [kubernetes]
+  kind: single_choice
+  irt: {a: 1.2, b: -0.3}
+  time_limit_sec: 120
+  generator: devops.k8s_service_selector
+
+- id: ops.k8s.configmap_env
+  specializations: [devops]
+  topic: containers
+  skills: [kubernetes]
+  kind: single_choice
+  irt: {a: 1.2, b: 0.5}
+  params:
+    app: {choice: [billing, orders, gateway, catalog, notifier, search]}
+    key: {choice: [LOG_LEVEL, FEATURE_NEW_CHECKOUT, CACHE_TTL, DB_POOL_SIZE, RATE_LIMIT]}
+    replicas: {int: [2, 8]}
+  stem_variants:
+    - "Deployment {{app}} ({{replicas}} реплик) получает {{key}} из ConfigMap через env (configMapKeyRef). Вы изменили значение в ConfigMap через kubectl apply, но приложение продолжает работать со старым. Почему и что сделать?"
+    - "После kubectl edit configmap {{app}}-config значение {{key}} в подах {{app}} не изменилось: переменная окружения {{key}} задана через valueFrom.configMapKeyRef. Как применить новое значение?"
+  options:
+    correct:
+      - "Переменные окружения задаются при старте контейнера и не обновляются; нужно пересоздать поды, например kubectl rollout restart deployment/{{app}}"
+    wrong:
+      - "kubelet обновит переменную окружения в работающем контейнере в течение минуты, нужно подождать"
+      - "Нужно выполнить kubectl apply для ConfigMap повторно с флагом --force"
+      - "Нужно отправить контейнеру SIGHUP: он перечитает переменные окружения из ConfigMap"
+      - "ConfigMap нельзя изменить после создания; нужно удалить его и создать заново, и поды подхватят значение"
+      - "Нужно увеличить replicas до {{replicas}} + 1: новые значения увидят только новые поды, а старые обновятся сами"
+
+- id: ops.k8s.cpu_throttling
+  specializations: [devops]
+  topic: containers
+  skills: [kubernetes, linux, prometheus]
+  kind: single_choice
+  irt: {a: 1.2, b: 1.5}
+  params:
+    app: {choice: [billing, orders, gateway, search, checkout, auth]}
+    limit: {choice: [500m, "1", 1500m, "2"]}
+    avg: {int: [15, 40], step: 5}
+  stem_variants:
+    - "У контейнера {{app}} limits.cpu: {{limit}}. По графикам средняя загрузка CPU — около {{avg}}% от лимита, нода почти свободна, но p99 латентности высокая, а метрика container_cpu_cfs_throttled_periods_total быстро растёт. Что происходит?"
+    - "Сервис {{app}} (limits.cpu: {{limit}}) в среднем потребляет лишь {{avg}}% лимита CPU, но отвечает с всплесками задержки; растёт container_cpu_cfs_throttled_seconds_total. Как это объяснить?"
+  options:
+    correct:
+      - "Лимит CPU — это квота CFS на каждый короткий период (по умолчанию 100 мс); всплески потребления выбирают квоту раньше конца периода, и потоки ждут следующего, хотя в среднем загрузка низкая"
+    wrong:
+      - "Throttling возникает только при 100% загрузке всей ноды; значит, графики неверны"
+      - "limits.cpu учитывается только планировщиком при размещении пода и на работу не влияет"
+      - "Контейнер упирается в лимит памяти, и ядро замедляет его вместо OOM kill"
+      - "Причина в requests.cpu: он ограничивает потребление сверху так же, как limits"
+      - "Средняя загрузка ниже лимита, значит, задержки вызваны только сетью"

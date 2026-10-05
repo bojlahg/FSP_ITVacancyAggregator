@@ -40,11 +40,12 @@
   irt: {a: 1.3, b: 0.0}
   time_limit_sec: 120
   params:
-    slo: {choice: [99, 99.5, 99.9, 99.95, 99.99]}
-    days: {choice: [7, 28, 30]}
-  stem: >-
-    Для сервиса задан SLO доступности {{slo}}% на скользящем окне {{days}} дней. Сколько минут полной
-    недоступности допускает бюджет ошибок за это окно? Округлите до десятых.
+    slo: {choice: [99, 99.5, 99.8, 99.9, 99.95, 99.99]}
+    days: {choice: [7, 14, 28, 30, 90]}
+    service: {choice: [платёжного API, API-шлюза, сервиса авторизации, личного кабинета, сервиса поиска, каталога]}
+  stem_variants:
+    - "Для {{service}} задан SLO доступности {{slo}}% на скользящем окне {{days}} дней. Сколько минут полной недоступности допускает бюджет ошибок за это окно? Округлите до десятых."
+    - "SLO {{service}}: доступность {{slo}}% за {{days}} дней. Сколько минут полного простоя можно себе позволить за окно, не нарушив SLO? Округлите до десятых."
   answer:
     expr: "round({{days}} * 24 * 60 * (100 - {{slo}}) / 100, 1)"
     tolerance: 0.1
@@ -56,9 +57,12 @@
   kind: single_choice
   irt: {a: 1.3, b: 0.2}
   params:
-    m: {choice: [http_requests_total, grpc_server_handled_total, api_calls_total, orders_processed_total]}
-    w: {choice: [1m, 5m, 10m]}
-  stem: "{{m}} — счётчик (counter) с метками pod и code. Каким PromQL-запросом получить суммарное число событий в секунду по всем подам, усреднённое за окно {{w}}?"
+    m: {choice: [http_requests_total, grpc_server_handled_total, api_calls_total, orders_processed_total, payments_failed_total, messages_consumed_total]}
+    w: {choice: [1m, 2m, 5m, 10m, 15m]}
+    label: {choice: [pod, instance]}
+  stem_variants:
+    - "{{m}} — счётчик (counter) с метками {{label}} и code. Каким PromQL-запросом получить суммарное число событий в секунду по всем {{label}}, усреднённое за окно {{w}}?"
+    - "Нужна панель Grafana: суммарная скорость (событий в секунду) по счётчику {{m}} для всех {{label}}, усреднённая за {{w}}. Счётчики сбрасываются при рестарте подов. Какой запрос верный?"
   options:
     correct: ["sum(rate({{m}}[{{w}}]))"]
     wrong:
@@ -66,6 +70,8 @@
       - "sum(delta({{m}}[{{w}}]))"
       - "rate(sum({{m}})[{{w}}:])"
       - "sum(avg_over_time({{m}}[{{w}}]))"
+      - "sum(irate({{m}}[{{w}}]))"
+      - "sum by ({{label}}) ({{m}})"
 
 - id: ops.obs.burn_rate_hours
   specializations: [devops]
@@ -75,13 +81,13 @@
   irt: {a: 1.2, b: 1.0}
   time_limit_sec: 150
   params:
-    slo: {choice: [99, 99.5, 99.9]}
-    days: {choice: [28, 30]}
-    err: {choice: [2, 3, 5, 6]}
-  stem: >-
-    SLO: {{slo}}% успешных запросов на окне {{days}} дней. Бюджет ошибок окна пока не тронут, трафик
-    равномерный, а доля ошибочных запросов стабильно держится на {{err}}%. Через сколько часов при таком темпе
-    будет исчерпан весь бюджет ошибок окна? Округлите до десятых.
+    slo: {choice: [99, 99.5, 99.8, 99.9]}
+    days: {choice: [7, 14, 28, 30]}
+    err: {int: [2, 9]}
+    service: {choice: [платёжного API, API-шлюза, сервиса заказов, сервиса поиска, личного кабинета]}
+  stem_variants:
+    - "SLO {{service}}: {{slo}}% успешных запросов на окне {{days}} дней. Бюджет ошибок окна пока не тронут, трафик равномерный, а доля ошибочных запросов стабильно держится на {{err}}%. Через сколько часов при таком темпе будет исчерпан весь бюджет ошибок окна? Округлите до десятых."
+    - "После релиза {{service}} стабильно отдаёт {{err}}% ошибок при равномерном трафике. SLO — {{slo}}% на {{days}} дней, бюджет до релиза не расходовался. Сколько часов осталось до полного исчерпания бюджета ошибок? Округлите до десятых."
   answer:
     # burn rate = err / (100 − slo); бюджет кончится за окно / burn rate
     expr: "round({{days}} * 24 * (100 - {{slo}}) / {{err}}, 1)"
@@ -94,16 +100,22 @@
   kind: single_choice
   irt: {a: 1.3, b: 1.3}
   params:
-    m: {choice: [http_request_duration_seconds, rpc_latency_seconds, checkout_duration_seconds]}
-    q: {choice: ["0.9", "0.95", "0.99"]}
-  stem: "Метрика {{m}} — histogram с метками pod и le. Каким запросом получить {{q}}-квантиль латентности по всем подам сервиса за последние 5 минут?"
+    m: {choice: [http_request_duration_seconds, rpc_latency_seconds, checkout_duration_seconds, db_query_duration_seconds, payment_authorize_seconds]}
+    q: {choice: ["0.9", "0.95", "0.99", "0.999"]}
+    w: {choice: [1m, 5m, 10m]}
+    label: {choice: [pod, instance]}
+  stem_variants:
+    - "Метрика {{m}} — histogram с метками {{label}} и le. Каким запросом получить {{q}}-квантиль латентности по всем {{label}} сервиса вместе за последние {{w}}?"
+    - "Нужен один график: {{q}}-квантиль длительности по гистограмме {{m}} суммарно для всех {{label}} на окне {{w}}. Какой PromQL-запрос верный?"
   options:
-    correct: ["histogram_quantile({{q}}, sum by (le) (rate({{m}}_bucket[5m])))"]
+    correct: ["histogram_quantile({{q}}, sum by (le) (rate({{m}}_bucket[{{w}}])))"]
     wrong:
-      - "histogram_quantile({{q}}, sum by (pod) (rate({{m}}_bucket[5m])))"
+      - "histogram_quantile({{q}}, sum by ({{label}}) (rate({{m}}_bucket[{{w}}])))"
       - "histogram_quantile({{q}}, sum by (le) ({{m}}_bucket))"
-      - "quantile({{q}}, rate({{m}}_sum[5m]))"
+      - "quantile({{q}}, rate({{m}}_sum[{{w}}]))"
       - "max(histogram_quantile({{q}}, {{m}}_bucket))"
+      - "avg(histogram_quantile({{q}}, rate({{m}}_bucket[{{w}}])))"
+      - "histogram_quantile({{q}}, rate({{m}}_count[{{w}}]))"
 
 - id: ops.obs.latency_investigation
   specializations: [devops]
@@ -126,3 +138,89 @@
     - Локализует проблему по зависимостям (БД, внешний API) с помощью трейсинга или метрик латентности вызовов
     - Проверяет насыщение ресурсов (CPU throttling, память, пул соединений, очереди)
     - Предлагает меры от повторения (алерт на SLO или burn rate, канареечный выкат, регрессионный нагрузочный тест)
+
+- id: ops.obs.percentile_meaning
+  specializations: [devops]
+  topic: observability
+  skills: [prometheus, grafana]
+  kind: single_choice
+  irt: {a: 1.0, b: -1.1}
+  params:
+    q: {choice: [90, 95, 99]}
+    ms: {int: [120, 950], step: 10}
+    service: {choice: [платёжного API, API-шлюза, сервиса поиска, сервиса заказов, каталога, авторизации]}
+  stem_variants:
+    - "На дашборде {{service}} показано: p{{q}} латентности = {{ms}} мс. Что это означает?"
+    - "В отчёте по {{service}} указано «{{q}}-й перцентиль времени ответа — {{ms}} мс». Как это интерпретировать?"
+  options:
+    correct:
+      - "{{q}}% запросов выполнились не дольше {{ms}} мс, остальные — дольше"
+    wrong:
+      - "Среднее время ответа {{q}}% запросов равно {{ms}} мс"
+      - "{{q}}% запросов выполнились дольше {{ms}} мс"
+      - "Максимальное время ответа за период — {{ms}} мс"
+      - "Сервис был доступен {{q}}% времени, а среднее время ответа — {{ms}} мс"
+      - "Медиана времени ответа равна {{ms}} мс"
+
+- id: ops.obs.increase_window
+  specializations: [devops]
+  topic: observability
+  skills: [prometheus]
+  kind: numeric
+  irt: {a: 1.1, b: -0.5}
+  time_limit_sec: 120
+  params:
+    r: {choice: [0.5, 1.5, 2, 2.5, 4, 12, 40]}
+    w: {choice: [1, 2, 5, 10, 15]}
+    m: {choice: [http_requests_total, orders_created_total, login_failures_total, emails_sent_total, jobs_processed_total]}
+  stem_variants:
+    - "Запрос sum(rate({{m}}[{{w}}m])) стабильно показывает {{r}}. Какое значение покажет sum(increase({{m}}[{{w}}m])) при тех же данных (без учёта экстраполяции)?"
+    - "Скорость по счётчику {{m}}, усреднённая за {{w}} мин, равна {{r}} событий в секунду. Сколько событий произошло за эти {{w}} мин?"
+  answer:
+    # increase(x[w]) = rate(x[w]) × длительность окна в секундах
+    expr: "{{r}} * {{w}} * 60"
+    tolerance: 0.5
+
+- id: ops.obs.series_cardinality
+  specializations: [devops]
+  topic: observability
+  skills: [prometheus]
+  kind: numeric
+  irt: {a: 1.1, b: -0.2}
+  time_limit_sec: 120
+  params:
+    methods: {int: [2, 5]}
+    codes: {int: [3, 8]}
+    routes: {int: [5, 30], step: 5}
+    pods: {int: [2, 12]}
+    m: {choice: [http_requests_total, api_calls_total, gateway_requests_total]}
+  stem_variants:
+    - "Счётчик {{m}} имеет метки method (вариантов: {{methods}}), code (вариантов: {{codes}}), route (вариантов: {{routes}}) и pod (подов: {{pods}}). Сколько временных рядов эта метрика может создать в худшем случае, если встречаются все комбинации?"
+    - "Сколько максимум временных рядов даст метрика {{m}}, если у неё метки: method — {{methods}} вар., code — {{codes}}, route — {{routes}}, pod — {{pods}}, и все сочетания реально встречаются?"
+  answer:
+    # каждый уникальный набор значений меток — отдельный временной ряд
+    expr: "{{methods}} * {{codes}} * {{routes}} * {{pods}}"
+    tolerance: 0
+
+- id: ops.obs.summary_aggregation
+  specializations: [devops]
+  topic: observability
+  skills: [prometheus]
+  kind: single_choice
+  irt: {a: 1.2, b: 1.4}
+  params:
+    m: {choice: [http_request_duration_seconds, rpc_latency_seconds, checkout_duration_seconds, render_time_seconds]}
+    pods: {int: [3, 20]}
+    q: {choice: ["0.95", "0.99"]}
+  stem_variants:
+    - "Сервис из {{pods}} подов экспортирует {{m}} как Summary с quantile=\"{{q}}\". Нужно получить {{q}}-квантиль по всему сервису. Что верно?"
+    - "Команда считает общий {{q}}-квантиль латентности по {{pods}} подам как avg({{m}}{quantile=\"{{q}}\"}). Метрика — Summary. Корректно ли это?"
+  options:
+    correct:
+      - "Квантили Summary считаются на каждом поде и не агрегируются корректно (ни avg, ни max не дают общий квантиль); для общего квантиля нужен Histogram и histogram_quantile по сумме бакетов"
+    wrong:
+      - "Корректно: среднее квантилей по подам равно квантилю по всем запросам"
+      - "Корректно, если взять max по подам: максимум квантилей равен общему квантилю"
+      - "Нужно применить histogram_quantile к Summary: он умеет агрегировать любые квантили"
+      - "Корректно, если все поды получают одинаковое число запросов, при любом распределении латентности"
+      - "Summary хранит все наблюдения, поэтому sum по подам даёт точный общий квантиль"

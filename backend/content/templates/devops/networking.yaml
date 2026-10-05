@@ -15,16 +15,18 @@
   kind: ordering
   irt: {a: 1.0, b: -0.9}
   params:
-    host: {choice: [api.shop.example, itscout.test, status.corp.example, cdn.media.example]}
-    path: {choice: [health, api/v1/orders, login, metrics]}
-  stem: >-
-    Выполняется команда curl https://{{host}}/{{path}} (без прокси, DNS-кэш пуст, используется HTTP/1.1
-    или HTTP/2). Расположите этапы в порядке их выполнения.
+    host: {choice: [api.shop.example, itscout.test, status.corp.example, cdn.media.example, pay.bank.example, docs.service.example]}
+    path: {choice: [health, api/v1/orders, login, metrics, api/v2/users, static/app.js]}
+    method: {choice: [GET, POST, HEAD]}
+    tool: {choice: [curl, wget, "клиент на Python (requests)", "сервис на Go (net/http)"]}
+  stem_variants:
+    - "{{tool}} выполняет запрос {{method}} https://{{host}}/{{path}} (без прокси, DNS-кэш пуст, новое соединение, HTTP/1.1 или HTTP/2). Расположите этапы в порядке их выполнения."
+    - "Что происходит, когда {{tool}} делает {{method}} https://{{host}}/{{path}}? Прокси нет, в кэше DNS ничего нет, соединение новое. Расположите этапы по порядку."
   order_items:
     - "Разрешение имени {{host}} в IP-адрес через DNS"
     - "TCP-рукопожатие (SYN, SYN-ACK, ACK) с портом 443"
     - "TLS-рукопожатие и проверка сертификата {{host}}"
-    - "Отправка HTTP-запроса GET /{{path}}"
+    - "Отправка HTTP-запроса {{method}} /{{path}}"
     - "Получение HTTP-ответа от сервера"
 
 - id: ops.net.cidr_hosts
@@ -96,9 +98,11 @@
   kind: single_choice
   irt: {a: 1.1, b: 1.1}
   params:
-    domain: {choice: [shop.example, itscout.test, media.example, corp.example]}
-    lb: {choice: [lb-1234.cloud.example, edge.cdn.example, ingress.k8s.example]}
-  stem: "Почему для вершины зоны {{domain}} нельзя создать запись CNAME на {{lb}}, а для www.{{domain}} — можно?"
+    domain: {choice: [shop.example, itscout.test, media.example, corp.example, travel.example, bank.example]}
+    lb: {choice: [lb-1234.cloud.example, edge.cdn.example, ingress.k8s.example, d1x2.cloudfront.example, site.pages.example]}
+  stem_variants:
+    - "Почему для вершины зоны {{domain}} нельзя создать запись CNAME на {{lb}}, а для www.{{domain}} — можно?"
+    - "DNS-провайдер отказывается создать CNAME {{domain}} → {{lb}}, но спокойно создаёт CNAME www.{{domain}} → {{lb}}. В чём причина?"
   options:
     correct:
       - "CNAME не может сосуществовать с другими записями того же имени, а у вершины зоны обязательно есть записи SOA и NS"
@@ -107,6 +111,8 @@
       - "CNAME запрещён для доменов второго уровня регистратором"
       - "Для вершины зоны допустимы только записи A и AAAA"
       - "CNAME на вершине зоны создаёт цикл при разрешении имени"
+      - "CNAME не может указывать на имя в другой зоне, а {{lb}} — чужая зона"
+      - "Для вершины зоны CNAME возможен, но только с TTL не меньше суток"
 
 - id: ops.net.close_wait
   specializations: [devops]
@@ -115,11 +121,12 @@
   kind: single_choice
   irt: {a: 1.2, b: 1.4}
   params:
-    app: {choice: [сервис заказов, воркер отчётов, API-шлюз, сервис уведомлений]}
-    dep: {choice: [PostgreSQL, Redis, внешнему API банка, Elasticsearch]}
-  stem: >-
-    У процесса «{{app}}» копятся тысячи соединений к {{dep}} в состоянии CLOSE_WAIT, и со временем
-    заканчиваются файловые дескрипторы. Что это означает?
+    app: {choice: [сервис заказов, воркер отчётов, API-шлюз, сервис уведомлений, сервис платежей, агрегатор цен]}
+    dep: {choice: [PostgreSQL, Redis, внешнему API банка, Elasticsearch, Kafka, сервису авторизации]}
+    count: {int: [2, 30]}
+  stem_variants:
+    - "У процесса «{{app}}» копится около {{count}} 000 соединений к {{dep}} в состоянии CLOSE_WAIT, и со временем заканчиваются файловые дескрипторы. Что это означает?"
+    - "ss -tan показывает у «{{app}}» тысячи сокетов CLOSE_WAIT к {{dep}} (около {{count}} 000), число растёт до перезапуска процесса. В чём причина?"
   options:
     correct:
       - "Удалённая сторона закрыла соединение (прислала FIN), а приложение не закрывает свой сокет — утечка соединений в коде"
@@ -128,3 +135,90 @@
       - "Нужно уменьшить net.ipv4.tcp_fin_timeout, и ядро само закроет эти сокеты"
       - "Удалённая сторона не отвечает на SYN, и ядро повторяет попытки"
       - "Пакеты теряются, и соединения ждут повторной передачи данных"
+      - "Это соединения, которые приложение закрыло первым, а {{dep}} ещё не подтвердил FIN"
+      - "Переполнена очередь accept: ядро держит соединения до вызова accept()"
+
+- id: ops.net.private_ip
+  specializations: [devops]
+  topic: networking
+  skills: [networking]
+  kind: single_choice
+  irt: {a: 1.0, b: -1.2}
+  generator: devops.private_ip
+
+- id: ops.net.localhost_bind
+  specializations: [devops]
+  topic: networking
+  skills: [networking, linux]
+  kind: single_choice
+  irt: {a: 1.1, b: -1.0}
+  params:
+    app: {choice: [billing, orders, gateway, admin-panel, metrics-exporter, docs]}
+    port: {choice: [8000, 8080, 3000, 5000, 9100, 8443]}
+    ip: {choice: [10.0.1.15, 10.2.0.7, 192.168.10.21, 172.16.4.30]}
+  stem_variants:
+    - "Сервис {{app}} на сервере {{ip}} запущен, curl http://127.0.0.1:{{port}} на самом сервере работает, а с соседней машины curl http://{{ip}}:{{port}} получает Connection refused. ss -ltn показывает LISTEN 127.0.0.1:{{port}}. Что исправить?"
+    - "ss -ltn на сервере {{ip}} показывает для {{app}} строку LISTEN 127.0.0.1:{{port}}. С других хостов сервис недоступен (Connection refused), локально — доступен. В чём причина?"
+  options:
+    correct:
+      - "Сервис слушает только loopback; нужно настроить его слушать 0.0.0.0:{{port}} (или адрес {{ip}})"
+    wrong:
+      - "Нужно открыть порт {{port}} в файрволе: Connection refused всегда означает блокировку файрволом"
+      - "Нужно добавить {{ip}} в /etc/hosts на клиенте"
+      - "Порт {{port}} привилегированный, сервис надо запускать от root"
+      - "Нужно включить net.ipv4.ip_forward=1 на сервере"
+      - "Нужно перезапустить сервис: ss показывает устаревший адрес"
+
+- id: ops.net.dns_ttl
+  specializations: [devops]
+  topic: networking
+  skills: [networking]
+  kind: single_choice
+  irt: {a: 1.1, b: -0.4}
+  params:
+    host: {choice: [api.shop.example, app.corp.example, pay.media.example, lk.itscout.test, status.example]}
+    ttl: {choice: [3600, 7200, 14400, 86400]}
+    minutes: {int: [5, 30], step: 5}
+  stem_variants:
+    - "A-запись {{host}} (TTL {{ttl}}) перевели на новый IP {{minutes}} минут назад. Авторитетные серверы уже отдают новый адрес, но часть клиентов всё ещё ходит на старый. Почему?"
+    - "После смены IP-адреса в A-записи {{host}} с TTL {{ttl}} прошло {{minutes}} минут, а трафик на старый сервер не прекратился. Что объясняет ситуацию и как заранее её избежать?"
+  options:
+    correct:
+      - "Рекурсивные резолверы и клиенты закэшировали старый ответ на время TTL ({{ttl}} с); перед миграцией TTL нужно заранее снизить"
+    wrong:
+      - "Изменения DNS распространяются ровно 72 часа независимо от TTL"
+      - "У записи нужно было поднять TTL, чтобы изменения быстрее разошлись"
+      - "Клиенты кэшируют A-записи до перезагрузки ОС, TTL на это не влияет"
+      - "Нужно было изменить NS-записи домена, A-запись менять недостаточно"
+      - "Старый IP остался в PTR-записи, и клиенты берут адрес из неё"
+
+- id: ops.net.gateway_status
+  specializations: [devops]
+  topic: networking
+  skills: [networking, nginx, http]
+  kind: single_choice
+  irt: {a: 1.2, b: -0.1}
+  generator: devops.gateway_status
+
+- id: ops.net.mtu_blackhole
+  specializations: [devops]
+  topic: networking
+  skills: [networking]
+  kind: single_choice
+  irt: {a: 1.1, b: 1.6}
+  params:
+    host: {choice: [api.partner.example, git.corp.example, registry.internal, db.dc2.internal]}
+    tunnel: {choice: [IPsec-туннель, WireGuard-VPN, GRE-туннель, VXLAN-оверлей]}
+    size: {choice: [1400, 1420, 1450, 1380]}
+  stem_variants:
+    - "Через {{tunnel}} до {{host}}: ping и TCP-рукопожатие проходят, мелкие запросы работают, но TLS-рукопожатие и крупные ответы зависают. ping -M do -s {{size}} {{host}} не проходит, а ping с маленьким размером проходит. Какая причина наиболее вероятна?"
+    - "Трафик к {{host}} пошёл через {{tunnel}}. Соединения устанавливаются, curl получает заголовки маленьких ответов, но большие передачи и TLS-рукопожатие с длинной цепочкой сертификатов висят до таймаута. Что проверить в первую очередь?"
+  options:
+    correct:
+      - "MTU в туннеле меньше 1500, а ICMP «fragmentation needed» где-то отбрасывается, и Path MTU Discovery не работает; нужно уменьшить MTU или MSS (MSS clamping)"
+    wrong:
+      - "Сервер {{host}} ограничивает размер TLS-записей; нужно включить TLS 1.3"
+      - "Переполнена таблица ARP на шлюзе туннеля"
+      - "DNS отдаёт разные адреса для маленьких и больших запросов"
+      - "TCP window scaling отключён, поэтому большие ответы не помещаются в окно"
+      - "Включён Nagle, и большие пакеты задерживаются до таймаута"

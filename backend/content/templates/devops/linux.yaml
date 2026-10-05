@@ -141,3 +141,137 @@
   options:
     correct: ["Restart=on-failure"]
     wrong: ["RestartSec=on-failure", "Type=on-failure", "ExecReload=always", "RemainAfterExit=yes", "WantedBy=on-failure"]
+
+- id: ops.linux.tail_follow
+  specializations: [devops]
+  topic: linux
+  skills: [linux_cli]
+  kind: single_choice
+  irt: {a: 0.9, b: -1.8}
+  params:
+    app: {choice: [nginx/access, billing, orders, gateway, worker, syslog-app, auth]}
+    n: {choice: [20, 50, 100, 200]}
+  stem_variants:
+    - "Какой командой следить за новыми строками лога /var/log/{{app}}.log в реальном времени, по мере их записи?"
+    - "Нужно вывести последние {{n}} строк /var/log/{{app}}.log и дальше показывать новые строки по мере появления. Какую команду использовать?"
+  options:
+    correct: ["tail -f /var/log/{{app}}.log", "tail -n {{n}} -f /var/log/{{app}}.log"]
+    wrong:
+      - "head -f /var/log/{{app}}.log"
+      - "tail -n {{n}} /var/log/{{app}}.log"
+      - "cat /var/log/{{app}}.log | more"
+      - "grep -f /var/log/{{app}}.log"
+      - "less -n {{n}} /var/log/{{app}}.log"
+      - "wc -l /var/log/{{app}}.log"
+
+- id: ops.linux.exit_status_var
+  specializations: [devops]
+  topic: linux
+  skills: [bash, linux_cli]
+  kind: single_choice
+  irt: {a: 1.0, b: -1.6}
+  params:
+    cmd: {choice: ["grep -q ERROR app.log", "curl -fsS http://localhost:8080/health", "pg_isready -h db", "test -f /etc/app.conf", "ping -c1 10.0.0.1", "systemctl is-active nginx"]}
+  stem_variants:
+    - "В bash-скрипте выполняется команда «{{cmd}}». Какая специальная переменная сразу после неё содержит её код возврата?"
+    - "Нужно проверить, успешно ли завершилась команда «{{cmd}}» (код 0). Что подставить в if [ ??? -eq 0 ] сразу после неё?"
+  options:
+    correct: ["$?"]
+    wrong: ["$!", "$$", "$#", "$0", "$@", "$_"]
+
+- id: ops.linux.grep_count
+  specializations: [devops]
+  topic: linux
+  skills: [linux_cli, bash]
+  kind: code_output
+  irt: {a: 1.1, b: -1.0}
+  time_limit_sec: 120
+  generator: devops.grep_count
+
+- id: ops.linux.cron_runs
+  specializations: [devops]
+  topic: linux
+  skills: [linux]
+  kind: numeric
+  irt: {a: 1.1, b: -0.5}
+  time_limit_sec: 120
+  params:
+    m: {choice: [5, 10, 15, 20, 30]}
+    h1: {int: [6, 10]}
+    h2: {int: [16, 22]}
+    script: {choice: [backup.sh, sync_prices.py, cleanup_tmp.sh, report.sh, rotate_keys.sh]}
+  stem_variants:
+    - "Строка crontab: «*/{{m}} {{h1}}-{{h2}} * * * /opt/jobs/{{script}}». Сколько раз за сутки запустится скрипт?"
+    - "Задание cron «*/{{m}} {{h1}}-{{h2}} * * * /opt/jobs/{{script}}» работает весь день без сбоев. Сколько запусков {{script}} будет за одни сутки?"
+  answer:
+    # */m в поле минут — каждая m-я минута часа, диапазон часов включительный
+    expr: "60 // {{m}} * ({{h2}} - {{h1}} + 1)"
+    tolerance: 0
+
+- id: ops.linux.memory_available
+  specializations: [devops]
+  topic: linux
+  skills: [linux]
+  kind: single_choice
+  irt: {a: 1.2, b: -0.2}
+  params:
+    total: {choice: [8, 16, 32, 64]}
+    free: {int: [150, 600], step: 50}
+    app: {choice: [PostgreSQL, сервис заказов, Elasticsearch, nginx и бэкенд, Kafka-брокер]}
+  stem_variants:
+    - "На сервере ({{total}} ГБ RAM, {{app}}) free -m показывает free ≈ {{free}} МБ, buff/cache — большую часть памяти, available — больше половины объёма; swap не используется. Коллега считает, что памяти не хватает. Как правильно оценить ситуацию?"
+    - "Мониторинг сервера с {{app}} ({{total}} ГБ RAM) кричит, что свободно лишь {{free}} МБ, но в free -m значение available больше половины памяти. Что это значит?"
+  options:
+    correct:
+      - "Памяти достаточно: ядро использует свободную память под page cache и отдаёт её приложениям по требованию; ориентироваться нужно на available"
+    wrong:
+      - "Памяти не хватает: при free ниже 1 ГБ скоро сработает OOM killer"
+      - "Нужно периодически сбрасывать кэш через echo 3 > /proc/sys/vm/drop_caches"
+      - "buff/cache — это память, занятая утечкой в ядре; поможет только перезагрузка"
+      - "Нужно срочно включить swap, иначе процессы начнут падать"
+      - "Значение available учитывает только swap, поэтому смотреть надо на free"
+
+- id: ops.linux.redirect_order
+  specializations: [devops]
+  topic: linux
+  skills: [bash, linux_cli]
+  kind: single_choice
+  irt: {a: 1.3, b: 0.8}
+  params:
+    cmd: {choice: [./migrate.sh, make build, python3 sync.py, ./backup.sh, npm run build, ansible-playbook site.yml]}
+    file: {choice: [out.log, build.log, run.log, /tmp/job.log, result.txt]}
+  stem_variants:
+    - "Команда запущена так: {{cmd}} 2>&1 > {{file}}. Куда попадут стандартный вывод и вывод ошибок?"
+    - "В cron-задании записано «{{cmd}} 2>&1 > {{file}}». Ошибки в {{file}} не появляются. Куда на самом деле направлены stdout и stderr?"
+  options:
+    correct:
+      - "stdout — в {{file}}, stderr — туда, куда stdout указывал до перенаправления (терминал или вывод cron)"
+    wrong:
+      - "И stdout, и stderr — в {{file}}"
+      - "stderr — в {{file}}, stdout — в терминал"
+      - "Оба потока — в терминал: перенаправление 2>&1 отменяет > {{file}}"
+      - "Bash выдаст синтаксическую ошибку: 2>&1 должно стоять в конце"
+      - "stderr будет потерян, stdout — в {{file}} и в терминал одновременно"
+
+- id: ops.linux.ulimit_systemd
+  specializations: [devops]
+  topic: linux
+  skills: [linux]
+  kind: single_choice
+  irt: {a: 1.2, b: 1.4}
+  params:
+    unit: {choice: [billing.service, gateway.service, elasticsearch.service, worker.service, haproxy.service]}
+    limit: {choice: [65536, 100000, 131072, 262144, 1048576]}
+    user: {choice: [app, svc, deploy, billing, www-data]}
+  stem_variants:
+    - "В /etc/security/limits.conf добавили «{{user}} - nofile {{limit}}», после входа под {{user}} ulimit -n показывает {{limit}}. Но процесс сервиса {{unit}} (User={{user}}) после перезапуска по-прежнему падает с «Too many open files», а в /proc/<pid>/limits видно 1024 (soft). Почему?"
+    - "Сервис {{unit}} запускается systemd от пользователя {{user}}. Лимит nofile {{limit}} для {{user}} прописан в /etc/security/limits.conf, но /proc/<pid>/limits сервиса показывает прежнее значение. Что нужно сделать?"
+  options:
+    correct:
+      - "limits.conf применяет pam_limits при входе в сессию, а systemd-сервисы его не используют; лимит задаётся директивой LimitNOFILE={{limit}} в юните, затем daemon-reload и перезапуск"
+    wrong:
+      - "Изменения limits.conf вступают в силу только после перезагрузки сервера"
+      - "Нужно добавить ulimit -n {{limit}} в ~/.bashrc пользователя {{user}}"
+      - "Нужно выполнить sysctl -w fs.file-max={{limit}}: он задаёт лимит для каждого процесса"
+      - "Лимит открытых файлов процесса нельзя поднять выше 1024 без пересборки ядра"
+      - "Нужно запустить сервис от root, на root лимиты не действуют"

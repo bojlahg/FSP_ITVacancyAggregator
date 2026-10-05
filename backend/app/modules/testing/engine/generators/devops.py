@@ -274,29 +274,52 @@ def entrypoint_cmd(rng: random.Random) -> Generated:
 @generator("devops.ci_cache_or_artifacts")
 def ci_cache_or_artifacts(rng: random.Random) -> Generated:
     """GitLab CI: artifacts передают результаты между job, cache ускоряет повторные установки."""
-    binary = rng.choice(["app", "server", "bin/service", "dist/"])
-    report = rng.choice(["junit.xml", "report.xml", "test-results.xml"])
-    folder = rng.choice(["~/.npm", ".cache/pip", ".m2/repository", ".gradle/caches"])
+    service = rng.choice(APPS)
+    build_job = rng.choice(["build", "compile", f"build-{service}", "package"])
+    deploy_job = rng.choice(["deploy", "deploy-staging", f"deploy-{service}", "release"])
+    binary = rng.choice(["app", "server", f"bin/{service}", "dist/", "target/app.jar", "build/libs/"])
+    report = rng.choice(
+        ["junit.xml", "report.xml", "test-results.xml", "coverage.xml", "gl-sast-report.json"]
+    )
+    folder, tool = rng.choice(
+        [
+            ("~/.npm", "npm"),
+            (".cache/pip", "pip"),
+            (".m2/repository", "Maven"),
+            (".gradle/caches", "Gradle"),
+            ("vendor/bundle", "Bundler"),
+            (".go/pkg/mod", "Go modules"),
+        ]
+    )
+    minutes = rng.randint(2, 9)
     cases = [
         (
-            f"Job build на стадии build собирает {binary}, а job deploy на стадии deploy должен "
+            f"Job {build_job} на стадии build собирает {binary}, а job {deploy_job} на стадии deploy должен "
             "гарантированно получить именно этот результат сборки. Какой механизм GitLab CI "
             "для этого предназначен?",
             "artifacts",
         ),
         (
-            f"Job test создаёт отчёт {report}, который нужно сохранить вместе с пайплайном и показать "
-            "в merge request. Какой механизм GitLab CI использовать?",
+            f"Job test сервиса {service} создаёт отчёт {report}, который нужно сохранить вместе с пайплайном "
+            "и показать в merge request. Какой механизм GitLab CI использовать?",
             "artifacts",
         ),
         (
-            f"Каждый пайплайн заново скачивает зависимости в {folder}, что занимает несколько минут. "
-            "Какой механизм GitLab CI предназначен для ускорения повторных установок между пайплайнами?",
+            f"Каждый пайплайн {service} заново скачивает зависимости {tool} в {folder}, это занимает "
+            f"около {minutes} мин. Какой механизм GitLab CI предназначен для ускорения повторных установок "
+            "между пайплайнами (без гарантии, что данные будут на месте)?",
+            "cache",
+        ),
+        (
+            f"Нужно, чтобы {folder} с зависимостями {tool} переиспользовался следующими запусками job "
+            f"lint и test сервиса {service}; если данных нет, job просто скачает всё заново. "
+            "Какой механизм GitLab CI для этого предназначен?",
             "cache",
         ),
     ]
     stem, answer = rng.choice(cases)
-    wrong = [name for name in ["artifacts", "cache"] if name != answer] + ["variables", "services", "include"]
+    wrong = [name for name in ["artifacts", "cache"] if name != answer]
+    wrong += ["variables", "services", "include", "extends", "environment", "image"]
     return Generated(stem=stem, correct=(answer,), wrong=tuple(wrong))
 
 
@@ -403,24 +426,35 @@ def dns_record_type(rng: random.Random) -> Generated:
 @generator("devops.connect_error")
 def connect_error(rng: random.Random) -> Generated:
     """Различие connection refused / timeout / ошибка резолва имени."""
-    host = rng.choice(["db.internal", "api.internal", "cache.internal", "10.0.3.17", "10.1.0.44"])
-    port = rng.choice([5432, 8080, 6379, 9200, 443])
+    host = rng.choice(
+        [
+            "db.internal",
+            "api.internal",
+            "cache.internal",
+            "search.internal",
+            "billing.svc.local",
+            f"10.{rng.randint(0, 9)}.{rng.randint(0, 9)}.{rng.randint(2, 250)}",
+        ]
+    )
+    port = rng.choice([5432, 8080, 6379, 9200, 443, 3306, 8443, 9092])
+    client = rng.choice(["Клиент", "Сервис", "Скрипт деплоя", "Под приложения", "curl с бастиона"])
     explanations = {
         "refused": "На порту никто не слушает, или файрвол явно отклоняет соединение (RST/REJECT)",
         "timeout": "SYN остаётся без ответа: пакеты отбрасываются (DROP) файрволом или теряются по пути",
         "dns": "Имя не удалось разрешить в IP-адрес: проблема на стороне DNS",
         "tls": "Соединение установлено, но TLS-сертификат сервера не прошёл проверку",
+        "auth": "Соединение установлено, но сервер отверг логин или пароль",
     }
     errors = {
         "refused": "Connection refused (ECONNREFUSED), ответ приходит мгновенно",
-        "timeout": "Connection timed out (ETIMEDOUT) спустя несколько десятков секунд",
+        "timeout": f"Connection timed out (ETIMEDOUT) спустя {rng.choice([20, 30, 60, 75, 120])} с",
     }
     if not host[0].isdigit():
         errors["dns"] = "Name or service not known (не удаётся получить адрес по имени)"
     case = rng.choice(list(errors))
     wrong = [text for name, text in explanations.items() if name != case]
     return Generated(
-        stem=f"Клиент подключается по TCP к {host}:{port} и получает ошибку: {errors[case]}. "
+        stem=f"{client} подключается по TCP к {host}:{port} и получает ошибку: {errors[case]}. "
         "Что она наиболее вероятно означает?",
         correct=(explanations[case],),
         wrong=tuple(wrong),
@@ -434,21 +468,33 @@ def prometheus_metric_type(rng: random.Random) -> Generated:
     cases = [
         (f"общее число HTTP-запросов, обработанных сервисом {service} с момента запуска", "Counter"),
         (f"число ошибок оплаты в сервисе {service} с момента запуска", "Counter"),
+        (f"сколько всего байт сервис {service} отправил клиентам с момента запуска", "Counter"),
+        (f"число перезапусков воркеров сервиса {service} с момента запуска", "Counter"),
         (f"текущее число занятых соединений в пуле БД сервиса {service}", "Gauge"),
         (f"текущая длина очереди задач сервиса {service}", "Gauge"),
+        (f"текущий объём памяти, занятый процессом {service}", "Gauge"),
+        (f"температура или свободное место на диске хоста, где работает {service}", "Gauge"),
         (
             f"распределение длительности запросов к {service}, из которого нужно считать p95 "
             "по всем подам вместе",
             "Histogram",
         ),
+        (
+            f"распределение размеров ответов {service}, по которому нужно строить квантили "
+            "суммарно для всех экземпляров",
+            "Histogram",
+        ),
     ]
     quantity, answer = rng.choice(cases)
-    wrong = [name for name in ["Counter", "Gauge", "Histogram", "Summary"] if name != answer]
-    return Generated(
-        stem=f"Какой тип метрики Prometheus подходит для величины: {quantity}?",
-        correct=(answer,),
-        wrong=tuple(wrong),
+    stem = rng.choice(
+        [
+            f"Какой тип метрики Prometheus подходит для величины: {quantity}?",
+            f"Вы добавляете инструментирование в {service}. Нужно экспортировать {quantity}. "
+            "Какой тип метрики Prometheus выбрать?",
+        ]
     )
+    wrong = [name for name in ["Counter", "Gauge", "Histogram", "Summary"] if name != answer]
+    return Generated(stem=stem, correct=(answer,), wrong=tuple(wrong))
 
 
 @generator("devops.terraform_count_shift")
@@ -495,3 +541,362 @@ def terraform_count_shift(rng: random.Random) -> Generated:
         "terraform plan завершится ошибкой: индексы в state не совпадают с конфигурацией",
     ]
     return Generated(stem=stem, code=code, code_language="hcl", correct=(correct,), wrong=tuple(wrong))
+
+
+@generator("devops.grep_count")
+def grep_count(rng: random.Random) -> Generated:
+    """grep -c считает строки с совпадением, а не число совпадений."""
+    pattern, single, double = rng.choice(
+        [
+            ("ERROR", "ERROR {app} upstream failed", "ERROR {app} retry failed: ERROR from upstream"),
+            ("timeout", "WARN {app} db timeout", "ERROR {app} timeout after retry, previous timeout 5s"),
+            ("refused", "WARN {app} connection refused", "ERROR {app} refused: upstream refused twice"),
+            ("WARN", "WARN {app} slow query", "WARN {app} WARN threshold exceeded"),
+        ]
+    )
+    while True:
+        lines: list[str] = []
+        occurrences = 0
+        for index in range(rng.randint(7, 11)):
+            moment = f"12:{index * 3 + rng.randint(0, 2):02d}:{rng.randint(0, 59):02d}"
+            hits = rng.choice([0, 0, 1, 1, 2])
+            occurrences += hits
+            app = rng.choice(APPS)
+            if hits == 0:
+                lines.append(f"{moment} {rng.choice(['INFO', 'DEBUG'])} {app} request handled")
+            else:
+                lines.append(f"{moment} " + (single if hits == 1 else double).format(app=app))
+        matched = sum(pattern in line for line in lines)
+        if 2 <= matched < occurrences < len(lines):
+            break
+    file = rng.choice(["app.log", "worker.log", "service.log", "gateway.log"])
+    code = "\n".join([f"$ cat {file}", *lines, f"$ grep -c {pattern} {file}"])
+    wrong = {str(occurrences), str(len(lines)), str(len(lines) - matched), str(matched + 1), str(matched - 1)}
+    wrong.discard(str(matched))
+    return Generated(
+        stem="Что выведет последняя команда?",
+        code=code,
+        code_language="bash",
+        correct=(str(matched),),
+        wrong=tuple(sorted(wrong)),
+    )
+
+
+DATA_DIRS = {
+    "postgres": "/var/lib/postgresql/data",
+    "mysql": "/var/lib/mysql",
+    "mongo": "/data/db",
+    "redis": "/data",
+}
+
+
+@generator("devops.volume_persistence")
+def volume_persistence(rng: random.Random) -> Generated:
+    """Данные в слое контейнера пропадают вместе с контейнером — нужен volume на каталог данных."""
+    image = rng.choice(list(DATA_DIRS))
+    tag = {"postgres": "16", "mysql": "8.4", "mongo": "7", "redis": "7"}[image]
+    name = rng.choice([f"{image}-dev", f"{image}-test", f"{rng.choice(APPS)}-db", "local-db"])
+    volume = rng.choice(["dbdata", f"{image}_data", "pgdata" if image == "postgres" else f"{name}-vol"])
+    path = DATA_DIRS[image]
+    action = rng.choice(
+        [
+            f"контейнер удалили (docker rm -f {name}) и запустили заново той же командой",
+            f"после обновления образа {image}:{tag} контейнер {name} пересоздали",
+            f"docker compose down и docker compose up пересоздали контейнер {name}",
+        ]
+    )
+    stem = (
+        f"База {image} работала в контейнере {name}, запущенном без дополнительных опций хранения. "
+        f"Затем {action}, и все данные пропали. Как это предотвратить?"
+    )
+    correct = f"Подключить именованный volume на каталог данных: -v {volume}:{path}"
+    wrong = [
+        "Запускать контейнер с флагом --restart always",
+        "Останавливать контейнер через docker stop, а не docker kill",
+        f"Сделать docker commit контейнера {name} перед удалением и запускать из нового образа",
+        f"Подключить volume на /tmp, а данные {image} оставить на месте",
+        "Добавить в Dockerfile инструкцию EXPOSE для порта базы",
+    ]
+    return Generated(stem=stem, correct=(correct,), wrong=tuple(wrong))
+
+
+@generator("devops.k8s_service_selector")
+def k8s_service_selector(rng: random.Random) -> Generated:
+    """Service без endpoints: selector не совпадает с метками подов."""
+    app = rng.choice(APPS)
+    key = rng.choice(["app", "app.kubernetes.io/name", "component"])
+    pod_value = rng.choice([app, f"{app}-api", f"{app}-svc"])
+    service_value = rng.choice(
+        [value for value in [app, f"{app}-api", f"{app}-svc", f"{app}-app"] if value != pod_value]
+    )
+    port = rng.choice([8080, 8000, 3000, 9090, 5000])
+    replicas = rng.randint(2, 5)
+    code = "\n".join(
+        [
+            "apiVersion: apps/v1",
+            "kind: Deployment",
+            f"metadata: {{name: {app}}}",
+            "spec:",
+            f"  replicas: {replicas}",
+            f"  selector: {{matchLabels: {{{key}: {pod_value}}}}}",
+            "  template:",
+            f"    metadata: {{labels: {{{key}: {pod_value}}}}}",
+            "    spec:",
+            "      containers:",
+            f"        - {{name: app, image: registry.local/{app}:1.{rng.randint(0, 30)}, "
+            f"ports: [{{containerPort: {port}}}]}}",
+            "---",
+            "apiVersion: v1",
+            "kind: Service",
+            f"metadata: {{name: {app}}}",
+            "spec:",
+            f"  selector: {{{key}: {service_value}}}",
+            f"  ports: [{{port: 80, targetPort: {port}}}]",
+        ]
+    )
+    stem = rng.choice(
+        [
+            f"Поды Deployment {app} ({replicas} шт.) в статусе Running и Ready, но "
+            f"kubectl get endpoints {app} показывает <none>, а запросы к Service падают. В чём причина?",
+            f"Запросы к Service {app} не доходят до подов: у Service нет endpoints, хотя все реплики "
+            f"({replicas} шт.) работают и проходят readiness. Почему?",
+        ]
+    )
+    correct = "selector Service не совпадает с метками подов, поэтому Service не выбирает ни одного пода"
+    wrong = [
+        f"Service слушает порт 80, а контейнер — {port}: порты должны совпадать",
+        "У Service не указан type: LoadBalancer",
+        "Поды не попадают в endpoints, пока не пройдёт livenessProbe",
+        "Deployment и Service с одинаковым именем конфликтуют",
+        f"В контейнере не указан hostPort: {port}",
+        "Метки в selector Deployment и в метаданных шаблона пода должны различаться",
+    ]
+    return Generated(stem=stem, code=code, code_language="yaml", correct=(correct,), wrong=tuple(wrong))
+
+
+CI_FILES = {
+    "GitLab CI": ".gitlab-ci.yml в корне репозитория",
+    "GitHub Actions": "YAML-файл в каталоге .github/workflows/",
+    "Jenkins (Pipeline as code)": "Jenkinsfile в корне репозитория",
+    "Bitbucket Pipelines": "bitbucket-pipelines.yml в корне репозитория",
+    "Azure Pipelines": "azure-pipelines.yml в корне репозитория",
+}
+
+
+# Правдоподобные, но неверные пути с тем же названием CI: ответ не угадать по совпадению слов
+CI_DECOYS = {
+    "GitLab CI": [".gitlab/ci.yml в корне репозитория", "gitlab-ci.yaml в каталоге .ci/"],
+    "GitHub Actions": [".github/actions.yml в корне репозитория", "github-workflow.yml в корне репозитория"],
+    "Jenkins (Pipeline as code)": ["jenkins.yaml в корне репозитория", "Jenkinsfile в каталоге .jenkins/ci/"],
+    "Bitbucket Pipelines": [".bitbucket/ci.yml в корне репозитория", "pipelines.yml в каталоге .bitbucket/"],
+    "Azure Pipelines": [".azure/ci.yml в корне репозитория", "azure-ci.json в каталоге .azure/"],
+}
+
+
+@generator("devops.ci_config_file")
+def ci_config_file(rng: random.Random) -> Generated:
+    """Где по соглашению лежит описание пайплайна в популярных CI-системах."""
+    ci = rng.choice(list(CI_FILES))
+    repo = rng.choice([f"{app}-service" for app in APPS] + ["infra", "monorepo", "frontend"])
+    stem = rng.choice(
+        [
+            f"Репозиторий {repo} подключают к {ci}. Где по умолчанию описывается пайплайн?",
+            f"Вы хотите добавить пайплайн в репозиторий {repo}, сборки выполняет {ci}. "
+            "Какой файл нужно создать?",
+        ]
+    )
+    others = [path for name, path in CI_FILES.items() if name != ci]
+    wrong = [*CI_DECOYS[ci], *rng.sample(others, 2)]
+    return Generated(stem=stem, correct=(CI_FILES[ci],), wrong=tuple(wrong))
+
+
+@generator("devops.semver_bump")
+def semver_bump(rng: random.Random) -> Generated:
+    """SemVer: MAJOR — несовместимые изменения, MINOR — новые функции, PATCH — исправления."""
+    major, minor, patch = rng.randint(1, 9), rng.randint(1, 15), rng.randint(1, 20)
+    library = rng.choice(["клиентская библиотека", "SDK платежей", "Helm-чарт", "CLI-утилита", "API-пакет"])
+    changes = {
+        "patch": "исправлена ошибка, публичный API не менялся",
+        "minor": "добавлен новый необязательный метод, старый API работает как раньше",
+        "major": "удалён устаревший метод публичного API",
+    }
+    kind = rng.choice(list(changes))
+    versions = {
+        "patch": f"{major}.{minor}.{patch + 1}",
+        "minor": f"{major}.{minor + 1}.0",
+        "major": f"{major + 1}.0.0",
+    }
+    wrong = {
+        *[version for name, version in versions.items() if name != kind],
+        f"{major}.{minor + 1}.{patch}",
+        f"{major + 1}.{minor}.{patch}",
+        f"{major}.{minor}.{patch}-1",
+    }
+    wrong.discard(versions[kind])
+    return Generated(
+        stem=f"Текущая версия: {library} {major}.{minor}.{patch}. В новом релизе {changes[kind]}. "
+        "Какой должна быть следующая версия по Semantic Versioning?",
+        correct=(versions[kind],),
+        wrong=tuple(sorted(wrong)),
+    )
+
+
+def _stage_jobs(rng: random.Random, prefix: str, low: int, high: int) -> list[str]:
+    names = {
+        "build": ["build-api", "build-web", "build-worker", "build-docs", "build-cli"],
+        "test": ["unit", "lint", "integration", "e2e", "sast", "typecheck"],
+        "deploy": ["deploy-staging", "deploy-docs", "publish-chart", "notify"],
+    }[prefix]
+    return rng.sample(names, rng.randint(low, high))
+
+
+@generator("devops.ci_stage_failure")
+def ci_stage_failure(rng: random.Random) -> Generated:
+    """GitLab CI: job одной стадии идут параллельно, после провала следующая стадия не стартует."""
+    build, test = _stage_jobs(rng, "build", 1, 3), _stage_jobs(rng, "test", 2, 4)
+    deploy = _stage_jobs(rng, "deploy", 1, 3)
+    failed = rng.choice(test)
+    lines = ["stages: [build, test, deploy]", ""]
+    for stage, jobs in (("build", build), ("test", test), ("deploy", deploy)):
+        for job in jobs:
+            lines += [f"{job}:", f"  stage: {stage}", f"  script: [./ci/{job}.sh]", ""]
+    stem = (
+        f"Пайплайн GitLab CI описан так (runners хватает на все job, needs и rules не используются). "
+        f"Job {failed} падает с ненулевым кодом. Сколько job будут запущены в этом пайплайне, "
+        "включая упавший?"
+    )
+    return Generated(
+        stem=stem,
+        code="\n".join(lines).rstrip(),
+        code_language="yaml",
+        number=float(len(build) + len(test)),
+        tolerance=0,
+    )
+
+
+@generator("devops.ci_pipeline_duration")
+def ci_pipeline_duration(rng: random.Random) -> Generated:
+    """Без needs стадия ждёт самый долгий job предыдущей: длительность = сумма максимумов по стадиям."""
+    stages = {
+        "build": _stage_jobs(rng, "build", 2, 3),
+        "test": _stage_jobs(rng, "test", 2, 4),
+        "deploy": _stage_jobs(rng, "deploy", 1, 2),
+    }
+    durations = {job: rng.randint(1, 12) for jobs in stages.values() for job in jobs}
+    rows = [f"{stage:7} | {job:15} | {durations[job]} мин" for stage, jobs in stages.items() for job in jobs]
+    total = sum(max(durations[job] for job in jobs) for jobs in stages.values())
+    stem = (
+        "Пайплайн GitLab CI из трёх стадий: build → test → deploy. Свободных runners достаточно, needs не "
+        "используется, все job проходят успешно, накладные расходы на запуск не учитываем. "
+        "Через сколько минут после старта завершится пайплайн?"
+    )
+    return Generated(
+        stem=stem,
+        code="\n".join(["стадия  | job             | длительность", *rows]),
+        code_language="text",
+        number=float(total),
+        tolerance=0,
+    )
+
+
+@generator("devops.private_ip")
+def private_ip(rng: random.Random) -> Generated:
+    """Частные диапазоны RFC 1918: 10/8, 172.16/12, 192.168/16."""
+
+    def octet() -> int:
+        return rng.randint(1, 254)
+
+    correct = rng.choice(
+        [
+            f"10.{octet()}.{octet()}.{octet()}",
+            f"172.{rng.randint(16, 31)}.{octet()}.{octet()}",
+            f"192.168.{octet()}.{octet()}",
+        ]
+    )
+    wrong = [
+        f"172.{rng.choice([15, 32, 33, 64, 100])}.{octet()}.{octet()}",
+        f"192.{rng.choice([167, 169, 172])}.{octet()}.{octet()}",
+        f"{rng.choice([11, 100, 9])}.{octet()}.{octet()}.{octet()}",
+        f"8.8.{rng.choice([4, 8])}.{rng.choice([4, 8])}",
+        f"{rng.choice([93, 77, 185])}.{octet()}.{octet()}.{octet()}",
+    ]
+    stem = rng.choice(
+        [
+            "Какой из адресов относится к частным (private) диапазонам RFC 1918?",
+            "Для внутренней сети без выхода в интернет нужно выбрать адрес из частного диапазона RFC 1918. "
+            "Какой подходит?",
+            "Какой адрес не маршрутизируется в публичном интернете, потому что входит в частный "
+            "диапазон RFC 1918?",
+        ]
+    )
+    return Generated(stem=stem, correct=(correct,), wrong=tuple(wrong))
+
+
+@generator("devops.gateway_status")
+def gateway_status(rng: random.Random) -> Generated:
+    """Код ответа nginx как reverse proxy: 502 — upstream недоступен, 504 — upstream не успел ответить."""
+    upstream = rng.choice(APPS)
+    port = rng.choice([8000, 8080, 3000, 9000, 5000])
+    timeout = rng.choice([30, 60, 90, 120])
+    cases = {
+        "502 Bad Gateway": [
+            f"процесс {upstream} упал, и на 127.0.0.1:{port} никто не слушает (connect() failed, "
+            "Connection refused)",
+            f"{upstream} закрывает соединение, не отправив ответ (upstream prematurely closed connection)",
+        ],
+        "504 Gateway Timeout": [
+            f"{upstream} принимает соединение, но не отвечает дольше proxy_read_timeout {timeout}s",
+            f"запрос к {upstream}:{port} висит дольше {timeout} с, заданных в proxy_read_timeout",
+        ],
+    }
+    status = rng.choice(list(cases))
+    situation = rng.choice(cases[status])
+    stem = f"nginx проксирует запросы на upstream {upstream} (proxy_pass http://127.0.0.1:{port}). " + (
+        f"Ситуация: {situation}. Какой код ответа получит клиент от nginx?"
+    )
+    wrong = [name for name in cases if name != status]
+    wrong += ["503 Service Unavailable", "500 Internal Server Error", "408 Request Timeout", "404 Not Found"]
+    return Generated(stem=stem, correct=(status,), wrong=tuple(wrong))
+
+
+PLAN_SYMBOLS = {
+    "+": "Ресурс будет создан",
+    "-": "Ресурс будет удалён",
+    "~": "Ресурс будет изменён на месте, без пересоздания",
+    "-/+": "Ресурс будет удалён и создан заново (замена)",
+    "<=": "Будет прочитан источник данных (data source), ресурс не изменится",
+}
+
+
+@generator("devops.terraform_plan_symbol")
+def terraform_plan_symbol(rng: random.Random) -> Generated:
+    """Обозначения действий в выводе terraform plan."""
+    resource = rng.choice(
+        [
+            "yandex_compute_instance.web",
+            "yandex_vpc_subnet.private",
+            "aws_instance.app",
+            "aws_s3_bucket.logs",
+            "yandex_mdb_postgresql_cluster.main",
+            "google_compute_instance.worker",
+        ]
+    )
+    index = rng.randint(0, 3)
+    symbol = rng.choice(["+", "-", "~", "-/+"])
+    address = f"{resource}[{index}]"
+    line = f'  {symbol} resource "{resource.split(".")[0]}" "{resource.split(".")[1]}" {{'
+    stem = rng.choice(
+        [
+            f"В выводе terraform plan для {address} стоит символ «{symbol}». Что он означает?",
+            f"terraform plan показывает строку ниже для ресурса {address}. Что произойдёт с ресурсом "
+            "при apply?",
+        ]
+    )
+    wrong = [text for key, text in PLAN_SYMBOLS.items() if key != symbol]
+    return Generated(
+        stem=stem,
+        code=f"  # {address} ...\n{line}",
+        code_language="hcl",
+        correct=(PLAN_SYMBOLS[symbol],),
+        wrong=tuple(wrong),
+    )
