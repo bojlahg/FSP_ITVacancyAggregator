@@ -178,6 +178,7 @@ STATE_DOMAINS = [
             ("Создан", "отменить", "Отменён"),
             ("Оплачен", "отменить", "Отменён"),
             ("Отправлен", "отменить", "Отменён"),
+            ("Доставлен", "отменить", "Отменён"),
         ],
     ),
     (
@@ -193,6 +194,7 @@ STATE_DOMAINS = [
             ("На согласовании", "отозвать", "Черновик"),
             ("Одобрена", "отозвать", "Черновик"),
             ("Отклонена", "отправить", "На согласовании"),
+            ("Одобрена", "отклонить", "Отклонена"),
         ],
     ),
     (
@@ -208,6 +210,38 @@ STATE_DOMAINS = [
             ("Пробная", "отменить", "Отменена"),
             ("Активна", "отменить", "Отменена"),
             ("Приостановлена", "отменить", "Отменена"),
+            ("Отменена", "возобновить", "Активна"),
+        ],
+    ),
+    (
+        "Тикет поддержки",
+        ["Открыт", "В работе", "Ждёт ответа", "Решён", "Закрыт"],
+        ["взять", "запросить", "ответить", "решить", "закрыть"],
+        [
+            ("Открыт", "взять", "В работе"),
+            ("В работе", "решить", "Решён"),
+            ("Решён", "закрыть", "Закрыт"),
+        ],
+        [
+            ("В работе", "запросить", "Ждёт ответа"),
+            ("Ждёт ответа", "ответить", "В работе"),
+            ("Открыт", "закрыть", "Закрыт"),
+            ("Решён", "ответить", "В работе"),
+        ],
+    ),
+    (
+        "Бронирование номера",
+        ["Ожидает оплаты", "Подтверждено", "Заселение", "Завершено", "Отменено"],
+        ["оплатить", "заселить", "выселить", "отменить"],
+        [
+            ("Ожидает оплаты", "оплатить", "Подтверждено"),
+            ("Подтверждено", "заселить", "Заселение"),
+            ("Заселение", "выселить", "Завершено"),
+        ],
+        [
+            ("Ожидает оплаты", "отменить", "Отменено"),
+            ("Подтверждено", "отменить", "Отменено"),
+            ("Заселение", "отменить", "Завершено"),
         ],
     ),
 ]
@@ -217,8 +251,9 @@ STATE_DOMAINS = [
 def state_transition_invalid(rng: random.Random) -> Generated:
     """Недопустимые пары = |состояния| × |события| − число допустимых переходов."""
     entity, states, events, core, optional = rng.choice(STATE_DOMAINS)
-    extra = rng.sample(optional, rng.randint(1, 3))
+    extra = rng.sample(optional, rng.randint(1, len(optional)))
     valid = [t for t in core + optional if t in core or t in extra]
+    rng.shuffle(valid)
     listing = "; ".join(f"{src} —[{event}]→ {dst}" for src, event, dst in valid)
     return Generated(
         stem=(
@@ -240,9 +275,15 @@ TECHNIQUES = {
 }
 TECHNIQUE_SCENARIOS = [
     ("Нужно проверить поведение на краях допустимого диапазона: поле принимает {a}–{b} символов", "bva"),
+    ("Поле «{field}» принимает целые числа от {a} до {b}; важнее всего проверить значения у пределов", "bva"),
     (
         "Размер скидки зависит от сочетания трёх условий: статус "
         "клиента, сумма заказа больше {b} ₽, наличие промокода",
+        "decision",
+    ),
+    (
+        "Решение об одобрении заявки «{field}» зависит от комбинации "
+        "условий: возраст, наличие долга, подтверждённый доход",
         "decision",
     ),
     (
@@ -251,7 +292,17 @@ TECHNIQUE_SCENARIOS = [
         "state",
     ),
     (
+        "Объект «{field}» меняет статусы по событиям, и нужно проверить "
+        "допустимые и запрещённые переходы между ними",
+        "state",
+    ),
+    (
         "В настройках отчёта {a} выпадающих списков по 4–6 значений; полный перебор комбинаций невозможен",
+        "pairwise",
+    ),
+    (
+        "Форму «{field}» нужно проверить в {a} браузерах, нескольких ОС и языках; "
+        "все комбинации не успеть, но каждая пара значений должна встретиться",
         "pairwise",
     ),
     (
@@ -259,15 +310,25 @@ TECHNIQUE_SCENARIOS = [
         "похожих формах раньше часто находились дефекты",
         "guess",
     ),
+    (
+        "По опыту прошлых релизов тестировщик составляет список типичных "
+        "ошибок (пустые строки, спецсимволы, двойной клик) и проверяет «{field}» по нему",
+        "guess",
+    ),
 ]
+TECHNIQUE_FIELDS = ["Кредит", "Регистрация", "Доставка", "Количество", "Возраст", "Бронирование"]
 
 
 @generator("qa.technique_choice")
 def technique_choice(rng: random.Random) -> Generated:
     text, answer = rng.choice(TECHNIQUE_SCENARIOS)
     a, b = rng.randint(5, 8), rng.randrange(1000, 10001, 500)
+    field = rng.choice(TECHNIQUE_FIELDS)
+    question = rng.choice(
+        ["Какая техника тест-дизайна подходит лучше всего?", "Какую технику тест-дизайна выбрать?"]
+    )
     return Generated(
-        stem=f"{text.format(a=a, b=b)}. Какая техника тест-дизайна подходит лучше всего?",
+        stem=f"{text.format(a=a, b=b, field=field)}. {question}",
         correct=(TECHNIQUES[answer],),
         wrong=tuple(label for key, label in TECHNIQUES.items() if key != answer),
     )
@@ -282,11 +343,40 @@ SEVERITY_OPTIONS = {
 SEVERITY_SCENARIOS = [
     ("На главной странице {product} с опечаткой написано название компании", (False, True)),
     (
+        "Логотип {product} на главной странице отображается чужим цветом за день до рекламной кампании",
+        (False, True),
+    ),
+    ("На кнопке «Оформить заказ» на главной странице {product} грубая опечатка", (False, True)),
+    (
         "Приложение {product} падает при экспорте отчёта в устаревший формат, которым пользуются единицы",
         (True, False),
     ),
+    (
+        "Приложение {product} аварийно завершается на версии ОС, доля которой меньше 0,1% и которую "
+        "решено перестать поддерживать",
+        (True, False),
+    ),
+    (
+        "Приложение {product} аварийно завершается, если вставить в поле комментария 50 000 символов — "
+        "реальные пользователи так не делают",
+        (True, False),
+    ),
     ("Ни один пользователь {product} не может оплатить заказ", (True, True)),
+    ("После обновления {product} пользователи не могут войти в аккаунт", (True, True)),
+    ("Данные карт пользователей {product} пишутся в открытом виде в общедоступный лог", (True, True)),
     ("На редко открываемой странице настроек {product} иконка смещена на 2 пикселя", (False, False)),
+    ("В подсказке на странице «О компании» {product} лишняя запятая", (False, False)),
+    ("Цвет рамки неактивного поля в старом разделе справки {product} отличается от макета", (False, False)),
+]
+SEVERITY_PRODUCTS = [
+    "интернет-магазина",
+    "онлайн-банка",
+    "сервиса доставки",
+    "онлайн-кинотеатра",
+    "сервиса бронирования",
+    "онлайн-школы",
+    "маркетплейса",
+    "медицинского портала",
 ]
 
 
@@ -294,10 +384,15 @@ SEVERITY_SCENARIOS = [
 def severity_priority(rng: random.Random) -> Generated:
     """Severity — влияние дефекта на систему, priority — срочность исправления для бизнеса."""
     text, key = rng.choice(SEVERITY_SCENARIOS)
-    product = rng.choice(["интернет-магазина", "онлайн-банка", "сервиса доставки", "онлайн-кинотеатра"])
+    product = rng.choice(SEVERITY_PRODUCTS)
+    question = rng.choice(
+        [
+            "Какие серьёзность (severity) и приоритет (priority) у дефекта?",
+            "Как оценить серьёзность (severity) и приоритет (priority) этого дефекта?",
+        ]
+    )
     return Generated(
-        stem=f"{text.format(product=product)}. Какие серьёзность "
-        f"(severity) и приоритет (priority) у дефекта?",
+        stem=f"{text.format(product=product)}. {question}",
         correct=(SEVERITY_OPTIONS[key],),
         wrong=tuple(label for other, label in SEVERITY_OPTIONS.items() if other != key),
     )
@@ -637,9 +732,13 @@ def sql_group_having(rng: random.Random) -> Generated:
 
 @generator("qa.sql_task_query")
 def sql_task_query(rng: random.Random) -> Generated:
-    table = rng.choice(["customers", "clients", "users"])
-    column = rng.choice(["city", "country", "segment"])
-    limit = rng.choice([3, 5, 10])
+    table = rng.choice(["customers", "clients", "users", "accounts", "members"])
+    column = rng.choice(["city", "country", "segment", "region", "plan"])
+    goods, price = rng.choice([("products", "price"), ("items", "cost"), ("tariffs", "monthly_fee")])
+    orders, status = rng.choice([("orders", "status"), ("tickets", "state"), ("payments", "status")])
+    mail = rng.choice(["email", "phone", "birth_date"])
+    limit = rng.choice([3, 5, 10, 20])
+    since = rng.choice(["2025-01-01", "2025-07-01", "2026-03-01", "2026-06-15"])
     tasks = [
         (
             f"Получить список уникальных значений {column} из таблицы {table}",
@@ -648,33 +747,61 @@ def sql_task_query(rng: random.Random) -> Generated:
                 f"SELECT {column} FROM {table};",
                 f"SELECT COUNT(DISTINCT {column}) FROM {table};",
                 f"SELECT {column} FROM {table} WHERE {column} IS NOT NULL;",
+                f"SELECT {column}, COUNT(*) FROM {table};",
+                f"SELECT * FROM {table} ORDER BY {column};",
             ],
         ),
         (
-            f"Получить {limit} самых дорогих товаров из таблицы products",
-            f"SELECT * FROM products ORDER BY price DESC LIMIT {limit};",
+            f"Получить {limit} самых дорогих позиций из таблицы {goods} (цена — {price})",
+            f"SELECT * FROM {goods} ORDER BY {price} DESC LIMIT {limit};",
             [
-                f"SELECT * FROM products ORDER BY price ASC LIMIT {limit};",
-                f"SELECT * FROM products LIMIT {limit};",
-                f"SELECT MAX(price) FROM products LIMIT {limit};",
+                f"SELECT * FROM {goods} ORDER BY {price} ASC LIMIT {limit};",
+                f"SELECT * FROM {goods} LIMIT {limit};",
+                f"SELECT MAX({price}) FROM {goods} LIMIT {limit};",
+                f"SELECT * FROM {goods} WHERE {price} > {limit} ORDER BY {price} DESC;",
+                f"SELECT * FROM {goods} GROUP BY {price} LIMIT {limit};",
             ],
         ),
         (
-            "Посчитать количество заказов в каждом статусе",
-            "SELECT status, COUNT(*) FROM orders GROUP BY status;",
+            f"Посчитать количество строк в {orders} для каждого значения {status}",
+            f"SELECT {status}, COUNT(*) FROM {orders} GROUP BY {status};",
             [
-                "SELECT status, COUNT(*) FROM orders;",
-                "SELECT COUNT(DISTINCT status) FROM orders;",
-                "SELECT status, COUNT(*) FROM orders ORDER BY status;",
+                f"SELECT {status}, COUNT(*) FROM {orders};",
+                f"SELECT COUNT(DISTINCT {status}) FROM {orders};",
+                f"SELECT {status}, COUNT(*) FROM {orders} ORDER BY {status};",
+                f"SELECT DISTINCT {status} FROM {orders};",
+                f"SELECT {status}, SUM(1) FROM {orders} WHERE {status} IS NOT NULL;",
             ],
         ),
         (
-            f"Найти записи в {table}, у которых не заполнен email (значение NULL)",
-            f"SELECT * FROM {table} WHERE email IS NULL;",
+            f"Найти записи в {table}, у которых не заполнено поле {mail} (значение NULL)",
+            f"SELECT * FROM {table} WHERE {mail} IS NULL;",
             [
-                f"SELECT * FROM {table} WHERE email = NULL;",
-                f"SELECT * FROM {table} WHERE email = '';",
-                f"SELECT * FROM {table} WHERE email IS NOT NULL;",
+                f"SELECT * FROM {table} WHERE {mail} = NULL;",
+                f"SELECT * FROM {table} WHERE {mail} = '';",
+                f"SELECT * FROM {table} WHERE {mail} IS NOT NULL;",
+                f"SELECT * FROM {table} WHERE {mail} <> NULL;",
+                f"SELECT * FROM {table} WHERE NOT {mail};",
+            ],
+        ),
+        (
+            f"Найти строки {orders}, созданные начиная с {since} включительно (столбец created_at — date)",
+            f"SELECT * FROM {orders} WHERE created_at >= '{since}';",
+            [
+                f"SELECT * FROM {orders} WHERE created_at > '{since}';",
+                f"SELECT * FROM {orders} WHERE created_at <= '{since}';",
+                f"SELECT * FROM {orders} WHERE created_at = '{since}';",
+                f"SELECT * FROM {orders} ORDER BY created_at LIMIT 1;",
+            ],
+        ),
+        (
+            f"Посчитать, сколько строк в таблице {table}",
+            f"SELECT COUNT(*) FROM {table};",
+            [
+                f"SELECT COUNT({mail}) FROM {table};",
+                f"SELECT SUM(id) FROM {table};",
+                f"SELECT MAX(id) FROM {table};",
+                f"SELECT COUNT(DISTINCT {column}) FROM {table};",
             ],
         ),
     ]
@@ -803,48 +930,122 @@ def percentile_nearest_rank(rng: random.Random) -> Generated:
 
 
 DEVTOOLS = {
-    "Network": "посмотреть статус и тело ответа запроса к {api}",
-    "Console": "увидеть текст необработанной JavaScript-ошибки после клика по «{button}»",
-    "Application": "проверить, какие cookie и данные localStorage сохранил сайт после входа",
-    "Elements": "посмотреть, какие CSS-правила применились к кнопке «{button}»",
-    "Performance": "записать профиль, чтобы найти долгие задачи при прокрутке ленты",
+    "Network": [
+        "посмотреть статус и тело ответа запроса к {api}",
+        "проверить, какие заголовки браузер отправил в запросе к {api}",
+        "понять, почему после клика по «{button}» запрос к {api} вернул ошибку 500",
+        "узнать, сколько времени загружался ответ {api}",
+    ],
+    "Console": [
+        "увидеть текст необработанной JavaScript-ошибки после клика по «{button}»",
+        "выполнить JavaScript-выражение на открытой странице и посмотреть результат",
+        "найти сообщение console.error, которое выводит скрипт при нажатии «{button}»",
+    ],
+    "Application": [
+        "проверить, какие cookie и данные localStorage сохранил сайт после входа",
+        "удалить cookie сессии, чтобы проверить повторный вход",
+        "посмотреть содержимое sessionStorage после нажатия «{button}»",
+    ],
+    "Elements": [
+        "посмотреть, какие CSS-правила применились к кнопке «{button}»",
+        "проверить, есть ли у кнопки «{button}» атрибут disabled в DOM",
+        "временно изменить текст кнопки «{button}» прямо в DOM, чтобы проверить перенос строк",
+    ],
+    "Performance": [
+        "записать профиль, чтобы найти долгие задачи при прокрутке ленты",
+        "понять, какие функции JavaScript тормозят интерфейс после нажатия «{button}»",
+    ],
+    "Sources": [
+        "поставить точку останова в JavaScript-обработчике кнопки «{button}»",
+        "пошагово выполнить скрипт, который вызывается при нажатии «{button}»",
+    ],
 }
+DEVTOOLS_APIS = ["/api/cart", "/api/login", "/api/search", "/api/orders", "/api/profile", "/api/checkout"]
+DEVTOOLS_BUTTONS = ["Купить", "Сохранить", "Отправить", "Войти", "Оформить заказ", "Применить фильтр"]
 
 
 @generator("qa.devtools_tab")
 def devtools_tab(rng: random.Random) -> Generated:
     tab = rng.choice(list(DEVTOOLS))
-    task = DEVTOOLS[tab].format(
-        api=rng.choice(["/api/cart", "/api/login", "/api/search"]),
-        button=rng.choice(["Купить", "Сохранить", "Отправить"]),
+    task = rng.choice(DEVTOOLS[tab]).format(
+        api=rng.choice(DEVTOOLS_APIS), button=rng.choice(DEVTOOLS_BUTTONS)
+    )
+    question = rng.choice(
+        [
+            "Какая вкладка Chrome DevTools для этого предназначена?",
+            "На какой вкладке Chrome DevTools это делают?",
+        ]
     )
     return Generated(
-        stem=f"Нужно {task}. Какая вкладка Chrome DevTools для этого предназначена?",
+        stem=f"Нужно {task}. {question}",
         correct=(tab,),
         wrong=tuple(other for other in DEVTOOLS if other != tab),
     )
 
 
-MOBILE_TOOLS = {
-    "Посмотреть системный лог Android-устройства во время падения приложения": "adb logcat",
-    "Установить сборку {app}.apk на подключённое Android-устройство": "adb install {app}.apk",
-    "Перехватить и подменить HTTPS-ответ сервера для мобильного приложения": (
-        "HTTP-прокси (Charles, Proxyman, mitmproxy) с сертификатом, установленным на устройство"
+MOBILE_TOOLS = [
+    (
+        [
+            "Посмотреть системный лог Android-устройства во время падения приложения {app}",
+            "Найти стек-трейс падения приложения {app} на подключённом Android-телефоне",
+        ],
+        "adb logcat",
     ),
-    "Проверить веб-версию на медленном "
-    "мобильном интернете в Chrome": "Throttling на вкладке Network в Chrome DevTools",
-    "Посмотреть иерархию UI-элементов на экране Android-приложения": "Layout Inspector в Android Studio",
-}
+    (
+        [
+            "Установить сборку {app}.apk на подключённое Android-устройство",
+            "Поставить тестовую сборку {app}.apk на Android-телефон из командной строки",
+        ],
+        "adb install {app}.apk",
+    ),
+    (
+        [
+            "Перехватить и подменить HTTPS-ответ сервера для мобильного приложения {app}",
+            "Посмотреть запросы мобильного приложения {app} к API и подменить ответ сервера",
+        ],
+        "HTTP-прокси (Charles, Proxyman, mitmproxy) с сертификатом, установленным на устройство",
+    ),
+    (
+        [
+            "Проверить веб-версию {app} на медленном мобильном интернете в Chrome",
+            "Сымитировать медленную сеть 3G для мобильной веб-версии {app} в браузере Chrome",
+        ],
+        "Throttling на вкладке Network в Chrome DevTools",
+    ),
+    (
+        [
+            "Посмотреть иерархию UI-элементов на экране Android-приложения {app}",
+            "Выяснить, почему элемент экрана Android-приложения {app} перекрыт другим, по дереву View",
+        ],
+        "Layout Inspector в Android Studio",
+    ),
+    (
+        [
+            "Записать видео экрана Android-устройства с приложением {app} из командной строки",
+            "Снять видео воспроизведения дефекта в {app} на Android без сторонних приложений",
+        ],
+        "adb shell screenrecord",
+    ),
+    (
+        [
+            "Раздать бета-сборку iOS-приложения {app} внешним тестировщикам",
+            "Получить тестовую iOS-сборку {app} на iPhone до публикации в App Store",
+        ],
+        "TestFlight",
+    ),
+]
+MOBILE_APPS = ["shop", "bank", "delivery", "app-release", "taxi", "fitness", "tickets"]
 
 
 @generator("qa.mobile_tool")
 def mobile_tool(rng: random.Random) -> Generated:
-    app = rng.choice(["shop", "bank", "delivery", "app-release"])
-    task = rng.choice(list(MOBILE_TOOLS))
-    answer = MOBILE_TOOLS[task].format(app=app)
-    wrong = [tool.format(app=app) for other, tool in MOBILE_TOOLS.items() if other != task]
+    app = rng.choice(MOBILE_APPS)
+    index = rng.randrange(len(MOBILE_TOOLS))
+    tasks, tool = MOBILE_TOOLS[index]
+    answer = tool.format(app=app)
+    wrong = [other.format(app=app) for i, (_, other) in enumerate(MOBILE_TOOLS) if i != index]
     return Generated(
-        stem=f"{task.format(app=app)}. Какой инструмент для этого подходит?",
+        stem=f"{rng.choice(tasks).format(app=app)}. Какой инструмент для этого подходит?",
         correct=(answer,),
         wrong=tuple(wrong),
     )
@@ -949,4 +1150,1093 @@ def junit_before_each(rng: random.Random) -> Generated:
         code="\n".join(lines),
         code_language="java",
         number=float(plain + len(values) + repeats),
+    )
+
+
+# --- Тест-дизайн: дополнительные генераторы ----------------------------------------------------
+
+RANGE_FIELDS = [
+    ("Возраст клиента", "лет"),
+    ("Количество билетов в заказе", "шт."),
+    ("Длина логина", "символов"),
+    ("Срок аренды", "дней"),
+    ("Количество гостей", "чел."),
+    ("Срок кредита", "мес."),
+    ("Вес посылки", "кг"),
+]
+
+
+def _range_field(rng: random.Random) -> tuple[str, str, int, int]:
+    field, unit = rng.choice(RANGE_FIELDS)
+    low = rng.randint(2, 30)
+    high = low + rng.randint(15, 90)
+    return field, unit, low, high
+
+
+@generator("qa.td_positive_negative")
+def td_positive_negative(rng: random.Random) -> Generated:
+    """Негативные значения — вне допустимого диапазона; значения на границах валидны."""
+    field, unit, low, high = _range_field(rng)
+    invalid = [low - 1, high + 1, rng.randint(high + 5, high * 3), -rng.randint(1, 10), 0]
+    valid = [low, high, rng.randint(low + 2, high - 2), rng.randint(low + 2, high - 2)]
+    invalid_texts = _distinct_wrong("", (str(v) for v in invalid))
+    valid_texts = _distinct_wrong("", (str(v) for v in valid if str(v) not in invalid_texts))
+    question = rng.choice(
+        [
+            "Какие тестовые значения относятся к негативным проверкам (система должна их отклонить)?",
+            "Какие значения из списка должны быть отклонены системой?",
+        ]
+    )
+    return Generated(
+        stem=f"Поле «{field}» принимает целые значения от {low} до {high} {unit} включительно. {question}",
+        correct=invalid_texts,
+        wrong=valid_texts,
+    )
+
+
+@generator("qa.td_equivalence_pick")
+def td_equivalence_pick(rng: random.Random) -> Generated:
+    """Классы: меньше минимума, внутри диапазона, больше максимума — по одному представителю."""
+    field, unit, low, high = _range_field(rng)
+    below = low - rng.randint(1, min(low, 5))
+    above = high + rng.randint(1, 30)
+    inner = rng.sample(range(low + 1, high), 2)
+
+    def fmt(values: list[int]) -> str:
+        return "; ".join(str(v) for v in sorted(values))
+
+    correct = fmt([below, inner[0], above])
+    wrong = [
+        fmt([low, inner[0], high]),
+        fmt([below, above]),
+        fmt([inner[0], inner[1], above]),
+        fmt([below, inner[0], inner[1]]),
+        fmt([below, low, inner[0], high]),
+    ]
+    return Generated(
+        stem=(
+            f"Поле «{field}» принимает целые значения от {low} до {high} {unit} включительно. Какой набор "
+            "значений содержит ровно по одному представителю каждого класса эквивалентности "
+            "(валидного и невалидных)? Нечисловой ввод не рассматривайте."
+        ),
+        correct=(correct,),
+        wrong=_distinct_wrong(correct, wrong),
+    )
+
+
+@generator("qa.td_three_point_bva")
+def td_three_point_bva(rng: random.Random) -> Generated:
+    """Трёхточечный анализ: для каждой границы — она сама и соседние значения с обеих сторон."""
+    field, unit, low, high = _range_field(rng)
+
+    def fmt(values: list[int]) -> str:
+        return "; ".join(str(v) for v in values)
+
+    correct = fmt([low - 1, low, low + 1, high - 1, high, high + 1])
+    wrong = [
+        fmt([low - 1, low, high, high + 1]),
+        fmt([low, low + 1, high - 1, high]),
+        fmt([low - 2, low - 1, low, high, high + 1, high + 2]),
+        fmt([low - 1, low + 1, (low + high) // 2, high - 1, high + 1]),
+        fmt([low, (low + high) // 2, high]),
+    ]
+    return Generated(
+        stem=(
+            f"Поле «{field}» принимает целые значения от {low} до {high} {unit} включительно. Какой набор "
+            "значений даёт трёхточечный анализ граничных значений "
+            "(каждая граница и оба соседних с ней значения)?"
+        ),
+        correct=(correct,),
+        wrong=_distinct_wrong(correct, wrong),
+    )
+
+
+def _money(cents: int) -> str:
+    return f"{cents // 100:,}".replace(",", " ") + f",{cents % 100:02d}"
+
+
+@generator("qa.td_boundary_decimal")
+def td_boundary_decimal(rng: random.Random) -> Generated:
+    """Шаг значения — 1 копейка, поэтому соседи границы отличаются на 0,01, а не на 1."""
+    low = rng.choice([rng.randrange(10, 501, 10), rng.randrange(1000, 10001, 500)]) * 100
+    high = low + rng.randrange(5000, 300001, 500) * 100
+    operation = rng.choice(["Сумма перевода", "Сумма пополнения", "Сумма заказа", "Сумма платежа"])
+
+    def fmt(values: list[int]) -> str:
+        return "; ".join(_money(v) for v in values)
+
+    correct = fmt([low - 1, low, high, high + 1])
+    wrong = [
+        fmt([low - 100, low, high, high + 100]),
+        fmt([low, low + 1, high - 1, high]),
+        fmt([low - 10, low, high, high + 10]),
+        fmt([low, high]),
+        fmt([low - 1, low + 1, high - 1, high + 1]),
+    ]
+    return Generated(
+        stem=(
+            f"{operation} — от {_money(low)} до {_money(high)} ₽ включительно, с точностью до копеек. "
+            "Какой набор значений (₽) даёт двухточечный анализ граничных значений: граница и ближайшее "
+            "значение за ней?"
+        ),
+        correct=(correct,),
+        wrong=_distinct_wrong(correct, wrong),
+    )
+
+
+MONTHS_GEN = [
+    "января",
+    "февраля",
+    "марта",
+    "апреля",
+    "мая",
+    "июня",
+    "июля",
+    "августа",
+    "сентября",
+    "октября",
+    "ноября",
+    "декабря",
+]
+
+
+@generator("qa.td_date_boundaries")
+def td_date_boundaries(rng: random.Random) -> Generated:
+    """Граница по дате: соседние дни зависят от длины месяца и високосного года."""
+    import datetime as dt
+
+    year = rng.randint(2025, 2030)
+    month = rng.randint(1, 12)
+    start = dt.date(year, month, 1)
+    span = rng.randint(0, 2)
+    end_month = (month - 1 + span) % 12 + 1
+    end_year = year + (month - 1 + span) // 12
+    next_first = dt.date(end_year + end_month // 12, end_month % 12 + 1, 1)
+    end = next_first - dt.timedelta(days=1)
+    day = dt.timedelta(days=1)
+    prev_start = start - day
+
+    def fmt(dates: list[str]) -> str:
+        return "; ".join(dates)
+
+    def d(value: dt.date) -> str:
+        return value.strftime("%d.%m.%Y")
+
+    real = prev_start.day
+    fake_day = {28: 29, 29: 28, 30: 31, 31: 30}[real]
+    fake_prev = f"{fake_day:02d}.{prev_start.month:02d}.{prev_start.year}"
+    correct = fmt([d(prev_start), d(start), d(end), d(end + day)])
+    wrong = [
+        fmt([d(start), d(end)]),
+        fmt([d(start), d(start + day), d(end - day), d(end)]),
+        fmt([fake_prev, d(start), d(end), d(end + day)]),
+        fmt([d(prev_start), d(start), d(end - day), d(end)]),
+    ]
+    campaign = rng.choice(["Акция", "Промокод", "Льготный тариф", "Бесплатная доставка"])
+    return Generated(
+        stem=(
+            f"{campaign} действует с {start.day} {MONTHS_GEN[start.month - 1]} {start.year} по {end.day} "
+            f"{MONTHS_GEN[end.month - 1]} {end.year} включительно. Какие даты даёт двухточечный анализ "
+            "граничных значений (граница и ближайший день за ней)?"
+        ),
+        correct=(correct,),
+        wrong=_distinct_wrong(correct, wrong),
+    )
+
+
+@generator("qa.td_statement_coverage")
+def td_statement_coverage(rng: random.Random) -> Generated:
+    """Покрытие операторов: независимые if без else покрываются одним тестом, ветви цепочки — разными."""
+    var = rng.choice(["amount", "age", "weight", "days", "distance"])
+    conditions = rng.randint(2, 4)
+    with_else = rng.random() < 0.5
+    thresholds = sorted(rng.sample(range(10, 100, 5), conditions))
+    chain = []
+    for index, value in enumerate(thresholds):
+        keyword = "if" if index == 0 else "} else if"
+        chain += [f"  {keyword} ({var} < {value}) {{", f"    fee = {index + 1};"]
+    if with_else:
+        chain += ["  } else {", f"    fee = {conditions + 1};"]
+    chain.append("  }")
+    flags = rng.sample(["isVip", "hasCoupon", "isNight", "isHoliday", "isExpress"], rng.randint(1, 2))
+    singles = []
+    for flag in flags:
+        singles += [f"  if ({flag}) {{", f"    fee += {rng.randint(2, 9)};", "  }"]
+    blocks = [chain, singles]
+    rng.shuffle(blocks)
+    code = [f"function calcFee({', '.join([var, *flags])}) {{", "  let fee = 0;"]
+    for block in blocks:
+        code += block
+    code += ["  return fee;", "}"]
+    answer = conditions + (1 if with_else else 0)
+    return Generated(
+        stem=(
+            "Параметры функции независимы, любые их сочетания допустимы. Какое минимальное число тестов "
+            "даёт 100% покрытие операторов (statement coverage)?"
+        ),
+        code="\n".join(code),
+        code_language="javascript",
+        number=float(answer),
+    )
+
+
+def _decision_block(rng: random.Random, var: str, used: set[int]) -> tuple[list[str], int]:
+    """Случайная управляющая конструкция и число решений (точек ветвления) в ней."""
+    kind = rng.choice(["if", "if_else", "chain", "for", "while"])
+    value = rng.choice([v for v in range(5, 100, 5) if v not in used])
+    used.add(value)
+    if kind == "if":
+        return [f"  if ({var} > {value}) {{", "    score += 1;", "  }"], 1
+    if kind == "if_else":
+        return [f"  if ({var} > {value}) {{", "    score += 2;", "  } else {", "    score -= 1;", "  }"], 1
+    if kind == "chain":
+        count = rng.randint(2, 3)
+        lines = []
+        for index in range(count):
+            keyword = "if" if index == 0 else "} else if"
+            lines += [f"  {keyword} ({var} < {value + index * 10}) {{", f"    score += {index + 1};"]
+        if rng.random() < 0.5:
+            lines += ["  } else {", "    score = 0;"]
+        lines.append("  }")
+        return lines, count
+    if kind == "for":
+        return [f"  for (let i = 0; i < {var}; i++) {{", "    score += i;", "  }"], 1
+    return [f"  while (score < {value}) {{", "    score += 7;", "  }"], 1
+
+
+@generator("qa.td_cyclomatic")
+def td_cyclomatic(rng: random.Random) -> Generated:
+    """Цикломатическая сложность Маккейба для одной функции: число точек решения + 1."""
+    variables = rng.sample(["a", "b", "count", "limit", "total"], 2)
+    used: set[int] = set()
+    decisions = 0
+    code = [f"function score({', '.join(variables)}) {{", "  let score = 0;"]
+    for _ in range(rng.randint(2, 4)):
+        lines, count = _decision_block(rng, rng.choice(variables), used)
+        code += lines
+        decisions += count
+    code += ["  return score;", "}"]
+    return Generated(
+        stem=(
+            "Какова цикломатическая сложность (по Маккейбу) этой функции? Все условия простые, без && и ||. "
+            "Она же — число независимых путей для базисного тестирования путей."
+        ),
+        code="\n".join(code),
+        code_language="javascript",
+        number=float(decisions + 1),
+    )
+
+
+@generator("qa.td_path_count")
+def td_path_count(rng: random.Random) -> Generated:
+    """Полное покрытие путей: исходы независимых последовательных блоков перемножаются (§10.2)."""
+    names = rng.sample(["amount", "age", "items", "days", "weight", "distance", "score"], 4)
+    code = [f"function price({', '.join(names)}) {{", "  let price = 100;"]
+    total = 1
+    blocks = rng.randint(2, 4)
+    for index in range(blocks):
+        var = names[index]
+        kind = rng.choice(["if", "if_else", "chain", "chain_else"])
+        if kind in {"if", "if_else"}:
+            code += [f"  if ({var} > {rng.randrange(5, 100, 5)}) {{", f"    price += {rng.randint(2, 30)};"]
+            if kind == "if_else":
+                code += ["  } else {", f"    price -= {rng.randint(1, 9)};"]
+            code.append("  }")
+            total *= 2
+        else:
+            count = rng.randint(2, 3)
+            base = rng.randrange(5, 50, 5)
+            for step in range(count):
+                keyword = "if" if step == 0 else "} else if"
+                code += [f"  {keyword} ({var} < {base + step * 10}) {{", f"    price *= {step + 2};"]
+            if kind == "chain_else":
+                code += ["  } else {", "    price -= 5;"]
+            code.append("  }")
+            total *= count + 1
+    code += ["  return price;", "}"]
+    return Generated(
+        stem=(
+            "Параметры независимы, любые их сочетания допустимы. Сколько различных путей выполнения "
+            "существует в функции, то есть сколько тестов нужно для 100% покрытия путей (path coverage)?"
+        ),
+        code="\n".join(code),
+        code_language="javascript",
+        number=float(total),
+    )
+
+
+SWITCH_DOMAINS = [
+    ("Заказ", ["Создан", "Оплачен", "Собран", "Отправлен", "Получен"]),
+    ("Заявка", ["Черновик", "Проверка", "Доработка", "Одобрена", "Архив"]),
+    ("Тикет", ["Открыт", "В работе", "Ждёт ответа", "Решён", "Закрыт"]),
+    ("Документ", ["Новый", "Согласование", "Правки", "Подписан", "Отозван"]),
+]
+
+
+@generator("qa.td_one_switch")
+def td_one_switch(rng: random.Random) -> Generated:
+    """Покрытие 1-switch: пары переходов t1→t2, где t2 начинается в состоянии, куда ведёт t1."""
+    entity, all_states = rng.choice(SWITCH_DOMAINS)
+    states = all_states[: rng.randint(4, 5)]
+    pairs = [(a, b) for a in states for b in states if a != b]
+    while True:
+        chosen = rng.sample(pairs, rng.randint(5, 7))
+        answer = sum(1 for _, dst in chosen for src, _ in chosen if src == dst)
+        if answer >= 3:
+            break
+    listing = "; ".join(f"{src} → {dst}" for src, dst in chosen)
+    return Generated(
+        stem=(
+            f"Объект «{entity}». Допустимые переходы: {listing}. Для покрытия 1-switch (пар переходов) "
+            "нужно проверить каждую последовательность из двух допустимых переходов подряд. Сколько таких "
+            "последовательностей?"
+        ),
+        number=float(answer),
+    )
+
+
+# --- API: дополнительные генераторы -------------------------------------------------------------
+
+API_RESOURCES = [
+    ("/api/v1/orders", "заказов", "заказ", "status"),
+    ("/api/v1/users", "пользователей", "пользователя", "email"),
+    ("/api/v1/tickets", "тикетов", "тикет", "priority"),
+    ("/api/v1/products", "товаров", "товар", "price"),
+    ("/api/v1/invoices", "счетов", "счёт", "due_date"),
+    ("/api/v1/bookings", "бронирований", "бронирование", "guests"),
+]
+
+
+@generator("qa.api_method_crud")
+def api_method_crud(rng: random.Random) -> Generated:
+    path, plural, single, field = rng.choice(API_RESOURCES)
+    item = f"{path}/{rng.randint(2, 999)}"
+    scenarios = [
+        (f"Получить список {plural}", "GET", path),
+        (f"Создать новый объект в коллекции {plural} ({single})", "POST", path),
+        (f"Полностью заменить {single} новым представлением", "PUT", item),
+        (f"Изменить у объекта ({single}) только поле {field}, остальные поля не передавать", "PATCH", item),
+        (f"Удалить {single}", "DELETE", item),
+    ]
+    text, method, target = rng.choice(scenarios)
+    wrong = [f"{other} {target}" for other in ["GET", "POST", "PUT", "PATCH", "DELETE"] if other != method]
+    return Generated(
+        stem=f"{text}. Какой запрос соответствует принятой семантике REST API?",
+        correct=(f"{method} {target}",),
+        wrong=tuple(wrong),
+    )
+
+
+STATUS_CLASSES = {
+    1: "1xx — информационный ответ",
+    2: "2xx — успешная обработка",
+    3: "3xx — перенаправление",
+    4: "4xx — ошибка клиента",
+    5: "5xx — ошибка сервера",
+}
+STATUS_CODES = [
+    (100, "Continue"),
+    (200, "OK"),
+    (201, "Created"),
+    (202, "Accepted"),
+    (204, "No Content"),
+    (301, "Moved Permanently"),
+    (302, "Found"),
+    (304, "Not Modified"),
+    (307, "Temporary Redirect"),
+    (400, "Bad Request"),
+    (401, "Unauthorized"),
+    (403, "Forbidden"),
+    (404, "Not Found"),
+    (405, "Method Not Allowed"),
+    (409, "Conflict"),
+    (422, "Unprocessable Content"),
+    (429, "Too Many Requests"),
+    (500, "Internal Server Error"),
+    (502, "Bad Gateway"),
+    (503, "Service Unavailable"),
+    (504, "Gateway Timeout"),
+]
+
+
+@generator("qa.api_status_class")
+def api_status_class(rng: random.Random) -> Generated:
+    code, _ = rng.choice(STATUS_CODES)
+    path = rng.choice(API_RESOURCES)[0]
+    stem = rng.choice(
+        [
+            f"Запрос к {path} вернул HTTP {code}. К какому классу относится этот код ответа?",
+            f"В логе автотеста: «{path} → {code}». Что означает класс этого кода ответа?",
+        ]
+    )
+    correct = STATUS_CLASSES[code // 100]
+    return Generated(
+        stem=stem,
+        correct=(correct,),
+        wrong=tuple(label for key, label in STATUS_CLASSES.items() if key != code // 100),
+    )
+
+
+API_HEADERS = [
+    ("Сообщить серверу, что тело запроса к {path} передаётся в JSON", "Content-Type"),
+    ("Указать, в каком формате клиент хочет получить ответ от {path}", "Accept"),
+    ("Передать токен доступа при запросе к {path}", "Authorization"),
+    ("Узнать из ответа 201 на POST {path}, по какому адресу доступен созданный ресурс", "Location"),
+    ("Узнать из ответа 429 от {path}, через сколько секунд можно повторить запрос", "Retry-After"),
+    ("Запретить промежуточным узлам и браузеру кешировать ответ {path}", "Cache-Control"),
+    ("Передать серверу cookie сессии вместе с запросом к {path}", "Cookie"),
+    ("Сохранить в браузере cookie, которую сервер выдал в ответе {path}", "Set-Cookie"),
+]
+
+
+@generator("qa.api_header_purpose")
+def api_header_purpose(rng: random.Random) -> Generated:
+    index = rng.randrange(len(API_HEADERS))
+    text, header = API_HEADERS[index]
+    path = rng.choice(API_RESOURCES)[0]
+    return Generated(
+        stem=f"{text.format(path=path)}. Какой HTTP-заголовок для этого используется?",
+        correct=(header,),
+        wrong=tuple(other for i, (_, other) in enumerate(API_HEADERS) if i != index),
+    )
+
+
+@generator("qa.api_pagination")
+def api_pagination(rng: random.Random) -> Generated:
+    path, plural, _, _ = rng.choice(API_RESOURCES)
+    size = rng.choice([10, 20, 25, 50])
+    full = rng.randint(3, 40)
+    rest = rng.randint(1, size - 1)
+    total = full * size + rest
+    if rng.random() < 0.5:
+        stem = (
+            f"GET {path}?limit={size}&offset=0 возвращает поле total = {total}. "
+            f"Сколько запросов с limit={size} "
+            f"понадобится, чтобы получить все {total} {plural}?"
+        )
+        answer = full + 1
+    else:
+        stem = (
+            f"Всего {plural}: {total}, API отдаёт их страницами по {size} (page=1, 2, …). Сколько записей "
+            "вернётся на последней странице?"
+        )
+        answer = rest
+    return Generated(stem=stem, number=float(answer))
+
+
+# --- pytest и JUnit: дополнительные генераторы -------------------------------------------------
+
+PYTEST_SUBJECTS = ["login", "cart", "search", "payment", "profile", "checkout", "export", "filter"]
+
+
+@generator("qa.pytest_discovery")
+def pytest_discovery(rng: random.Random) -> Generated:
+    """Правила сбора по умолчанию: функции test*, методы test* в классах Test* без __init__."""
+    subjects = rng.sample(PYTEST_SUBJECTS, 6)
+    cls = rng.choice(["Cart", "Api", "Order", "User"])
+    collected = [
+        f"test_{subjects[0]}",
+        f"test_{subjects[1]}_negative",
+        f"Test{cls}.test_{subjects[2]}",
+        f"Test{cls}.test_{subjects[3]}_empty",
+    ]
+    skipped = [
+        f"check_{subjects[4]}",
+        f"{subjects[5]}_test",
+        f"{cls}Tests.test_{subjects[2]}",
+        f"Test{cls}.verify_{subjects[4]}",
+        f"helper_{subjects[0]}",
+    ]
+    module = f"test_{rng.choice(['api', 'ui', 'orders', 'smoke'])}.py"
+    return Generated(
+        stem=(
+            f"В файле {module} объявлены функции и методы классов (в вариантах — «Класс.метод»), "
+            "у классов нет "
+            "__init__, настройки pytest по умолчанию. Какие из перечисленных pytest соберёт как тесты?"
+        ),
+        correct=tuple(collected),
+        wrong=tuple(skipped),
+    )
+
+
+@generator("qa.requests_ok")
+def requests_ok(rng: random.Random) -> Generated:
+    """requests не бросает исключение на 4xx/5xx; response.ok — True при коде < 400."""
+    code = rng.choice([200, 201, 204, 400, 401, 403, 404, 409, 422, 429, 500, 502, 503])
+    method = rng.choice(["get", "post", "delete"])
+    path = rng.choice(["orders/7", "users/me", "cart", "tickets/42", "invoices"])
+    ok = code < 400
+    if rng.random() < 0.5:
+        line = "print(r.status_code, r.ok)"
+        correct = f"{code} {ok}"
+        wrong = [f"{code} {not ok}", "Исключение requests.exceptions.HTTPError", f"{code} None"]
+    else:
+        line = "print(r.ok)"
+        correct = str(ok)
+        wrong = [str(not ok), "Исключение requests.exceptions.HTTPError", f"{code}"]
+    code_text = "\n".join(
+        ["import requests", "", f'r = requests.{method}("https://api.example.com/{path}")', line]
+    )
+    return Generated(
+        stem=f"Сервер отвечает на этот запрос кодом {code}. Что выведет код?",
+        code=code_text,
+        code_language="python",
+        correct=(correct,),
+        wrong=_distinct_wrong(correct, wrong),
+    )
+
+
+@generator("qa.pytest_outcomes")
+def pytest_outcomes(rng: random.Random) -> Generated:
+    """Не-strict xfail: падение — xfailed, успех — xpassed; strict=True делает XPASS провалом."""
+    markers = [
+        "",
+        '@pytest.mark.skip(reason="TODO")',
+        "@pytest.mark.xfail",
+        "@pytest.mark.xfail(strict=True)",
+    ]
+    while True:
+        tests = [(rng.choice(markers), rng.random() < 0.5) for _ in range(rng.randint(5, 7))]
+        if any(m == "@pytest.mark.xfail" and passes for m, passes in tests) and any(
+            m.startswith("@pytest.mark.xfail") and not passes for m, passes in tests
+        ):
+            break
+    lines = ["import pytest", ""]
+    failed = passed = 0
+    for index, (marker, passes) in enumerate(tests):
+        a, b = rng.randint(1, 20), rng.randint(1, 20)
+        expected = a + b if passes else a + b + 1
+        if marker:
+            lines.append(marker)
+        lines += [f"def test_case_{index + 1}():", f"    assert {a} + {b} == {expected}", ""]
+        if marker.startswith("@pytest.mark.skip"):
+            continue
+        if marker == "":
+            failed += not passes
+            passed += passes
+        elif marker == "@pytest.mark.xfail(strict=True)" and passes:
+            failed += 1
+    ask_failed = rng.random() < 0.5
+    word = "failed" if ask_failed else "passed"
+    return Generated(
+        stem=(
+            "Файл запускается командой pytest, конфигурация по умолчанию (xfail_strict не задан). "
+            f"Какое число будет у {word} в итоговой строке отчёта?"
+        ),
+        code="\n".join(lines).rstrip(),
+        code_language="python",
+        number=float(failed if ask_failed else passed),
+    )
+
+
+@generator("qa.pytest_fixture_override")
+def pytest_fixture_override(rng: random.Random) -> Generated:
+    """Фикстура с тем же именем ближе к тесту переопределяет внешнюю: модуль > conftest пакета > корень."""
+    name = rng.choice(["user", "base_url", "client", "config"])
+    values = rng.sample(["root", "api", "ui", "local", "stage", "prod", "mock"], 3)
+    root, nested, module_value = values
+    sub = rng.choice(["api", "web", "mobile"])
+    other = rng.choice(["admin", "reports", "smoke"])
+    scenario = rng.choice(["nested", "sibling", "module"])
+    lines = [
+        "# tests/conftest.py",
+        "@pytest.fixture",
+        f'def {name}(): return "{root}"',
+        "",
+        f"# tests/{sub}/conftest.py",
+        "@pytest.fixture",
+        f'def {name}(): return "{nested}"',
+        "",
+    ]
+    if scenario == "nested":
+        target = f"tests/{sub}/test_main.py"
+        lines += [f"# {target}", f"def test_it({name}): print({name})"]
+        answer = nested
+    elif scenario == "sibling":
+        target = f"tests/{other}/test_main.py"
+        lines += [f"# {target}", f"def test_it({name}): print({name})"]
+        answer = root
+    else:
+        target = f"tests/{sub}/test_main.py"
+        lines += [
+            f"# {target}",
+            "@pytest.fixture",
+            f'def {name}(): return "{module_value}"',
+            "",
+            f"def test_it({name}): print({name})",
+        ]
+        answer = module_value
+    wrong = [v for v in values if v != answer] + [
+        f"Ошибка: фикстура {name} определена несколько раз",
+    ]
+    return Generated(
+        stem=f"Что выведет тест из {target} при запуске pytest -s из корня проекта?",
+        code="\n".join(lines),
+        code_language="python",
+        correct=(answer,),
+        wrong=tuple(wrong),
+    )
+
+
+@generator("qa.junit_assert_message")
+def junit_assert_message(rng: random.Random) -> Generated:
+    """assertEquals(expected, actual): первым аргументом идёт ожидаемое значение."""
+    getter = rng.choice(["cart.size()", "order.getTotal()", "page.count()", "report.rows()"])
+    expected, actual = rng.sample(range(1, 60), 2)
+    reversed_args = rng.random() < 0.5
+    call = f"assertEquals({getter}, {expected});" if reversed_args else f"assertEquals({expected}, {getter});"
+    first, second = (actual, expected) if reversed_args else (expected, actual)
+    correct = f"expected: <{first}> but was: <{second}>"
+    wrong = [
+        f"expected: <{second}> but was: <{first}>",
+        f"expected: <{first}> but was: <{first}>",
+        "Тест пройдёт: assertEquals сравнивает значения без учёта порядка аргументов",
+        f"expected: <{getter}> but was: <{second}>",
+    ]
+    test = rng.choice(["countsItems", "calculatesTotal", "returnsPage", "keepsState"])
+    code = "\n".join(["@Test", f"void {test}() {{", f"    {call}", "}"])
+    return Generated(
+        stem=f"{getter} возвращает {actual}. Какое сообщение об ошибке покажет JUnit 5?",
+        code=code,
+        code_language="java",
+        correct=(correct,),
+        wrong=_distinct_wrong(correct, wrong),
+    )
+
+
+@generator("qa.junit_assert_all")
+def junit_assert_all(rng: random.Random) -> Generated:
+    """Обычные assert* останавливают тест на первом провале; assertAll выполняет все и сообщает о всех."""
+    order_id = rng.randint(1, 999)
+    status = rng.choice(["PAID", "NEW", "SHIPPED"])
+    total = rng.randrange(500, 9001, 100)
+    items = rng.randint(1, 9)
+    fields = [
+        ("order.getId()", str(order_id), str(order_id + rng.randint(1, 5))),
+        (
+            "order.getStatus()",
+            f'"{status}"',
+            f'"{rng.choice([s for s in ["PAID", "NEW", "SHIPPED"] if s != status])}"',
+        ),
+        ("order.getTotal()", str(total), str(total + 100)),
+        ("order.getItems()", str(items), str(items + 1)),
+    ]
+    while True:
+        fails = [rng.random() < 0.5 for _ in fields]
+        if sum(fails) >= 2:
+            break
+    checks = [
+        f"assertEquals({bad if fail else good}, {getter})"
+        for (getter, good, bad), fail in zip(fields, fails, strict=True)
+    ]
+    grouped = rng.random() < 0.5
+    lines = [
+        "@Test",
+        "void orderIsCorrect() {",
+        f'    Order order = new Order({order_id}, "{status}", {total}, {items});',
+    ]
+    if grouped:
+        lines.append("    assertAll(")
+        lines += [
+            f"        () -> {check}{',' if i < len(checks) - 1 else ''}" for i, check in enumerate(checks)
+        ]
+        lines.append("    );")
+        answer = sum(fails)
+    else:
+        lines += [f"    {check};" for check in checks]
+        answer = 1
+    lines.append("}")
+    return Generated(
+        stem=(
+            "Конструктор Order(id, status, total, items) сохраняет значения, геттеры их возвращают. Сколько "
+            "несовпадений значений JUnit 5 сообщит в отчёте об этом тесте?"
+        ),
+        code="\n".join(lines),
+        code_language="java",
+        number=float(answer),
+    )
+
+
+JUNIT_MIGRATION = [
+    ("@Before", "@BeforeEach"),
+    ("@After", "@AfterEach"),
+    ("@BeforeClass", "@BeforeAll"),
+    ("@AfterClass", "@AfterAll"),
+    ("@Ignore", "@Disabled"),
+    ("@Test(expected = IllegalStateException.class)", "assertThrows(IllegalStateException.class, () -> ...)"),
+    ("@RunWith(MockitoJUnitRunner.class)", "@ExtendWith(MockitoExtension.class)"),
+    ("@Category(SlowTests.class)", '@Tag("slow")'),
+]
+
+
+@generator("qa.junit_migration")
+def junit_migration(rng: random.Random) -> Generated:
+    index = rng.randrange(len(JUNIT_MIGRATION))
+    old, new = JUNIT_MIGRATION[index]
+    cls = rng.choice(["CartTest", "LoginTest", "PaymentApiTest", "SearchTest", "ProfileTest", "OrderDaoTest"])
+    return Generated(
+        stem=f"Класс {cls} переводят с JUnit 4 на JUnit 5. Чем заменить {old}?",
+        correct=(new,),
+        wrong=tuple(other for i, (_, other) in enumerate(JUNIT_MIGRATION) if i != index),
+    )
+
+
+# --- SQL: дополнительные генераторы -------------------------------------------------------------
+
+PRODUCT_NAMES = ["Чайник", "Лампа", "Кресло", "Плед", "Кружка", "Термос", "Рюкзак", "Зонт", "Коврик", "Часы"]
+
+
+@generator("qa.sql_order_limit")
+def sql_order_limit(rng: random.Random) -> Generated:
+    names = rng.sample(PRODUCT_NAMES, rng.randint(6, 7))
+    prices = rng.sample(range(300, 9001, 100), len(names))
+    rows = [[i + 1, n, p] for i, (n, p) in enumerate(zip(names, prices, strict=True))]
+    limit = rng.randint(2, 3)
+    direction = rng.choice(["DESC", "ASC"])
+    by_price = sorted(rows, key=lambda r: r[2], reverse=direction == "DESC")
+    opposite = sorted(rows, key=lambda r: r[2], reverse=direction != "DESC")
+
+    def names_of(selected: list[list[object]]) -> str:
+        return ", ".join(str(r[1]) for r in selected)
+
+    correct = names_of(by_price[:limit])
+    wrong = [
+        names_of(opposite[:limit]),
+        names_of(rows[:limit]),
+        names_of(by_price[: limit + 1]),
+        names_of(list(reversed(by_price[:limit]))),
+        names_of(by_price[-limit:]),
+    ]
+    code = _table("products", ["id", "name", "price"], rows)
+    code += f"\n\nSELECT name FROM products ORDER BY price {direction} LIMIT {limit};"
+    return Generated(
+        stem="Что вернёт запрос (строки по порядку)?",
+        code=code,
+        code_language="sql",
+        correct=(correct,),
+        wrong=_distinct_wrong(correct, wrong),
+    )
+
+
+@generator("qa.sql_count_distinct")
+def sql_count_distinct(rng: random.Random) -> Generated:
+    """COUNT(DISTINCT col) считает различные значения, NULL не учитывается."""
+    column, values = rng.choice(
+        [("city", ["Казань", "Омск", "Тула", "Пермь", "Сочи"]), ("plan", ["free", "pro", "team", "business"])]
+    )
+    while True:
+        rows = [
+            [i + 1, None if rng.random() < 0.25 else rng.choice(values[: rng.randint(2, len(values))])]
+            for i in range(rng.randint(7, 9))
+        ]
+        present = [r[1] for r in rows if r[1] is not None]
+        if any(r[1] is None for r in rows) and len(present) > len(set(present)) and len(set(present)) >= 2:
+            break
+    code = _table("customers", ["id", column], rows)
+    code += f"\n\nSELECT COUNT(DISTINCT {column}) FROM customers;"
+    return Generated(
+        stem="Какое число вернёт запрос?", code=code, code_language="sql", number=float(len(set(present)))
+    )
+
+
+@generator("qa.sql_inner_join_count")
+def sql_inner_join_count(rng: random.Random) -> Generated:
+    """INNER JOIN оставляет только пары с совпадением ключа; строки без пары отбрасываются с обеих сторон."""
+    while True:
+        users = _users(rng)
+        ids = [row[0] for row in users]
+        orders = _orders(rng, rng.randint(6, 8), ids + [len(ids) + 1, len(ids) + 2])
+        matched = sum(1 for o in orders if o[1] in ids)
+        if matched < len(orders) and any(all(o[1] != uid for o in orders) for uid in ids):
+            break
+    code = _table("users", ["id", "name"], users) + "\n\n"
+    code += _table("orders", ["id", "user_id", "status", "amount"], orders)
+    code += "\n\nSELECT u.name, o.amount\nFROM users u\nJOIN orders o ON o.user_id = u.id;"
+    return Generated(
+        stem="Сколько строк вернёт запрос?", code=code, code_language="sql", number=float(matched)
+    )
+
+
+@generator("qa.sql_not_in_null")
+def sql_not_in_null(rng: random.Random) -> Generated:
+    """x NOT IN (…, NULL) никогда не TRUE: при NULL в подзапросе результат пуст."""
+    while True:
+        users = _users(rng)
+        ids = [row[0] for row in users]
+        orders = []
+        for index in range(rng.randint(5, 7)):
+            user = None if index == 0 else rng.choice(ids)
+            orders.append([index + 1, user, rng.choice(["paid", "new", "cancelled"])])
+        rng.shuffle(orders)
+        for index, row in enumerate(orders):
+            row[0] = index + 1
+        status = rng.choice(["paid", "new", "cancelled"])
+        selected = [o for o in orders if o[2] == status]
+        null_inside = any(o[1] is None for o in selected)
+        without = sum(1 for uid in ids if all(o[1] != uid for o in selected))
+        if selected and without >= 1:
+            break
+    answer = 0 if null_inside else without
+    code = _table("users", ["id", "name"], users) + "\n\n"
+    code += _table("orders", ["id", "user_id", "status"], orders)
+    code += (
+        "\n\nSELECT COUNT(*)\nFROM users\nWHERE id NOT IN (\n"
+        f"  SELECT user_id FROM orders WHERE status = '{status}'\n);"
+    )
+    return Generated(stem="Какое число вернёт запрос?", code=code, code_language="sql", number=float(answer))
+
+
+# --- Процессы: дополнительные генераторы --------------------------------------------------------
+
+TEST_LEVELS = {
+    "unit": "Модульное (компонентное, unit)",
+    "integration": "Интеграционное",
+    "system": "Системное",
+    "acceptance": "Приёмочное",
+}
+TEST_LEVEL_SCENARIOS = [
+    (
+        "Разработчик проверяет функцию {func}() отдельно от остального кода, зависимости заменены заглушками",
+        "unit",
+    ),
+    ("Тесты вызывают метод класса {cls} напрямую и проверяют результат без запуска приложения", "unit"),
+    (
+        "Проверяется, что сервис {service} корректно обменивается данными с сервисом {other} через API",
+        "integration",
+    ),
+    (
+        "Проверяется, что модуль {service} правильно сохраняет данные в базу и читает их обратно",
+        "integration",
+    ),
+    (
+        "Полностью собранная система {product} проверяется на стенде, близком к продакшену, на соответствие "
+        "требованиям",
+        "system",
+    ),
+    ("Команда QA проверяет сквозные сценарии {product} целиком, от регистрации до оплаты", "system"),
+    ("Заказчик проверяет, решает ли {product} его бизнес-задачи, и решает, принимать ли релиз", "acceptance"),
+    (
+        "Будущие пользователи {product} проверяют систему в реальных сценариях перед вводом в эксплуатацию",
+        "acceptance",
+    ),
+]
+
+
+@generator("qa.test_level")
+def test_level(rng: random.Random) -> Generated:
+    text, answer = rng.choice(TEST_LEVEL_SCENARIOS)
+    services = rng.sample(["заказов", "оплаты", "доставки", "уведомлений", "каталога", "авторизации"], 2)
+    stem = text.format(
+        func=rng.choice(["calc_discount", "parse_date", "validate_email", "round_price"]),
+        cls=rng.choice(["PriceCalculator", "DateParser", "CartService", "TaxRules"]),
+        service=services[0],
+        other=services[1],
+        product=rng.choice(["CRM-системы", "интернет-магазина", "мобильного банка", "сервиса бронирования"]),
+    )
+    wrong = [label for key, label in TEST_LEVELS.items() if key != answer] + [
+        "Регрессионное",
+        "Дымовое (smoke)",
+    ]
+    return Generated(
+        stem=f"{stem}. Какой это уровень тестирования?",
+        correct=(TEST_LEVELS[answer],),
+        wrong=tuple(wrong),
+    )
+
+
+TEST_ARTIFACTS = [
+    ("Пошаговое описание проверки {feature}: предусловия, шаги, ожидаемый результат", "Тест-кейс"),
+    ("Список коротких пунктов «что проверить» для {feature} без детальных шагов", "Чек-лист"),
+    (
+        "Документ с объёмом, подходом, ресурсами, графиком и критериями начала "
+        "и окончания тестирования {feature}",
+        "Тест-план",
+    ),
+    (
+        "Описание найденной в {feature} проблемы: шаги воспроизведения, ожидаемый и фактический результат",
+        "Баг-репорт",
+    ),
+    ("Набор тест-кейсов {feature}, сгруппированных для совместного запуска", "Тестовый набор (test suite)"),
+    ("Таблица связи требований к {feature} с тест-кейсами, которые их проверяют", "Матрица трассируемости"),
+    (
+        "Итоговый документ о результатах тестирования {feature}: что проверено, найденные дефекты, риски",
+        "Отчёт о тестировании",
+    ),
+]
+
+
+@generator("qa.test_artifact")
+def test_artifact(rng: random.Random) -> Generated:
+    index = rng.randrange(len(TEST_ARTIFACTS))
+    text, name = TEST_ARTIFACTS[index]
+    feature = rng.choice(
+        ["оплаты", "регистрации", "поиска", "корзины", "личного кабинета", "экспорта отчётов"]
+    )
+    return Generated(
+        stem=f"{text.format(feature=feature)}. Как называется этот артефакт тестирования?",
+        correct=(name,),
+        wrong=tuple(other for i, (_, other) in enumerate(TEST_ARTIFACTS) if i != index),
+    )
+
+
+# --- Нагрузка: дополнительные генераторы --------------------------------------------------------
+
+PERF_TERMS = [
+    ("Число запросов, которые {service} обрабатывает за секунду", "Пропускная способность (throughput, RPS)"),
+    ("Время от отправки запроса к {service} до получения полного ответа", "Время отклика (response time)"),
+    ("Доля запросов к {service}, завершившихся ошибкой", "Процент ошибок (error rate)"),
+    (
+        "Значение, быстрее которого обработаны 95% запросов к {service}",
+        "95-й перцентиль времени отклика (p95)",
+    ),
+    ("Пауза между действиями виртуального пользователя {service}, имитирующая чтение страницы", "Think time"),
+    ("Постепенное увеличение числа виртуальных пользователей {service} в начале теста", "Ramp-up"),
+    (
+        "Число пользователей, одновременно выполняющих запросы к {service}",
+        "Конкурентность (concurrent users)",
+    ),
+]
+
+
+@generator("qa.perf_metric_term")
+def perf_metric_term(rng: random.Random) -> Generated:
+    index = rng.randrange(len(PERF_TERMS))
+    text, term = PERF_TERMS[index]
+    service = rng.choice(
+        ["сервис поиска", "API каталога", "сервис оплаты", "сайт магазина", "сервис авторизации"]
+    )
+    service_gen = {
+        "сервис поиска": "сервиса поиска",
+        "API каталога": "API каталога",
+        "сервис оплаты": "сервиса оплаты",
+        "сайт магазина": "сайта магазина",
+        "сервис авторизации": "сервиса авторизации",
+    }
+    filled = text.format(service=service if index == 0 else service_gen[service])
+    return Generated(
+        stem=f"{filled}. Как называется эта характеристика нагрузочного теста?",
+        correct=(term,),
+        wrong=tuple(other for i, (_, other) in enumerate(PERF_TERMS) if i != index),
+    )
+
+
+@generator("qa.perf_throughput")
+def perf_throughput(rng: random.Random) -> Generated:
+    rps = rng.randrange(20, 1501, 10)
+    minutes = rng.choice([2, 5, 10, 15, 20, 30])
+    total = rps * minutes * 60
+    service = rng.choice(["поиска", "каталога", "авторизации", "корзины"])
+    if rng.random() < 0.5:
+        stem = (
+            f"За {minutes} мин нагрузочного теста сервис {service} обработал {total} запросов с равномерной "
+            "интенсивностью. Какова пропускная способность в запросах в секунду (RPS)?"
+        )
+        answer = rps
+    else:
+        stem = (
+            f"Сервис {service} стабильно обрабатывает {rps} запросов в секунду. "
+            "Сколько запросов он обработает "
+            f"за {minutes} мин теста?"
+        )
+        answer = total
+    return Generated(stem=stem, number=float(answer))
+
+
+@generator("qa.perf_error_budget")
+def perf_error_budget(rng: random.Random) -> Generated:
+    """Бюджет ошибок = число запросов × (100% − SLO); unit = 1 / (100% − SLO)."""
+    slo, unit = rng.choice([("99", 100), ("99,5", 200), ("99,9", 1000), ("99,95", 2000)])
+    total = unit * rng.randint(5, 400) * 10
+    budget = total // unit
+    service = rng.choice(["API оплаты", "сервиса поиска", "личного кабинета", "API каталога"])
+    return Generated(
+        stem=(
+            f"SLO {service}: не менее {slo}% успешных запросов за месяц. Ожидается {total} запросов. Какое "
+            "максимальное число запросов может завершиться ошибкой, чтобы SLO был выполнен?"
+        ),
+        number=float(budget),
+    )
+
+
+@generator("qa.perf_apdex")
+def perf_apdex(rng: random.Random) -> Generated:
+    """Apdex = (довольные + терпящие / 2) / все; довольные ≤ T, терпящие ≤ 4T."""
+    threshold = rng.choice([200, 300, 500])
+    values: list[int] = []
+    for _ in range(rng.choice([10, 12, 16, 20])):
+        zone = rng.choices(["s", "t", "f"], weights=[5, 3, 2])[0]
+        if zone == "s":
+            values.append(rng.randrange(40, threshold + 1, 10))
+        elif zone == "t":
+            values.append(rng.randrange(threshold + 10, 4 * threshold + 1, 10))
+        else:
+            values.append(rng.randrange(4 * threshold + 10, 6 * threshold + 1, 10))
+    satisfied = sum(v <= threshold for v in values)
+    tolerating = sum(threshold < v <= 4 * threshold for v in values)
+    answer = round((satisfied + tolerating / 2) / len(values), 2)
+    return Generated(
+        stem=(
+            f"Время ответа {len(values)} запросов (мс): {', '.join(map(str, values))}. Посчитайте Apdex с "
+            f"порогом T = {threshold} мс: довольные — ответ не дольше T, "
+            "терпящие — дольше T, но не дольше 4T, "
+            "остальные — недовольные; Apdex = (довольные + терпящие / 2) / всего. Округлите до сотых."
+        ),
+        number=float(answer),
+        tolerance=0.01,
+    )
+
+
+# --- Веб и мобильные: дополнительные генераторы -------------------------------------------------
+
+MOBILE_BASICS = [
+    ("Формат установочного файла Android-приложения для ручной установки сборки {app}", ".apk"),
+    ("Формат файла сборки iOS-приложения {app}", ".ipa"),
+    (
+        "Формат, в котором Android-приложение {app} загружают в Google Play для публикации",
+        ".aab (Android App Bundle)",
+    ),
+    ("Сервис Apple для раздачи бета-сборок {app} тестировщикам", "TestFlight"),
+    ("Консольная утилита для установки сборок {app} и чтения логов на Android-устройстве", "adb"),
+    ("Среда разработки Apple, в состав которой входит симулятор iOS для запуска {app}", "Xcode"),
+    ("Виртуальное Android-устройство из Android Studio для запуска {app}", "AVD (Android Virtual Device)"),
+]
+
+
+@generator("qa.mobile_basics")
+def mobile_basics(rng: random.Random) -> Generated:
+    index = rng.randrange(len(MOBILE_BASICS))
+    text, answer = MOBILE_BASICS[index]
+    app = rng.choice(
+        ["приложения такси", "банковского приложения", "приложения доставки", "фитнес-приложения"]
+    )
+    return Generated(
+        stem=f"{text.format(app=app)}. Что это?",
+        correct=(answer,),
+        wrong=tuple(other for i, (_, other) in enumerate(MOBILE_BASICS) if i != index),
+    )
+
+
+WEB_STORAGE = [
+    ("Данные {site} удаляются, когда пользователь закрывает вкладку", "sessionStorage"),
+    (
+        "Данные {site} сохраняются после перезапуска браузера и не отправляются на сервер автоматически",
+        "localStorage",
+    ),
+    ("Значение автоматически отправляется на сервер {site} с каждым запросом к его домену", "Cookie"),
+    ("Чтение значения из JavaScript на {site} можно запретить флагом HttpOnly", "Cookie"),
+    ("Асинхронное хранилище {site} для больших объёмов структурированных данных с индексами", "IndexedDB"),
+]
+
+
+@generator("qa.web_storage")
+def web_storage(rng: random.Random) -> Generated:
+    text, answer = rng.choice(WEB_STORAGE)
+    site = rng.choice(
+        ["интернет-магазина", "онлайн-банка", "новостного сайта", "сервиса бронирования", "онлайн-школы"]
+    )
+    options = ["sessionStorage", "localStorage", "Cookie", "IndexedDB", "Cache Storage"]
+    return Generated(
+        stem=f"{text.format(site=site)}. О каком механизме хранения в браузере речь?",
+        correct=(answer,),
+        wrong=tuple(o for o in options if o != answer),
     )

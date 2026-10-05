@@ -8,17 +8,25 @@
   kind: ordering
   irt: {a: 1.0, b: -1.0}
   params:
-    cls: {choice: [CartTest, LoginTest, PaymentApiTest]}
-    test: {choice: [returnsResult, validatesInput, handlesError]}
-  stem: >-
-    В классе {{cls}} (JUnit 5) один тест {{test}}() и методы с аннотациями @BeforeAll, @BeforeEach,
-    @AfterEach, @AfterAll. Расположите вызовы в порядке выполнения.
+    cls: {choice: [CartTest, LoginTest, PaymentApiTest, SearchTest, ProfileTest, OrderDaoTest]}
+    test: {choice: [returnsResult, validatesInput, handlesError, savesOrder, rejectsEmpty, logsOut]}
+    all_init: {choice: [startServer, initDatabase, loadConfig, startBrowser]}
+    each_init: {choice: [openPage, createUser, resetState, login]}
+    each_done: {choice: [clearCookies, deleteUser, logout, takeScreenshot]}
+    all_done: {choice: [stopServer, closeDatabase, quitBrowser, cleanUp]}
+  stem_variants:
+    - >-
+      В классе {{cls}} (JUnit 5) один тест {{test}}() и методы с аннотациями @BeforeAll, @BeforeEach,
+      @AfterEach, @AfterAll. Расположите вызовы в порядке выполнения.
+    - >-
+      Класс {{cls}} на JUnit 5 запускается целиком; в нём один метод с @Test и четыре служебных метода.
+      В каком порядке JUnit вызовет методы?
   order_items:
-    - "@BeforeAll"
-    - "@BeforeEach"
-    - "{{test}}() с аннотацией @Test"
-    - "@AfterEach"
-    - "@AfterAll"
+    - "@BeforeAll static void {{all_init}}()"
+    - "@BeforeEach void {{each_init}}()"
+    - "@Test void {{test}}()"
+    - "@AfterEach void {{each_done}}()"
+    - "@AfterAll static void {{all_done}}()"
 
 - id: qa.java.before_each_count
   specializations: [qa]
@@ -52,3 +60,58 @@
       - "Implicit wait дожидается завершения всех AJAX-запросов на странице"
       - "Explicit wait, однажды созданный, действует на все последующие поиски элементов"
       - "StaleElementReferenceException означает, что элемент ещё не появился в DOM"
+
+- id: qa.java.assert_message
+  specializations: [qa]
+  topic: stack
+  stack_module: qa_automation_java
+  skills: [junit, java]
+  kind: code_output
+  irt: {a: 1.0, b: -0.9}
+  generator: qa.junit_assert_message
+
+- id: qa.java.junit_migration
+  specializations: [qa]
+  topic: stack
+  stack_module: qa_automation_java
+  skills: [junit, java]
+  kind: single_choice
+  irt: {a: 1.0, b: -1.3}
+  generator: qa.junit_migration
+
+- id: qa.java.assert_all
+  specializations: [qa]
+  topic: stack
+  stack_module: qa_automation_java
+  skills: [junit, java]
+  kind: numeric
+  irt: {a: 1.2, b: 0.4}
+  time_limit_sec: 120
+  generator: qa.junit_assert_all
+
+- id: qa.java.parallel_lifecycle
+  specializations: [qa]
+  topic: stack
+  stack_module: qa_automation_java
+  skills: [junit, selenium, java]
+  kind: multi_choice
+  irt: {a: 1.2, b: 1.5}
+  n_options: 5
+  params:
+    cls: {choice: [CheckoutUiTest, LoginUiTest, SearchUiTest, ProfileUiTest]}
+    tests: {int: [4, 12]}
+  stem: >-
+    В классе {{cls}} {{tests}} UI-тестов используют поле static WebDriver driver. После включения
+    junit.jupiter.execution.parallel.enabled=true и режима concurrent тесты стали падать случайным
+    образом. Какие утверждения верны?
+  options:
+    correct:
+      - "Статический драйвер общий для потоков: параллельные тесты управляют одним браузером"
+      - "Хранение драйвера в ThreadLocal<WebDriver> даёт каждому потоку свой экземпляр"
+      - "@Execution(ExecutionMode.SAME_THREAD) на классе заставляет его тесты выполняться последовательно"
+      - "По умолчанию JUnit 5 создаёт новый экземпляр тестового класса для каждого тестового метода"
+    wrong:
+      - "По умолчанию JUnit 5 создаёт один экземпляр тестового класса на все его методы"
+      - "@BeforeEach выполняется один раз на класс, поэтому драйвер в нём общий для всех тестов"
+      - "Метод с @BeforeAll может быть нестатическим только при параллельном запуске"
+      - "Параллельный запуск в JUnit 5 включается аннотацией @RepeatedTest"

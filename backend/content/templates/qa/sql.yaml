@@ -52,3 +52,38 @@
   irt: {a: 1.3, b: 1.2}
   time_limit_sec: 180
   generator: qa.sql_left_join_filter
+
+- id: qa.sql.order_limit
+  specializations: [qa]
+  topic: sql
+  skills: [sql]
+  kind: code_output
+  irt: {a: 1.0, b: -1.1}
+  generator: qa.sql_order_limit
+
+- id: qa.sql.inner_join_count
+  specializations: [qa]
+  topic: sql
+  skills: [sql]
+  kind: numeric
+  irt: {a: 1.1, b: -0.4}
+  time_limit_sec: 150
+  generator: qa.sql_inner_join_count
+
+- id: qa.sql.count_distinct
+  specializations: [qa]
+  topic: sql
+  skills: [sql]
+  kind: numeric
+  irt: {a: 1.1, b: 0.2}
+  time_limit_sec: 120
+  generator: qa.sql_count_distinct
+
+- id: qa.sql.not_in_null
+  specializations: [qa]
+  topic: sql
+  skills: [sql]
+  kind: numeric
+  irt: {a: 1.3, b: 1.5}
+  time_limit_sec: 180
+  generator: qa.sql_not_in_null

@@ -28,12 +28,19 @@
   kind: ordering
   irt: {a: 1.1, b: 0.5}
   params:
-    outer: {choice: [app, browser, api_server]}
-    inner: {choice: [db, page, client]}
-    test: {choice: [test_checkout, test_login, test_search]}
-  stem: >-
-    Фикстура {{outer}} имеет scope="session", фикстура {{inner}} — scope="function" и зависит от {{outer}};
-    обе используют yield. В прогоне один тест {{test}}({{inner}}). Расположите этапы в порядке выполнения.
+    outer: {choice: [app, browser, api_server, database, docker_env, kafka]}
+    inner: {choice: [db_session, page, client, user, cart, tmp_order]}
+    test: {choice: [test_checkout, test_login, test_search, test_profile, test_refund, test_export]}
+    outer_scope: {choice: [session, module, package]}
+  stem_variants:
+    - >-
+      Фикстура {{outer}} имеет scope="{{outer_scope}}", фикстура {{inner}} — scope="function" и зависит от
+      {{outer}}; обе используют yield. В прогоне один тест {{test}}({{inner}}). Расположите этапы в порядке
+      выполнения.
+    - >-
+      Тест {{test}} запрашивает фикстуру {{inner}} (scope="function"), а она запрашивает {{outer}}
+      (scope="{{outer_scope}}"). Обе фикстуры написаны через yield. Других тестов нет. В каком порядке
+      выполнятся этапы?
   order_items:
     - "Код {{outer}} до yield"
     - "Код {{inner}} до yield"
@@ -59,8 +66,51 @@
       - "locator.click() автоматически ждёт, пока элемент станет видимым, стабильным и доступным для событий"
       - "expect(locator).to_have_text(...) повторяет проверку до истечения таймаута"
       - "Локатор ленивый: элемент ищется заново при каждом действии с ним"
+      - "expect(locator).to_be_visible() ждёт появления элемента, а не проверяет его один раз"
+      - "Дождаться конкретного ответа сервера можно через page.expect_response(...)"
     wrong:
       - "page.wait_for_timeout(3000) — рекомендуемый способ дождаться ответа сервера"
       - "assert locator.inner_text() == ... автоматически повторяется до таймаута"
       - "Локатор находит элемент один раз при создании и дальше работает с сохранённой ссылкой"
       - "Без явного time.sleep клик выполнится до появления элемента и упадёт"
+      - "locator.is_visible() ждёт появления элемента до истечения таймаута"
+      - "Автоожидание работает только для локаторов по CSS, а не по тексту или роли"
+
+- id: qa.py.discovery
+  specializations: [qa]
+  topic: stack
+  stack_module: qa_automation_python
+  skills: [pytest, python]
+  kind: multi_choice
+  irt: {a: 1.0, b: -1.3}
+  n_options: 5
+  generator: qa.pytest_discovery
+
+- id: qa.py.requests_ok
+  specializations: [qa]
+  topic: stack
+  stack_module: qa_automation_python
+  skills: [python, api_testing]
+  kind: code_output
+  irt: {a: 1.0, b: -1.0}
+  generator: qa.requests_ok
+
+- id: qa.py.xfail_outcomes
+  specializations: [qa]
+  topic: stack
+  stack_module: qa_automation_python
+  skills: [pytest, python]
+  kind: numeric
+  irt: {a: 1.2, b: 0.9}
+  time_limit_sec: 150
+  generator: qa.pytest_outcomes
+
+- id: qa.py.fixture_override
+  specializations: [qa]
+  topic: stack
+  stack_module: qa_automation_python
+  skills: [pytest, python]
+  kind: code_output
+  irt: {a: 1.2, b: 1.2}
+  time_limit_sec: 120
+  generator: qa.pytest_fixture_override

@@ -111,3 +111,164 @@
       - "HTTP 404, потому что поле {{field}} не найдено"
       - "HTTP 200 и только data без errors: ошибки резолверов не возвращаются"
       - "HTTP 400, потому что запрос считается синтаксически неверным"
+
+- id: qa.api.method_crud
+  specializations: [qa]
+  topic: api_testing
+  skills: [api_testing, rest]
+  kind: single_choice
+  irt: {a: 1.0, b: -1.8}
+  generator: qa.api_method_crud
+
+- id: qa.api.status_class
+  specializations: [qa]
+  topic: api_testing
+  skills: [api_testing, http]
+  kind: single_choice
+  irt: {a: 0.9, b: -2.0}
+  generator: qa.api_status_class
+
+- id: qa.api.header_purpose
+  specializations: [qa]
+  topic: api_testing
+  skills: [api_testing, http]
+  kind: single_choice
+  irt: {a: 1.0, b: -1.1}
+  generator: qa.api_header_purpose
+
+- id: qa.api.pagination
+  specializations: [qa]
+  topic: api_testing
+  skills: [api_testing, rest]
+  kind: numeric
+  irt: {a: 1.0, b: -0.6}
+  time_limit_sec: 120
+  generator: qa.api_pagination
+
+- id: qa.api.put_patch
+  specializations: [qa]
+  topic: api_testing
+  skills: [api_testing, rest, http]
+  kind: multi_choice
+  irt: {a: 1.1, b: 0.0}
+  n_options: 5
+  params:
+    resource: {choice: [/api/v1/users/17, /api/v1/orders/305, /api/v1/products/42, /api/v1/tickets/9]}
+    field: {choice: [name, status, price, title]}
+  stem_variants:
+    - "Ресурс {{resource}} поддерживает PUT и PATCH. Какие утверждения об этих методах верны?"
+    - "Вы пишете проверки для PUT и PATCH {{resource}}. Какие утверждения соответствуют семантике HTTP?"
+  options:
+    correct:
+      - "PUT передаёт полное новое представление ресурса и заменяет текущее"
+      - "PATCH передаёт только изменения, например одно поле {{field}}"
+      - "PUT идемпотентен: повтор того же запроса оставляет ресурс в том же состоянии"
+      - "PATCH по RFC не обязан быть идемпотентным"
+    wrong:
+      - "PATCH всегда идемпотентен, а PUT — нет"
+      - "PUT с одним полем {{field}} по семантике HTTP обновляет только это поле, остальные не трогает"
+      - "PUT и PATCH отличаются только тем, что PATCH нельзя отправить с телом"
+      - "Повторный PUT с тем же телом обязан вернуть 409 Conflict"
+      - "PATCH обязан возвращать полное представление ресурса, а PUT — пустое тело"
+
+- id: qa.api.etag_not_modified
+  specializations: [qa]
+  topic: api_testing
+  skills: [api_testing, http]
+  kind: single_choice
+  irt: {a: 1.1, b: 0.7}
+  params:
+    resource: {choice: [/api/v1/catalog, /api/v1/profile, /api/v1/settings, /api/v1/rates, /api/v1/menu]}
+    etag: {int: [1000, 99999]}
+  stem_variants:
+    - >-
+      Первый GET {{resource}} вернул 200 и заголовок ETag: "{{etag}}". Клиент повторяет GET с заголовком
+      If-None-Match: "{{etag}}", ресурс не изменился. Какой ответ ожидать?
+    - >-
+      Проверяете условные запросы: GET {{resource}} с If-None-Match: "{{etag}}", где {{etag}} — текущий ETag
+      ресурса. Что должен вернуть сервер?
+  options:
+    correct:
+      - "304 Not Modified без тела ответа"
+    wrong:
+      - "200 OK с тем же телом, что и в первый раз"
+      - "204 No Content"
+      - "412 Precondition Failed"
+      - "409 Conflict"
+      - "302 Found с Location на закешированную копию"
+
+- id: qa.api.cors
+  specializations: [qa]
+  topic: api_testing
+  skills: [api_testing, http]
+  kind: multi_choice
+  irt: {a: 1.2, b: 0.9}
+  n_options: 5
+  params:
+    front: {choice: [https://shop.example.com, https://app.example.ru, https://admin.example.org]}
+    api: {choice: [https://api.example.com, https://backend.example.ru, https://gw.example.org]}
+  stem: >-
+    Фронтенд {{front}} вызывает API {{api}}. В Postman запросы проходят, а в браузере падают с ошибкой
+    CORS. Какие утверждения верны?
+  options:
+    correct:
+      - "CORS проверяет браузер, поэтому Postman и curl эту ошибку не воспроизводят"
+      - "Ответ API должен содержать Access-Control-Allow-Origin с {{front}} (или *, если не нужны учётные данные)"
+      - "Для запроса с Content-Type: application/json браузер сначала отправляет preflight-запрос OPTIONS"
+      - "С учётными данными (cookie) Access-Control-Allow-Origin: * не работает: нужен конкретный origin"
+    wrong:
+      - "Ошибку CORS нужно исправлять на стороне фронтенда, добавив заголовок Access-Control-Allow-Origin в запрос"
+      - "CORS защищает сервер {{api}} от любых запросов с других доменов, включая curl"
+      - "Preflight-запрос отправляется методом HEAD"
+      - "Если запрос прошёл в Postman, ошибка CORS в браузере означает сбой сети"
+
+- id: qa.api.idempotency_key
+  specializations: [qa]
+  topic: api_testing
+  skills: [api_testing, rest]
+  kind: multi_choice
+  irt: {a: 1.2, b: 1.5}
+  n_options: 5
+  params:
+    op: {choice: [POST /api/v1/payments, POST /api/v1/transfers, POST /api/v1/orders, POST /api/v1/refunds]}
+    amount: {int: [500, 50000], step: 500}
+  stem: >-
+    {{op}} на {{amount}} ₽ поддерживает заголовок Idempotency-Key: клиент при таймауте повторяет запрос с
+    тем же ключом. Какие проверки разумно включить в тесты?
+  options:
+    correct:
+      - "Повтор с тем же ключом и тем же телом не создаёт вторую операцию и возвращает результат первой"
+      - "Два одновременных запроса с одним ключом приводят ровно к одной операции"
+      - "Повтор с тем же ключом, но другой суммой отклоняется, а не обрабатывается как новая операция"
+      - "Запрос с новым ключом и тем же телом создаёт новую операцию"
+    wrong:
+      - "Повтор с тем же ключом создаёт вторую операцию на {{amount}} ₽, но помечает её как дубль"
+      - "POST идемпотентен по стандарту HTTP, поэтому проверять повторы не нужно"
+      - "Достаточно проверить последовательные повторы: параллельные запросы с одним ключом невозможны"
+      - "Ключ идемпотентности должен совпадать с id создаваемой операции в ответе"
+
+- id: qa.api.contract_testing
+  specializations: [qa]
+  topic: api_testing
+  skills: [api_testing, openapi_spec]
+  kind: multi_choice
+  irt: {a: 1.2, b: 1.4}
+  n_options: 5
+  params:
+    consumer: {choice: [мобильное приложение, веб-кабинет, сервис уведомлений, BFF фронтенда]}
+    provider: {choice: [сервис заказов, сервис профилей, платёжный API, сервис каталога]}
+    field: {choice: [deliveryDate, totalPrice, status, displayName]}
+  stem: >-
+    Команды внедряют consumer-driven контрактное тестирование (например, Pact): потребитель —
+    {{consumer}}, провайдер — {{provider}}. Какие утверждения верны?
+  options:
+    correct:
+      - "Контракт формируется из ожиданий потребителя, а провайдер проверяет, что выполняет его"
+      - "Переименование поля {{field}}, которое использует потребитель, должно уронить проверку контракта у провайдера"
+      - "Добавление нового необязательного поля в ответ обычно не ломает контракт"
+      - "Контрактные тесты не заменяют сквозные: они проверяют формат взаимодействия, а не бизнес-сценарий целиком"
+    wrong:
+      - "Контракт пишет провайдер, а потребитель обязан поддерживать все поля ответа"
+      - "Для проверки контракта нужно поднимать оба сервиса и общую тестовую базу"
+      - "Если контрактные тесты зелёные, интеграционные и e2e-тесты можно удалить"
+      - "Контракт проверяет только коды ответов, структура тела не учитывается"

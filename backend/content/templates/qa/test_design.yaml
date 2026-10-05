@@ -7,14 +7,20 @@
   kind: numeric
   irt: {a: 1.0, b: -1.3}
   params:
-    browsers: {int: [2, 4]}
-    os: {int: [2, 3]}
-    langs: {int: [2, 5]}
-    roles: {int: [2, 4]}
-  stem: >-
-    Форму нужно проверить в {{browsers}} браузерах, на {{os}} ОС, с {{langs}} языками интерфейса и для
-    {{roles}} ролей пользователя. Все сочетания допустимы. Сколько тестов потребуется при полном переборе
-    всех комбинаций?
+    form: {choice: [регистрации, оформления заказа, входа, оплаты, поиска, обратной связи]}
+    browsers: {int: [2, 5]}
+    os: {int: [2, 4]}
+    langs: {int: [2, 6]}
+    roles: {int: [2, 5]}
+  stem_variants:
+    - >-
+      Форму {{form}} нужно проверить в {{browsers}} браузерах, на {{os}} ОС, с {{langs}} языками интерфейса и
+      для {{roles}} ролей пользователя. Все сочетания допустимы. Сколько тестов потребуется при полном
+      переборе всех комбинаций?
+    - >-
+      Для формы {{form}} заданы параметры: браузер ({{browsers}} вариантов), ОС ({{os}}), язык интерфейса
+      ({{langs}}), роль пользователя ({{roles}}). Ограничений на сочетания нет. Сколько комбинаций нужно
+      проверить, чтобы перебрать их все?
   answer:
     expr: "{{browsers}} * {{os}} * {{langs}} * {{roles}}"
 
@@ -115,3 +121,109 @@
     - Проверяет не только UI, но и API или БД (пересчёт суммы на сервере, а не только на клиенте)
     - Учитывает конкурентное применение одного промокода (два заказа одновременно)
     - Расставляет приоритеты по риску (деньги, повторное использование) и упоминает регрессию корзины и оплаты
+
+- id: qa.td.black_white_box
+  specializations: [qa]
+  topic: test_design
+  skills: [test_design]
+  kind: multi_choice
+  irt: {a: 1.0, b: -1.2}
+  n_options: 5
+  params:
+    feature: {choice: [расчёта доставки, регистрации, корзины, начисления бонусов, поиска, оплаты]}
+    kind: {choice: [чёрного ящика, спецификационным (black-box)]}
+  stem_variants:
+    - "Для функции {{feature}} нужно выбрать техники тест-дизайна. Какие из них относятся к техникам {{kind}}, то есть не требуют знания кода?"
+    - "Тестировщик не видит исходный код модуля {{feature}} и опирается только на требования. Какие техники он может применить?"
+  options:
+    correct:
+      - "Классы эквивалентности"
+      - "Анализ граничных значений"
+      - "Таблица решений"
+      - "Диаграмма состояний и переходов"
+      - "Попарное тестирование (pairwise)"
+    wrong:
+      - "Покрытие операторов (statement coverage)"
+      - "Покрытие ветвей (branch coverage)"
+      - "Покрытие MC/DC"
+      - "Покрытие путей выполнения кода"
+      - "Анализ потока данных в коде (data flow)"
+
+- id: qa.td.positive_negative
+  specializations: [qa]
+  topic: test_design
+  skills: [test_design, manual_testing]
+  kind: multi_choice
+  irt: {a: 1.0, b: -1.6}
+  n_options: 5
+  generator: qa.td_positive_negative
+
+- id: qa.td.equivalence_pick
+  specializations: [qa]
+  topic: test_design
+  skills: [test_design]
+  kind: single_choice
+  irt: {a: 1.1, b: -1.0}
+  generator: qa.td_equivalence_pick
+
+- id: qa.td.three_point_bva
+  specializations: [qa]
+  topic: test_design
+  skills: [test_design]
+  kind: single_choice
+  irt: {a: 1.1, b: 0.1}
+  generator: qa.td_three_point_bva
+
+- id: qa.td.boundary_decimal
+  specializations: [qa]
+  topic: test_design
+  skills: [test_design]
+  kind: single_choice
+  irt: {a: 1.2, b: 0.4}
+  time_limit_sec: 120
+  generator: qa.td_boundary_decimal
+
+- id: qa.td.date_boundaries
+  specializations: [qa]
+  topic: test_design
+  skills: [test_design]
+  kind: single_choice
+  irt: {a: 1.1, b: 0.3}
+  time_limit_sec: 120
+  generator: qa.td_date_boundaries
+
+- id: qa.td.statement_coverage
+  specializations: [qa]
+  topic: test_design
+  skills: [test_design, unit_testing]
+  kind: numeric
+  irt: {a: 1.2, b: 0.6}
+  time_limit_sec: 150
+  generator: qa.td_statement_coverage
+
+- id: qa.td.cyclomatic
+  specializations: [qa]
+  topic: test_design
+  skills: [test_design, unit_testing]
+  kind: numeric
+  irt: {a: 1.1, b: 1.0}
+  time_limit_sec: 150
+  generator: qa.td_cyclomatic
+
+- id: qa.td.path_count
+  specializations: [qa]
+  topic: test_design
+  skills: [test_design, unit_testing]
+  kind: numeric
+  irt: {a: 1.1, b: 1.4}
+  time_limit_sec: 150
+  generator: qa.td_path_count
+
+- id: qa.td.one_switch
+  specializations: [qa]
+  topic: test_design
+  skills: [test_design]
+  kind: numeric
+  irt: {a: 1.1, b: 1.6}
+  time_limit_sec: 180
+  generator: qa.td_one_switch

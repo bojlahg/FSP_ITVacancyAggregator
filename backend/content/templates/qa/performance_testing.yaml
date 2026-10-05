@@ -75,3 +75,65 @@
       - "Модели эквивалентны: {{vu}} пользователей всегда дают {{rps}} RPS"
       - "В открытой модели генератор ждёт ответа перед отправкой следующего запроса"
       - "Закрытая модель лучше выявляет переполнение очередей при наплыве пользователей"
+
+- id: qa.perf.metric_term
+  specializations: [qa]
+  topic: performance_testing
+  skills: [load_testing]
+  kind: single_choice
+  irt: {a: 1.0, b: -1.5}
+  generator: qa.perf_metric_term
+
+- id: qa.perf.throughput
+  specializations: [qa]
+  topic: performance_testing
+  skills: [load_testing]
+  kind: numeric
+  irt: {a: 1.0, b: -1.3}
+  time_limit_sec: 120
+  generator: qa.perf_throughput
+
+- id: qa.perf.error_budget
+  specializations: [qa]
+  topic: performance_testing
+  skills: [load_testing]
+  kind: numeric
+  irt: {a: 1.1, b: 0.0}
+  time_limit_sec: 120
+  generator: qa.perf_error_budget
+
+- id: qa.perf.apdex
+  specializations: [qa]
+  topic: performance_testing
+  skills: [load_testing]
+  kind: numeric
+  irt: {a: 1.1, b: 0.2}
+  time_limit_sec: 180
+  generator: qa.perf_apdex
+
+- id: qa.perf.saturation
+  specializations: [qa]
+  topic: performance_testing
+  skills: [load_testing]
+  kind: multi_choice
+  irt: {a: 1.2, b: 1.5}
+  n_options: 5
+  params:
+    rps: {int: [300, 2000], step: 100}
+    cpu: {int: [25, 45], step: 5}
+    service: {choice: [оформления заказа, поиска, авторизации, личного кабинета]}
+  stem: >-
+    При росте нагрузки на сервис {{service}} пропускная способность перестала расти на {{rps}} RPS, время
+    ответа и число одновременных запросов растут, а загрузка CPU серверов приложения — около {{cpu}}%.
+    Какие выводы и проверки верны?
+  options:
+    correct:
+      - "Узким местом может быть не CPU, а пул соединений к БД, блокировки или пул потоков"
+      - "Нужно убедиться, что генератор нагрузки сам не упёрся в свои ресурсы"
+      - "По закону Литтла при неизменной пропускной способности рост времени ответа означает рост очереди запросов"
+      - "Стоит посмотреть время ожидания соединения из пула и метрики БД на этом же интервале"
+    wrong:
+      - "Раз CPU загружен на {{cpu}}%, у сервиса есть запас и узкого места нет"
+      - "Рост времени ответа при постоянном RPS невозможен, значит, метрики собраны неверно"
+      - "Достаточно добавить ядер CPU, чтобы пропускная способность выросла пропорционально"
+      - "Перцентили времени ответа в такой ситуации не меняются, смотреть нужно только на среднее"
