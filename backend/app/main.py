@@ -17,6 +17,7 @@ from app.modules.categories.router import router as categories_router
 from app.modules.employers.router import router as employers_router
 from app.modules.fsp.router import router as fsp_router
 from app.modules.invitations import router as invitations
+from app.modules.matching.router import need_router as matching_need_router
 from app.modules.matching.router import router as matching_router
 from app.modules.needs.router import router as needs_router
 from app.modules.resume.router import router as resume_router
@@ -105,6 +106,7 @@ def create_app() -> FastAPI:
         tasks.candidate_router,
         employers_router,
         needs_router,
+        matching_need_router,
         matching_router,
         invitations.employer_router,
         applications.employer_router,

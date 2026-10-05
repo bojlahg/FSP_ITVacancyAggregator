@@ -827,40 +827,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/needs/{need_id}/recommendations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Подборка: рекомендованные категории и кандидаты с объяснением */
-        get: operations["get_recommendations_api_v1_needs__need_id__recommendations_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/needs/{need_id}/salary-coverage": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Какую долю кандидатов категории покрывает вилка */
-        get: operations["get_salary_coverage_api_v1_needs__need_id__salary_coverage_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/needs/{need_id}/shortlist/{candidate_id}": {
         parameters: {
             query?: never;
@@ -907,6 +873,40 @@ export interface paths {
         put?: never;
         /** Снять вакансию с публикации */
         post: operations["unpublish_need_api_v1_needs__need_id__unpublish_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/needs/{need_id}/recommendations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Подборка: рекомендованные категории и кандидаты с объяснением */
+        get: operations["get_recommendations_api_v1_needs__need_id__recommendations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/needs/{need_id}/salary-coverage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Какую долю кандидатов категории покрывает вилка */
+        get: operations["get_salary_coverage_api_v1_needs__need_id__salary_coverage_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -5694,135 +5694,6 @@ export interface operations {
             };
         };
     };
-    get_recommendations_api_v1_needs__need_id__recommendations_get: {
-        parameters: {
-            query?: {
-                /** @description Ограничить грейдом */
-                grade?: components["schemas"]["Grade"] | null;
-                has_fsp?: boolean | null;
-                /** @description Только навыки, проверенные тестом */
-                verified_only?: boolean;
-                salary_max?: number | null;
-                work_format?: components["schemas"]["WorkFormat"] | null;
-                city?: string | null;
-                fresh_days?: number | null;
-                apply_hard_filters?: boolean;
-                group_by?: "category" | "none";
-                limit?: number;
-            };
-            header?: never;
-            path: {
-                need_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RecommendationsOut"];
-                };
-            };
-            /** @description Требуется вход */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Недостаточно прав */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Не найдено */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Ошибка валидации данных */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
-    get_salary_coverage_api_v1_needs__need_id__salary_coverage_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                need_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SalaryCoverage"];
-                };
-            };
-            /** @description Требуется вход */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Недостаточно прав */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Не найдено */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Ошибка валидации данных */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
     add_to_shortlist_api_v1_needs__need_id__shortlist__candidate_id__post: {
         parameters: {
             query?: never;
@@ -6021,6 +5892,135 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NeedOut"];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ошибка валидации данных */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_recommendations_api_v1_needs__need_id__recommendations_get: {
+        parameters: {
+            query?: {
+                /** @description Ограничить грейдом */
+                grade?: components["schemas"]["Grade"] | null;
+                has_fsp?: boolean | null;
+                /** @description Только навыки, проверенные тестом */
+                verified_only?: boolean;
+                salary_max?: number | null;
+                work_format?: components["schemas"]["WorkFormat"] | null;
+                city?: string | null;
+                fresh_days?: number | null;
+                apply_hard_filters?: boolean;
+                group_by?: "category" | "none";
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                need_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecommendationsOut"];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ошибка валидации данных */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_salary_coverage_api_v1_needs__need_id__salary_coverage_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                need_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SalaryCoverage"];
                 };
             };
             /** @description Требуется вход */
