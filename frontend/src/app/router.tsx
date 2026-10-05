@@ -60,6 +60,7 @@ export const router = createBrowserRouter([
               { path: "applications", lazy: lazyPage(() => import("@/pages/candidate/ApplicationsPage")) },
               { path: "tasks", lazy: lazyPage(() => import("@/pages/candidate/CandidateTasksPage")) },
               { path: "settings", lazy: lazyPage(() => import("@/pages/candidate/SettingsPage")) },
+              { path: "debug", lazy: lazyPage(() => import("@/pages/debug/DebugPage")) },
             ],
           },
         ],
@@ -84,6 +85,7 @@ export const router = createBrowserRouter([
               { path: "vacancies", lazy: lazyPage(() => import("@/pages/employer/EmployerVacanciesPage")) },
               { path: "vacancy-test", lazy: lazyPage(() => import("@/pages/employer/VacancyTestPage")) },
               { path: "tasks", lazy: lazyPage(() => import("@/pages/employer/EmployerTasksPage")) },
+              { path: "debug", lazy: lazyPage(() => import("@/pages/debug/DebugPage")) },
             ],
           },
         ],
@@ -94,7 +96,20 @@ export const router = createBrowserRouter([
         children: [
           {
             lazy: lazyPage(() => import("@/layouts/ExpertLayout")),
-            children: [{ index: true, lazy: lazyPage(() => import("@/pages/expert/ExpertPage")) }],
+            children: [
+              { index: true, lazy: lazyPage(() => import("@/pages/expert/ExpertPage")) },
+              { path: "debug", lazy: lazyPage(() => import("@/pages/debug/DebugPage")) },
+            ],
+          },
+        ],
+      },
+      {
+        path: "admin",
+        element: <RequireRole role="admin" />,
+        children: [
+          {
+            lazy: lazyPage(() => import("@/layouts/AdminLayout")),
+            children: [{ index: true, lazy: lazyPage(() => import("@/pages/debug/DebugPage")) }],
           },
         ],
       },

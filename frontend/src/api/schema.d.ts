@@ -1725,7 +1725,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/demo/reset-cooldowns": {
+    "/api/v1/debug/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Включён ли отладочный раздел и что в нём доступно */
+        get: operations["debug_status_api_v1_debug_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/debug/reset-cooldowns": {
         parameters: {
             query?: never;
             header?: never;
@@ -1734,8 +1751,59 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Сбросить ограничения смены грейда для текущего кандидата (только DEMO_MODE) */
-        post: operations["reset_cooldowns_api_v1_admin_demo_reset_cooldowns_post"];
+        /** Сбросить ограничения на пересдачу */
+        post: operations["reset_cooldowns_api_v1_debug_reset_cooldowns_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/debug/reset-test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Удалить свои попытки теста и категорию */
+        post: operations["reset_test_api_v1_debug_reset_test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/debug/test-email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Отправить себе тестовое письмо */
+        post: operations["test_email_api_v1_debug_test_email_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/debug/reseed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Пересоздать демо-данные (роль admin) */
+        post: operations["reseed_api_v1_debug_reseed_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2677,6 +2745,19 @@ export interface components {
             theta: number;
             /** Value */
             value: number;
+        };
+        /** DebugStatus */
+        DebugStatus: {
+            /**
+             * Enabled
+             * @description Отладочный раздел включён (DEBUG_TOOLS=true)
+             */
+            enabled: boolean;
+            /**
+             * Actions
+             * @description Действия, доступные текущей роли
+             */
+            actions: string[];
         };
         /** DeclaredSkill */
         DeclaredSkill: {
@@ -10409,7 +10490,54 @@ export interface operations {
             };
         };
     };
-    reset_cooldowns_api_v1_admin_demo_reset_cooldowns_post: {
+    debug_status_api_v1_debug_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DebugStatus"];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    reset_cooldowns_api_v1_debug_reset_cooldowns_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -10447,6 +10575,165 @@ export interface operations {
             };
             /** @description Не найдено */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    reset_test_api_v1_debug_reset_test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    test_email_api_v1_debug_test_email_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Конфликт состояния */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    reseed_api_v1_debug_reseed_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Конфликт состояния */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

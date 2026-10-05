@@ -148,3 +148,14 @@ def application_received(
         "Открыть карточку кандидата",
         SETTINGS_PATH["employer"],
     )
+
+
+def debug_test(to: str) -> Mail:
+    return _compose(
+        to,
+        "проверка почты",
+        ["Это тестовое письмо из отладочного раздела ITScout: доставка почты работает."],
+        "/",
+        "Открыть ITScout",
+        settings_path=None,
+    )

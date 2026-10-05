@@ -2,7 +2,7 @@
 
 # Справочник эндпоинтов
 
-ITScout API 0.1.0: 108 операций. Префикс `/api/v1`; схемы запросов и ответов — в `backend/openapi.json` и Swagger UI (`/api/docs`). Колонка «Ошибки» — описанные коды ответов, тело ошибки всегда `{error: {code, message, details}}`.
+ITScout API 0.1.0: 114 операций. Префикс `/api/v1`; схемы запросов и ответов — в `backend/openapi.json` и Swagger UI (`/api/docs`). Колонка «Ошибки» — описанные коды ответов, тело ошибки всегда `{error: {code, message, details}}`.
 
 ## service
 
@@ -10,7 +10,16 @@ ITScout API 0.1.0: 108 операций. Префикс `/api/v1`; схемы з
 |---|---|---|---|---|---|
 | `GET` | `/health` | Проверка живости и доступа к БД | — | 200 |  |
 | `POST` | `/admin/reseed` | Вернуть демо-данные к исходному состоянию (только DEMO_MODE и роль admin) | JWT | 200 | 401, 403, 404, 409 |
-| `POST` | `/admin/demo/reset-cooldowns` | Сбросить ограничения смены грейда для текущего кандидата (только DEMO_MODE) | JWT | 200 | 401, 403, 404 |
+
+## debug
+
+| Метод | Путь | Назначение | Доступ | Успех | Ошибки |
+|---|---|---|---|---|---|
+| `GET` | `/debug/status` | Включён ли отладочный раздел и что в нём доступно | JWT | 200 | 401, 403, 404 |
+| `POST` | `/debug/reset-cooldowns` | Сбросить ограничения на пересдачу | JWT | 200 | 401, 403, 404 |
+| `POST` | `/debug/reset-test` | Удалить свои попытки теста и категорию | JWT | 200 | 401, 403, 404 |
+| `POST` | `/debug/test-email` | Отправить себе тестовое письмо | JWT | 200 | 401, 403, 404, 409 |
+| `POST` | `/debug/reseed` | Пересоздать демо-данные (роль admin) | JWT | 200 | 401, 403, 404, 409 |
 
 ## auth
 
@@ -25,6 +34,7 @@ ITScout API 0.1.0: 108 операций. Префикс `/api/v1`; схемы з
 | `POST` | `/auth/refresh` | Новый access-токен по refresh cookie (с ротацией; повторное использование отзывает все сессии) | — | 200 | 401, 422 |
 | `POST` | `/auth/logout` | Выход: отзыв refresh-токена | — | 200 | 422 |
 | `GET` | `/me` | Текущий пользователь | JWT | 200 | 401 |
+| `PUT` | `/me/notifications` | Включить или выключить письма о приглашениях и откликах | JWT | 200 | 401, 422 |
 
 ## catalog
 
@@ -108,6 +118,12 @@ ITScout API 0.1.0: 108 операций. Префикс `/api/v1`; схемы з
 | `POST` | `/tasks/assignments/{assignment_id}/submit` | Отправить решение или подход | JWT | 200 | 401, 403, 404, 409, 422 |
 | `POST` | `/tasks/assignments/{assignment_id}/skip` | Пропустить задание | JWT | 200 | 401, 403, 404, 409, 422 |
 
+## candidate: market
+
+| Метод | Путь | Назначение | Доступ | Успех | Ошибки |
+|---|---|---|---|---|---|
+| `GET` | `/candidates/me/market` | Рынок моей категории: потребности, вилки, востребованные навыки и что поможет | JWT | 200 | 401, 403 |
+
 ## employer: company
 
 | Метод | Путь | Назначение | Доступ | Успех | Ошибки |
@@ -187,9 +203,9 @@ ITScout API 0.1.0: 108 операций. Префикс `/api/v1`; схемы з
 | `PUT` | `/employers/me/webhook` | Задать адрес webhook (секрет подписи создаётся при первом сохранении) | JWT | 200 | 401, 403, 422 |
 | `DELETE` | `/employers/me/webhook` | Удалить webhook | JWT | 204 | 401, 403, 404 |
 | `POST` | `/employers/me/webhook/rotate-secret` | Выпустить новый секрет подписи | JWT | 200 | 401, 403, 404 |
-| `POST` | `/employers/me/webhook/test` | Отправить тестовое событие ping | JWT | 202 | 401, 403, 404 |
+| `POST` | `/employers/me/webhook/test` | Отправить тестовое событие ping | JWT | 202 | 401, 403, 404, 429 |
 | `GET` | `/employers/me/webhook/deliveries` | Последние доставки событий | JWT | 200 | 401, 403 |
-| `POST` | `/employers/me/webhook/deliveries/{delivery_id}/retry` | Повторить недоставленное событие | JWT | 202 | 401, 403, 404, 409, 422 |
+| `POST` | `/employers/me/webhook/deliveries/{delivery_id}/retry` | Повторить недоставленное событие | JWT | 202 | 401, 403, 404, 409, 422, 429 |
 
 ## public: test explainer
 

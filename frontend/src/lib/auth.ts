@@ -50,11 +50,12 @@ export function useAuth(): AuthState {
   return useSyncExternalStore(authStore.subscribe, authStore.get, authStore.get);
 }
 
-/** Главная страница кабинета для роли. У admin своего кабинета нет. */
+/** Главная страница кабинета для роли. */
 export function homePathFor(role: AuthUser["role"]): string {
   if (role === "candidate") return "/candidate";
   if (role === "employer") return "/employer";
   if (role === "expert") return "/expert";
+  if (role === "admin") return "/admin";
   return "/";
 }
 

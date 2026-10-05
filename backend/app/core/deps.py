@@ -49,6 +49,12 @@ def _require(role: Role):
     return dependency
 
 
+def require_debug_tools() -> None:
+    """Отладочный раздел есть только при DEBUG_TOOLS=true; иначе его эндпоинтов как будто нет."""
+    if not get_settings().debug_tools:
+        raise NotFoundError()
+
+
 def require_demo_mode() -> None:
     if not get_settings().demo_mode:
         raise NotFoundError()

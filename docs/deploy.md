@@ -177,6 +177,24 @@ $DC start backend
 
 Проверено на копии: дамп восстанавливается в пустую базу с теми же данными (кандидаты, экспертная разметка).
 
+### 5.5. Аккаунты команды, пароли сид-аккаунтов и отладочный раздел
+
+Репозиторий публичный, поэтому паролей в коде нет — только в `.env` сервера:
+
+```bash
+# Каждый участник получает админа, кандидата (Backend · Middle, тест пройден) и свою компанию.
+# Без email: <name>.admin@team.itscout.ru, <name>.candidate@…, <name>.employer@… (писем не получают).
+# С email: ivan+admin@gmail.com и т. д. — уведомления и тестовые письма приходят на эту почту.
+TEAM_ACCOUNTS=[{"name":"ivan","password":"…","email":"ivan@gmail.com"},{"name":"maria","password":"…"},{"name":"petr","password":"…"}]
+DEMO_SEED_PASSWORD=…        # пароль остальных сид-аккаунтов; пусто — случайный при каждом reseed
+E2E_CANDIDATE_PASSWORD=…    # пароль служебного кандидата e2e — тот же в секрете GitHub E2E_CANDIDATE_PASSWORD
+DEBUG_TOOLS=true            # отладочный раздел; перед показом жюри — убрать
+```
+
+Аккаунты создаются при `reseed` (и пересоздаются при каждом следующем). Демо-кнопки «Кандидат» и «Работодатель» на странице входа работают без пароля, пока `DEMO_MODE=true`.
+
+**Отладочный раздел** (`DEBUG_TOOLS=true`): в кабинетах появляется пункт «Отладка» — кандидат сбрасывает ограничения на пересдачу и свои результаты теста, любой пользователь отправляет себе тестовое письмо, админ (кабинет `/admin`) пересоздаёт демо-данные. Без флага эндпоинты `/api/v1/debug/*` отвечают 404 и пункта в меню нет — даже зная адрес, воспользоваться нельзя.
+
 ## 6. Проверки
 
 | Что | Команда |
@@ -209,6 +227,9 @@ $DC start backend
 | `FSP_API_URL`, `FSP_API_KEY` | мок в compose | реестр ФСП |
 | `FSP_OIDC_*` | Keycloak в compose | ФСП ID |
 | `WEB_CONCURRENCY` | 3 | процессы uvicorn; лимиты частоты и учёт LLM общие для всех процессов (см. [performance.md](performance.md)) |
+| `TEAM_ACCOUNTS`, `TEAM_ACCOUNTS_DOMAIN` | пусто, `team.itscout.ru` | аккаунты команды (раздел 5.5) |
+| `DEMO_SEED_PASSWORD`, `E2E_CANDIDATE_PASSWORD` | пусто (случайный) | пароли сид-аккаунтов и кандидата e2e |
+| `DEBUG_TOOLS` | `false` | отладочный раздел в кабинетах |
 | `BACKUP_KEEP_DAYS`, `BACKUP_INTERVAL_HOURS` | 7, 24 | хранение и частота бэкапов (раздел 5.4) |
 | `RECOMMENDATIONS_CACHE_SECONDS` | 60 | TTL кэша оценок подборки в памяти процесса; 0 — выключен |
 | `GRADE_CHANGE_COOLDOWN_DAYS`, `FAILED_GRADE_RETRY_DAYS`, `MAX_ACTIVE_INVITES_PER_NEED` | 90, 30, 15 | правила продукта |

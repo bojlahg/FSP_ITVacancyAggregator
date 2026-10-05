@@ -18,6 +18,7 @@ from app.modules.candidates.router import router as candidates_router
 from app.modules.catalog.router import router as catalog_router
 from app.modules.catalog.service import get_catalog
 from app.modules.categories.router import router as categories_router
+from app.modules.debug.router import router as debug_router
 from app.modules.employers.router import router as employers_router
 from app.modules.expert.router import router as expert_router
 from app.modules.fsp.router import router as fsp_router
@@ -39,6 +40,7 @@ API_PREFIX = "/api/v1"
 
 TAGS = [
     {"name": "service", "description": "Служебные методы"},
+    {"name": "debug", "description": "Отладочный раздел для команды: только при DEBUG_TOOLS=true, иначе 404"},
     {"name": "auth", "description": "Регистрация, вход, токены"},
     {"name": "catalog", "description": "Справочники: специализации, грейды, навыки, отрасли"},
     {"name": "candidate: profile", "description": "Профиль, резюме, приватность, согласия"},
@@ -147,6 +149,7 @@ def create_app() -> FastAPI:
         explainer_router,
         expert_router,
         admin_router,
+        debug_router,
     ):
         api.include_router(router)
 

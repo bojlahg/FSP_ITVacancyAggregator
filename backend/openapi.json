@@ -7892,13 +7892,69 @@
         ]
       }
     },
-    "/api/v1/admin/demo/reset-cooldowns": {
+    "/api/v1/debug/status": {
+      "get": {
+        "tags": [
+          "debug"
+        ],
+        "summary": "Включён ли отладочный раздел и что в нём доступно",
+        "operationId": "debug_status_api_v1_debug_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DebugStatus"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Требуется вход",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Недостаточно прав",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Не найдено",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/debug/reset-cooldowns": {
       "post": {
         "tags": [
-          "service"
+          "debug"
         ],
-        "summary": "Сбросить ограничения смены грейда для текущего кандидата (только DEMO_MODE)",
-        "operationId": "reset_cooldowns_api_v1_admin_demo_reset_cooldowns_post",
+        "summary": "Сбросить ограничения на пересдачу",
+        "operationId": "reset_cooldowns_api_v1_debug_reset_cooldowns_post",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -7932,6 +7988,194 @@
           },
           "404": {
             "description": "Не найдено",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/debug/reset-test": {
+      "post": {
+        "tags": [
+          "debug"
+        ],
+        "summary": "Удалить свои попытки теста и категорию",
+        "operationId": "reset_test_api_v1_debug_reset_test_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Требуется вход",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Недостаточно прав",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Не найдено",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/debug/test-email": {
+      "post": {
+        "tags": [
+          "debug"
+        ],
+        "summary": "Отправить себе тестовое письмо",
+        "operationId": "test_email_api_v1_debug_test_email_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Требуется вход",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Недостаточно прав",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Не найдено",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт состояния",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/debug/reseed": {
+      "post": {
+        "tags": [
+          "debug"
+        ],
+        "summary": "Пересоздать демо-данные (роль admin)",
+        "operationId": "reseed_api_v1_debug_reseed_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Требуется вход",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Недостаточно прав",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Не найдено",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт состояния",
             "content": {
               "application/json": {
                 "schema": {
@@ -10573,6 +10817,29 @@
           "value"
         ],
         "title": "CurvePoint"
+      },
+      "DebugStatus": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "description": "Отладочный раздел включён (DEBUG_TOOLS=true)"
+          },
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Actions",
+            "description": "Действия, доступные текущей роли"
+          }
+        },
+        "type": "object",
+        "required": [
+          "enabled",
+          "actions"
+        ],
+        "title": "DebugStatus"
       },
       "DeclaredSkill": {
         "properties": {
@@ -16101,6 +16368,10 @@
     {
       "name": "service",
       "description": "Служебные методы"
+    },
+    {
+      "name": "debug",
+      "description": "Отладочный раздел для команды: только при DEBUG_TOOLS=true, иначе 404"
     },
     {
       "name": "auth",

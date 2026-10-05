@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -189,6 +189,13 @@ async def recompute_percentiles(db: AsyncSession, specialization: str, grade: Gr
         below = sum(theta < row.theta for theta in thetas)
         equal = sum(theta == row.theta for theta in thetas)
         row.percentile = round((below + 0.5 * equal) / len(thetas), 4)
+
+
+async def forget_results(db: AsyncSession, candidate: Candidate) -> None:
+    """Отладка: попытки и категории кандидата удаляются, как будто теста не было. Коммитит вызывающий."""
+    await db.execute(delete(CandidateCategory).where(CandidateCategory.candidate_id == candidate.id))
+    await db.execute(delete(TestAttempt).where(TestAttempt.candidate_id == candidate.id))
+    candidate.grade_rules_reset_at = datetime.now(UTC)
 
 
 async def reset_rules(db: AsyncSession, candidate: Candidate) -> None:

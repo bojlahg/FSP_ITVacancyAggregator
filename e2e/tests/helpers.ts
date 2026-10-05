@@ -6,7 +6,8 @@ export const E2E_PASSWORD = "e2e-password-2026";
 /** Служебный кандидат из генератора демо-данных (backend/seed/generate.py), пароль — общий для демо-аккаунтов сида. */
 export const E2E_CANDIDATE = {
   email: process.env.E2E_CANDIDATE_EMAIL ?? "e2e-candidate@itscout.ru",
-  password: process.env.E2E_CANDIDATE_PASSWORD ?? "demo-password-2026",
+  // Секрет E2E_CANDIDATE_PASSWORD; запасной пароль — только для стендов, засеянных до 06.10.2026
+  password: process.env.E2E_CANDIDATE_PASSWORD || "demo-password-2026",
   displayName: "Тест А.",
   // Полное имя после раскрытия контактов: «Фамилия Имя»
   fullName: /Автотестов Тест|Тест Автотестов/,

@@ -131,6 +131,8 @@ jobs:
       cancel-in-progress: false
     env:
       E2E_BASE_URL: https://itscout.ru
+      # Пароль служебного кандидата e2e — тот же, что E2E_CANDIDATE_PASSWORD в .env сервера (docs/deploy.md §5.5)
+      E2E_CANDIDATE_PASSWORD: ${{ secrets.E2E_CANDIDATE_PASSWORD }}
     defaults:
       run:
         working-directory: e2e

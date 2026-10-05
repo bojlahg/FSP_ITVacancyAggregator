@@ -7,6 +7,7 @@ import asyncio
 import json
 import math
 import random
+import secrets
 import sys
 from collections import Counter
 from datetime import UTC, date, datetime, timedelta
@@ -15,7 +16,7 @@ from pathlib import Path
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import get_settings
+from app.core.config import TeamAccount, get_settings
 from app.core.db import SessionFactory
 from app.core.enums import (
     ApplicationStatus,
@@ -75,6 +76,7 @@ INSTANCE_NOISE = 0.15  # разброс сложности экземпляра 
 THETA_BY_GRADE = {"below": -2.4, "intern": -1.3, "junior": -0.3, "middle": 0.7, "senior": 1.75}
 GRADE_SHARE = [("below", 5), ("intern", 10), ("junior", 30), ("middle", 33), ("senior", 22)]
 DEMO_DOMAIN = "demo.itscout.ru"
+TEAM_INDEX = 9000  # индексы кандидатов команды — вне диапазона демо-кандидатов
 FREE_FSP_ID = "FSP-2026-7781"  # участник реестра без профиля на платформе — для живой демонстрации привязки
 DEMO_TASK_TEMPLATE = "be.db.composite_index"
 DEMO_APPROACH_RUBRIC = [
@@ -165,7 +167,8 @@ class Seeder:
         self.today = self.now.date()
         self.bank = get_bank()
         self.blueprints = get_blueprints()
-        self.password_hash = hash_password("demo-password-2026")
+        # Общий пароль сид-аккаунтов не живёт в коде: репозиторий публичный (docs/deploy.md §5.5)
+        self.password_hash = hash_password(get_settings().demo_seed_password or secrets.token_urlsafe(18))
         self.exposures: Counter = Counter()
         self.correct: Counter = Counter()
         self.attempts_by_spec: Counter = Counter()
@@ -792,6 +795,64 @@ class Seeder:
             )
         finally:
             self.rng = main_rng
+        password = get_settings().e2e_candidate_password
+        if password:
+            self.e2e_candidate["user"].password_hash = hash_password(password)
+
+    # ---------- команда ----------
+
+    @staticmethod
+    def team_email(member: TeamAccount, role: str) -> str:
+        if member.email and "@" in member.email:
+            local, domain = member.email.split("@", 1)
+            return f"{local}+{role}@{domain}".lower()
+        return f"{member.name}.{role}@{get_settings().team_accounts_domain}"
+
+    async def build_team(self) -> None:
+        """Аккаунты команды из TEAM_ACCOUNTS: у каждого админ, кандидат Backend · Middle и своя компания.
+
+        Своя ветка RNG — демо-данные не зависят от состава команды.
+        """
+        main_rng = self.rng
+        try:
+            for number, member in enumerate(get_settings().team_accounts):
+                self.rng = random.Random(f"{self.seed}:team:{member.name}")
+                password = hash_password(member.password)
+                admin = self.user(self.team_email(member, "admin"), Role.admin, self.now)
+                admin.password_hash = password
+                record = await self.candidate(
+                    TEAM_INDEX + number,
+                    "backend",
+                    "middle",
+                    email=self.team_email(member, "candidate"),
+                    name=(member.name.capitalize(), "Команда"),
+                    theta=THETA_BY_GRADE["middle"],
+                    module="python",
+                    declared="middle",
+                    skills=["python", "fastapi", "postgresql", "docker", "git"],
+                    with_fsp=False,
+                    wanted={"pass"},
+                )
+                record["user"].password_hash = password
+                user = self.user(self.team_email(member, "employer"), Role.employer, self.now)
+                user.password_hash = password
+                await self.db.flush()
+                self.consents(user, [ConsentKind.pd_processing], self.now)
+                self.db.add(
+                    Employer(
+                        user_id=user.id,
+                        company_name=f"Команда ITScout · {member.name}",
+                        industry="fintech",
+                        description="Тестовая компания участника команды.",
+                        contact_name=member.name.capitalize(),
+                        contact_email=user.email,
+                        created_at=self.now,
+                        updated_at=self.now,
+                    )
+                )
+                await self.db.flush()
+        finally:
+            self.rng = main_rng
 
     # ---------- работодатели ----------
 
@@ -1320,6 +1381,7 @@ class Seeder:
         await self.build_candidates()
         await self.build_employers()
         self.build_admin()
+        await self.build_team()
         await self.build_needs()
         await self.build_interactions()
         await self.build_tasks()

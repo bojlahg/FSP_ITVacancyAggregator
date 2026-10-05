@@ -825,7 +825,8 @@ GET  /expert/angoff/summary?specialization=   (expert или admin) — реко
 
 # служебное
 GET  /health
-POST /admin/reseed (роль admin) ; POST /admin/demo/reset-cooldowns     только при DEMO_MODE
+POST /admin/reseed (роль admin)     только при DEMO_MODE
+GET /debug/status ; POST /debug/reset-cooldowns | /debug/reset-test (кандидат) | /debug/test-email | /debug/reseed (admin)   только при DEBUG_TOOLS, иначе 404
 ```
 
 **fsp-mock** (`/fsp-api/v1`, заголовок `X-Api-Key`): `GET /participants/{fsp_id}`, `/participants/{fsp_id}/results`, `/participants/{fsp_id}/ranks`, `GET /competitions`.
@@ -862,6 +863,8 @@ POST /admin/reseed (роль admin) ; POST /admin/demo/reset-cooldowns     то�
   - кандидаты Анна (Backend Middle, есть ФСП), Илья (Frontend Junior, без ФСП), Мария (DevOps Senior, CTF);
   - работодатели «Демо Банк» и «Демо Ритейл».
 - **Служебный кандидат e2e** `e2e-candidate@itscout.ru` («Тест Автотестов», Backend · Middle, без ФСП, пароль — как у демо-аккаунтов): не герой показа, принимает приглашения e2e-работодателей (§18). Создаётся последним кандидатом из своей ветки RNG (`random.Random(f"{SEED}:e2e")`) и исключён из синтетических приглашений и откликов, поэтому данные остальных кандидатов, приглашения и шорт-листы не сдвигаются; θ — среднее для Middle (тест «пройден», без уверенного прохождения), в подборках он ниже середины и не попадает в топ показа. Единственное влияние на остальных — он входит в знаменатель перцентилей Backend · Middle.
+- **Аккаунты команды и пароли.** `TEAM_ACCOUNTS` (JSON) — генератор создаёт каждому участнику админа, кандидата Backend · Middle с пройденным тестом и компанию; пароли сид-аккаунтов — `DEMO_SEED_PASSWORD` (пусто — случайный), кандидата e2e — `E2E_CANDIDATE_PASSWORD`. Паролей в коде нет (`docs/deploy.md` §5.5).
+- **Отладочный раздел** (`DEBUG_TOOLS=true`): пункт «Отладка» в кабинетах и кабинет `/admin` — сброс ограничений на пересдачу и своих результатов теста, тестовое письмо, reseed. Без флага `/debug/*` отвечают 404, пункта нет.
 - `POST /admin/reseed` (роль admin) и `make reseed` возвращают демо-данные в исходное состояние перед показом. Пересидирование очищает все таблицы, кроме экспертной разметки (`expert_pairs`, `expert_labels`, `angoff_ratings` — `PRESERVED_TABLES` в `seed/generate.py`): **API-ключи, webhook'и и журнал доставок работодателей тоже удаляются** вместе с компаниями — после reseed ATS нужно подключить заново. Демо-админ `DEMO_ADMIN_EMAIL` создаётся генератором, только если в `.env` задан `DEMO_ADMIN_PASSWORD`; генератор запускается отдельным процессом, чтобы не блокировать API.
 
 ---

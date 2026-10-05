@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { Loader2, LogOut, Menu, X } from "lucide-react";
+import { Bug, Loader2, LogOut, Menu, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router";
@@ -8,6 +8,7 @@ import { ProductMark } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { authStore, useAuth } from "@/lib/auth";
 import { useLogout } from "@/lib/auth-queries";
+import { useDebugStatus } from "@/lib/debug-queries";
 import { cn } from "@/lib/utils";
 
 export interface CabinetNavItem {
@@ -22,9 +23,13 @@ interface CabinetLayoutProps {
   homePath: string;
   roleLabel: string;
   nav: CabinetNavItem[];
+  /** Пункт «Отладка» — только если на сервере включён DEBUG_TOOLS. */
+  debugLink?: boolean;
 }
 
-export function CabinetLayout({ homePath, roleLabel, nav }: CabinetLayoutProps) {
+export function CabinetLayout({ homePath, roleLabel, nav: baseNav, debugLink = true }: CabinetLayoutProps) {
+  const debug = useDebugStatus();
+  const nav = debugLink && debug.data ? [...baseNav, { to: `${homePath}/debug`, label: "Отладка", icon: Bug }] : baseNav;
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();

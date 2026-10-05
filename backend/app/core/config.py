@@ -1,10 +1,19 @@
 from functools import lru_cache
 from typing import Literal, Self
 
-from pydantic import Field, model_validator
+from pydantic import BaseModel, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 DEV_JWT_SECRET = "dev-only-insecure-jwt-secret-change-me-0000"
+
+
+class TeamAccount(BaseModel):
+    """Участник команды: генератор демо-данных создаёт ему админа, кандидата и работодателя."""
+
+    name: str = Field(pattern=r"^[a-z0-9][a-z0-9_-]{1,31}$", description="латиница: ivan, maria")
+    password: str = Field(min_length=8)
+    # Своя почта: адреса будут ivan+admin@gmail.com и т. д. — уведомления приходят на неё
+    email: str | None = None
 
 
 class Settings(BaseSettings):
@@ -35,6 +44,15 @@ class Settings(BaseSettings):
     # Демо-админ (сброс демо-данных) создаётся генератором, только если пароль задан в .env
     demo_admin_email: str = "admin@itscout.ru"
     demo_admin_password: str | None = None
+    # Пароль сид-аккаунтов; пусто — случайный при каждом reseed (вход в них — только демо-кнопками)
+    demo_seed_password: str = ""
+    # Пароль служебного кандидата e2e; пусто — пароль сид-аккаунтов. В CI — секрет E2E_CANDIDATE_PASSWORD
+    e2e_candidate_password: str = ""
+    # Аккаунты команды, JSON: [{"name": "ivan", "password": "...", "email": "ivan@gmail.com"}]
+    team_accounts: list[TeamAccount] = []
+    team_accounts_domain: str = "team.itscout.ru"
+    # Отладочный раздел в кабинетах (сброс ограничений, теста, reseed); выключен — эндпоинты отвечают 404
+    debug_tools: bool = False
     # Код-приглашение для регистрации экспертов разметки (§12.2); пусто — регистрация экспертов выключена
     expert_invite_code: str = ""
     # Кэш оценок подборки в памяти процесса (docs/performance.md); 0 — выключен
@@ -75,6 +93,7 @@ class Settings(BaseSettings):
         "example.net",
         "example.org",
         "demo.itscout.ru",
+        "team.itscout.ru",
     ]
     notifications_skip_emails: list[str] = ["e2e-candidate@itscout.ru"]
 
