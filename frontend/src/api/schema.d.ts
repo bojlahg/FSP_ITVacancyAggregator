@@ -1413,8 +1413,11 @@ export interface components {
             candidate: components["schemas"]["CandidateBrief"];
             /** Cover Note */
             cover_note: string | null;
-            /** Match Score */
-            match_score: number;
+            /**
+             * Match Score
+             * @description null — снимок совпадения не сохранился
+             */
+            match_score: number | null;
             match_explanation: components["schemas"]["Explanation"];
             /** @description Отклик кандидата сразу раскрывает контакты (ТЗ §2.2) */
             contacts: components["schemas"]["Contacts"];

@@ -983,6 +983,7 @@ class Seeder:
         ]
         heroes = {id(hero["candidate"]) for hero in self.heroes.values()}
         unlocked: set[tuple[int, int]] = set()
+        self.interactions: list[tuple[HiringNeed, Invitation | Application]] = []
 
         def unlock(
             employer_id: int, candidate_id: int, source: UnlockSource, source_id: int, at: datetime
@@ -1006,7 +1007,7 @@ class Seeder:
                 c for c in visible if c["spec"] == need.specialization and id(c["candidate"]) not in heroes
             ]
             for record in rng.sample(pool, min(len(pool), rng.randint(2, 6))):
-                created = need.created_at + timedelta(hours=rng.randint(2, 200))
+                created = self.after(need.created_at, 200)
                 status = weighted(rng, statuses)
                 invitation = Invitation(
                     employer_id=need.employer_id,
@@ -1019,16 +1020,17 @@ class Seeder:
                     contact_method={"name": "Рекрутер", "telegram": "@recruiter_demo"},
                     status=status,
                     created_at=created,
-                    expires_at=created + timedelta(days=get_settings().invitation_ttl_days),
+                    expires_at=self.expiry(created, status),
                 )
                 if status != InvitationStatus.sent:
-                    invitation.viewed_at = created + timedelta(hours=rng.randint(1, 30))
+                    invitation.viewed_at = self.after(created, 30)
                 if status in {InvitationStatus.accepted, InvitationStatus.declined}:
-                    invitation.responded_at = invitation.viewed_at + timedelta(hours=rng.randint(1, 48))
+                    invitation.responded_at = self.after(invitation.viewed_at, 48)
                 if status == InvitationStatus.declined:
                     invitation.decline_reason = weighted(rng, reasons)
                 self.db.add(invitation)
                 await self.db.flush()
+                self.interactions.append((need, invitation))
                 if status == InvitationStatus.accepted:
                     unlock(
                         need.employer_id,
@@ -1042,7 +1044,7 @@ class Seeder:
                 c for c in visible if c["spec"] == need.specialization and id(c["candidate"]) not in heroes
             ]
             for record in rng.sample(pool, min(len(pool), rng.randint(1, 3))):
-                created = need.created_at + timedelta(hours=rng.randint(1, 100))
+                created = self.after(need.created_at, 100)
                 status = weighted(
                     rng,
                     [
@@ -1059,8 +1061,13 @@ class Seeder:
                     created_at=created,
                     cover_note="Интересна ваша команда и стек, готов обсудить детали.",
                 )
+                if status != ApplicationStatus.sent:
+                    application.viewed_at = self.after(created, 24)
+                if status in {ApplicationStatus.accepted, ApplicationStatus.rejected}:
+                    application.responded_at = self.after(application.viewed_at, 72)
                 self.db.add(application)
                 await self.db.flush()
+                self.interactions.append((need, application))
                 unlock(
                     need.employer_id,
                     record["candidate"].id,
@@ -1171,6 +1178,32 @@ class Seeder:
             )
         await self.db.flush()
 
+    def after(self, start: datetime, max_hours: int) -> datetime:
+        """Момент через 1..max_hours часов после start, но не позже «сейчас» — даты не уходят в будущее."""
+        available = int((self.now - start).total_seconds() // 3600) - 1
+        return start + timedelta(hours=self.rng.randint(1, max(1, min(max_hours, available))))
+
+    def expiry(self, created: datetime, status: InvitationStatus) -> datetime:
+        expires = created + timedelta(days=get_settings().invitation_ttl_days)
+        if status == InvitationStatus.expired:
+            return min(expires, self.now - timedelta(hours=1))
+        if status in {InvitationStatus.sent, InvitationStatus.viewed}:
+            # Активные приглашения демо не должны истечь до показа
+            return max(expires, self.now + timedelta(days=7))
+        return expires
+
+    async def snapshot_interactions(self) -> None:
+        """Снимки «почему вы» тем же расчётом, что и в API, — после того как индекс выдачи построен."""
+        for need, item in self.interactions:
+            employer_id = item.employer_id if isinstance(item, Invitation) else need.employer_id
+            match = await matching_service.snapshot_for(self.db, employer_id, item.candidate_id, need)
+            if match is None:
+                continue
+            explanation = match.explanation.model_dump(mode="json")
+            item.match_snapshot = (
+                explanation if isinstance(item, Invitation) else {"score": match.score, **explanation}
+            )
+
     # ---------- финал ----------
 
     async def finalize(self) -> None:
@@ -1207,6 +1240,8 @@ class Seeder:
         await self.build_interactions()
         await self.build_tasks()
         await self.finalize()
+        await self.db.flush()
+        await self.snapshot_interactions()
         await self.db.commit()
         self.write_registry()
         categories = Counter(

@@ -233,8 +233,8 @@ interface ApplicationRowProps {
 function ApplicationRow({ needId, application, open, onToggle, deciding, onDecide }: ApplicationRowProps) {
   const { candidate } = application;
   const canDecide = OPEN_APPLICATION_STATUSES.includes(application.status);
-  // Без снимка совпадения backend отдаёт score 0 и пустое объяснение — не выдаём это за оценку.
-  const hasSnapshot = application.match_score > 0 || application.match_explanation.lines.length > 0;
+  // null — снимок совпадения не сохранился: не выдаём это за оценку.
+  const score = application.match_score;
   const detailsId = `application-${application.id}`;
 
   return (
@@ -251,8 +251,8 @@ function ApplicationRow({ needId, application, open, onToggle, deciding, onDecid
         aria-controls={detailsId}
         className="flex w-full flex-wrap items-center gap-3 rounded-lg px-4 py-3 text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
       >
-        {hasSnapshot ? (
-          <ScoreBadge score={application.match_score} size="sm" />
+        {score !== null ? (
+          <ScoreBadge score={score} size="sm" />
         ) : (
           <span
             className="inline-flex h-7 min-w-9 items-center justify-center rounded-lg bg-muted font-mono text-sm text-muted-foreground"

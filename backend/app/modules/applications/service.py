@@ -220,7 +220,7 @@ async def _for_employer(db: AsyncSession, items: list[Application]) -> list[Appl
                 need_id=item.need_id,
                 candidate=brief,
                 cover_note=item.cover_note,
-                match_score=snapshot.get("score", 0),
+                match_score=snapshot.get("score"),
                 match_explanation=Explanation(lines=snapshot.get("lines", [])),
                 contacts=await matching_service.contacts_of(db, candidate),
                 status=item.status,
@@ -237,7 +237,7 @@ async def list_for_need(db: AsyncSession, user_id: int, need_id: int) -> list[Ap
     chain = await needs_service.version_chain_ids(db, need)
     items = list(await db.scalars(select(Application).where(Application.need_id.in_(chain))))
     result = await _for_employer(db, items)
-    return sorted(result, key=lambda a: (-a.match_score, a.created_at))
+    return sorted(result, key=lambda a: (a.match_score is None, -(a.match_score or 0), a.created_at))
 
 
 async def _own(db: AsyncSession, user_id: int, application_id: int) -> Application:

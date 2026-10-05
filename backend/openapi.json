@@ -6435,8 +6435,16 @@
             "title": "Cover Note"
           },
           "match_score": {
-            "type": "integer",
-            "title": "Match Score"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Match Score",
+            "description": "null — снимок совпадения не сохранился"
           },
           "match_explanation": {
             "$ref": "#/components/schemas/Explanation"

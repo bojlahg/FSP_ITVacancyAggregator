@@ -51,7 +51,7 @@ class ApplicationForEmployer(ApiModel):
     need_id: int
     candidate: CandidateBrief
     cover_note: str | None
-    match_score: int
+    match_score: int | None = Field(description="null — снимок совпадения не сохранился")
     match_explanation: Explanation
     contacts: Contacts = Field(description="Отклик кандидата сразу раскрывает контакты (ТЗ §2.2)")
     status: ApplicationStatus
