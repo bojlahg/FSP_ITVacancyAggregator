@@ -5,6 +5,13 @@
 		reverse_proxy backend:8000
 	}
 
+	# Мок IdP «ФСП ID» (Keycloak): наружу только realm fsp и статика страницы входа, админка и master закрыты
+	handle /fsp-id/* {
+		@closed not path /fsp-id/realms/fsp/* /fsp-id/resources/*
+		respond @closed 404
+		reverse_proxy keycloak:8080
+	}
+
 	handle /health {
 		respond "ok" 200
 	}

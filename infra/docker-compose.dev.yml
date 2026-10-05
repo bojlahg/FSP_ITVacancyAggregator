@@ -21,6 +21,12 @@ services:
     ports:
       - "127.0.0.1:8001:8001"
 
+  keycloak:
+    environment:
+      KC_HOSTNAME: http://localhost:8080/fsp-id
+    ports:
+      - "127.0.0.1:8080:8080"
+
   mailpit:
     image: axllent/mailpit:latest
     ports:

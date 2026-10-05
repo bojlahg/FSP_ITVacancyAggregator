@@ -1,0 +1,105 @@
+{
+  "realm": "fsp",
+  "enabled": true,
+  "displayName": "ФСП ID (демо)",
+  "displayNameHtml": "<b>ФСП ID</b> · демонстрационный IdP",
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "resetPasswordAllowed": false,
+  "rememberMe": false,
+  "editUsernameAllowed": false,
+  "loginWithEmailAllowed": true,
+  "bruteForceProtected": true,
+  "internationalizationEnabled": true,
+  "supportedLocales": ["ru", "en"],
+  "defaultLocale": "ru",
+  "accessTokenLifespan": 300,
+  "components": {
+    "org.keycloak.userprofile.UserProfileProvider": [
+      {
+        "providerId": "declarative-user-profile",
+        "subComponents": {},
+        "config": {
+          "kc.user.profile.config": [
+            "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"fsp_id\",\"displayName\":\"ФСП ID\",\"validations\":{\"length\":{\"max\":64}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false}],\"groups\":[{\"name\":\"user-metadata\",\"displayHeader\":\"User metadata\",\"displayDescription\":\"Attributes, which refer to user metadata\"}]}"
+          ]
+        }
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "itscout",
+      "name": "ITScout",
+      "description": "Привязка ФСП ID к профилю кандидата ITScout (authorization code + PKCE)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "frontchannelLogout": false,
+      "consentRequired": false,
+      "fullScopeAllowed": false,
+      "redirectUris": [
+        "https://itscout.ru/api/v1/fsp/oidc/callback",
+        "http://localhost:5173/api/v1/fsp/oidc/callback",
+        "http://localhost/api/v1/fsp/oidc/callback"
+      ],
+      "webOrigins": [],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "protocolMappers": [
+        {
+          "name": "fsp_id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "fsp_id",
+            "claim.name": "fsp_id",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "fsp-2026-7781",
+      "enabled": true,
+      "email": "fsp-2026-7781@fsp-demo.example",
+      "emailVerified": true,
+      "firstName": "Участник",
+      "lastName": "для демонстрации",
+      "attributes": { "fsp_id": ["FSP-2026-7781"] },
+      "credentials": [{ "type": "password", "value": "fsp-demo-2026", "temporary": false }]
+    },
+    {
+      "username": "anna.kovaleva",
+      "enabled": true,
+      "email": "anna.kovaleva@fsp-demo.example",
+      "emailVerified": true,
+      "firstName": "Анна",
+      "lastName": "Ковалёва",
+      "attributes": { "fsp_id": ["FSP-2026-1001"] },
+      "credentials": [{ "type": "password", "value": "fsp-demo-2026", "temporary": false }]
+    },
+    {
+      "username": "maria.orlova",
+      "enabled": true,
+      "email": "maria.orlova@fsp-demo.example",
+      "emailVerified": true,
+      "firstName": "Мария",
+      "lastName": "Орлова",
+      "attributes": { "fsp_id": ["FSP-2026-1002"] },
+      "credentials": [{ "type": "password", "value": "fsp-demo-2026", "temporary": false }]
+    }
+  ]
+}

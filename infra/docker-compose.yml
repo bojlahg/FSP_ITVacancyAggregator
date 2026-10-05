@@ -42,6 +42,27 @@ services:
     volumes:
       - fspdata:/data/fsp:ro
 
+  # Мок IdP «ФСП ID» (§9.3): realm fsp из infra/keycloak, данные во встроенной H2 — пересоздаётся при деплое.
+  # Наружу через Caddy только /fsp-id/realms/fsp/* и /fsp-id/resources/*; админка закрыта.
+  keycloak:
+    build: ./keycloak
+    restart: unless-stopped
+    environment:
+      KC_HOSTNAME: ${PUBLIC_BASE_URL:-http://localhost}/fsp-id
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?задайте KEYCLOAK_ADMIN_PASSWORD в .env}
+      JAVA_OPTS_KC_HEAP: -Xms64m -Xmx320m
+    mem_limit: 700m
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /fsp-id/health/ready HTTP/1.0\r\n\r\n' >&3 && grep -q UP <&3"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
   # Только отправка почты от noreply@itscout.ru с подписью DKIM (порт 25 у VDSina открыт по запросу)
   mail:
     image: boky/postfix:latest
