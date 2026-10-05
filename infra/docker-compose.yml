@@ -77,6 +77,25 @@ services:
     volumes:
       - dkim:/etc/opendkim/keys
 
+  # Ежедневный бэкап БД и загруженных файлов в отдельный том: деплой (rsync --delete) его не трогает
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/usr/local/bin/backup.sh"]
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-itscout}
+      POSTGRES_USER: ${POSTGRES_USER:-itscout}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?задайте POSTGRES_PASSWORD в .env}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-7}
+      BACKUP_INTERVAL_HOURS: ${BACKUP_INTERVAL_HOURS:-24}
+    volumes:
+      - ./scripts/backup.sh:/usr/local/bin/backup.sh:ro
+      - backups:/backups
+      - uploads:/uploads:ro
+    depends_on:
+      db:
+        condition: service_healthy
+
   web:
     build:
       context: ..
@@ -99,3 +118,4 @@ volumes:
   caddy_data:
   caddy_config:
   dkim:
+  backups:

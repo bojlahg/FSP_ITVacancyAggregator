@@ -6,16 +6,16 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: "status | logs | reseed | restart | swap | llm-check"
+        description: "status | logs | reseed | restart | swap | llm-check | backup | backups"
         required: true
         type: choice
-        options: [status, logs, reseed, restart, swap, llm-check]
+        options: [status, logs, reseed, restart, swap, llm-check, backup, backups]
       service:
         description: "Сервис для logs/restart"
         required: false
         default: backend
         type: choice
-        options: [backend, web, db, keycloak, fsp-mock, mail]
+        options: [backend, web, db, keycloak, fsp-mock, mail, backup]
       lines:
         description: "Сколько строк логов"
         required: false
@@ -59,13 +59,19 @@ jobs:
             logs)
               ssh -i ~/.ssh/deploy "root@${DEPLOY_HOST}" "${DC} logs --no-color --tail ${LINES} ${SERVICE}" ;;
             reseed)
-              ssh -i ~/.ssh/deploy "root@${DEPLOY_HOST}" "${DC} exec -T backend python -m seed.generate" ;;
+              # Перед пересидированием — бэкап: reseed очищает все таблицы, кроме экспертной разметки
+              ssh -i ~/.ssh/deploy "root@${DEPLOY_HOST}" \
+                "${DC} exec -T backup sh /usr/local/bin/backup.sh once && ${DC} exec -T backend python -m seed.generate" ;;
             restart)
               ssh -i ~/.ssh/deploy "root@${DEPLOY_HOST}" "${DC} restart ${SERVICE}"
               sleep 10; curl -fsS "https://itscout.ru/api/v1/health"; echo ;;
             swap)
               # Скрипт из checkout, не из /opt/itscout/app: не зависит от того, прошёл ли деплой
               ssh -i ~/.ssh/deploy "root@${DEPLOY_HOST}" "sh -s" < infra/scripts/setup-swap.sh ;;
+            backup)
+              ssh -i ~/.ssh/deploy "root@${DEPLOY_HOST}" "${DC} exec -T backup sh /usr/local/bin/backup.sh once" ;;
+            backups)
+              ssh -i ~/.ssh/deploy "root@${DEPLOY_HOST}" "${DC} exec -T backup sh /usr/local/bin/backup.sh list" ;;
             llm-check)
               # Все сценарии LLM на настоящем провайдере; LLM_PROVIDER=yandex только для этой команды
               ssh -i ~/.ssh/deploy "root@${DEPLOY_HOST}" \

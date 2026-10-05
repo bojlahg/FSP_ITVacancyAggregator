@@ -144,7 +144,9 @@ Workflow «Server ops» (`.github/workflows/server-ops.yml`) выполняет 
 ```bash
 gh workflow run server-ops.yml -f action=status                     # docker compose ps и health
 gh workflow run server-ops.yml -f action=logs -f service=backend -f lines=200
-gh workflow run server-ops.yml -f action=reseed                     # демо-данные заново
+gh workflow run server-ops.yml -f action=reseed                     # бэкап, затем демо-данные заново
+gh workflow run server-ops.yml -f action=backup                     # бэкап сейчас
+gh workflow run server-ops.yml -f action=backups                    # список бэкапов
 gh workflow run server-ops.yml -f action=restart -f service=backend
 gh workflow run server-ops.yml -f action=swap                       # своп 2 ГБ (идемпотентно)
 gh workflow run server-ops.yml -f action=llm-check                  # все сценарии LLM на настоящем провайдере
@@ -152,6 +154,28 @@ gh run watch <id> && gh run view <id> --log
 ```
 
 С SSH: `cd /opt/itscout/app && make reseed` (или `docker compose --env-file .env -f infra/docker-compose.yml exec -T backend python -m seed.generate`). Демо-данные можно сбросить и через API: `POST /api/v1/admin/reseed` от демо-админа. Сброс удаляет всех пользователей, компании, их API-ключи и webhook'и; сохраняется только экспертная разметка пар и оценки Angoff.
+
+### 5.4. Бэкапы
+
+Сервис `backup` (`infra/docker-compose.yml`, скрипт `infra/scripts/backup.sh`) раз в `BACKUP_INTERVAL_HOURS` (24 ч) снимает `pg_dump` в формате custom и архив загруженных файлов (резюме, состояние LLM) в том `backups`, хранит `BACKUP_KEEP_DAYS` (7) дней. Том отдельный: деплой (`rsync --delete` в `/opt/itscout/app`) и `make reseed` его не трогают. Перед `action=reseed` бэкап снимается автоматически.
+
+Бэкап лежит на том же сервере: от ошибок, reseed и порчи данных он защищает, от потери самого сервера — нет. Для этого копию нужно забирать наружу (`scp` с сервера или S3-хранилище провайдера) — в рамках хакатона не настроено.
+
+**Восстановление** — только вручную и с подтверждения владельца: оно перезаписывает данные прода.
+
+```bash
+ssh itscout
+cd /opt/itscout/app
+DC="docker compose --env-file .env -f infra/docker-compose.yml"
+$DC exec -T backup sh /usr/local/bin/backup.sh list          # выбрать файл db-<время>.dump
+$DC exec -T backup sh /usr/local/bin/backup.sh once          # сначала — свежий бэкап текущего состояния
+$DC stop backend
+$DC exec -T backup sh -c 'PGPASSWORD="$POSTGRES_PASSWORD" pg_restore -h db -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner /backups/db-<время>.dump'
+$DC start backend
+# загруженные файлы, если нужно: tar -xzf из /backups/uploads-<время>.tar.gz в том uploads
+```
+
+Проверено на копии: дамп восстанавливается в пустую базу с теми же данными (кандидаты, экспертная разметка).
 
 ## 6. Проверки
 
@@ -182,5 +206,6 @@ gh run watch <id> && gh run view <id> --log
 | `FSP_API_URL`, `FSP_API_KEY` | мок в compose | реестр ФСП |
 | `FSP_OIDC_*` | Keycloak в compose | ФСП ID |
 | `WEB_CONCURRENCY` | 3 | процессы uvicorn; лимиты частоты и учёт LLM общие для всех процессов (см. [performance.md](performance.md)) |
+| `BACKUP_KEEP_DAYS`, `BACKUP_INTERVAL_HOURS` | 7, 24 | хранение и частота бэкапов (раздел 5.4) |
 | `RECOMMENDATIONS_CACHE_SECONDS` | 60 | TTL кэша оценок подборки в памяти процесса; 0 — выключен |
 | `GRADE_CHANGE_COOLDOWN_DAYS`, `FAILED_GRADE_RETRY_DAYS`, `MAX_ACTIVE_INVITES_PER_NEED` | 90, 30, 15 | правила продукта |
