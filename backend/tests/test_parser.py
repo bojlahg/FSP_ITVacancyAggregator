@@ -321,3 +321,23 @@ async def test_llm_user_hourly_limit(transport, monkeypatch):
     assert await llm.complete_json("system", "второй", "{}", user_id=5) is None
     assert await llm.complete_json("system", "второй", "{}", user_id=6) is not None
     assert len(transport) == 2
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        (
+            "Ищем Middle Python-разработчика в платёжную команду. Обязательно: FastAPI, PostgreSQL, Docker. "
+            "Будет плюсом: Kafka, Kubernetes.",
+            "backend",
+        ),
+        ("Нужен разработчик на Go: gRPC, PostgreSQL, Docker, Kubernetes, Helm", "backend"),
+        (".NET-разработчик, ASP.NET Core, MS SQL, Docker", "backend"),
+        ("React-разработчик в команду личного кабинета, TypeScript, Docker", "frontend"),
+        ("DevOps-инженер: Docker, Kubernetes, Terraform, Prometheus", "devops"),
+        ("Инженер по автоматизации тестирования на Python: pytest, Playwright, Docker", "qa"),
+    ],
+)
+def test_specialization_from_role_language_beats_infra_skills(text, expected):
+    """Язык рядом с ролью («Python-разработчик») весит больше, чем Docker и Kubernetes в стеке."""
+    assert parser.parse_dict(text).draft.specialization == expected

@@ -66,9 +66,26 @@ _OPTIONAL_MARKER = re.compile(
     re.IGNORECASE,
 )
 
+BACKEND_LANGS = r"python|java|golang|go|php|c#|\.net|kotlin|scala|ruby|rust|node(?:\.?js)?|c\+\+"
+FRONTEND_LANGS = r"react|vue|angular|javascript|typescript|js|ts"
 SPEC_KEYWORDS: dict[str, list[str]] = {
-    "backend": [r"back[\s\-]?end", r"б[эе]к[\s\-]?[эе]нд", r"серверн", r"\bapi[\s\-]разработ"],
-    "frontend": [r"front[\s\-]?end", r"фронт[\s\-]?[эе]нд", r"фронт\b", r"верст"],
+    "backend": [
+        r"back[\s\-]?end",
+        r"б[эе]к[\s\-]?[эе]нд",
+        r"серверн",
+        r"\bapi[\s\-]разработ",
+        # «Python-разработчик», «разработчик на Go»: язык серверной разработки рядом с ролью
+        rf"(?<!\w)(?:{BACKEND_LANGS})[\s\-]?(?:разработчик|программист|developer|engineer)",
+        rf"(?:разработчик|программист)\w*\s+(?:на\s+)?(?:{BACKEND_LANGS})\b",
+    ],
+    "frontend": [
+        r"front[\s\-]?end",
+        r"фронт[\s\-]?[эе]нд",
+        r"фронт\b",
+        r"верст",
+        rf"(?<!\w)(?:{FRONTEND_LANGS})[\s\-]?(?:разработчик|программист|developer|engineer)",
+        rf"(?:разработчик|программист)\w*\s+(?:на\s+)?(?:{FRONTEND_LANGS})\b",
+    ],
     "fullstack": [r"full[\s\-]?stack", r"фулл?[\s\-]?стек"],
     "qa": [
         r"\bqa\b",
