@@ -122,7 +122,7 @@ function ApiKeysSection() {
         <KeyRound className="size-4 text-primary" aria-hidden /> API-ключи
       </h3>
       <form className="flex items-start gap-2" onSubmit={handleSubmit(onSubmit)} noValidate>
-        <FormField id="api-key-name" label="Название" error={errors.name?.message} className="flex-1">
+        <FormField id="api-key-name" label="Имя ключа" error={errors.name?.message} className="flex-1">
           <Input id="api-key-name" placeholder="Например, Huntflow" aria-invalid={!!errors.name} {...register("name")} />
         </FormField>
         <Button type="submit" className="mt-6" disabled={create.isPending}>
@@ -245,7 +245,7 @@ function WebhookForm({ hook }: { hook: Webhook | null }) {
         <div className="flex flex-wrap gap-2">
           <Button type="submit" disabled={save.isPending || (hook !== null && !isDirty)}>
             {save.isPending && <Loader2 className="animate-spin" />}
-            {hook ? "Сохранить" : "Подключить"}
+            {hook ? "Обновить адрес" : "Подключить"}
           </Button>
           {hook && (
             <Button type="button" variant="ghost" disabled={remove.isPending} onClick={() => remove.mutate()}>
