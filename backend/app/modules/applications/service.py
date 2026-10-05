@@ -21,6 +21,7 @@ from app.modules.catalog.service import get_catalog
 from app.modules.categories import service as categories_service
 from app.modules.employers import service as employers_service
 from app.modules.employers.models import Employer
+from app.modules.integrations import service as integrations_service
 from app.modules.invitations import service as invitations_service
 from app.modules.matching import service as matching_service
 from app.modules.matching.schemas import CandidateMatch
@@ -168,6 +169,10 @@ async def apply(
     await invitations_service.unlock_contacts(
         db, user_id, need.employer_id, candidate.id, UnlockSource.application, application.id
     )
+    items = await _for_employer(db, [application])
+    if items:
+        data = items[0].model_dump(mode="json")
+        await integrations_service.enqueue(db, need.employer_id, "application.created", data)
     await db.commit()
     await db.refresh(application)
     return await _for_candidate(db, application)

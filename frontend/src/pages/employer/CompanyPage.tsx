@@ -3,6 +3,7 @@ import { CheckCircle2, Loader2, Save, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
+import { AtsIntegrationCard } from "@/components/employer/AtsIntegrationCard";
 import { ErrorState } from "@/components/ErrorState";
 import { FormAlert } from "@/components/FormAlert";
 import { FormField } from "@/components/FormField";
@@ -84,6 +85,11 @@ export default function CompanyPage() {
         <div className="grid max-w-6xl gap-4 lg:grid-cols-[1fr_320px]">
           <CompanyForm key={company.data.id} company={company.data} />
           <ReputationCard reputation={company.data.reputation} />
+        </div>
+      )}
+      {company.isSuccess && (
+        <div className="mt-4">
+          <AtsIntegrationCard />
         </div>
       )}
     </>

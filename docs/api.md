@@ -8,7 +8,7 @@
 |---|---|
 | Префикс | `/api/v1` |
 | Формат | JSON, UTF-8; загрузка резюме — `multipart/form-data`; PDF-профиль — `application/pdf` |
-| Аутентификация | `Authorization: Bearer <access JWT>` (живёт 15 минут). Refresh-токен — httpOnly cookie `itscout_refresh` на `/api/v1/auth`, обновление — `POST /auth/refresh` с ротацией |
+| Аутентификация | `Authorization: Bearer <access JWT>` (живёт 15 минут). Refresh-токен — httpOnly cookie `itscout_refresh` на `/api/v1/auth`, обновление — `POST /auth/refresh` с ротацией. Для ATS — `X-API-Key: itsk_…` на методах работодателя (ключ выпускается в профиле компании), события — подписанные webhook'и (см. [anti-fraud-ats.md](anti-fraud-ats.md)) |
 | Роли | `candidate`, `employer`, `admin`; эндпоинты кабинета доступны только своей роли (иначе 403) |
 | Доступ к объектам | кандидат видит только свои приглашения, отклики и задания, работодатель — только свои потребности, приглашения и задания; чужой объект → 404 (не раскрываем факт существования) или 403 |
 | Ошибки | единый формат, см. ниже |

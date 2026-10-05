@@ -9,6 +9,7 @@ from app.modules.categories.models import CandidateCategory
 from app.modules.employers.models import Employer
 from app.modules.expert.models import ExpertLabel, ExpertPair
 from app.modules.fsp.models import CandidateCompetency, FspAchievement, FspRank
+from app.modules.integrations.models import EmployerApiKey, EmployerWebhook, WebhookDelivery
 from app.modules.invitations.models import ContactUnlock, Invitation
 from app.modules.matching.models import CandidateSearchIndex
 from app.modules.needs.models import HiringNeed, NeedShortlist
@@ -33,6 +34,8 @@ __all__ = [
     "ContactUnlock",
     "EmailToken",
     "Employer",
+    "EmployerApiKey",
+    "EmployerWebhook",
     "ExpertLabel",
     "ExpertPair",
     "EmployerTask",
@@ -49,4 +52,5 @@ __all__ = [
     "TestAttempt",
     "TestAttemptItem",
     "User",
+    "WebhookDelivery",
 ]

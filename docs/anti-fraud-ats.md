@@ -73,11 +73,22 @@ sequenceDiagram
 
 | Элемент | Как устроено |
 |---|---|
-| API-ключи работодателя | выпускаются в профиле компании, привязаны к компании и правам (чтение подборок, приглашения); тот же REST API и OpenAPI-контракт, что использует фронт |
-| Исходящие webhook'и | `invitation.accepted`, `invitation.declined`, `application.created`, `need.recommendations.updated`; тело подписано HMAC-SHA256, повтор с экспоненциальной задержкой |
+| API-ключи работодателя | **работают**: выпускаются в профиле компании («Интеграция с ATS»), ключ показывается один раз, в БД — только SHA-256; заголовок `X-API-Key` даёт тот же REST API и OpenAPI-контракт, что использует фронт, с теми же правилами видимости; управлять ключами и webhook по ключу нельзя |
+| Исходящие webhook'и | **работают**: `invitation.accepted`, `invitation.declined`, `application.created` и тестовый `ping`; подпись `X-ITScout-Signature: t=…,v1=HMAC-SHA256(secret, "t.тело")`; outbox в БД, повторы через 30 с, 5 мин и 30 мин, журнал доставок с ручным повтором; только публичные HTTPS-адреса (защита от SSRF). Дальше — `need.recommendations.updated` |
 | Экспорт кандидата | JSON Resume + расширение `x-itscout`: категория, θ̂ и перцентиль, разбор по темам, статусы навыков, достижения ФСП; PDF-профиль — уже есть (`/talent/candidates/{id}/profile.pdf`) |
 | Импорт вакансий | разбор текста вакансии из ATS тем же парсером потребностей; вилка обязательна — без неё вакансия не создаётся |
 | Коннекторы | для популярных российских ATS — готовые интеграции через их API: вакансия → потребность, принятое приглашение → кандидат в воронке |
 | Конфиденциальность | экспорт и webhook'и с контактами — только после записи в `contact_unlocks`; правила видимости те же, что в кабинете |
 
-Ограничение MVP: API-ключи, webhook'и и коннекторы не реализованы — это концепция. Всё, на что они опираются (REST API с OpenAPI, правила раскрытия контактов, PDF-профиль, разбор текста вакансий), уже работает.
+API-ключи и webhook'и работают в MVP (порядок — `docs/implementation.md` §8.8). Пример проверки подписи на стороне ATS:
+
+```python
+import hashlib, hmac
+
+def verify(secret: str, header: str, body: bytes) -> bool:
+    parts = dict(item.split("=", 1) for item in header.split(","))
+    expected = hmac.new(secret.encode(), f"{parts['t']}.".encode() + body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, parts["v1"])  # и проверить, что t не старше 5 минут
+```
+
+Концепцией остаются экспорт в JSON Resume, импорт вакансий из ATS и готовые коннекторы.

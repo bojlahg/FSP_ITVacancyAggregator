@@ -3,7 +3,7 @@ from typing import Annotated
 
 import jwt
 from fastapi import Depends
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -13,6 +13,11 @@ from app.core.errors import ForbiddenError, NotFoundError, UnauthorizedError
 from app.core.security import decode_access_token
 
 _bearer = HTTPBearer(auto_error=False, description="Access JWT из POST /auth/login")
+_api_key = APIKeyHeader(
+    name="X-API-Key",
+    auto_error=False,
+    description="API-ключ работодателя для ATS: выпускается в профиле компании, даёт методы работодателя",
+)
 
 DbSession = Annotated[AsyncSession, Depends(get_session)]
 
@@ -51,7 +56,26 @@ def require_demo_mode() -> None:
 
 CurrentUser = Annotated[AuthUser, Depends(get_current_user)]
 CurrentCandidate = Annotated[AuthUser, Depends(_require(Role.candidate))]
-CurrentEmployer = Annotated[AuthUser, Depends(_require(Role.employer))]
+CurrentEmployerSession = Annotated[AuthUser, Depends(_require(Role.employer))]
+
+
+async def _employer_or_api_key(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
+    api_key: Annotated[str | None, Depends(_api_key)],
+    db: DbSession,
+) -> AuthUser:
+    """Методы работодателя доступны и из кабинета, и из ATS по ключу X-API-Key."""
+    if credentials is None and api_key:
+        from app.modules.integrations.service import authenticate_key
+
+        return AuthUser(id=await authenticate_key(db, api_key), role=Role.employer)
+    user = get_current_user(credentials)
+    if user.role != Role.employer:
+        raise ForbiddenError()
+    return user
+
+
+CurrentEmployer = Annotated[AuthUser, Depends(_employer_or_api_key)]
 CurrentAdmin = Annotated[AuthUser, Depends(_require(Role.admin))]
 CurrentExpert = Annotated[AuthUser, Depends(_require(Role.expert))]
 

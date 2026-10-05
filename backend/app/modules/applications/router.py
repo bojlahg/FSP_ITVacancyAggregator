@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, BackgroundTasks, Query
 
 from app.core.deps import CurrentCandidate, CurrentEmployer, DbSession
 from app.core.enums import ApplicationStatus, Grade
@@ -10,6 +10,7 @@ from app.modules.applications.schemas import (
     ApplyRequest,
     VacancyOut,
 )
+from app.modules.integrations import service as integrations_service
 
 candidate_router = APIRouter(tags=["candidate: vacancies"])
 employer_router = APIRouter(tags=["employer: vacancies"])
@@ -52,9 +53,11 @@ async def get_vacancy(vacancy_id: int, user: CurrentCandidate, db: DbSession) ->
     responses=error_responses(401, 403, 404, 409, 422),
 )
 async def apply_to_vacancy(
-    vacancy_id: int, body: ApplyRequest, user: CurrentCandidate, db: DbSession
+    vacancy_id: int, body: ApplyRequest, user: CurrentCandidate, db: DbSession, background: BackgroundTasks
 ) -> ApplicationForCandidate:
-    return await service.apply(db, user.id, vacancy_id, body)
+    result = await service.apply(db, user.id, vacancy_id, body)
+    background.add_task(integrations_service.deliver_pending)
+    return result
 
 
 @candidate_router.get(

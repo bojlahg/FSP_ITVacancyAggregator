@@ -156,3 +156,9 @@ class GradedBy(StrEnum):
     auto = "auto"
     llm = "llm"
     employer = "employer"
+
+
+class WebhookDeliveryStatus(StrEnum):
+    pending = "pending"
+    delivered = "delivered"
+    failed = "failed"

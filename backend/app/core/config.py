@@ -37,6 +37,14 @@ class Settings(BaseSettings):
     demo_admin_password: str | None = None
     # Код-приглашение для регистрации экспертов разметки (§12.2); пусто — регистрация экспертов выключена
     expert_invite_code: str = ""
+    # Интеграция с ATS: API-ключи работодателя и исходящие webhook'и (docs/anti-fraud-ats.md §2)
+    api_keys_per_employer: int = 5
+    api_key_touch_seconds: int = 60
+    webhook_timeout_seconds: float = 5.0
+    webhook_retry_delays_seconds: list[int] = [30, 300, 1800]
+    webhook_worker_interval_seconds: int = 30
+    webhook_batch_size: int = 20
+    webhook_allow_private_hosts: bool = False
 
     email_backend: Literal["console", "smtp"] = "console"
     email_verification_required: bool = False

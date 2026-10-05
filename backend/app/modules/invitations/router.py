@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, BackgroundTasks, Query
 
 from app.core.deps import CurrentCandidate, CurrentEmployer, DbSession
 from app.core.enums import InvitationStatus
 from app.core.errors import error_responses
+from app.modules.integrations import service as integrations_service
 from app.modules.invitations import service
 from app.modules.invitations.schemas import (
     DeclineRequest,
@@ -50,9 +51,11 @@ async def view_invitation(
     responses=TRANSITION,
 )
 async def accept_invitation(
-    invitation_id: int, user: CurrentCandidate, db: DbSession
+    invitation_id: int, user: CurrentCandidate, db: DbSession, background: BackgroundTasks
 ) -> InvitationForCandidate:
-    return await service.accept(db, user.id, invitation_id)
+    result = await service.accept(db, user.id, invitation_id)
+    background.add_task(integrations_service.deliver_pending)
+    return result
 
 
 @candidate_router.post(
@@ -62,9 +65,15 @@ async def accept_invitation(
     responses=error_responses(401, 403, 404, 409, 422),
 )
 async def decline_invitation(
-    invitation_id: int, body: DeclineRequest, user: CurrentCandidate, db: DbSession
+    invitation_id: int,
+    body: DeclineRequest,
+    user: CurrentCandidate,
+    db: DbSession,
+    background: BackgroundTasks,
 ) -> InvitationForCandidate:
-    return await service.decline(db, user.id, invitation_id, body)
+    result = await service.decline(db, user.id, invitation_id, body)
+    background.add_task(integrations_service.deliver_pending)
+    return result
 
 
 @employer_router.post(

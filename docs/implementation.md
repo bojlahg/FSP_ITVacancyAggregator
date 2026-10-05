@@ -336,6 +336,13 @@ LLM в объяснении не используется: шаблон надё
 
 ---
 
+### 8.8. Интеграция с ATS: API-ключи и webhook'и
+
+- **API-ключ** выпускает работодатель в профиле компании; ключ `itsk_<prefix>_<secret>` показывается один раз, в БД — только SHA-256. С заголовком `X-API-Key` доступны все методы работодателя, что и из кабинета (потребности, подборка, поиск, приглашения, отклики), с теми же правилами видимости. Управлять ключами и webhook по ключу нельзя — только из кабинета. Не больше `API_KEYS_PER_EMPLOYER` активных ключей (5).
+- **Webhook**: один адрес на компанию, только публичный HTTPS (адреса из частных сетей, loopback и редиректы отклоняются — защита от SSRF). События: `invitation.accepted`, `invitation.declined`, `application.created`, тестовое `ping`. Тело — `{id, event, created_at, data}`, где `data` — тот же объект, что работодатель получает в API: контакты кандидата — только после записи в `contact_unlocks`.
+- **Подпись**: `X-ITScout-Signature: t=<unix>,v1=<hex>`, где `v1 = HMAC-SHA256(secret, "<t>.<тело>")` — защищает от подмены и повтора; также `X-ITScout-Event`, `X-ITScout-Delivery`.
+- **Доставка (outbox)**: событие пишется в `webhook_deliveries` в одной транзакции с действием, отправляется сразу после ответа и повторяется фоновым циклом с задержками `WEBHOOK_RETRY_DELAYS_SECONDS` (30 с, 5 мин, 30 мин); после последней неудачи — `failed`, повтор вручную из журнала. `SELECT … FOR UPDATE SKIP LOCKED` не даёт отправить событие дважды.
+
 ## 9. ФСП
 
 ### 9.1. Модель данных реестра (наше предложение, в fsp-mock)
@@ -682,6 +689,11 @@ candidate_search_index(candidate_id, specialization, grade, theta, percentile, v
 expert_pairs(id, need_id, candidate_id, need_snapshot jsonb, candidate_snapshot jsonb,
              ours_rank, ours_score, keyword_rank, created_at)   -- без FK: переживает пересидирование
 expert_labels(id, pair_id, rater_email, label 0..3, created_at, updated_at)
+
+employer_api_keys(id, employer_id, name, prefix unique, key_hash, created_at, last_used_at, revoked_at)
+employer_webhooks(employer_id pk, url, secret, enabled, created_at, updated_at)
+webhook_deliveries(id, employer_id, event, payload jsonb, status[pending|delivered|failed], attempts,
+                   response_status, last_error, created_at, next_attempt_at, delivered_at)   -- outbox
 ```
 
 Ограничения:
@@ -743,6 +755,9 @@ GET  /talent/candidates/{id}?need_id=      обезличенная или по�
 GET  /talent/candidates/{id}/profile.pdf
 POST /invitations ; GET /employers/me/invitations ; POST /invitations/{id}/withdraw
 GET  /employers/me/decline-stats
+GET|POST /employers/me/api-keys ; DELETE /employers/me/api-keys/{id}     ключи ATS (§8.8), только из кабинета
+GET|PUT|DELETE /employers/me/webhook ; POST /employers/me/webhook/rotate-secret | /employers/me/webhook/test
+GET  /employers/me/webhook/deliveries ; POST /employers/me/webhook/deliveries/{id}/retry
 POST /vacancy-tests/preview  {raw_text | need_id} → blueprint + примеры заданий + черновики LLM ; GET /vacancy-tests/examples
 GET|POST /employer-tasks ; GET /employer-tasks/templates?specialization=|need_id= ; GET /employer-tasks/{id}/submissions ; POST /employer-tasks/{id}/submissions/{aid}/rate
 
@@ -777,7 +792,7 @@ POST /admin/reseed (роль admin) ; POST /admin/demo/reset-cooldowns     то�
 | Общие | Лендинг (что это, «Регистрация кандидата» / «Регистрация работодателя», в шапке — «Войти» и «Зарегистрироваться»), регистрация, подтверждение почты, вход с кнопками демо-входа; «Как работает тест» (`/how-it-works`, без входа: экземпляры шаблона, информационная функция MST, защита от слива — живые данные движка через `GET /explainer/*`) |
 | Кандидат | Онбординг-мастер (опрос → специализация → грейд → инструкция к тесту); прохождение теста; результат; дашборд (категория, приглашения, задания, полнота профиля); профиль и резюме; категория и грейд; приглашения; вакансии и отклики; задания; настройки |
 | Эксперт | Регистрация по коду (`/expert/join`); разметка пар «потребность — кандидат» вслепую с оценкой 0–3 (кнопки или клавиши 0–3) и прогрессом; итоги: P@5 двух выдач, Спирмен, согласие экспертов |
-| Работодатель | Профиль компании; потребности (список, создание текстом или формой, разбор); подборка по потребности (категории, кандидаты, фильтры, шорт-лист, покрытие вилки); поиск по базе; каталог категорий; карточка кандидата; форма приглашения; приглашения со статусами и статистикой отказов; вакансии и отклики; «Проверка под вакансию»; задания |
+| Работодатель | Профиль компании (с блоком «Интеграция с ATS»: API-ключи, webhook, журнал доставок); потребности (список, создание текстом или формой, разбор); подборка по потребности (категории, кандидаты, фильтры, шорт-лист, покрытие вилки); поиск по базе; каталог категорий; карточка кандидата; форма приглашения; приглашения со статусами и статистикой отказов; вакансии и отклики; «Проверка под вакансию»; задания |
 
 ---
 
@@ -932,8 +947,8 @@ POST /admin/reseed (роль admin) ; POST /admin/demo/reset-cooldowns     то�
 - лимиты приглашений для новых компаний.
 
 **Интеграция с ATS:**
-- API-ключи работодателя;
-- исходящие webhook'и (`invitation.accepted`, `application.created`);
+- API-ключи работодателя — **реализованы** (§8.8);
+- исходящие webhook'и (`invitation.accepted`, `invitation.declined`, `application.created`) — **реализованы** (§8.8);
 - экспорт кандидата в JSON Resume;
 - коннекторы к российским ATS (Huntflow, Talantix, Potok) через их API.
 

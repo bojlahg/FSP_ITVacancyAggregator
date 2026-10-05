@@ -1,3 +1,7 @@
+import asyncio
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager, suppress
+
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
@@ -17,6 +21,8 @@ from app.modules.categories.router import router as categories_router
 from app.modules.employers.router import router as employers_router
 from app.modules.expert.router import router as expert_router
 from app.modules.fsp.router import router as fsp_router
+from app.modules.integrations import service as integrations_service
+from app.modules.integrations.router import router as integrations_router
 from app.modules.invitations import router as invitations
 from app.modules.matching.router import need_router as matching_need_router
 from app.modules.matching.router import router as matching_router
@@ -48,6 +54,10 @@ TAGS = [
     {"name": "employer: vacancies", "description": "Отклики на вакансии"},
     {"name": "employer: vacancy test preview", "description": "Как собирается тест под вакансию"},
     {"name": "employer: tasks", "description": "Короткие задания для кандидатов"},
+    {
+        "name": "employer: integrations",
+        "description": "Интеграция с ATS: API-ключи (заголовок X-API-Key) и подписанные webhook'и",
+    },
     {"name": "public: test explainer", "description": "Страница «Как работает тест» без входа"},
     {"name": "expert", "description": "Экспертная разметка пар «потребность — кандидат» и метрики подбора"},
 ]
@@ -57,6 +67,19 @@ class HealthOut(ApiModel):
     status: str
     db: bool
     version: str
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    # Повторы webhook'ов ATS по расписанию; в тестах выключено — доставку вызывают явно
+    worker = None
+    if get_settings().app_env != "test":
+        worker = asyncio.create_task(integrations_service.delivery_loop())
+    yield
+    if worker is not None:
+        worker.cancel()
+        with suppress(asyncio.CancelledError):
+            await worker
 
 
 def create_app() -> FastAPI:
@@ -73,6 +96,7 @@ def create_app() -> FastAPI:
         docs_url="/api/docs",
         redoc_url=None,
         openapi_tags=TAGS,
+        lifespan=lifespan,
     )
     app.add_middleware(
         CORSMiddleware,
@@ -116,6 +140,7 @@ def create_app() -> FastAPI:
         applications.employer_router,
         vacancy_test_router,
         tasks.employer_router,
+        integrations_router,
         explainer_router,
         expert_router,
         admin_router,

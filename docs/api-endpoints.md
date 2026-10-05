@@ -2,7 +2,7 @@
 
 # Справочник эндпоинтов
 
-ITScout API 0.1.0: 94 операций. Префикс `/api/v1`; схемы запросов и ответов — в `backend/openapi.json` и Swagger UI (`/api/docs`). Колонка «Ошибки» — описанные коды ответов, тело ошибки всегда `{error: {code, message, details}}`.
+ITScout API 0.1.0: 104 операций. Префикс `/api/v1`; схемы запросов и ответов — в `backend/openapi.json` и Swagger UI (`/api/docs`). Колонка «Ошибки» — описанные коды ответов, тело ошибки всегда `{error: {code, message, details}}`.
 
 ## service
 
@@ -174,6 +174,21 @@ ITScout API 0.1.0: 94 операций. Префикс `/api/v1`; схемы з�
 | `GET` | `/employer-tasks/templates` | Шаблоны банка для автопроверяемого задания | JWT | 200 | 401, 403, 404, 422 |
 | `GET` | `/employer-tasks/{task_id}/submissions` | Ответы кандидатов (обезличенно) | JWT | 200 | 401, 403, 404, 422 |
 | `POST` | `/employer-tasks/{task_id}/submissions/{assignment_id}/rate` | Оценить ответ 1–5 | JWT | 200 | 401, 403, 404, 409, 422 |
+
+## employer: integrations
+
+| Метод | Путь | Назначение | Доступ | Успех | Ошибки |
+|---|---|---|---|---|---|
+| `GET` | `/employers/me/api-keys` | Активные API-ключи ATS | JWT | 200 | 401, 403 |
+| `POST` | `/employers/me/api-keys` | Выпустить API-ключ (ключ показывается один раз) | JWT | 201 | 401, 403, 409, 422 |
+| `DELETE` | `/employers/me/api-keys/{key_id}` | Отозвать API-ключ | JWT | 204 | 401, 403, 404, 422 |
+| `GET` | `/employers/me/webhook` | Настройки webhook (null — не настроен) | JWT | 200 | 401, 403 |
+| `PUT` | `/employers/me/webhook` | Задать адрес webhook (секрет подписи создаётся при первом сохранении) | JWT | 200 | 401, 403, 422 |
+| `DELETE` | `/employers/me/webhook` | Удалить webhook | JWT | 204 | 401, 403, 404 |
+| `POST` | `/employers/me/webhook/rotate-secret` | Выпустить новый секрет подписи | JWT | 200 | 401, 403, 404 |
+| `POST` | `/employers/me/webhook/test` | Отправить тестовое событие ping | JWT | 202 | 401, 403, 404 |
+| `GET` | `/employers/me/webhook/deliveries` | Последние доставки событий | JWT | 200 | 401, 403 |
+| `POST` | `/employers/me/webhook/deliveries/{delivery_id}/retry` | Повторить недоставленное событие | JWT | 202 | 401, 403, 404, 409, 422 |
 
 ## public: test explainer
 

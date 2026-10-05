@@ -15,6 +15,7 @@ from app.modules.candidates import service as candidates_service
 from app.modules.candidates.models import Candidate
 from app.modules.employers import service as employers_service
 from app.modules.employers.models import Employer
+from app.modules.integrations import service as integrations_service
 from app.modules.invitations.models import ContactUnlock, Invitation
 from app.modules.invitations.schemas import (
     ContactMethod,
@@ -282,6 +283,14 @@ async def view(db: AsyncSession, user_id: int, invitation_id: int) -> Invitation
     return await _for_candidate(db, invitation)
 
 
+async def _notify(db: AsyncSession, invitation: Invitation, event: str) -> None:
+    """Webhook ATS: те же данные, что работодатель видит в API (контакты — только после раскрытия)."""
+    items = await _for_employer(db, [invitation])
+    if items:
+        data = items[0].model_dump(mode="json")
+        await integrations_service.enqueue(db, invitation.employer_id, event, data)
+
+
 async def accept(db: AsyncSession, user_id: int, invitation_id: int) -> InvitationForCandidate:
     candidate, invitation = await _own(db, user_id, invitation_id)
     if invitation.status not in ACTIVE:
@@ -293,6 +302,7 @@ async def accept(db: AsyncSession, user_id: int, invitation_id: int) -> Invitati
     await unlock_contacts(
         db, user_id, invitation.employer_id, candidate.id, UnlockSource.invitation, invitation.id
     )
+    await _notify(db, invitation, "invitation.accepted")
     await db.commit()
     await db.refresh(invitation)
     return await _for_candidate(db, invitation)
@@ -310,6 +320,7 @@ async def decline(
     invitation.decline_comment = body.comment
     invitation.viewed_at = invitation.viewed_at or now
     invitation.responded_at = now
+    await _notify(db, invitation, "invitation.declined")
     await db.commit()
     await db.refresh(invitation)
     return await _for_candidate(db, invitation)
