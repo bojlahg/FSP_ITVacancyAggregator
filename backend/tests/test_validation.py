@@ -36,6 +36,7 @@ def test_all_metric_groups_present(results: dict) -> None:
         "decision",
         "repeatability",
         "theta",
+        "classification",
         "length",
         "exposure",
         "discrimination",
@@ -61,6 +62,12 @@ def test_all_metric_groups_present(results: dict) -> None:
         "fixed_leak",
     }
     assert set(results["matching"]["summary"]) >= {"match_grouped", "declared_grade", "keywords"}
+    # Руднер (§10.4.1): ожидаемые индексы в [0, 1]; для одного порога согласованность ≥ 0,5
+    for row in results["classification"].values():
+        for key in ("rudner_accuracy", "rudner_consistency", "simulated_accuracy", "simulated_consistency"):
+            assert 0.0 <= row[key] <= 1.0, key
+    assert results["classification"]["binary"]["rudner_consistency"] >= 0.5
+    assert results["classification"]["binary"]["simulated_accuracy"] == results["decision"]["binary_accuracy"]
 
 
 def test_deterministic_by_seed(results: dict) -> None:
@@ -72,6 +79,7 @@ def test_report_written(results: dict, tmp_path) -> None:
     report = write_report(results, tmp_path)
     text = report.read_text(encoding="utf-8")
     assert "## 12. Ограничения" in text
+    assert "### 3.1. Оценка по Руднеру" in text
     assert (tmp_path / "metrics.json").exists()
     assert (tmp_path / "category_confusion.png").exists()
 

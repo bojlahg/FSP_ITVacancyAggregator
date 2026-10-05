@@ -9,6 +9,7 @@ import numpy as np
 from scipy.stats import chi2
 
 from app.modules.testing.engine.bank import GRADE_ORDER, Blueprints, get_bank, get_blueprints
+from app.modules.testing.engine.confidence import band_of, rudner_indices
 from app.modules.testing.engine.irt import GRID, information
 from seed import data
 from validation import calibration, categorization, leakage, matching_eval
@@ -159,6 +160,35 @@ def repeatability_metrics(
             [first_a[p.pid].theta for p in people], [first_b[p.pid].theta for p in people]
         ),
     }
+
+
+def classification_metrics(
+    people: list[Person], first_a: dict[int, Attempt], first_b: dict[int, Attempt], blueprints: Blueprints
+) -> dict:
+    """Точность и согласованность классификации по Руднеру (ожидаемые из θ̂ и SE, без θ_true) рядом с
+    симуляционными (против θ_true и повторной попытки). См. docs/implementation.md §10.4.1, §12.2."""
+    all_cuts = dict(blueprints.scale.cuts)
+    rows = {}
+    for name in ("binary", "bands"):
+        expected_acc, expected_cons, true_acc, true_cons = [], [], [], []
+        for person in people:
+            a, b = first_a[person.pid], first_b[person.pid]
+            cuts = {a.grade: blueprints.cut(a.grade)} if name == "binary" else all_cuts
+            accuracy, consistency = rudner_indices(a.theta, a.se, cuts)
+            expected_acc.append(accuracy)
+            expected_cons.append(consistency)
+            observed = band_of(a.theta, cuts)
+            true_acc.append(observed == band_of(person.theta, cuts))
+            # Повтор — вторая независимая попытка на тот же заявленный грейд (путь b)
+            true_cons.append(observed == band_of(b.theta, cuts))
+        rows[name] = {
+            "rudner_accuracy": mean(expected_acc),
+            "rudner_consistency": mean(expected_cons),
+            "simulated_accuracy": share(true_acc),
+            "simulated_consistency": share(true_cons),
+            "n": len(people),
+        }
+    return rows
 
 
 def theta_metrics(
@@ -533,6 +563,7 @@ def run_validation(config: dict, log=print) -> dict:
             people, first_a, first_b, paths_a, paths_b, blueprints, near_cut
         ),
         "theta": theta_metrics(people, first_a, config, blueprints),
+        "classification": classification_metrics(people, first_a, first_b, blueprints),
         "length": length_metrics(paths_a, first_a),
         "exposure": exposure_metrics(exposure, env),
         "discrimination": discrimination_metrics(all_attempts, config, env, first_a),
