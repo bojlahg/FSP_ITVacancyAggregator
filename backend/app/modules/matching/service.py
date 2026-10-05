@@ -1011,10 +1011,13 @@ async def _card(
         match.invitation_status = statuses.get(candidate_id)
     current = await categories_service.get_current(db, candidate_id)
     approach_answers = []
+    integrity = None
     if current is not None and current.attempt_id is not None:
         from app.modules.testing import service as testing_service
 
         approach_answers = await testing_service.open_answers(db, current.attempt_id)
+        # Обезличенной карточке эксперта сигналы не нужны: она для разметки релевантности (§12.2)
+        integrity = None if blind else await testing_service.integrity_signals(db, current.attempt_id)
     # До раскрытия контактов свободный текст не должен их выдавать (инвариант contact_unlocks)
     hide = (lambda text: text) if unlocked else redact_contacts
     for answer in approach_answers:
@@ -1045,6 +1048,7 @@ async def _card(
             for topic, s in sorted((row.topic_scores or {}).items())
         ],
         approach_answers=approach_answers,
+        integrity=integrity,
         fsp=await fsp_service.profile(db, candidate) if privacy.show_fsp and row.has_fsp else None,
         contacts_unlocked=unlocked,
         contacts=await contacts_of(db, candidate) if unlocked else None,

@@ -2255,6 +2255,8 @@ export interface components {
              * @description Ответы на открытый вопрос о подходе из теста текущей категории
              */
             approach_answers?: components["schemas"]["ApproachAnswer"][];
+            /** @description Сигналы честности теста текущей категории (§10.9): пометка «стоит перепроверить», на грейд не влияет; null — сигналы выключены (INTEGRITY_SIGNALS_ENABLED=false) или не считались */
+            integrity?: components["schemas"]["IntegritySignals"] | null;
             /** @description null, если кандидат скрыл ФСП */
             fsp: components["schemas"]["FspProfileOut"] | null;
             /** Contacts Unlocked */
@@ -3390,6 +3392,59 @@ export interface components {
              * @description Ожидаемая стандартная ошибка θ̂: 1/√(I + 1) с априорным N(0,1)
              */
             se: number;
+        };
+        /** IntegrityReason */
+        IntegrityReason: {
+            /**
+             * Code
+             * @enum {string}
+             */
+            code: "person_fit" | "rapid_guessing" | "fast_correct_hard";
+            /** Text */
+            text: string;
+        };
+        /**
+         * IntegritySignals
+         * @description Сигналы честности попытки (§10.9): пометка для человека, в θ̂, грейд, категорию и score не входит.
+         */
+        IntegritySignals: {
+            /**
+             * Enough Data
+             * @description false — оценённых заданий слишком мало, сигналы не считались
+             */
+            enough_data: boolean;
+            /**
+             * Flagged
+             * @description Есть хотя бы один сигнал — стоит перепроверить на собеседовании
+             */
+            flagged: boolean;
+            /** Reasons */
+            reasons: components["schemas"]["IntegrityReason"][];
+            /**
+             * Note
+             * @description Пояснение для работодателя; при flagged — «стоит перепроверить»
+             */
+            note: string;
+            /**
+             * Items
+             * @description Оценённых заданий в попытке
+             */
+            items: number;
+            /**
+             * Lz Star
+             * @description Person-fit lz*: ниже порога — ответы плохо согласуются с IRT
+             */
+            lz_star: number | null;
+            /**
+             * Rapid Share
+             * @description Доля ответов быстрее нормативного порога NT10
+             */
+            rapid_share: number | null;
+            /**
+             * Fast Correct Hard
+             * @description Верных ответов на трудных заданиях быстрее порога
+             */
+            fast_correct_hard: number | null;
         };
         /** InvitationCreate */
         InvitationCreate: {

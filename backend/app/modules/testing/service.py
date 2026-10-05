@@ -16,6 +16,7 @@ from app.modules.catalog.service import get_catalog
 from app.modules.categories import service as categories_service
 from app.modules.matching import service as matching_service
 from app.modules.survey import service as survey_service
+from app.modules.testing.engine import integrity
 from app.modules.testing.engine.bank import GRADE_ORDER, get_bank, get_blueprints
 from app.modules.testing.engine.render import render
 from app.modules.testing.engine.scoring import score
@@ -30,6 +31,8 @@ from app.modules.testing.schemas import (
     AttemptOut,
     AttemptResultOut,
     CurrentItem,
+    IntegrityReason,
+    IntegritySignals,
     ItemOption,
     NextAction,
     TopicScore,
@@ -305,6 +308,8 @@ async def _finalize(
     attempt.finished_at = _now()
     flags = dict(attempt.flags or {})
     flags["open_answers"] = [i.id for i in items if i.stage == STAGE_OPEN and i.answered_at is not None]
+    if get_settings().integrity_signals_enabled:
+        flags["integrity"] = _integrity(items, summary.theta).as_dict()
     attempt.flags = flags
 
     category = await categories_service.apply_attempt_result(db, attempt)
@@ -330,6 +335,50 @@ async def _finalize(
     await db.flush()
     await matching_service.refresh_candidate(db, attempt.candidate_id)
     await matching_service.refresh_category(db, category.specialization, category.grade)
+
+
+def _integrity(items: list[TestAttemptItem], theta: float) -> integrity.IntegrityResult:
+    """§10.9: сигналы по оценённым ответам и итоговой θ̂ — только пометка, в результат попытки не входят."""
+    templates = get_bank().templates
+    responses = [
+        integrity.TimedResponse(
+            a=template.irt.a,
+            b=template.irt.b,
+            c=template.guessing,
+            score=item.score,
+            time_sec=item.time_ms / 1000 if item.time_ms is not None else None,
+            time_limit_sec=float(item.payload["time_limit_sec"]),
+        )
+        for item in items
+        if item.scored
+        and item.score is not None
+        and item.answered_at is not None
+        and (template := templates.get(item.template_id)) is not None
+    ]
+    return integrity.evaluate(responses, theta, integrity.get_rules())
+
+
+async def integrity_signals(db: AsyncSession, attempt_id: int) -> IntegritySignals | None:
+    """Сигналы честности для карточки кандидата у работодателя; None — выключены или не считались."""
+    if not get_settings().integrity_signals_enabled:
+        return None
+    attempt = await db.get(TestAttempt, attempt_id)
+    data = (attempt.flags or {}).get("integrity") if attempt is not None else None
+    if not data:
+        return None
+    texts = integrity.get_rules().texts
+    reasons = [IntegrityReason(code=code, text=texts.reasons[code]) for code in data.get("reasons", [])]
+    note = texts.insufficient if not data["enough_data"] else texts.note if data["flagged"] else texts.clean
+    return IntegritySignals(
+        enough_data=data["enough_data"],
+        flagged=data["flagged"],
+        reasons=reasons,
+        note=note,
+        items=data["items"],
+        lz_star=data.get("lz_star"),
+        rapid_share=data.get("rapid_share"),
+        fast_correct_hard=data.get("fast_correct_hard"),
+    )
 
 
 async def open_answers(db: AsyncSession, attempt_id: int) -> list[ApproachAnswer]:

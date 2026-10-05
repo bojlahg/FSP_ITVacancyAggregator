@@ -90,6 +90,24 @@ class ApproachAnswer(ApiModel):
     score: float | None = Field(description="Доля отмеченных критериев; в θ̂ и категорию не входит (§10.5)")
 
 
+class IntegrityReason(ApiModel):
+    code: Literal["person_fit", "rapid_guessing", "fast_correct_hard"]
+    text: str
+
+
+class IntegritySignals(ApiModel):
+    """Сигналы честности попытки (§10.9): пометка для человека, в θ̂, грейд, категорию и score не входит."""
+
+    enough_data: bool = Field(description="false — оценённых заданий слишком мало, сигналы не считались")
+    flagged: bool = Field(description="Есть хотя бы один сигнал — стоит перепроверить на собеседовании")
+    reasons: list[IntegrityReason]
+    note: str = Field(description="Пояснение для работодателя; при flagged — «стоит перепроверить»")
+    items: int = Field(description="Оценённых заданий в попытке")
+    lz_star: float | None = Field(description="Person-fit lz*: ниже порога — ответы плохо согласуются с IRT")
+    rapid_share: float | None = Field(description="Доля ответов быстрее нормативного порога NT10")
+    fast_correct_hard: int | None = Field(description="Верных ответов на трудных заданиях быстрее порога")
+
+
 class NextAction(ApiModel):
     action: str = Field(description="retake_lower | try_higher | none")
     grade: Grade | None = None

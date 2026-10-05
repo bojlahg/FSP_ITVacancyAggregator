@@ -9166,6 +9166,17 @@
             "title": "Approach Answers",
             "description": "Ответы на открытый вопрос о подходе из теста текущей категории"
           },
+          "integrity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IntegritySignals"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Сигналы честности теста текущей категории (§10.9): пометка «стоит перепроверить», на грейд не влияет; null — сигналы выключены (INTEGRITY_SIGNALS_ENABLED=false) или не считались"
+          },
           "fsp": {
             "anyOf": [
               {
@@ -12357,6 +12368,109 @@
           "se"
         ],
         "title": "InformationPoint"
+      },
+      "IntegrityReason": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "person_fit",
+              "rapid_guessing",
+              "fast_correct_hard"
+            ],
+            "title": "Code"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "text"
+        ],
+        "title": "IntegrityReason"
+      },
+      "IntegritySignals": {
+        "properties": {
+          "enough_data": {
+            "type": "boolean",
+            "title": "Enough Data",
+            "description": "false — оценённых заданий слишком мало, сигналы не считались"
+          },
+          "flagged": {
+            "type": "boolean",
+            "title": "Flagged",
+            "description": "Есть хотя бы один сигнал — стоит перепроверить на собеседовании"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/IntegrityReason"
+            },
+            "type": "array",
+            "title": "Reasons"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note",
+            "description": "Пояснение для работодателя; при flagged — «стоит перепроверить»"
+          },
+          "items": {
+            "type": "integer",
+            "title": "Items",
+            "description": "Оценённых заданий в попытке"
+          },
+          "lz_star": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lz Star",
+            "description": "Person-fit lz*: ниже порога — ответы плохо согласуются с IRT"
+          },
+          "rapid_share": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rapid Share",
+            "description": "Доля ответов быстрее нормативного порога NT10"
+          },
+          "fast_correct_hard": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fast Correct Hard",
+            "description": "Верных ответов на трудных заданиях быстрее порога"
+          }
+        },
+        "type": "object",
+        "required": [
+          "enough_data",
+          "flagged",
+          "reasons",
+          "note",
+          "items",
+          "lz_star",
+          "rapid_share",
+          "fast_correct_hard"
+        ],
+        "title": "IntegritySignals",
+        "description": "Сигналы честности попытки (§10.9): пометка для человека, в θ̂, грейд, категорию и score не входит."
       },
       "InvitationCreate": {
         "properties": {

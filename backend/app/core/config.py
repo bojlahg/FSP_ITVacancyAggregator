@@ -112,6 +112,9 @@ class Settings(BaseSettings):
     # full — полный тест (§10.3), short — сокращённый для демо жюри
     test_mode: Literal["full", "short"] = "full"
     answer_grace_seconds: int = 5
+    # Сигналы честности попытки (§10.9): пометка работодателю «стоит перепроверить», на грейд не влияет.
+    # false — сигналы не считаются, не сохраняются и нигде не показываются
+    integrity_signals_enabled: bool = True
 
     # Публичная страница «Как работает тест»: лимиты, чтобы запросы без входа оставались дешёвыми
     explainer_max_seeds: int = 6

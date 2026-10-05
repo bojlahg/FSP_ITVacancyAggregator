@@ -3,6 +3,7 @@ import {
   CheckCircle2,
   Circle,
   Clock,
+  Info,
   Lock,
   Mail,
   MapPin,
@@ -190,6 +191,8 @@ export default function CandidateCardPage() {
               )}
             </CardContent>
           </Card>
+
+          {data.integrity?.flagged ? <IntegrityCard signals={data.integrity} /> : null}
 
           {data.approach_answers?.length ? <ApproachCard answers={data.approach_answers} /> : null}
 
@@ -469,6 +472,31 @@ function FspCard({ fsp }: { fsp: CandidateCard["fsp"] }) {
             )}
           </div>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function IntegrityCard({ signals }: { signals: NonNullable<CandidateCard["integrity"]> }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Info className="size-5 text-muted-foreground" />
+          Стоит уточнить на собеседовании
+        </CardTitle>
+        <CardDescription>{signals.note}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <ul className="list-disc space-y-1.5 pl-5 text-sm">
+          {signals.reasons.map((reason) => (
+            <li key={reason.code}>{reason.text}</li>
+          ))}
+        </ul>
+        <p className="text-xs text-muted-foreground">
+          Статистическая пометка по рисунку и времени ответов, а не вывод о недобросовестности. Решение принимает
+          человек.
+        </p>
       </CardContent>
     </Card>
   );

@@ -198,6 +198,7 @@ $DC start backend
 | `APP_ENV` | `dev` | `prod` требует собственный `JWT_SECRET` |
 | `DEMO_MODE` | `true` | демо-вход, сброс демо-данных и ограничений смены грейда |
 | `TEST_MODE` | `full` | `short` — сокращённый тест для показа (8–10 заданий) |
+| `INTEGRITY_SIGNALS_ENABLED` | `true` | сигналы честности попытки (§10.9): `false` — не считаются, не сохраняются и не показываются работодателю |
 | `PUBLIC_BASE_URL`, `CORS_ORIGINS` | localhost:5173 | адрес фронта для ссылок в письмах, OIDC и CORS |
 | `POSTGRES_*` | `itscout` | БД |
 | `JWT_SECRET`, `COOKIE_SECURE` | dev-секрет, `false` | сессии |

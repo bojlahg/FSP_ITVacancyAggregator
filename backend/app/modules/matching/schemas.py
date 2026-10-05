@@ -7,7 +7,7 @@ from app.core.enums import InvitationStatus, WorkFormat
 from app.core.schemas import ApiModel, CategoryRef, Explanation, FspBadge
 from app.modules.candidates.schemas import Contacts, ExperienceItem, SkillState
 from app.modules.fsp.schemas import FspProfileOut
-from app.modules.testing.schemas import ApproachAnswer, TopicScore
+from app.modules.testing.schemas import ApproachAnswer, IntegritySignals, TopicScore
 
 
 class CandidateBrief(ApiModel):
@@ -124,6 +124,11 @@ class CandidateCard(ApiModel):
     topic_scores: list[TopicScore]
     approach_answers: list[ApproachAnswer] = Field(
         default_factory=list, description="Ответы на открытый вопрос о подходе из теста текущей категории"
+    )
+    integrity: IntegritySignals | None = Field(
+        default=None,
+        description="Сигналы честности теста текущей категории (§10.9): пометка «стоит перепроверить», "
+        "на грейд не влияет; null — сигналы выключены (INTEGRITY_SIGNALS_ENABLED=false) или не считались",
     )
     fsp: FspProfileOut | None = Field(description="null, если кандидат скрыл ФСП")
     contacts_unlocked: bool
