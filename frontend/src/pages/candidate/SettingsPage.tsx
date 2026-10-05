@@ -1,4 +1,5 @@
-import { Link2, ShieldCheck, Trash2 } from "lucide-react";
+import { ShieldCheck, Trash2 } from "lucide-react";
+import { FspLinkCard } from "@/components/candidate/FspLinkCard";
 import { PageHeader } from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -76,20 +77,7 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Link2 className="size-4 text-primary" aria-hidden /> ФСП ID
-            </CardTitle>
-            <CardDescription>
-              Достижения ФСП поднимают вас в выдаче. Без привязки профиль работает полностью.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-2 sm:flex-row">
-            <Input placeholder="Например, FSP-000123" aria-label="ФСП ID" />
-            <Button variant="outline">Привязать</Button>
-          </CardContent>
-        </Card>
+        <FspLinkCard />
 
         <Card>
           <CardHeader>
