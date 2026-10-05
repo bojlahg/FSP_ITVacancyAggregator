@@ -71,12 +71,20 @@ def get_settings() -> Settings:
     return Settings()
 
 
-@lru_cache
+_cache: dict[str, tuple[float, Dataset]] = {}
+
+
 def load_dataset() -> Dataset:
+    """Перечитывает файл при изменении: backend перезаписывает его при reseed демо-данных."""
     path = Path(get_settings().fsp_data_path)
     if not path.exists():
         return Dataset()
-    return Dataset.model_validate(json.loads(path.read_text(encoding="utf-8")))
+    mtime = path.stat().st_mtime
+    cached = _cache.get(str(path))
+    if cached is None or cached[0] != mtime:
+        cached = (mtime, Dataset.model_validate(json.loads(path.read_text(encoding="utf-8"))))
+        _cache[str(path)] = cached
+    return cached[1]
 
 
 def require_api_key(x_api_key: Annotated[str | None, Header()] = None) -> None:

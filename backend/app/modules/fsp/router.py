@@ -4,6 +4,8 @@ from fastapi.responses import RedirectResponse
 from app.core.deps import CurrentCandidate, DbSession
 from app.core.errors import NotImplementedApiError, error_responses
 from app.core.schemas import MessageResponse
+from app.modules.candidates import service as candidates_service
+from app.modules.fsp import service
 from app.modules.fsp.schemas import FspLinkRequest, FspProfileOut, OidcStartOut
 
 router = APIRouter(tags=["candidate: fsp"])
@@ -16,17 +18,17 @@ router = APIRouter(tags=["candidate: fsp"])
     responses=error_responses(401, 403),
 )
 async def get_my_fsp(user: CurrentCandidate, db: DbSession) -> FspProfileOut:
-    raise NotImplementedApiError()
+    return await service.profile(db, await candidates_service.get_by_user(db, user.id))
 
 
 @router.post(
     "/candidates/me/fsp/link",
     response_model=FspProfileOut,
     summary="Ручная привязка ФСП ID с согласием на импорт",
-    responses=error_responses(401, 403, 404, 409, 422),
+    responses=error_responses(400, 401, 403, 404, 409, 422),
 )
 async def link_fsp(body: FspLinkRequest, user: CurrentCandidate, db: DbSession) -> FspProfileOut:
-    raise NotImplementedApiError()
+    return await service.link_manual(db, await candidates_service.get_by_user(db, user.id), body)
 
 
 @router.delete(
@@ -36,7 +38,8 @@ async def link_fsp(body: FspLinkRequest, user: CurrentCandidate, db: DbSession) 
     responses=error_responses(401, 403),
 )
 async def unlink_fsp(user: CurrentCandidate, db: DbSession) -> MessageResponse:
-    raise NotImplementedApiError()
+    await service.unlink(db, await candidates_service.get_by_user(db, user.id))
+    return MessageResponse(message="Данные ФСП удалены")
 
 
 @router.get(
