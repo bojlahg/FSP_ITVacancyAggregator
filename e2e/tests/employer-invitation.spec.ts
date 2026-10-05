@@ -66,7 +66,7 @@ test("работодатель создаёт потребность, собир
     needId = /\/needs\/(\d+)$/.exec(page.url())?.[1] ?? "";
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(needTitle);
     await expect(page.getByText("Покрытие вилки", { exact: true })).toBeVisible();
-    await expect(page.getByText(/покрывает ожидания\s*\d+%\s*кандидатов/)).toBeVisible();
+    await expect(page.getByText(/^покрывает ожидания\s*\d+%\s*кандидатов$/)).toBeVisible();
   });
 
   await test.step("5. Подборка: категории, кандидаты с объяснением, фильтр ФСП, шорт-лист переживает смену фильтра", async () => {
