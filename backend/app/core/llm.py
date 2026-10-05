@@ -7,6 +7,7 @@ score и решения о выдаче LLM не принимает. Любая 
 Yandex AI Studio платный, поэтому вызов защищён: при app_env=test сеть не вызывается никогда,
 одинаковые запросы берутся из дискового кэша, суточные лимиты вызовов и токенов и часовой лимит
 на пользователя хранятся в llm_state_dir. Выключатель — LLM_PROVIDER=none (по умолчанию).
+Backend работает несколькими процессами: состояние меняется только под файловой блокировкой.
 """
 
 import asyncio
@@ -16,12 +17,18 @@ import logging
 import os
 import re
 import time
-from collections import defaultdict, deque
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import httpx
+
+try:
+    import fcntl
+except ImportError:  # Windows-машина разработчика: там backend один процесс
+    fcntl = None
 
 from app.core.config import get_settings
 
@@ -36,10 +43,11 @@ HOUR_SECONDS = 3600
 
 BUDGET_FILE = "budget.json"
 CACHE_FILE = "cache.json"
+USERS_FILE = "users.json"
+LOCK_FILE = ".lock"
 
 _FENCE = re.compile(r"```(?:json)?\s*(.*?)```", re.DOTALL | re.IGNORECASE)
 _lock = asyncio.Lock()
-_user_calls: dict[int, deque[float]] = defaultdict(deque)
 
 
 async def post_json(url: str, headers: dict[str, str], body: dict[str, Any]) -> dict[str, Any]:
@@ -152,13 +160,38 @@ def _cache_put(key: str, text: str) -> None:
     _write_json(CACHE_FILE, cache)
 
 
+@contextmanager
+def _state_lock() -> Iterator[None]:
+    """Блокировка состояния между процессами: asyncio.Lock защищает только внутри одного."""
+    if fcntl is None:
+        yield
+        return
+    directory = _state_dir()
+    directory.mkdir(parents=True, exist_ok=True)
+    with open(directory / LOCK_FILE, "a") as handle:
+        fcntl.flock(handle, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(handle, fcntl.LOCK_UN)
+
+
+def _recent_calls(user_id: int, now: float) -> list[float]:
+    calls = _read_json(USERS_FILE).get(str(user_id), [])
+    return [at for at in calls if isinstance(at, int | float) and now - at < HOUR_SECONDS]
+
+
 def _user_allowed(user_id: int | None, now: float) -> bool:
     if user_id is None:
         return True
-    calls = _user_calls[user_id]
-    while calls and now - calls[0] >= HOUR_SECONDS:
-        calls.popleft()
-    return len(calls) < get_settings().llm_user_hourly_limit
+    return len(_recent_calls(user_id, now)) < get_settings().llm_user_hourly_limit
+
+
+def _record_user_call(user_id: int, now: float) -> None:
+    users = _read_json(USERS_FILE)
+    users = {key: [at for at in value if now - at < HOUR_SECONDS] for key, value in users.items() if value}
+    users[str(user_id)] = [*_recent_calls(user_id, now), now]
+    _write_json(USERS_FILE, {key: value for key, value in users.items() if value})
 
 
 def _reserve(estimate: int) -> bool:
@@ -221,22 +254,23 @@ async def complete_json(
 
     async with _lock:
         try:
-            cached = _cache_get(key)
-            if cached is not None:
-                return extract_json_object(cached)
-            now = time.time()
-            if not _user_allowed(user_id, now):
-                log.warning("llm budget exhausted: hourly limit for user %s", user_id)
-                return None
-            if not _reserve(estimate):
-                log.warning("llm budget exhausted: daily limit reached")
-                return None
+            with _state_lock():
+                cached = _cache_get(key)
+                if cached is not None:
+                    return extract_json_object(cached)
+                now = time.time()
+                if not _user_allowed(user_id, now):
+                    log.warning("llm budget exhausted: hourly limit for user %s", user_id)
+                    return None
+                if not _reserve(estimate):
+                    log.warning("llm budget exhausted: daily limit reached")
+                    return None
+                if user_id is not None:
+                    _record_user_call(user_id, now)
         except OSError:
             # Без учёта расхода звать платный API нельзя
             log.warning("llm budget state is not writable, call refused", exc_info=True)
             return None
-        if user_id is not None:
-            _user_calls[user_id].append(now)
 
     started = time.monotonic()
     try:
@@ -249,8 +283,9 @@ async def complete_json(
 
     async with _lock:
         try:
-            _record_tokens(tokens)
-            _cache_put(key, answer)
+            with _state_lock():
+                _record_tokens(tokens)
+                _cache_put(key, answer)
         except OSError:
             log.warning("llm state write failed", exc_info=True)
 

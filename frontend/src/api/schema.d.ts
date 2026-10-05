@@ -1050,6 +1050,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/talent/candidates/{candidate_id}/resume.json": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Кандидат в формате JSON Resume для ATS (контакты — только после раскрытия)
+         * @description Стандартная схема JSON Resume и расширение `x-itscout`: категория по тесту, перцентиль, результаты по темам, разряды ФСП и совпадение с потребностью. Правила видимости — как у карточки.
+         */
+        get: operations["get_candidate_json_resume_api_v1_talent_candidates__candidate_id__resume_json_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/talent/candidates/{candidate_id}/profile.pdf": {
         parameters: {
             query?: never;
@@ -1591,6 +1611,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/expert/angoff/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Modified Angoff: шаблоны у порога грейда с примером экземпляра (без ключей) и оценками
+         * @description 404 specialization_not_found — для специализации нет теста.
+         */
+        get: operations["angoff_tasks_api_v1_expert_angoff_tasks_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/expert/angoff/ratings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Modified Angoff: оценка шаблона 0–1; повторная оценка заменяет прежнюю
+         * @description 404 template_not_found — шаблона нет в наборе для этой специализации и грейда.
+         */
+        put: operations["angoff_rate_api_v1_expert_angoff_ratings_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/expert/angoff/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Modified Angoff: рекомендуемые пороги грейдов по оценкам экспертов против действующих
+         * @description Порог эксперта — θ, при котором ожидаемый балл по набору равен сумме его оценок. Пороги в blueprints.yaml автоматически не меняются. 404 specialization_not_found.
+         */
+        get: operations["angoff_summary_api_v1_expert_angoff_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/reseed": {
         parameters: {
             query?: never;
@@ -1629,6 +1709,146 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AngoffGradeSummary */
+        AngoffGradeSummary: {
+            grade: components["schemas"]["Grade"];
+            /** Grade Name */
+            grade_name: string;
+            /**
+             * Items
+             * @description Шаблонов в наборе
+             */
+            items: number;
+            /**
+             * Raters
+             * @description Экспертов, оценивших весь набор
+             */
+            raters: number;
+            /**
+             * Incomplete Raters
+             * @description Экспертов, оценивших набор частично (в расчёт не входят)
+             */
+            incomplete_raters: number;
+            /** Rater Cuts */
+            rater_cuts: components["schemas"]["AngoffRaterCut"][];
+            /**
+             * Mean Cut
+             * @description Рекомендуемый порог: среднее порогов экспертов
+             */
+            mean_cut: number;
+            /**
+             * Sd
+             * @description Стандартное отклонение порогов экспертов; null при одном эксперте
+             */
+            sd: number | null;
+            /**
+             * Se
+             * @description Стандартная ошибка среднего: SD / √k
+             */
+            se: number | null;
+            /**
+             * Current Cut
+             * @description Действующий порог из content/blueprints.yaml
+             */
+            current_cut: number;
+            /**
+             * Difference
+             * @description mean_cut − current_cut
+             */
+            difference: number;
+        };
+        /** AngoffProgress */
+        AngoffProgress: {
+            /**
+             * Done
+             * @description Сколько шаблонов набора оценил этот эксперт
+             */
+            done: number;
+            /** Total */
+            total: number;
+        };
+        /** AngoffRaterCut */
+        AngoffRaterCut: {
+            /**
+             * Rater
+             * @description Обезличенно: «Эксперт 1», «Эксперт 2», …
+             */
+            rater: string;
+            /**
+             * You
+             * @description Это оценки текущего пользователя
+             */
+            you: boolean;
+            /**
+             * Cut
+             * @description θ, при котором ожидаемый балл по набору равен сумме оценок
+             */
+            cut: number;
+            /**
+             * Expected Share
+             * @description Средняя оценка по набору: Σp / n
+             */
+            expected_share: number;
+            /**
+             * Clamped
+             * @description Порог упёрся в край шкалы θ
+             */
+            clamped: boolean;
+        };
+        /** AngoffRatingRequest */
+        AngoffRatingRequest: {
+            /** Specialization */
+            specialization: string;
+            grade: components["schemas"]["Grade"];
+            /** Template Id */
+            template_id: string;
+            /**
+             * Rating
+             * @description Вероятность, что минимально компетентный кандидат грейда решит задание
+             */
+            rating: number;
+        };
+        /** AngoffSummary */
+        AngoffSummary: {
+            /** Specialization */
+            specialization: string;
+            /**
+             * Grades
+             * @description Только грейды, где хотя бы один эксперт оценил весь набор. Пороги не применяются сами
+             */
+            grades: components["schemas"]["AngoffGradeSummary"][];
+        };
+        /** AngoffTask */
+        AngoffTask: {
+            /** Template Id */
+            template_id: string;
+            /** Topic Name */
+            topic_name: string;
+            kind: components["schemas"]["ItemKind"];
+            /** @description Пример экземпляра без ключа ответа */
+            instance: components["schemas"]["ExplainerInstance"];
+            /**
+             * Rating
+             * @description Текущая оценка эксперта, null — ещё не оценён
+             */
+            rating: number | null;
+        };
+        /** AngoffTasks */
+        AngoffTasks: {
+            /** Specialization */
+            specialization: string;
+            grade: components["schemas"]["Grade"];
+            /** Grade Name */
+            grade_name: string;
+            /**
+             * Rating Step
+             * @description Шаг шкалы оценки, доля
+             */
+            rating_step: number;
+            progress: components["schemas"]["AngoffProgress"];
+            /** Tasks */
+            tasks: components["schemas"]["AngoffTask"][];
+        };
         /** AnswerAck */
         AnswerAck: {
             /** Accepted */
@@ -3273,6 +3493,128 @@ export interface components {
             id: string;
             /** Text */
             text: string;
+        };
+        /** ItscoutExtension */
+        ItscoutExtension: {
+            /** Candidate Id */
+            candidate_id: number;
+            category: components["schemas"]["CategoryRef"];
+            /**
+             * Percentile
+             * @description Перцентиль в категории по тесту
+             */
+            percentile: number | null;
+            /** Topic Scores */
+            topic_scores: components["schemas"]["TopicScore"][];
+            /** Fsp Ranks */
+            fsp_ranks: string[];
+            /** @description Совпадение с потребностью, если передан need_id */
+            match: components["schemas"]["CandidateMatch"] | null;
+            /** Contacts Unlocked */
+            contacts_unlocked: boolean;
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+        };
+        /** JsonResume */
+        JsonResume: {
+            /**
+             * $Schema
+             * @default https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json
+             */
+            $schema: string;
+            basics: components["schemas"]["JsonResumeBasics"];
+            /** Work */
+            work: components["schemas"]["JsonResumeWork"][];
+            /** Skills */
+            skills: components["schemas"]["JsonResumeSkill"][];
+            /** Awards */
+            awards: components["schemas"]["JsonResumeAward"][];
+            "x-itscout": components["schemas"]["ItscoutExtension"];
+        };
+        /** JsonResumeAward */
+        JsonResumeAward: {
+            /** Title */
+            title: string;
+            /** Date */
+            date: string;
+            /** Awarder */
+            awarder: string;
+            /** Summary */
+            summary: string;
+        };
+        /** JsonResumeBasics */
+        JsonResumeBasics: {
+            /**
+             * Name
+             * @description До раскрытия контактов — имя и первая буква фамилии
+             */
+            name: string;
+            /**
+             * Label
+             * @description Категория по тесту, например «Backend · Middle»
+             */
+            label: string;
+            /**
+             * Email
+             * @description Только после раскрытия контактов
+             */
+            email?: string | null;
+            /**
+             * Phone
+             * @description Только после раскрытия контактов
+             */
+            phone?: string | null;
+            /** Summary */
+            summary?: string | null;
+            location: components["schemas"]["JsonResumeLocation"];
+            /**
+             * Profiles
+             * @description Telegram — только после раскрытия контактов
+             */
+            profiles: components["schemas"]["JsonResumeProfile"][];
+        };
+        /** JsonResumeLocation */
+        JsonResumeLocation: {
+            /** City */
+            city?: string | null;
+        };
+        /** JsonResumeProfile */
+        JsonResumeProfile: {
+            /** Network */
+            network: string;
+            /** Username */
+            username: string;
+        };
+        /** JsonResumeSkill */
+        JsonResumeSkill: {
+            /** Name */
+            name: string;
+            /**
+             * Level
+             * @description Источник подтверждения: проверено тестом, ФСП, заданием или заявлено
+             */
+            level: string;
+            /** Keywords */
+            keywords: string[];
+        };
+        /** JsonResumeWork */
+        JsonResumeWork: {
+            /**
+             * Name
+             * @description Компания — только после раскрытия контактов
+             */
+            name?: string | null;
+            /** Position */
+            position: string;
+            /** Startdate */
+            startDate?: string | null;
+            /** Enddate */
+            endDate?: string | null;
+            /** Summary */
+            summary?: string | null;
         };
         /** LlmTemplateDraft */
         LlmTemplateDraft: {
@@ -7675,6 +8017,67 @@ export interface operations {
             };
         };
     };
+    get_candidate_json_resume_api_v1_talent_candidates__candidate_id__resume_json_get: {
+        parameters: {
+            query?: {
+                /** @description Добавить совпадение с потребностью */
+                need_id?: number | null;
+            };
+            header?: never;
+            path: {
+                candidate_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JsonResume"];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ошибка валидации данных */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     get_candidate_pdf_api_v1_talent_candidates__candidate_id__profile_pdf_get: {
         parameters: {
             query?: never;
@@ -9418,6 +9821,184 @@ export interface operations {
             };
             /** @description Недостаточно прав */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    angoff_tasks_api_v1_expert_angoff_tasks_get: {
+        parameters: {
+            query: {
+                specialization: string;
+                /** @description Граница грейда: минимально компетентный кандидат этого грейда */
+                grade: components["schemas"]["Grade"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AngoffTasks"];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ошибка валидации данных */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    angoff_rate_api_v1_expert_angoff_ratings_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AngoffRatingRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AngoffProgress"];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ошибка валидации данных */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    angoff_summary_api_v1_expert_angoff_summary_get: {
+        parameters: {
+            query: {
+                specialization: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AngoffSummary"];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ошибка валидации данных */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

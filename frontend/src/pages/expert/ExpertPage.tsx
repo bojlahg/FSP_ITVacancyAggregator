@@ -17,6 +17,7 @@ import { apiError } from "@/lib/api-error";
 import { type ExpertTask, useExpertSummary, useExpertTask, useLabelPair } from "@/lib/expert-queries";
 import { formatNumber, plural, toPercent } from "@/lib/format";
 import { SKILL_STATUS_LABELS, WORK_FORMAT_LABELS, workFormatsLabel } from "@/lib/labels";
+import { AngoffTab } from "@/pages/expert/AngoffTab";
 
 // Шкала оценки пары, docs/implementation.md §12.2
 const LABELS = [
@@ -38,12 +39,16 @@ export default function ExpertPage() {
         <TabsList>
           <TabsTrigger value="label">Разметка</TabsTrigger>
           <TabsTrigger value="summary">Итоги</TabsTrigger>
+          <TabsTrigger value="angoff">Пороги (Angoff)</TabsTrigger>
         </TabsList>
         <TabsContent value="label" className="mt-4">
           <LabelingTab />
         </TabsContent>
         <TabsContent value="summary" className="mt-4">
           <SummaryTab />
+        </TabsContent>
+        <TabsContent value="angoff" className="mt-4">
+          <AngoffTab />
         </TabsContent>
       </Tabs>
     </>

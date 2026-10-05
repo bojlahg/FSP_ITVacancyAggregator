@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     demo_admin_password: str | None = None
     # Код-приглашение для регистрации экспертов разметки (§12.2); пусто — регистрация экспертов выключена
     expert_invite_code: str = ""
+    # Кэш оценок подборки в памяти процесса (docs/performance.md); 0 — выключен
+    recommendations_cache_seconds: int = 60
+    recommendations_cache_size: int = 64
     # Интеграция с ATS: API-ключи работодателя и исходящие webhook'и (docs/anti-fraud-ats.md §2)
     api_keys_per_employer: int = 5
     api_key_touch_seconds: int = 60

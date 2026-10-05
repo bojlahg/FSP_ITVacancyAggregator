@@ -12,7 +12,6 @@ if sys.platform == "win32":
 
 from app.core.db import SessionFactory, engine  # noqa: E402
 from app.core.enums import Role  # noqa: E402
-from app.core.ratelimit import auth_limiter  # noqa: E402
 from app.core.security import create_access_token  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import Base  # noqa: E402
@@ -42,13 +41,11 @@ async def session(db) -> AsyncIterator:
         yield db_session
 
 
-@pytest.fixture(autouse=True)
-def reset_rate_limiter() -> None:
-    auth_limiter.reset()
-
-
 @pytest.fixture
-async def client() -> AsyncIterator[AsyncClient]:
+async def client(db_schema) -> AsyncIterator[AsyncClient]:
+    # Счётчики лимита частоты общие (в БД): каждый тест начинает с нуля
+    async with engine.begin() as connection:
+        await connection.execute(text("DELETE FROM rate_limit_hits"))
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as http:
         yield http
 

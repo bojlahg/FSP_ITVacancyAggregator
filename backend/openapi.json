@@ -4939,6 +4939,105 @@
         }
       }
     },
+    "/api/v1/talent/candidates/{candidate_id}/resume.json": {
+      "get": {
+        "tags": [
+          "employer: talent pool"
+        ],
+        "summary": "Кандидат в формате JSON Resume для ATS (контакты — только после раскрытия)",
+        "description": "Стандартная схема JSON Resume и расширение `x-itscout`: категория по тесту, перцентиль, результаты по темам, разряды ФСП и совпадение с потребностью. Правила видимости — как у карточки.",
+        "operationId": "get_candidate_json_resume_api_v1_talent_candidates__candidate_id__resume_json_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "candidate_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Candidate Id"
+            }
+          },
+          {
+            "name": "need_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Добавить совпадение с потребностью",
+              "title": "Need Id"
+            },
+            "description": "Добавить совпадение с потребностью"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonResume"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Требуется вход",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Недостаточно прав",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Не найдено",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Ошибка валидации данных",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/talent/candidates/{candidate_id}/profile.pdf": {
       "get": {
         "tags": [
@@ -7359,6 +7458,251 @@
         ]
       }
     },
+    "/api/v1/expert/angoff/tasks": {
+      "get": {
+        "tags": [
+          "expert"
+        ],
+        "summary": "Modified Angoff: шаблоны у порога грейда с примером экземпляра (без ключей) и оценками",
+        "description": "404 specialization_not_found — для специализации нет теста.",
+        "operationId": "angoff_tasks_api_v1_expert_angoff_tasks_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "specialization",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 32,
+              "title": "Specialization"
+            }
+          },
+          {
+            "name": "grade",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Grade",
+              "description": "Граница грейда: минимально компетентный кандидат этого грейда"
+            },
+            "description": "Граница грейда: минимально компетентный кандидат этого грейда"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AngoffTasks"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Требуется вход",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Недостаточно прав",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Не найдено",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Ошибка валидации данных",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/expert/angoff/ratings": {
+      "put": {
+        "tags": [
+          "expert"
+        ],
+        "summary": "Modified Angoff: оценка шаблона 0–1; повторная оценка заменяет прежнюю",
+        "description": "404 template_not_found — шаблона нет в наборе для этой специализации и грейда.",
+        "operationId": "angoff_rate_api_v1_expert_angoff_ratings_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AngoffRatingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AngoffProgress"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Требуется вход",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Недостаточно прав",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Не найдено",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Ошибка валидации данных",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/expert/angoff/summary": {
+      "get": {
+        "tags": [
+          "expert"
+        ],
+        "summary": "Modified Angoff: рекомендуемые пороги грейдов по оценкам экспертов против действующих",
+        "description": "Порог эксперта — θ, при котором ожидаемый балл по набору равен сумме его оценок. Пороги в blueprints.yaml автоматически не меняются. 404 specialization_not_found.",
+        "operationId": "angoff_summary_api_v1_expert_angoff_summary_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "specialization",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 32,
+              "title": "Specialization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AngoffSummary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Требуется вход",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Недостаточно прав",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Не найдено",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Ошибка валидации данных",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/reseed": {
       "post": {
         "tags": [
@@ -7484,6 +7828,284 @@
   },
   "components": {
     "schemas": {
+      "AngoffGradeSummary": {
+        "properties": {
+          "grade": {
+            "$ref": "#/components/schemas/Grade"
+          },
+          "grade_name": {
+            "type": "string",
+            "title": "Grade Name"
+          },
+          "items": {
+            "type": "integer",
+            "title": "Items",
+            "description": "Шаблонов в наборе"
+          },
+          "raters": {
+            "type": "integer",
+            "title": "Raters",
+            "description": "Экспертов, оценивших весь набор"
+          },
+          "incomplete_raters": {
+            "type": "integer",
+            "title": "Incomplete Raters",
+            "description": "Экспертов, оценивших набор частично (в расчёт не входят)"
+          },
+          "rater_cuts": {
+            "items": {
+              "$ref": "#/components/schemas/AngoffRaterCut"
+            },
+            "type": "array",
+            "title": "Rater Cuts"
+          },
+          "mean_cut": {
+            "type": "number",
+            "title": "Mean Cut",
+            "description": "Рекомендуемый порог: среднее порогов экспертов"
+          },
+          "sd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sd",
+            "description": "Стандартное отклонение порогов экспертов; null при одном эксперте"
+          },
+          "se": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Se",
+            "description": "Стандартная ошибка среднего: SD / √k"
+          },
+          "current_cut": {
+            "type": "number",
+            "title": "Current Cut",
+            "description": "Действующий порог из content/blueprints.yaml"
+          },
+          "difference": {
+            "type": "number",
+            "title": "Difference",
+            "description": "mean_cut − current_cut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "grade",
+          "grade_name",
+          "items",
+          "raters",
+          "incomplete_raters",
+          "rater_cuts",
+          "mean_cut",
+          "sd",
+          "se",
+          "current_cut",
+          "difference"
+        ],
+        "title": "AngoffGradeSummary"
+      },
+      "AngoffProgress": {
+        "properties": {
+          "done": {
+            "type": "integer",
+            "title": "Done",
+            "description": "Сколько шаблонов набора оценил этот эксперт"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "done",
+          "total"
+        ],
+        "title": "AngoffProgress"
+      },
+      "AngoffRaterCut": {
+        "properties": {
+          "rater": {
+            "type": "string",
+            "title": "Rater",
+            "description": "Обезличенно: «Эксперт 1», «Эксперт 2», …"
+          },
+          "you": {
+            "type": "boolean",
+            "title": "You",
+            "description": "Это оценки текущего пользователя"
+          },
+          "cut": {
+            "type": "number",
+            "title": "Cut",
+            "description": "θ, при котором ожидаемый балл по набору равен сумме оценок"
+          },
+          "expected_share": {
+            "type": "number",
+            "title": "Expected Share",
+            "description": "Средняя оценка по набору: Σp / n"
+          },
+          "clamped": {
+            "type": "boolean",
+            "title": "Clamped",
+            "description": "Порог упёрся в край шкалы θ"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rater",
+          "you",
+          "cut",
+          "expected_share",
+          "clamped"
+        ],
+        "title": "AngoffRaterCut"
+      },
+      "AngoffRatingRequest": {
+        "properties": {
+          "specialization": {
+            "type": "string",
+            "maxLength": 32,
+            "title": "Specialization"
+          },
+          "grade": {
+            "$ref": "#/components/schemas/Grade"
+          },
+          "template_id": {
+            "type": "string",
+            "maxLength": 120,
+            "title": "Template Id"
+          },
+          "rating": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Rating",
+            "description": "Вероятность, что минимально компетентный кандидат грейда решит задание"
+          }
+        },
+        "type": "object",
+        "required": [
+          "specialization",
+          "grade",
+          "template_id",
+          "rating"
+        ],
+        "title": "AngoffRatingRequest"
+      },
+      "AngoffSummary": {
+        "properties": {
+          "specialization": {
+            "type": "string",
+            "title": "Specialization"
+          },
+          "grades": {
+            "items": {
+              "$ref": "#/components/schemas/AngoffGradeSummary"
+            },
+            "type": "array",
+            "title": "Grades",
+            "description": "Только грейды, где хотя бы один эксперт оценил весь набор. Пороги не применяются сами"
+          }
+        },
+        "type": "object",
+        "required": [
+          "specialization",
+          "grades"
+        ],
+        "title": "AngoffSummary"
+      },
+      "AngoffTask": {
+        "properties": {
+          "template_id": {
+            "type": "string",
+            "title": "Template Id"
+          },
+          "topic_name": {
+            "type": "string",
+            "title": "Topic Name"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ItemKind"
+          },
+          "instance": {
+            "$ref": "#/components/schemas/ExplainerInstance",
+            "description": "Пример экземпляра без ключа ответа"
+          },
+          "rating": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating",
+            "description": "Текущая оценка эксперта, null — ещё не оценён"
+          }
+        },
+        "type": "object",
+        "required": [
+          "template_id",
+          "topic_name",
+          "kind",
+          "instance",
+          "rating"
+        ],
+        "title": "AngoffTask"
+      },
+      "AngoffTasks": {
+        "properties": {
+          "specialization": {
+            "type": "string",
+            "title": "Specialization"
+          },
+          "grade": {
+            "$ref": "#/components/schemas/Grade"
+          },
+          "grade_name": {
+            "type": "string",
+            "title": "Grade Name"
+          },
+          "rating_step": {
+            "type": "number",
+            "title": "Rating Step",
+            "description": "Шаг шкалы оценки, доля"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/AngoffProgress"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/AngoffTask"
+            },
+            "type": "array",
+            "title": "Tasks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "specialization",
+          "grade",
+          "grade_name",
+          "rating_step",
+          "progress",
+          "tasks"
+        ],
+        "title": "AngoffTasks"
+      },
       "AnswerAck": {
         "properties": {
           "accepted": {
@@ -12042,6 +12664,336 @@
         ],
         "title": "ItemOption"
       },
+      "ItscoutExtension": {
+        "properties": {
+          "candidate_id": {
+            "type": "integer",
+            "title": "Candidate Id"
+          },
+          "category": {
+            "$ref": "#/components/schemas/CategoryRef"
+          },
+          "percentile": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percentile",
+            "description": "Перцентиль в категории по тесту"
+          },
+          "topic_scores": {
+            "items": {
+              "$ref": "#/components/schemas/TopicScore"
+            },
+            "type": "array",
+            "title": "Topic Scores"
+          },
+          "fsp_ranks": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Fsp Ranks"
+          },
+          "match": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CandidateMatch"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Совпадение с потребностью, если передан need_id"
+          },
+          "contacts_unlocked": {
+            "type": "boolean",
+            "title": "Contacts Unlocked"
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "candidate_id",
+          "category",
+          "percentile",
+          "topic_scores",
+          "fsp_ranks",
+          "match",
+          "contacts_unlocked",
+          "generated_at"
+        ],
+        "title": "ItscoutExtension"
+      },
+      "JsonResume": {
+        "properties": {
+          "$schema": {
+            "type": "string",
+            "title": "$Schema",
+            "default": "https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json"
+          },
+          "basics": {
+            "$ref": "#/components/schemas/JsonResumeBasics"
+          },
+          "work": {
+            "items": {
+              "$ref": "#/components/schemas/JsonResumeWork"
+            },
+            "type": "array",
+            "title": "Work"
+          },
+          "skills": {
+            "items": {
+              "$ref": "#/components/schemas/JsonResumeSkill"
+            },
+            "type": "array",
+            "title": "Skills"
+          },
+          "awards": {
+            "items": {
+              "$ref": "#/components/schemas/JsonResumeAward"
+            },
+            "type": "array",
+            "title": "Awards"
+          },
+          "x-itscout": {
+            "$ref": "#/components/schemas/ItscoutExtension"
+          }
+        },
+        "type": "object",
+        "required": [
+          "basics",
+          "work",
+          "skills",
+          "awards",
+          "x-itscout"
+        ],
+        "title": "JsonResume"
+      },
+      "JsonResumeAward": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "date": {
+            "type": "string",
+            "title": "Date"
+          },
+          "awarder": {
+            "type": "string",
+            "title": "Awarder"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "date",
+          "awarder",
+          "summary"
+        ],
+        "title": "JsonResumeAward"
+      },
+      "JsonResumeBasics": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "До раскрытия контактов — имя и первая буква фамилии"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "Категория по тесту, например «Backend · Middle»"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email",
+            "description": "Только после раскрытия контактов"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone",
+            "description": "Только после раскрытия контактов"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "location": {
+            "$ref": "#/components/schemas/JsonResumeLocation"
+          },
+          "profiles": {
+            "items": {
+              "$ref": "#/components/schemas/JsonResumeProfile"
+            },
+            "type": "array",
+            "title": "Profiles",
+            "description": "Telegram — только после раскрытия контактов"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "label",
+          "location",
+          "profiles"
+        ],
+        "title": "JsonResumeBasics"
+      },
+      "JsonResumeLocation": {
+        "properties": {
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          }
+        },
+        "type": "object",
+        "title": "JsonResumeLocation"
+      },
+      "JsonResumeProfile": {
+        "properties": {
+          "network": {
+            "type": "string",
+            "title": "Network"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          }
+        },
+        "type": "object",
+        "required": [
+          "network",
+          "username"
+        ],
+        "title": "JsonResumeProfile"
+      },
+      "JsonResumeSkill": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "level": {
+            "type": "string",
+            "title": "Level",
+            "description": "Источник подтверждения: проверено тестом, ФСП, заданием или заявлено"
+          },
+          "keywords": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Keywords"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "level",
+          "keywords"
+        ],
+        "title": "JsonResumeSkill"
+      },
+      "JsonResumeWork": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "Компания — только после раскрытия контактов"
+          },
+          "position": {
+            "type": "string",
+            "title": "Position"
+          },
+          "startDate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Startdate"
+          },
+          "endDate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enddate"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "position"
+        ],
+        "title": "JsonResumeWork"
+      },
       "LlmTemplateDraft": {
         "properties": {
           "title": {
@@ -14675,7 +15627,7 @@
     },
     {
       "name": "expert",
-      "description": "Экспертная разметка пар «потребность — кандидат» и метрики подбора"
+      "description": "Разметка пар, метрики подбора и modified Angoff для порогов"
     }
   ]
 }

@@ -1,14 +1,17 @@
 """Индекс выдачи (§14) и подбор (§8): подборка по потребности, поиск по базе, каталог категорий, карточка."""
 
+import time
 from collections import Counter, defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from statistics import median
 
-from sqlalchemy import any_, delete, func, select
+from sqlalchemy import any_, delete, func, or_, select
+from sqlalchemy.dialects.postgresql import array
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.core.enums import ConsentKind, Grade, InvitationStatus, SearchStatus, SkillSource, WorkFormat
 from app.core.errors import NotFoundError
 from app.core.schemas import CategoryRef, Explanation, ExplanationLine, FspBadge
@@ -31,6 +34,14 @@ from app.modules.matching.schemas import (
     CandidateMatch,
     CategoryCatalogItem,
     CategoryRecommendation,
+    ItscoutExtension,
+    JsonResume,
+    JsonResumeAward,
+    JsonResumeBasics,
+    JsonResumeLocation,
+    JsonResumeProfile,
+    JsonResumeSkill,
+    JsonResumeWork,
     MatchComponents,
     RecommendationsOut,
     SalaryBucket,
@@ -185,16 +196,31 @@ def need_spec(need: HiringNeed) -> scoring.NeedSpec:
     )
 
 
+# Справочники загружаются один раз за процесс; словари подписей строим раз на справочник, а не на строку
+_names_cache: dict[int, dict[str, str]] = {}
+_labels_cache: dict[tuple[int, int, str, str], dict[str, str]] = {}
+
+
 def _skill_names() -> dict[str, str]:
-    return {skill.id: skill.name for skill in get_catalog().skills}
+    catalog = get_catalog()
+    names = _names_cache.get(id(catalog))
+    if names is None:
+        _names_cache.clear()
+        names = _names_cache[id(catalog)] = {skill.id: skill.name for skill in catalog.skills}
+    return names
 
 
 def _labels(row: CandidateSearchIndex) -> dict[str, str]:
-    labels = {
-        **_skill_names(),
-        "category": categories_service.category_label(row.specialization, row.grade.value),
-    }
-    labels.update({f"topic:{topic}": name for topic, name in get_blueprints().topic_names.items()})
+    blueprints = get_blueprints()
+    key = (id(get_catalog()), id(blueprints), row.specialization, row.grade.value)
+    labels = _labels_cache.get(key)
+    if labels is None:
+        labels = {
+            **_skill_names(),
+            "category": categories_service.category_label(row.specialization, row.grade.value),
+        }
+        labels.update({f"topic:{topic}": name for topic, name in blueprints.topic_names.items()})
+        _labels_cache[key] = labels
     return labels
 
 
@@ -354,6 +380,58 @@ async def _employer_id(db: AsyncSession, user_id: int) -> int:
 # ---------- подборка по потребности ----------
 
 
+@dataclass
+class _Scored:
+    row: CandidateSearchIndex
+    facts: scoring.CandidateFacts
+    result: scoring.MatchResult
+    brief: CandidateBrief
+
+
+# Оценки кандидатов по потребности в памяти процесса: ключ меняется при правке потребности и любом
+# пересчёте индекса выдачи, TTL — страховка для свежести (§8.3); фильтры, шорт-лист и статусы — поверх
+_scored_cache: dict[tuple, tuple[float, list[_Scored]]] = {}
+
+
+async def _index_stamp(db: AsyncSession) -> tuple:
+    stamp = await db.execute(
+        select(func.count(), func.max(CandidateSearchIndex.updated_at)).where(
+            CandidateSearchIndex.visible.is_(True)
+        )
+    )
+    return tuple(stamp.one())
+
+
+async def _scored_pool(
+    db: AsyncSession, need: HiringNeed, employer_id: int, spec: scoring.NeedSpec
+) -> list[_Scored]:
+    settings = get_settings()
+    ttl = settings.recommendations_cache_seconds
+    key = (need.id, need.version, employer_id, await _index_stamp(db))
+    cached = _scored_cache.get(key)
+    if cached is not None and time.monotonic() - cached[0] < ttl:
+        return cached[1]
+    specs, grades = _neighbourhood(spec)
+    rows = await _visible_rows(db, employer_id, specs, grades)
+    ids = [row.candidate_id for row, _ in rows]
+    best = await _best_fsp(db, ids)
+    counts = await _fsp_counts(db, ids)
+    now = datetime.now(UTC)
+    scored = []
+    for row, candidate in rows:
+        facts = _facts(row, best.get(row.candidate_id), now)
+        result = scoring.evaluate(facts, spec, _labels(row))
+        if result is not None:
+            scored.append(
+                _Scored(row, facts, result, _brief(row, candidate, counts.get(row.candidate_id, 0)))
+            )
+    if ttl > 0:
+        if len(_scored_cache) >= settings.recommendations_cache_size:
+            _scored_cache.pop(next(iter(_scored_cache)))
+        _scored_cache[key] = (time.monotonic(), scored)
+    return scored
+
+
 async def recommendations(
     db: AsyncSession, user_id: int, need_id: int, filters: Filters
 ) -> RecommendationsOut:
@@ -362,29 +440,20 @@ async def recommendations(
     need = await needs_service.get_own_need(db, user_id, need_id)
     employer_id = await _employer_id(db, user_id)
     spec = need_spec(need)
-    specs, grades = _neighbourhood(spec)
-    rows = await _visible_rows(db, employer_id, specs, grades)
+    scored = await _scored_pool(db, need, employer_id, spec)
     shortlist_ids = set(await needs_service.shortlist_candidate_ids(db, need.id))
-    ids = [row.candidate_id for row, _ in rows]
-    best = await _best_fsp(db, ids)
-    counts = await _fsp_counts(db, ids)
-    now = datetime.now(UTC)
+    ids = [item.row.candidate_id for item in scored]
 
     matched: list[CandidateMatch] = []
     outside: list[CandidateMatch] = []
     shortlist: list[CandidateMatch] = []
     by_category: dict[tuple[str, str], list[CandidateSearchIndex]] = defaultdict(list)
     fit_of: dict[int, str] = {}
-    for row, candidate in rows:
-        facts = _facts(row, best.get(row.candidate_id), now)
-        result = scoring.evaluate(facts, spec, _labels(row))
-        if result is None:
-            continue
+    for item in scored:
+        row, facts, result = item.row, item.facts, item.result
         by_category[(row.specialization, row.grade.value)].append(row)
-        fit_of[candidate.id] = result.fit
-        match = _match(
-            result, _brief(row, candidate, counts.get(row.candidate_id, 0)), candidate.id in shortlist_ids
-        )
+        fit_of[row.candidate_id] = result.fit
+        match = _match(result, item.brief.model_copy(), row.candidate_id in shortlist_ids)
         if match.shortlisted:
             shortlist.append(match)
         if not _passes(row, facts, filters, spec):
@@ -532,6 +601,25 @@ async def match_for(
 ) -> CandidateMatch | None:
     """Совпадение одного кандидата с потребностью — для карточки и снимка в приглашении."""
     return await _match_one(db, candidate_id, lambda row: need_spec(need))
+
+
+async def matches_for_needs(
+    db: AsyncSession, candidate_id: int, needs: list[HiringNeed]
+) -> dict[int, CandidateMatch | None]:
+    """match_for для одного кандидата и многих потребностей: данные кандидата читаются один раз."""
+    row = await db.get(CandidateSearchIndex, candidate_id)
+    candidate = await db.get(Candidate, candidate_id)
+    if row is None or candidate is None:
+        return dict.fromkeys((need.id for need in needs), None)
+    best = await _best_fsp(db, [candidate_id])
+    counts = await _fsp_counts(db, [candidate_id])
+    facts = _facts(row, best.get(candidate_id), datetime.now(UTC))
+    brief = _brief(row, candidate, counts.get(candidate_id, 0))
+    found: dict[int, CandidateMatch | None] = {}
+    for need in needs:
+        result = scoring.evaluate(facts, need_spec(need), _labels(row))
+        found[need.id] = _match(result, brief.model_copy(), False) if result is not None else None
+    return found
 
 
 async def snapshot_for(
@@ -705,60 +793,82 @@ async def categories_catalog(db: AsyncSession, user_id: int) -> list[CategoryCat
     )
 
 
-async def search(db: AsyncSession, user_id: int, filters: SearchFilters) -> TalentSearchOut:
-    employer_id = await _employer_id(db, user_id)
-    rows = await _visible_rows(
-        db,
-        employer_id,
-        {filters.specialization} if filters.specialization else None,
-        {filters.grade} if filters.grade else None,
+def _visible_query(employer_id: int):
+    return (
+        select(CandidateSearchIndex)
+        .where(CandidateSearchIndex.visible.is_(True))
+        .where(~(any_(CandidateSearchIndex.hidden_employer_ids) == employer_id))
     )
-    disciplines: set[int] | None = None
+
+
+def _search_conditions(filters: SearchFilters, now: datetime) -> list:
+    """Фильтры поиска по базе в SQL: выборка, сортировка и страница — в Postgres, а не в Python."""
+    index = CandidateSearchIndex
+    conditions = []
+    if filters.specialization:
+        conditions.append(index.specialization == filters.specialization)
+    if filters.grade:
+        conditions.append(index.grade == Grade(filters.grade))
+    if filters.skills:
+        conditions.append(index.skills_status.has_all(array(filters.skills)))
+        if filters.verified_only:
+            conditions.append(index.skills_status.contains(dict.fromkeys(filters.skills, "verified")))
+    if filters.has_fsp is not None:
+        conditions.append(index.has_fsp.is_(filters.has_fsp))
     if filters.fsp_discipline:
-        disciplines = set(
-            await db.scalars(
+        conditions.append(
+            index.candidate_id.in_(
                 select(FspAchievement.candidate_id).where(FspAchievement.discipline == filters.fsp_discipline)
             )
         )
-    rank_order = get_catalog().rules.fsp.rank_order
-    now = datetime.now(UTC)
-    selected = []
-    for row, candidate in rows:
-        statuses = row.skills_status or {}
-        if any(skill not in statuses for skill in filters.skills):
-            continue
-        if filters.verified_only and any(statuses.get(skill) != "verified" for skill in filters.skills):
-            continue
-        if filters.has_fsp is not None and row.has_fsp != filters.has_fsp:
-            continue
-        if disciplines is not None and row.candidate_id not in disciplines:
-            continue
-        if filters.fsp_min_rank and (
-            not row.max_rank or rank_order.index(row.max_rank) < rank_order.index(filters.fsp_min_rank)
-        ):
-            continue
-        if filters.salary_max and row.salary_min and row.salary_min > filters.salary_max:
-            continue
-        if filters.work_format and row.work_formats and filters.work_format not in row.work_formats:
-            continue
-        if filters.city and row.city != filters.city and not row.relocation:
-            continue
-        days = (now - row.last_activity_at).days if row.last_activity_at else None
-        if filters.fresh_days is not None and (days is None or days > filters.fresh_days):
-            continue
-        selected.append((row, candidate))
+    if filters.fsp_min_rank:
+        rank_order = get_catalog().rules.fsp.rank_order
+        conditions.append(index.max_rank.in_(rank_order[rank_order.index(filters.fsp_min_rank) :]))
+    if filters.salary_max:
+        conditions.append(or_(index.salary_min.is_(None), index.salary_min <= filters.salary_max))
+    if filters.work_format:
+        conditions.append(
+            or_(
+                index.work_formats.is_(None),
+                func.cardinality(index.work_formats) == 0,
+                filters.work_format == any_(index.work_formats),
+            )
+        )
+    if filters.city:
+        conditions.append(or_(index.city == filters.city, index.relocation.is_(True)))
+    if filters.fresh_days is not None:
+        # Как (now − last).days ≤ fresh_days: целых дней не больше заданного
+        conditions.append(index.last_activity_at > now - timedelta(days=filters.fresh_days + 1))
+    return conditions
 
-    sort_keys = {
-        "vps": lambda pair: -pair[0].vps,
-        "percentile": lambda pair: -(pair[0].percentile or 0.0),
-        "fresh": lambda pair: -(pair[0].last_activity_at or datetime.min.replace(tzinfo=UTC)).timestamp(),
-    }
-    selected.sort(key=sort_keys.get(filters.sort, sort_keys["vps"]))
-    page = selected[filters.offset : filters.offset + filters.limit]
+
+SEARCH_ORDER = {
+    "vps": (CandidateSearchIndex.vps.desc(),),
+    "percentile": (func.coalesce(CandidateSearchIndex.percentile, 0.0).desc(),),
+    "fresh": (CandidateSearchIndex.last_activity_at.desc().nulls_last(),),
+}
+
+
+async def search(db: AsyncSession, user_id: int, filters: SearchFilters) -> TalentSearchOut:
+    employer_id = await _employer_id(db, user_id)
+    query = _visible_query(employer_id).where(*_search_conditions(filters, datetime.now(UTC)))
+    total = await db.scalar(select(func.count()).select_from(query.subquery())) or 0
+    order = SEARCH_ORDER.get(filters.sort, SEARCH_ORDER["vps"])
+    page_query = (
+        select(CandidateSearchIndex, Candidate)
+        .join(Candidate, Candidate.id == CandidateSearchIndex.candidate_id)
+        .where(
+            CandidateSearchIndex.candidate_id.in_(query.with_only_columns(CandidateSearchIndex.candidate_id))
+        )
+        .order_by(*order, CandidateSearchIndex.candidate_id)
+        .offset(filters.offset)
+        .limit(filters.limit)
+    )
+    page = (await db.execute(page_query)).all()
     counts = await _fsp_counts(db, [row.candidate_id for row, _ in page])
     return TalentSearchOut(
         items=[_brief(row, candidate, counts.get(row.candidate_id, 0)) for row, candidate in page],
-        total=len(selected),
+        total=total,
     )
 
 
@@ -795,6 +905,72 @@ async def candidate_card(
 
         need = await needs_service.get_own_need(db, user_id, need_id)
     return await _card(db, employer_id, candidate_id, need, blind=False)
+
+
+JSON_RESUME_LEVELS = {
+    "verified": "проверено тестом",
+    "fsp_confirmed": "подтверждено ФСП",
+    "task_confirmed": "подтверждено заданием",
+    "declared": "заявлено кандидатом",
+}
+
+
+async def json_resume(db: AsyncSession, user_id: int, candidate_id: int, need_id: int | None) -> JsonResume:
+    """Карточка кандидата в формате JSON Resume для ATS: те же правила видимости, что у карточки."""
+    card = await candidate_card(db, user_id, candidate_id, need_id)
+    brief, contacts = card.brief, card.contacts
+    profiles = []
+    if contacts and contacts.telegram:
+        profiles.append(JsonResumeProfile(network="Telegram", username=contacts.telegram.lstrip("@")))
+    fsp = card.fsp if card.fsp and card.fsp.linked else None
+    return JsonResume(
+        basics=JsonResumeBasics(
+            name=contacts.full_name if contacts else brief.display_name,
+            label=brief.category.label,
+            email=contacts.email if contacts else None,
+            phone=contacts.phone if contacts else None,
+            summary=card.about,
+            location=JsonResumeLocation(city=brief.city),
+            profiles=profiles,
+        ),
+        work=[
+            JsonResumeWork(
+                name=(item.company or None) if card.contacts_unlocked else None,
+                position=item.position,
+                startDate=item.started_on.isoformat() if item.started_on else None,
+                endDate=item.ended_on.isoformat() if item.ended_on else None,
+                summary=item.description,
+            )
+            for item in card.experience
+        ],
+        skills=[
+            JsonResumeSkill(
+                name=skill.name, level=JSON_RESUME_LEVELS[skill.status], keywords=[skill.skill_id]
+            )
+            for skill in card.skills
+        ],
+        awards=[
+            JsonResumeAward(
+                title=f"{item.place} место из {item.participants}",
+                date=item.held_on.isoformat(),
+                awarder=item.competition_name,
+                summary=f"Федерация спортивного программирования, {item.discipline}",
+            )
+            for item in (fsp.achievements if fsp else [])
+        ],
+        **{
+            "x-itscout": ItscoutExtension(
+                candidate_id=brief.id,
+                category=brief.category,
+                percentile=brief.percentile,
+                topic_scores=card.topic_scores,
+                fsp_ranks=[f"{rank.rank} · {rank.discipline}" for rank in (fsp.ranks if fsp else [])],
+                match=card.match,
+                contacts_unlocked=card.contacts_unlocked,
+                generated_at=datetime.now(UTC),
+            )
+        },
+    )
 
 
 async def blind_card(db: AsyncSession, employer_id: int, candidate_id: int) -> CandidateCard:

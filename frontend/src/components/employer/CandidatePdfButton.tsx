@@ -1,7 +1,7 @@
-import { Download, Loader2 } from "lucide-react";
+import { Braces, Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiError } from "@/lib/api-error";
-import { useDownloadCandidatePdf } from "@/lib/profile-queries";
+import { useDownloadCandidateJsonResume, useDownloadCandidatePdf } from "@/lib/profile-queries";
 
 interface CandidatePdfButtonProps {
   candidateId: number;
@@ -9,11 +9,14 @@ interface CandidatePdfButtonProps {
   unlocked: boolean;
 }
 
-/** Скачать стандартный PDF-профиль кандидата (GET /talent/candidates/{id}/profile.pdf, §7). */
+/** PDF-профиль кандидата (§7) и экспорт в JSON Resume для ATS. */
 export function CandidatePdfButton({ candidateId, unlocked }: CandidatePdfButtonProps) {
   const download = useDownloadCandidatePdf();
+  const exportJson = useDownloadCandidateJsonResume();
+  const failed = download.error ?? exportJson.error;
   return (
     <div className="flex flex-col items-end gap-1">
+      <div className="flex flex-wrap justify-end gap-2">
       <Button
         variant="outline"
         onClick={() => download.mutate(candidateId)}
@@ -23,9 +26,19 @@ export function CandidatePdfButton({ candidateId, unlocked }: CandidatePdfButton
         {download.isPending ? <Loader2 className="animate-spin" /> : <Download />}
         {unlocked ? "PDF-профиль" : "PDF без контактов"}
       </Button>
-      {download.isError && (
+      <Button
+        variant="outline"
+        onClick={() => exportJson.mutate(candidateId)}
+        disabled={exportJson.isPending}
+        title="JSON Resume с расширением x-itscout — для загрузки в ATS"
+      >
+        {exportJson.isPending ? <Loader2 className="animate-spin" /> : <Braces />}
+        JSON Resume
+      </Button>
+      </div>
+      {failed && (
         <span role="alert" className="text-xs text-destructive-strong">
-          {apiError(download.error).message}
+          {apiError(failed).message}
         </span>
       )}
     </div>

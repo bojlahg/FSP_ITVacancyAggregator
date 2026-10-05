@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { ErrorState } from "@/components/ErrorState";
 import { EmptyState } from "@/components/EmptyState";
 import { IccChart, InformationChart } from "@/components/explainer/ExplainerCharts";
+import { InstanceBody } from "@/components/explainer/InstanceBody";
 import { SCENARIO_STYLE } from "@/components/explainer/scenario-style";
 import { Trace } from "@/components/Trace";
 import { Badge } from "@/components/ui/badge";
@@ -124,35 +125,7 @@ function InstanceCard({ instance, index, kind }: { instance: Instance; index: nu
         <span className="font-mono text-xs font-bold text-primary">Кандидат {index + 1}</span>
         <span className="font-mono text-[11px] text-muted-foreground">seed {instance.seed}</span>
       </div>
-      <p className="text-sm leading-relaxed whitespace-pre-line">{instance.stem}</p>
-      {instance.code && (
-        <div className="mt-3 overflow-hidden rounded-lg bg-ink text-ink-foreground">
-          {instance.code_language && (
-            <div className="border-b border-ink-foreground/15 px-3 py-1 font-mono text-xs opacity-70">
-              {instance.code_language}
-            </div>
-          )}
-          <pre className="overflow-x-auto p-3 font-mono text-xs leading-relaxed">
-            <code>{instance.code}</code>
-          </pre>
-        </div>
-      )}
-      {instance.options.length > 0 ? (
-        <ul className="mt-3 grid gap-1.5 text-sm">
-          {instance.options.map((option) => (
-            <li key={option.id} className="flex gap-2 rounded-md bg-secondary/60 px-2.5 py-1.5">
-              <span className="font-mono text-xs leading-5 text-muted-foreground">{option.id})</span>
-              <span className="min-w-0 break-words">{option.text}</span>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        kind === "numeric" && (
-          <div className="mt-3 rounded-md border border-dashed px-3 py-2 font-mono text-xs text-muted-foreground">
-            Ответ — число
-          </div>
-        )
-      )}
+      <InstanceBody instance={instance} kind={kind} />
     </article>
   );
 }

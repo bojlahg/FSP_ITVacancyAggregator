@@ -21,6 +21,7 @@ from app.modules.catalog.service import get_catalog
 from app.modules.categories import service as categories_service
 from app.modules.employers import service as employers_service
 from app.modules.employers.models import Employer
+from app.modules.employers.schemas import CompanyPublic
 from app.modules.integrations import service as integrations_service
 from app.modules.invitations import service as invitations_service
 from app.modules.matching import service as matching_service
@@ -61,13 +62,20 @@ def _published(query):
 
 
 async def _vacancy(
-    db: AsyncSession, need: HiringNeed, match: CandidateMatch | None, applied: bool
+    db: AsyncSession,
+    need: HiringNeed,
+    match: CandidateMatch | None,
+    applied: bool,
+    companies: dict[int, CompanyPublic] | None = None,
 ) -> VacancyOut:
-    employer = await db.get(Employer, need.employer_id)
+    companies = {} if companies is None else companies
+    if need.employer_id not in companies:
+        employer = await db.get(Employer, need.employer_id)
+        companies[need.employer_id] = await employers_service.company_public(db, employer)
     return VacancyOut(
         id=need.id,
         title=need.title,
-        company=await employers_service.company_public(db, employer),
+        company=companies[need.employer_id],
         category=categories_service.category_ref(need.specialization, need.grade.value),
         specialization=need.specialization,
         grade=need.grade,
@@ -118,11 +126,13 @@ async def list_vacancies(
             or any(needle in names.get(s, s) for s in [*need.required_skills, *need.optional_skills])
         ]
     applied_ids = await _applied_chains(db, candidate.id)
+    chains = await needs_service.version_chains(db, needs)
+    matches = await matching_service.matches_for_needs(db, candidate.id, needs) if match else {}
+    companies: dict[int, CompanyPublic] = {}
     result = []
     for need in needs:
-        chain = await needs_service.version_chain_ids(db, need)
-        found = await matching_service.match_for(db, need.employer_id, candidate.id, need) if match else None
-        result.append(await _vacancy(db, need, found, bool(applied_ids & set(chain))))
+        applied = bool(applied_ids & set(chains[need.id]))
+        result.append(await _vacancy(db, need, matches.get(need.id), applied, companies))
     newest = sorted(result, key=lambda v: v.published_at, reverse=True)
     if not match:
         return newest

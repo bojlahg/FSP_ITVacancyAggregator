@@ -1,7 +1,9 @@
 from pydantic import Field
 
+from app.core.enums import Grade, ItemKind
 from app.core.schemas import ApiModel
 from app.modules.matching.schemas import CandidateCard
+from app.modules.testing.schemas import ExplainerInstance
 
 
 class ExpertNeed(ApiModel):
@@ -55,3 +57,63 @@ class ExpertSummary(ApiModel):
     agreement_pairs: int = Field(description="Пар, размеченных двумя и более экспертами")
     exact_agreement: float | None
     weighted_kappa: float | None = Field(description="Квадратично взвешенная κ согласия экспертов")
+
+
+class AngoffProgress(ApiModel):
+    done: int = Field(description="Сколько шаблонов набора оценил этот эксперт")
+    total: int
+
+
+class AngoffTask(ApiModel):
+    template_id: str
+    topic_name: str
+    kind: ItemKind
+    instance: ExplainerInstance = Field(description="Пример экземпляра без ключа ответа")
+    rating: float | None = Field(description="Текущая оценка эксперта, null — ещё не оценён")
+
+
+class AngoffTasks(ApiModel):
+    specialization: str
+    grade: Grade
+    grade_name: str
+    rating_step: float = Field(description="Шаг шкалы оценки, доля")
+    progress: AngoffProgress
+    tasks: list[AngoffTask]
+
+
+class AngoffRatingRequest(ApiModel):
+    specialization: str = Field(max_length=32)
+    grade: Grade
+    template_id: str = Field(max_length=120)
+    rating: float = Field(
+        ge=0, le=1, description="Вероятность, что минимально компетентный кандидат грейда решит задание"
+    )
+
+
+class AngoffRaterCut(ApiModel):
+    rater: str = Field(description="Обезличенно: «Эксперт 1», «Эксперт 2», …")
+    you: bool = Field(description="Это оценки текущего пользователя")
+    cut: float = Field(description="θ, при котором ожидаемый балл по набору равен сумме оценок")
+    expected_share: float = Field(description="Средняя оценка по набору: Σp / n")
+    clamped: bool = Field(description="Порог упёрся в край шкалы θ")
+
+
+class AngoffGradeSummary(ApiModel):
+    grade: Grade
+    grade_name: str
+    items: int = Field(description="Шаблонов в наборе")
+    raters: int = Field(description="Экспертов, оценивших весь набор")
+    incomplete_raters: int = Field(description="Экспертов, оценивших набор частично (в расчёт не входят)")
+    rater_cuts: list[AngoffRaterCut]
+    mean_cut: float = Field(description="Рекомендуемый порог: среднее порогов экспертов")
+    sd: float | None = Field(description="Стандартное отклонение порогов экспертов; null при одном эксперте")
+    se: float | None = Field(description="Стандартная ошибка среднего: SD / √k")
+    current_cut: float = Field(description="Действующий порог из content/blueprints.yaml")
+    difference: float = Field(description="mean_cut − current_cut")
+
+
+class AngoffSummary(ApiModel):
+    specialization: str
+    grades: list[AngoffGradeSummary] = Field(
+        description="Только грейды, где хотя бы один эксперт оценил весь набор. Пороги не применяются сами"
+    )

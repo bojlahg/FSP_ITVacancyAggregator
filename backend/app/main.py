@@ -59,7 +59,7 @@ TAGS = [
         "description": "Интеграция с ATS: API-ключи (заголовок X-API-Key) и подписанные webhook'и",
     },
     {"name": "public: test explainer", "description": "Страница «Как работает тест» без входа"},
-    {"name": "expert", "description": "Экспертная разметка пар «потребность — кандидат» и метрики подбора"},
+    {"name": "expert", "description": "Разметка пар, метрики подбора и modified Angoff для порогов"},
 ]
 
 

@@ -342,6 +342,7 @@ LLM в объяснении не используется: шаблон надё
 - **Webhook**: один адрес на компанию, только публичный HTTPS (адреса из частных сетей, loopback и редиректы отклоняются — защита от SSRF). События: `invitation.accepted`, `invitation.declined`, `application.created`, тестовое `ping`. Тело — `{id, event, created_at, data}`, где `data` — тот же объект, что работодатель получает в API: контакты кандидата — только после записи в `contact_unlocks`.
 - **Подпись**: `X-ITScout-Signature: t=<unix>,v1=<hex>`, где `v1 = HMAC-SHA256(secret, "<t>.<тело>")` — защищает от подмены и повтора; также `X-ITScout-Event`, `X-ITScout-Delivery`.
 - **Доставка (outbox)**: событие пишется в `webhook_deliveries` в одной транзакции с действием, отправляется сразу после ответа и повторяется фоновым циклом с задержками `WEBHOOK_RETRY_DELAYS_SECONDS` (30 с, 5 мин, 30 мин); после последней неудачи — `failed`, повтор вручную из журнала. `SELECT … FOR UPDATE SKIP LOCKED` не даёт отправить событие дважды.
+- **Экспорт кандидата** — `GET /talent/candidates/{id}/resume.json`: стандартная схема JSON Resume (basics, work, skills, awards — результаты ФСП) и расширение `x-itscout` (категория, перцентиль, темы, разряды ФСП, совпадение с потребностью). Правила видимости — как у карточки: до раскрытия контактов имя сокращено, контактов и названий компаний нет.
 
 ## 9. ФСП
 
@@ -490,7 +491,7 @@ backend:
 ### 10.4. Оценка и грейд
 
 - θ̂ — **EAP** с априорным N(0, 1), квадратура на 81 точке от −4 до 4 (numpy, `engine/irt.py`). SE — апостериорное стандартное отклонение.
-- **Пороги** на шкале специализации (стартовые, `content/blueprints.yaml`): `cut_intern = −1.8`, `cut_junior = −0.8`, `cut_middle = 0.2`, `cut_senior = 1.2`. Ниже порога стажёра категория не присваивается. Окончательные пороги — экспертная процедура *modified Angoff*: эксперт оценивает, с какой вероятностью «минимально компетентный Middle» решит каждый шаблон, и порог выводится из этих оценок. Описывается в документации.
+- **Пороги** на шкале специализации (стартовые, `content/blueprints.yaml`): `cut_intern = −1.8`, `cut_junior = −0.8`, `cut_middle = 0.2`, `cut_senior = 1.2`. Ниже порога стажёра категория не присваивается. Окончательные пороги — экспертная процедура *modified Angoff* (реализована, §12.4): эксперт оценивает p_i — вероятность, что «минимально компетентный» кандидат грейда решит шаблон i, и порог эксперта — θ, при котором тестовая характеристическая кривая Σ P_i(θ) (та же 3PL, что в EAP) равна Σ p_i (`engine/angoff.py`, бисекция на [−4, 4]; Σ p_i вне TCC на этом отрезке — порог у края шкалы). Рекомендуемый порог — среднее по экспертам ± SE; в `blueprints.yaml` его переносит команда вручную.
 - **Решение** по тесту на грейд G:
   - не пройден — θ̂ < cut_G;
   - пройден — θ̂ ≥ cut_G;
@@ -607,6 +608,7 @@ backend:
 - **Вслепую.** Эксперт видит потребность и обезличенную карточку без score, объяснения, места в выдаче и контактов. Пары одной потребности идут подряд, внутри — в своём псевдослучайном порядке для каждого эксперта. Шкала: 0 — не подходит, 1 — слабо, 2 — с оговорками, 3 — подходит. Повторная оценка заменяет прежнюю.
 - **Метрики** (`GET /expert/summary`, вкладка «Итоги»): пара релевантна, если средняя оценка ≥ `expert.relevant_from`; P@5 для каждой выдачи считается по потребностям, где размечены все пять первых; Спирмен — между score ITScout и средней оценкой; согласие — по парам с двумя и более оценками.
 - Результаты разметки идут в отчёт валидации (`docs/validation.md`, раздел 8) и до них веса подбора дальше не меняются.
+- **Пороги грейдов (modified Angoff, §10.4)** — вкладка «Пороги (Angoff)». Эксперт выбирает специализацию и границу грейда и оценивает каждое задание набора по шкале 0–100% с шагом 5 («с какой вероятностью его решит минимально компетентный Middle?»); оценка сохраняется сразу, повторная заменяет прежнюю. Набор на пару «специализация × грейд» детерминирован: `items` активных автопроверяемых шаблонов с |b − cut_G| ≤ `window` (окно расширяется на `window_step`), равномерно по сложности, в порядке, не связанном с b (`content/angoff.yaml`). Эксперт видит пример экземпляра (seed `instance_seed`) без ключа ответа и без параметров IRT. Оценки — в `angoff_ratings` по email эксперта, при reseed не очищаются. Сводка (`GET /expert/angoff/summary`) по каждому грейду, где хотя бы один эксперт оценил весь набор: порог каждого эксперта, среднее, SD, SE = SD/√k, действующий порог и разница. Пороги автоматически не меняются.
 
 ---
 
@@ -689,6 +691,8 @@ candidate_search_index(candidate_id, specialization, grade, theta, percentile, v
 expert_pairs(id, need_id, candidate_id, need_snapshot jsonb, candidate_snapshot jsonb,
              ours_rank, ours_score, keyword_rank, created_at)   -- без FK: переживает пересидирование
 expert_labels(id, pair_id, rater_email, label 0..3, created_at, updated_at)
+angoff_ratings(id, rater_email, specialization, grade, template_id, rating 0..1, created_at, updated_at,
+               unique(rater_email, specialization, grade, template_id))   -- §12.4, переживает reseed
 
 employer_api_keys(id, employer_id, name, prefix unique, key_hash, created_at, last_used_at, revoked_at)
 employer_webhooks(employer_id pk, url, secret, enabled, created_at, updated_at)
@@ -752,7 +756,7 @@ GET  /needs/{id}/applications ; POST /applications/{id}/view|accept|reject
 GET  /talent/search                        поиск по базе с фильтрами
 GET  /talent/categories                    каталог категорий со счётчиками
 GET  /talent/candidates/{id}?need_id=      обезличенная или полная карточка + объяснение
-GET  /talent/candidates/{id}/profile.pdf
+GET  /talent/candidates/{id}/profile.pdf ; GET /talent/candidates/{id}/resume.json?need_id=   JSON Resume + x-itscout для ATS
 POST /invitations ; GET /employers/me/invitations ; POST /invitations/{id}/withdraw
 GET  /employers/me/decline-stats
 GET|POST /employers/me/api-keys ; DELETE /employers/me/api-keys/{id}     ключи ATS (§8.8), только из кабинета
@@ -767,6 +771,8 @@ GET  /explainer/templates/{id}/instances?seeds= ; GET /explainer/templates/{id}/
 
 # экспертная разметка (§12.4), роль expert
 GET  /expert/next ; POST /expert/pairs/{id}/label {label 0..3} ; GET /expert/summary (expert или admin)
+GET  /expert/angoff/tasks?specialization=&grade= ; PUT /expert/angoff/ratings {specialization, grade, template_id, rating 0..1}
+GET  /expert/angoff/summary?specialization=   (expert или admin) — рекомендуемые пороги, не применяются сами
 
 # служебное
 GET  /health
@@ -791,7 +797,7 @@ POST /admin/reseed (роль admin) ; POST /admin/demo/reset-cooldowns     то�
 |---|---|
 | Общие | Лендинг (что это, «Регистрация кандидата» / «Регистрация работодателя», в шапке — «Войти» и «Зарегистрироваться»), регистрация, подтверждение почты, вход с кнопками демо-входа; «Как работает тест» (`/how-it-works`, без входа: экземпляры шаблона, информационная функция MST, защита от слива — живые данные движка через `GET /explainer/*`) |
 | Кандидат | Онбординг-мастер (опрос → специализация → грейд → инструкция к тесту); прохождение теста; результат; дашборд (категория, приглашения, задания, полнота профиля); профиль и резюме; категория и грейд; приглашения; вакансии и отклики; задания; настройки |
-| Эксперт | Регистрация по коду (`/expert/join`); разметка пар «потребность — кандидат» вслепую с оценкой 0–3 (кнопки или клавиши 0–3) и прогрессом; итоги: P@5 двух выдач, Спирмен, согласие экспертов |
+| Эксперт | Регистрация по коду (`/expert/join`); разметка пар «потребность — кандидат» вслепую с оценкой 0–3 (кнопки или клавиши 0–3) и прогрессом; итоги: P@5 двух выдач, Спирмен, согласие экспертов; вкладка «Пороги (Angoff)»: оценка заданий у границы грейда (0–100%, автосохранение) и рекомендуемые пороги против действующих |
 | Работодатель | Профиль компании (с блоком «Интеграция с ATS»: API-ключи, webhook, журнал доставок); потребности (список, создание текстом или формой, разбор); подборка по потребности (категории, кандидаты, фильтры, шорт-лист, покрытие вилки); поиск по базе; каталог категорий; карточка кандидата; форма приглашения; приглашения со статусами и статистикой отказов; вакансии и отклики; «Проверка под вакансию»; задания |
 
 ---
@@ -949,7 +955,7 @@ POST /admin/reseed (роль admin) ; POST /admin/demo/reset-cooldowns     то�
 **Интеграция с ATS:**
 - API-ключи работодателя — **реализованы** (§8.8);
 - исходящие webhook'и (`invitation.accepted`, `invitation.declined`, `application.created`) — **реализованы** (§8.8);
-- экспорт кандидата в JSON Resume;
+- экспорт кандидата в JSON Resume — **реализован** (§8.8);
 - коннекторы к российским ATS (Huntflow, Talantix, Potok) через их API.
 
 **Реальная интеграция с ФСП:**

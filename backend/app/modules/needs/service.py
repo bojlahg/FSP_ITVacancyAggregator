@@ -110,6 +110,22 @@ async def version_chain_ids(db: AsyncSession, need: HiringNeed) -> list[int]:
     return ids
 
 
+async def version_chains(db: AsyncSession, needs: list[HiringNeed]) -> dict[int, list[int]]:
+    """version_chain_ids для списка потребностей одним запросом (список вакансий кандидата)."""
+    if not needs:
+        return {}
+    parents = dict((await db.execute(select(HiringNeed.id, HiringNeed.parent_id))).all())
+    chains = {}
+    for need in needs:
+        ids = [need.id]
+        parent_id = need.parent_id
+        while parent_id is not None:
+            ids.append(parent_id)
+            parent_id = parents.get(parent_id)
+        chains[need.id] = ids
+    return chains
+
+
 async def shortlist_candidate_ids(db: AsyncSession, need_id: int) -> list[int]:
     query = select(NeedShortlist.candidate_id).where(NeedShortlist.need_id == need_id)
     return list(await db.scalars(query.order_by(NeedShortlist.pinned_at)))

@@ -1,6 +1,6 @@
 # Сборка, развёртывание и локальный запуск
 
-Решение запускается одним `docker compose` на любой ОС с Docker (Linux, macOS, Windows с WSL 2) и на недорогом VDS: весь стенд занимает около 1,1 ГБ RAM.
+Решение запускается одним `docker compose` на любой ОС с Docker (Linux, macOS, Windows с WSL 2) и на недорогом VDS: весь стенд занимает около 1,5 ГБ RAM (backend — 3 процесса по ~190 МБ, число задаёт `WEB_CONCURRENCY`).
 
 | Способ | Для чего | Раздел |
 |---|---|---|
@@ -181,4 +181,6 @@ gh run watch <id> && gh run view <id> --log
 | `LLM_PROVIDER`, `YANDEX_API_KEY`, `YANDEX_FOLDER_ID` | `none` | LLM для разбора текста и чек-листов; без него всё работает на словаре |
 | `FSP_API_URL`, `FSP_API_KEY` | мок в compose | реестр ФСП |
 | `FSP_OIDC_*` | Keycloak в compose | ФСП ID |
+| `WEB_CONCURRENCY` | 3 | процессы uvicorn; лимиты частоты и учёт LLM общие для всех процессов (см. [performance.md](performance.md)) |
+| `RECOMMENDATIONS_CACHE_SECONDS` | 60 | TTL кэша оценок подборки в памяти процесса; 0 — выключен |
 | `GRADE_CHANGE_COOLDOWN_DAYS`, `FAILED_GRADE_RETRY_DAYS`, `MAX_ACTIVE_INVITES_PER_NEED` | 90, 30, 15 | правила продукта |

@@ -128,3 +128,17 @@ export function useDownloadCandidatePdf() {
   });
 }
 
+
+/** Кандидат в JSON Resume для ATS — те же правила раскрытия контактов, что у PDF. */
+export function useDownloadCandidateJsonResume() {
+  return useMutation({
+    mutationFn: async (candidateId: number) => {
+      const { data, error, response } = await api.GET("/api/v1/talent/candidates/{candidate_id}/resume.json", {
+        params: { path: { candidate_id: candidateId } },
+      });
+      if (!data) throw toApiError(response, error);
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      saveBlob(blob, `itscout-candidate-${candidateId}.json`);
+    },
+  });
+}

@@ -10,6 +10,7 @@ from app.modules.matching import service
 from app.modules.matching.schemas import (
     CandidateCard,
     CategoryCatalogItem,
+    JsonResume,
     RecommendationsOut,
     SalaryCoverage,
     TalentSearchOut,
@@ -85,6 +86,26 @@ async def get_candidate_card(
     need_id: int | None = Query(default=None, description="Добавить объяснение совпадения с потребностью"),
 ) -> CandidateCard:
     return await service.candidate_card(db, user.id, candidate_id, need_id)
+
+
+@router.get(
+    "/candidates/{candidate_id}/resume.json",
+    response_model=JsonResume,
+    response_model_by_alias=True,
+    summary="Кандидат в формате JSON Resume для ATS (контакты — только после раскрытия)",
+    description=(
+        "Стандартная схема JSON Resume и расширение `x-itscout`: категория по тесту, перцентиль, "
+        "результаты по темам, разряды ФСП и совпадение с потребностью. Правила видимости — как у карточки."
+    ),
+    responses=error_responses(401, 403, 404),
+)
+async def get_candidate_json_resume(
+    candidate_id: int,
+    user: CurrentEmployer,
+    db: DbSession,
+    need_id: int | None = Query(default=None, description="Добавить совпадение с потребностью"),
+) -> JsonResume:
+    return await service.json_resume(db, user.id, candidate_id, need_id)
 
 
 @router.get(

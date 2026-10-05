@@ -1,6 +1,7 @@
 """Словарный разбор текста потребности и слияние с LLM (§8.1 п.2, T08)."""
 
-from collections import defaultdict, deque
+import json
+from pathlib import Path
 
 import pytest
 
@@ -264,7 +265,6 @@ def transport(monkeypatch, tmp_path) -> list[dict]:
         "llm_state_dir": str(tmp_path / "llm"),
     }.items():
         monkeypatch.setattr(settings, name, value)
-    monkeypatch.setattr(llm, "_user_calls", defaultdict(deque))
     calls: list[dict] = []
 
     async def fake_post(url: str, headers: dict, body: dict) -> dict:
@@ -321,6 +321,9 @@ async def test_llm_user_hourly_limit(transport, monkeypatch):
     assert await llm.complete_json("system", "второй", "{}", user_id=5) is None
     assert await llm.complete_json("system", "второй", "{}", user_id=6) is not None
     assert len(transport) == 2
+    # Часовой лимит хранится в файле состояния, а не в памяти: его видят все процессы backend
+    shared = json.loads((Path(get_settings().llm_state_dir) / llm.USERS_FILE).read_text(encoding="utf-8"))
+    assert set(shared) == {"5", "6"} and len(shared["5"]) == 1
 
 
 @pytest.mark.parametrize(

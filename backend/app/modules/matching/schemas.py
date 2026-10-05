@@ -133,3 +133,68 @@ class CandidateCard(ApiModel):
         default=None, description="Статус последнего приглашения от вашей компании, если оно было"
     )
     grade_history: list[CategoryRef]
+
+
+# ---------- экспорт в ATS: JSON Resume (https://jsonresume.org/schema) + расширение x-itscout ----------
+
+JSON_RESUME_SCHEMA = "https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json"
+
+
+class JsonResumeLocation(ApiModel):
+    city: str | None = None
+
+
+class JsonResumeProfile(ApiModel):
+    network: str
+    username: str
+
+
+class JsonResumeBasics(ApiModel):
+    name: str = Field(description="До раскрытия контактов — имя и первая буква фамилии")
+    label: str = Field(description="Категория по тесту, например «Backend · Middle»")
+    email: str | None = Field(default=None, description="Только после раскрытия контактов")
+    phone: str | None = Field(default=None, description="Только после раскрытия контактов")
+    summary: str | None = None
+    location: JsonResumeLocation
+    profiles: list[JsonResumeProfile] = Field(description="Telegram — только после раскрытия контактов")
+
+
+class JsonResumeWork(ApiModel):
+    name: str | None = Field(default=None, description="Компания — только после раскрытия контактов")
+    position: str
+    start_date: str | None = Field(default=None, alias="startDate")
+    end_date: str | None = Field(default=None, alias="endDate")
+    summary: str | None = None
+
+
+class JsonResumeSkill(ApiModel):
+    name: str
+    level: str = Field(description="Источник подтверждения: проверено тестом, ФСП, заданием или заявлено")
+    keywords: list[str]
+
+
+class JsonResumeAward(ApiModel):
+    title: str
+    date: str
+    awarder: str
+    summary: str
+
+
+class ItscoutExtension(ApiModel):
+    candidate_id: int
+    category: CategoryRef
+    percentile: float | None = Field(description="Перцентиль в категории по тесту")
+    topic_scores: list[TopicScore]
+    fsp_ranks: list[str]
+    match: CandidateMatch | None = Field(description="Совпадение с потребностью, если передан need_id")
+    contacts_unlocked: bool
+    generated_at: datetime
+
+
+class JsonResume(ApiModel):
+    schema_url: str = Field(default=JSON_RESUME_SCHEMA, alias="$schema")
+    basics: JsonResumeBasics
+    work: list[JsonResumeWork]
+    skills: list[JsonResumeSkill]
+    awards: list[JsonResumeAward]
+    itscout: ItscoutExtension = Field(alias="x-itscout")
