@@ -5,8 +5,10 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import mail_templates
 from app.core.enums import ApplicationStatus, Grade, NeedStatus, UnlockSource
 from app.core.errors import ConflictError, NotFoundError
+from app.core.mail import Mail
 from app.core.schemas import Explanation
 from app.modules.applications.models import Application
 from app.modules.applications.schemas import (
@@ -15,6 +17,7 @@ from app.modules.applications.schemas import (
     ApplyRequest,
     VacancyOut,
 )
+from app.modules.auth import service as auth_service
 from app.modules.candidates import service as candidates_service
 from app.modules.candidates.models import Candidate
 from app.modules.catalog.service import get_catalog
@@ -156,7 +159,7 @@ async def get_vacancy(db: AsyncSession, user_id: int, vacancy_id: int) -> Vacanc
 
 
 async def apply(
-    db: AsyncSession, user_id: int, vacancy_id: int, body: ApplyRequest
+    db: AsyncSession, user_id: int, vacancy_id: int, body: ApplyRequest, outbox: list[Mail] | None = None
 ) -> ApplicationForCandidate:
     candidate = await candidates_service.get_by_user(db, user_id)
     need = await _get_published(db, vacancy_id)
@@ -185,7 +188,21 @@ async def apply(
         await integrations_service.enqueue(db, need.employer_id, "application.created", data)
     await db.commit()
     await db.refresh(application)
+    if outbox is not None and items:
+        await _mail_employer(db, need, items[0].candidate.display_name, candidate.id, outbox)
     return await _for_candidate(db, application)
+
+
+async def _mail_employer(
+    db: AsyncSession, need: HiringNeed, candidate_name: str, candidate_id: int, outbox: list[Mail]
+) -> None:
+    """Письмо работодателю о новом отклике (§8.9): имя как в выдаче, контакты — только в кабинете."""
+    employer = await db.get(Employer, need.employer_id)
+    to = await auth_service.notification_email(db, employer.user_id) if employer else None
+    if to is not None:
+        outbox.append(
+            mail_templates.application_received(to, candidate_name, need.title, candidate_id, need.id)
+        )
 
 
 async def _for_candidate(db: AsyncSession, application: Application) -> ApplicationForCandidate:

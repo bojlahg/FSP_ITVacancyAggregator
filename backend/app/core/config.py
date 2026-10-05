@@ -59,6 +59,20 @@ class Settings(BaseSettings):
     smtp_security: Literal["none", "ssl", "starttls"] = "none"
     smtp_user: str = ""
     smtp_password: str = ""
+    # Письма о событиях подбора (docs/implementation.md §8.9): общий выключатель. Адресатам из этих
+    # доменов и из списка не пишем, чтобы сид, e2e и демо-аккаунты не слали почту на несуществующие ящики
+    notifications_enabled: bool = True
+    notifications_skip_domains: list[str] = [
+        "example",
+        "test",
+        "invalid",
+        "localhost",
+        "example.com",
+        "example.net",
+        "example.org",
+        "demo.itscout.ru",
+    ]
+    notifications_skip_emails: list[str] = ["e2e-candidate@itscout.ru"]
 
     llm_provider: Literal["none", "yandex"] = "none"
     yandex_api_key: str = ""

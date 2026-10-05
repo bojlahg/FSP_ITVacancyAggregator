@@ -13,6 +13,7 @@ from app.modules.auth import service
 from app.modules.auth.schemas import (
     DemoLoginRequest,
     LoginRequest,
+    NotificationSettings,
     RegisterExpertRequest,
     RegisterRequest,
     TokenResponse,
@@ -168,3 +169,13 @@ me_router = APIRouter(tags=["auth"])
 @me_router.get("/me", response_model=UserOut, summary="Текущий пользователь", responses=error_responses(401))
 async def me(user: CurrentUser, db: DbSession) -> UserOut:
     return await service.me(db, user.id)
+
+
+@me_router.put(
+    "/me/notifications",
+    response_model=UserOut,
+    summary="Включить или выключить письма о приглашениях и откликах",
+    responses=error_responses(401, 422),
+)
+async def update_notifications(body: NotificationSettings, user: CurrentUser, db: DbSession) -> UserOut:
+    return await service.update_notifications(db, user.id, body)

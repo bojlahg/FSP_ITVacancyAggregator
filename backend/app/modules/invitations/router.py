@@ -3,6 +3,7 @@ from fastapi import APIRouter, BackgroundTasks, Query
 from app.core.deps import CurrentCandidate, CurrentEmployer, DbSession
 from app.core.enums import InvitationStatus
 from app.core.errors import error_responses
+from app.core.mail import Mail, send_all
 from app.modules.integrations import service as integrations_service
 from app.modules.invitations import service
 from app.modules.invitations.schemas import (
@@ -53,8 +54,10 @@ async def view_invitation(
 async def accept_invitation(
     invitation_id: int, user: CurrentCandidate, db: DbSession, background: BackgroundTasks
 ) -> InvitationForCandidate:
-    result = await service.accept(db, user.id, invitation_id)
+    outbox: list[Mail] = []
+    result = await service.accept(db, user.id, invitation_id, outbox)
     background.add_task(integrations_service.deliver_pending)
+    background.add_task(send_all, outbox)
     return result
 
 
@@ -71,8 +74,10 @@ async def decline_invitation(
     db: DbSession,
     background: BackgroundTasks,
 ) -> InvitationForCandidate:
-    result = await service.decline(db, user.id, invitation_id, body)
+    outbox: list[Mail] = []
+    result = await service.decline(db, user.id, invitation_id, body, outbox)
     background.add_task(integrations_service.deliver_pending)
+    background.add_task(send_all, outbox)
     return result
 
 
@@ -84,9 +89,12 @@ async def decline_invitation(
     responses=error_responses(401, 403, 404, 409, 422),
 )
 async def create_invitation(
-    body: InvitationCreate, user: CurrentEmployer, db: DbSession
+    body: InvitationCreate, user: CurrentEmployer, db: DbSession, background: BackgroundTasks
 ) -> InvitationForEmployer:
-    return await service.create(db, user.id, body)
+    outbox: list[Mail] = []
+    result = await service.create(db, user.id, body, outbox)
+    background.add_task(send_all, outbox)
+    return result
 
 
 @employer_router.get(
@@ -111,9 +119,12 @@ async def list_sent_invitations(
     responses=TRANSITION,
 )
 async def withdraw_invitation(
-    invitation_id: int, user: CurrentEmployer, db: DbSession
+    invitation_id: int, user: CurrentEmployer, db: DbSession, background: BackgroundTasks
 ) -> InvitationForEmployer:
-    return await service.withdraw(db, user.id, invitation_id)
+    outbox: list[Mail] = []
+    result = await service.withdraw(db, user.id, invitation_id, outbox)
+    background.add_task(send_all, outbox)
+    return result
 
 
 @employer_router.get(

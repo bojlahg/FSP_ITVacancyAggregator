@@ -62,7 +62,8 @@ class SmtpSender:
 
 def get_email_sender() -> EmailSender:
     settings = get_settings()
-    if settings.email_backend == "smtp":
+    # Тесты никогда не ходят в настоящую почту, даже если в .env стоит smtp
+    if settings.email_backend == "smtp" and settings.app_env != "test":
         return SmtpSender(settings)
     return ConsoleSender()
 
@@ -73,3 +74,20 @@ async def send_safely(mail: Mail) -> None:
         await get_email_sender().send(mail)
     except Exception:
         log.exception("failed to send email to %s", mail.to)
+
+
+async def send_all(mails: list[Mail]) -> None:
+    """Уведомления после ответа: письма уходят по очереди, каждое — через send_safely."""
+    for mail in mails:
+        await send_safely(mail)
+
+
+def is_skipped_address(email: str, settings: Settings | None = None) -> bool:
+    """Зарезервированные домены (RFC 2606), домен сида и демо-аккаунты: туда уведомления не шлём."""
+    settings = settings or get_settings()
+    address = email.strip().lower()
+    demo = {settings.demo_candidate_email, settings.demo_employer_email, settings.demo_admin_email}
+    if address in {item.lower() for item in [*demo, *settings.notifications_skip_emails]}:
+        return True
+    domain = address.rpartition("@")[2]
+    return any(domain == item or domain.endswith(f".{item}") for item in settings.notifications_skip_domains)

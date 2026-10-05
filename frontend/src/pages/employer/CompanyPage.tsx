@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { AtsIntegrationCard } from "@/components/employer/AtsIntegrationCard";
+import { EmailNotificationsCard } from "@/components/EmailNotificationsCard";
 import { ErrorState } from "@/components/ErrorState";
 import { FormAlert } from "@/components/FormAlert";
 import { FormField } from "@/components/FormField";
@@ -88,7 +89,8 @@ export default function CompanyPage() {
         </div>
       )}
       {company.isSuccess && (
-        <div className="mt-4">
+        <div className="mt-4 grid max-w-6xl gap-4">
+          <EmailNotificationsCard role="employer" />
           <AtsIntegrationCard />
         </div>
       )}

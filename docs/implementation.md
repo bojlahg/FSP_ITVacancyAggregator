@@ -185,6 +185,7 @@
   - согласия с датами;
   - привязка ФСП ID;
   - статус поиска: «активно ищу», «открыт к предложениям», «не ищу» (в последнем случае профиль скрыт из поиска);
+  - уведомления на почту (§8.9);
   - удаление аккаунта.
 
 **Приватность** — галочки, по умолчанию разумные:
@@ -343,6 +344,23 @@ LLM в объяснении не используется: шаблон надё
 - **Подпись**: `X-ITScout-Signature: t=<unix>,v1=<hex>`, где `v1 = HMAC-SHA256(secret, "<t>.<тело>")` — защищает от подмены и повтора; также `X-ITScout-Event`, `X-ITScout-Delivery`.
 - **Доставка (outbox)**: событие пишется в `webhook_deliveries` в одной транзакции с действием, отправляется сразу после ответа и повторяется фоновым циклом с задержками `WEBHOOK_RETRY_DELAYS_SECONDS` (30 с, 5 мин, 30 мин); после последней неудачи — `failed`, повтор вручную из журнала. `SELECT … FOR UPDATE SKIP LOCKED` не даёт отправить событие дважды.
 - **Экспорт кандидата** — `GET /talent/candidates/{id}/resume.json`: стандартная схема JSON Resume (basics, work, skills, awards — результаты ФСП) и расширение `x-itscout` (категория, перцентиль, темы, разряды ФСП, совпадение с потребностью). Правила видимости — как у карточки: до раскрытия контактов имя сокращено, контактов и названий компаний нет.
+
+### 8.9. Уведомления на почту
+
+| Событие | Кому | Ссылка в письме |
+|---|---|---|
+| Новое приглашение: компания, должность, вилка | кандидату | `/candidate/invitations` |
+| Приглашение отозвано | кандидату | `/candidate/invitations` |
+| Приглашение принято: имя как в выдаче | работодателю | карточка `/employer/candidates/{id}` |
+| Приглашение отклонено: причина из списка | работодателю | `/employer/invitations` |
+| Новый отклик на вакансию | работодателю | карточка `/employer/candidates/{id}?need={id}` |
+
+- **Адрес** — почта аккаунта (`users.email`) и для кандидата, и для работодателя. `employers.contact_email` — публичный контакт рекрутера для кандидатов, он не подтверждён и не связан с настройкой отписки, поэтому для уведомлений не используется.
+- **Без контактов кандидата.** В письмах только имя в том виде, в каком его показывает выдача (`display_name`, учитывает настройку фамилии), и ссылка в кабинет. Комментарий кандидата к отказу в письмо не попадает: в нём могут быть контакты. Так инвариант `contact_unlocks` не зависит от писем.
+- **Отправка** не влияет на запрос: сервис после коммита складывает письма в список, роутер отдаёт их в `BackgroundTasks` (`send_all` → `send_safely`), и они уходят после ответа. Ошибка почты пишется в лог `itscout.mail`, запрос не падает. При `APP_ENV=test` SMTP не используется никогда.
+- **Выключатели:** общий `NOTIFICATIONS_ENABLED` (по умолчанию `true`) и личный `users.email_notifications` — галочка «Уведомления на почту» в настройках кандидата и в профиле компании (`PUT /me/notifications`). В каждом письме есть строка «Отключить уведомления можно в настройках» со ссылкой.
+- **Служебные адреса не получают писем:** домены из `NOTIFICATIONS_SKIP_DOMAINS` (зарезервированные `example`, `test`, `invalid`, `localhost`, `example.com/.net/.org` и домен сида `demo.itscout.ru`, включая поддомены), адреса из `NOTIFICATIONS_SKIP_EMAILS` (служебный кандидат e2e) и демо-аккаунты `DEMO_CANDIDATE_EMAIL`, `DEMO_EMPLOYER_EMAIL`, `DEMO_ADMIN_EMAIL`. Поэтому `make reseed`, e2e и показ жюри на демо-аккаунтах почту не рассылают. Письмо подтверждения почты этими правилами не ограничено.
+- **Шаблоны** — `backend/app/core/mail_templates.py`: текст и простой HTML из одного описания, ссылки от `PUBLIC_BASE_URL`. Там же письмо подтверждения почты.
 
 ## 9. ФСП
 
@@ -632,7 +650,7 @@ backend:
 ## 14. Модель данных
 
 ```text
-users(id, email, password_hash, role[candidate|employer|admin|expert], email_verified_at, created_at, deleted_at)
+users(id, email, password_hash, role[candidate|employer|admin|expert], email_verified_at, email_notifications, created_at, deleted_at)
 email_tokens(id, user_id, purpose[verify|reset], token_hash, expires_at, used_at)
 refresh_tokens(id, user_id, token_hash, expires_at, revoked_at)
 consents(id, user_id, kind[pd_processing|profile_publication|fsp_import], policy_version, granted_at, revoked_at)
@@ -721,6 +739,7 @@ POST /auth/login | /auth/refresh | /auth/logout
 POST /auth/demo-login           {persona} — только DEMO_MODE
 POST /auth/register-expert      {email, password, code, consent_pd_processing} — по коду EXPERT_INVITE_CODE
 GET  /me
+PUT  /me/notifications           {email_notifications} — письма о подборе (§8.9)
 
 # справочники
 GET  /catalog/specializations | /catalog/grades | /catalog/skills?q=&family= | /catalog/industries | /catalog/soft-skills | /catalog/team-roles

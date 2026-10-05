@@ -516,6 +516,62 @@
         ]
       }
     },
+    "/api/v1/me/notifications": {
+      "put": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Включить или выключить письма о приглашениях и откликах",
+        "operationId": "update_notifications_api_v1_me_notifications_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Требуется вход",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Ошибка валидации данных",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/catalog/specializations": {
       "get": {
         "tags": [
@@ -13731,6 +13787,20 @@
         ],
         "title": "NextAction"
       },
+      "NotificationSettings": {
+        "properties": {
+          "email_notifications": {
+            "type": "boolean",
+            "title": "Email Notifications",
+            "description": "Присылать письма о приглашениях и откликах"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email_notifications"
+        ],
+        "title": "NotificationSettings"
+      },
       "OidcStartOut": {
         "properties": {
           "authorization_url": {
@@ -15039,6 +15109,11 @@
             "type": "boolean",
             "title": "Email Verified"
           },
+          "email_notifications": {
+            "type": "boolean",
+            "title": "Email Notifications",
+            "description": "Письма о приглашениях и откликах (§8.9)"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -15051,6 +15126,7 @@
           "email",
           "role",
           "email_verified",
+          "email_notifications",
           "created_at"
         ],
         "title": "UserOut"

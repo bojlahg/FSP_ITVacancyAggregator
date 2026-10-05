@@ -6,11 +6,12 @@ from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import mail_templates
 from app.core.audit import audit
 from app.core.config import get_settings
 from app.core.enums import ConsentKind, EmailTokenPurpose, Role
 from app.core.errors import AppError, ConflictError, ForbiddenError, NotFoundError, UnauthorizedError
-from app.core.mail import Mail
+from app.core.mail import Mail, is_skipped_address
 from app.core.security import (
     create_access_token,
     hash_password,
@@ -19,7 +20,13 @@ from app.core.security import (
     verify_password,
 )
 from app.modules.auth.models import Consent, EmailToken, RefreshToken, User
-from app.modules.auth.schemas import RegisterExpertRequest, RegisterRequest, TokenResponse, UserOut
+from app.modules.auth.schemas import (
+    NotificationSettings,
+    RegisterExpertRequest,
+    RegisterRequest,
+    TokenResponse,
+    UserOut,
+)
 from app.modules.candidates import service as candidates_service
 from app.modules.employers import service as employers_service
 
@@ -49,6 +56,7 @@ def _user_out(user: User) -> UserOut:
         email=user.email,
         role=user.role,
         email_verified=user.email_verified_at is not None,
+        email_notifications=user.email_notifications,
         created_at=user.created_at,
     )
 
@@ -80,18 +88,9 @@ async def _verification_mail(db: AsyncSession, user: User) -> Mail:
             expires_at=_now() + timedelta(hours=settings.email_token_ttl_hours),
         )
     )
-    link = f"{settings.public_base_url.rstrip('/')}/verify-email?token={token}"
-    text = (
-        "Здравствуйте!\n\nПодтвердите адрес почты для ITScout, перейдя по ссылке:\n"
-        f"{link}\n\nСсылка действует {settings.email_token_ttl_hours} ч. "
-        "Если вы не регистрировались — просто проигнорируйте письмо."
+    return mail_templates.verification(
+        user.email, f"/verify-email?token={token}", settings.email_token_ttl_hours
     )
-    html = (
-        "<p>Здравствуйте!</p><p>Подтвердите адрес почты для ITScout:</p>"
-        f'<p><a href="{link}">Подтвердить почту</a></p>'
-        f"<p>Ссылка действует {settings.email_token_ttl_hours} ч.</p>"
-    )
-    return Mail(to=user.email, subject="ITScout: подтвердите почту", text=text, html=html)
 
 
 async def _get_user_by_email(db: AsyncSession, email: str) -> User | None:
@@ -276,6 +275,23 @@ async def get_user(db: AsyncSession, user_id: int) -> User:
 
 async def me(db: AsyncSession, user_id: int) -> UserOut:
     return _user_out(await get_user(db, user_id))
+
+
+async def update_notifications(db: AsyncSession, user_id: int, body: NotificationSettings) -> UserOut:
+    user = await get_user(db, user_id)
+    user.email_notifications = body.email_notifications
+    await db.commit()
+    return _user_out(user)
+
+
+async def notification_email(db: AsyncSession, user_id: int) -> str | None:
+    """Адрес для писем о подборе (§8.9); None — выключено глобально, пользователем или адрес служебный."""
+    if not get_settings().notifications_enabled:
+        return None
+    user = await db.get(User, user_id)
+    if user is None or user.deleted_at is not None or not user.email_notifications:
+        return None
+    return None if is_skipped_address(user.email) else user.email
 
 
 async def has_active_consent(db: AsyncSession, user_id: int, kind: ConsentKind) -> bool:

@@ -202,6 +202,8 @@ $DC start backend
 | `POSTGRES_*` | `itscout` | БД |
 | `JWT_SECRET`, `COOKIE_SECURE` | dev-секрет, `false` | сессии |
 | `EMAIL_BACKEND`, `EMAIL_VERIFICATION_REQUIRED` | `console`, `false` | отправка писем и обязательность подтверждения |
+| `NOTIFICATIONS_ENABLED` | `true` | письма о приглашениях и откликах ([implementation.md §8.9](implementation.md)); `false` — выключить все |
+| `NOTIFICATIONS_SKIP_DOMAINS`, `NOTIFICATIONS_SKIP_EMAILS` | зарезервированные домены и `demo.itscout.ru`; служебный кандидат e2e | кому уведомления не шлём (JSON-список); демо-аккаунты `DEMO_*_EMAIL` пропускаются всегда |
 | `LLM_PROVIDER`, `YANDEX_API_KEY`, `YANDEX_FOLDER_ID` | `none` | LLM для разбора текста и чек-листов; без него всё работает на словаре |
 | `FSP_API_URL`, `FSP_API_KEY` | мок в compose | реестр ФСП |
 | `FSP_OIDC_*` | Keycloak в compose | ФСП ID |

@@ -6,11 +6,14 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import mail_templates
 from app.core.audit import audit
 from app.core.config import get_settings
 from app.core.enums import DeclineReason, InvitationStatus, UnlockSource
 from app.core.errors import ConflictError, NotFoundError
+from app.core.mail import Mail
 from app.core.schemas import Explanation
+from app.modules.auth import service as auth_service
 from app.modules.candidates import service as candidates_service
 from app.modules.candidates.models import Candidate
 from app.modules.employers import service as employers_service
@@ -65,6 +68,46 @@ async def expire_overdue(db: AsyncSession) -> None:
         .where(Invitation.status.in_(ACTIVE), Invitation.expires_at < _now())
         .values(status=InvitationStatus.expired)
     )
+
+
+async def _mail_candidate(
+    db: AsyncSession, invitation: Invitation, outbox: list[Mail] | None, withdrawn: bool
+) -> None:
+    """Письмо кандидату о новом или отозванном приглашении (§8.9)."""
+    if outbox is None:
+        return
+    candidate = await db.get(Candidate, invitation.candidate_id)
+    to = await auth_service.notification_email(db, candidate.user_id) if candidate else None
+    if to is None:
+        return
+    employer = await db.get(Employer, invitation.employer_id)
+    company = (employer.company_name if employer else None) or "Компания"
+    if withdrawn:
+        outbox.append(mail_templates.invitation_withdrawn(to, company, invitation.title))
+    else:
+        outbox.append(
+            mail_templates.invitation_received(
+                to, company, invitation.title, invitation.salary_from, invitation.salary_to
+            )
+        )
+
+
+async def _mail_employer(db: AsyncSession, invitation: Invitation, outbox: list[Mail] | None) -> None:
+    """Письмо работодателю об ответе кандидата (§8.9): имя как в выдаче, без контактов."""
+    if outbox is None:
+        return
+    employer = await db.get(Employer, invitation.employer_id)
+    to = await auth_service.notification_email(db, employer.user_id) if employer else None
+    if to is None:
+        return
+    brief = (await matching_service.briefs(db, [invitation.candidate_id])).get(invitation.candidate_id)
+    name = brief.display_name if brief else "Кандидат"
+    if invitation.status == InvitationStatus.accepted:
+        mail = mail_templates.invitation_accepted(to, name, invitation.title, invitation.candidate_id)
+    else:
+        reason = DECLINE_NAMES[invitation.decline_reason] if invitation.decline_reason else "не указана"
+        mail = mail_templates.invitation_declined(to, name, invitation.title, reason)
+    outbox.append(mail)
 
 
 def _explanation(snapshot: dict | None) -> Explanation | None:
@@ -134,7 +177,9 @@ async def _for_candidate(db: AsyncSession, item: Invitation) -> InvitationForCan
 # ---------- работодатель ----------
 
 
-async def create(db: AsyncSession, user_id: int, body: InvitationCreate) -> InvitationForEmployer:
+async def create(
+    db: AsyncSession, user_id: int, body: InvitationCreate, outbox: list[Mail] | None = None
+) -> InvitationForEmployer:
     employer = await employers_service.get_by_user(db, user_id)
     if await db.get(Candidate, body.candidate_id) is None or not await matching_service.reachable(
         db, employer.id, body.candidate_id
@@ -183,6 +228,7 @@ async def create(db: AsyncSession, user_id: int, body: InvitationCreate) -> Invi
     db.add(invitation)
     await db.commit()
     await db.refresh(invitation)
+    await _mail_candidate(db, invitation, outbox, withdrawn=False)
     return (await _for_employer(db, [invitation]))[0]
 
 
@@ -202,7 +248,9 @@ async def list_sent(
     return await _for_employer(db, items)
 
 
-async def withdraw(db: AsyncSession, user_id: int, invitation_id: int) -> InvitationForEmployer:
+async def withdraw(
+    db: AsyncSession, user_id: int, invitation_id: int, outbox: list[Mail] | None = None
+) -> InvitationForEmployer:
     employer = await employers_service.get_by_user(db, user_id)
     await expire_overdue(db)
     invitation = await db.get(Invitation, invitation_id)
@@ -214,6 +262,7 @@ async def withdraw(db: AsyncSession, user_id: int, invitation_id: int) -> Invita
     invitation.responded_at = _now()
     await db.commit()
     await db.refresh(invitation)
+    await _mail_candidate(db, invitation, outbox, withdrawn=True)
     return (await _for_employer(db, [invitation]))[0]
 
 
@@ -291,7 +340,9 @@ async def _notify(db: AsyncSession, invitation: Invitation, event: str) -> None:
         await integrations_service.enqueue(db, invitation.employer_id, event, data)
 
 
-async def accept(db: AsyncSession, user_id: int, invitation_id: int) -> InvitationForCandidate:
+async def accept(
+    db: AsyncSession, user_id: int, invitation_id: int, outbox: list[Mail] | None = None
+) -> InvitationForCandidate:
     candidate, invitation = await _own(db, user_id, invitation_id)
     if invitation.status not in ACTIVE:
         raise InvitationClosedError()
@@ -305,11 +356,16 @@ async def accept(db: AsyncSession, user_id: int, invitation_id: int) -> Invitati
     await _notify(db, invitation, "invitation.accepted")
     await db.commit()
     await db.refresh(invitation)
+    await _mail_employer(db, invitation, outbox)
     return await _for_candidate(db, invitation)
 
 
 async def decline(
-    db: AsyncSession, user_id: int, invitation_id: int, body: DeclineRequest
+    db: AsyncSession,
+    user_id: int,
+    invitation_id: int,
+    body: DeclineRequest,
+    outbox: list[Mail] | None = None,
 ) -> InvitationForCandidate:
     _, invitation = await _own(db, user_id, invitation_id)
     if invitation.status not in ACTIVE:
@@ -323,6 +379,7 @@ async def decline(
     await _notify(db, invitation, "invitation.declined")
     await db.commit()
     await db.refresh(invitation)
+    await _mail_employer(db, invitation, outbox)
     return await _for_candidate(db, invitation)
 
 

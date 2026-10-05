@@ -3,6 +3,7 @@ from fastapi import APIRouter, BackgroundTasks, Query
 from app.core.deps import CurrentCandidate, CurrentEmployer, DbSession
 from app.core.enums import ApplicationStatus, Grade
 from app.core.errors import error_responses
+from app.core.mail import Mail, send_all
 from app.modules.applications import service
 from app.modules.applications.schemas import (
     ApplicationForCandidate,
@@ -55,8 +56,10 @@ async def get_vacancy(vacancy_id: int, user: CurrentCandidate, db: DbSession) ->
 async def apply_to_vacancy(
     vacancy_id: int, body: ApplyRequest, user: CurrentCandidate, db: DbSession, background: BackgroundTasks
 ) -> ApplicationForCandidate:
-    result = await service.apply(db, user.id, vacancy_id, body)
+    outbox: list[Mail] = []
+    result = await service.apply(db, user.id, vacancy_id, body, outbox)
     background.add_task(integrations_service.deliver_pending)
+    background.add_task(send_all, outbox)
     return result
 
 

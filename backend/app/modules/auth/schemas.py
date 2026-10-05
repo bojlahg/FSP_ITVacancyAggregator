@@ -42,7 +42,12 @@ class UserOut(ApiModel):
     email: EmailStr
     role: Role
     email_verified: bool
+    email_notifications: bool = Field(description="Письма о приглашениях и откликах (§8.9)")
     created_at: datetime
+
+
+class NotificationSettings(ApiModel):
+    email_notifications: bool = Field(description="Присылать письма о приглашениях и откликах")
 
 
 class TokenResponse(ApiModel):

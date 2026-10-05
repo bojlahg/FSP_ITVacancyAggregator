@@ -3,6 +3,7 @@ import { ShieldCheck, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { FspLinkCard } from "@/components/candidate/FspLinkCard";
+import { EmailNotificationsCard } from "@/components/EmailNotificationsCard";
 import { ErrorState } from "@/components/ErrorState";
 import { PageHeader } from "@/components/PageHeader";
 import { SkeletonCards } from "@/components/SkeletonCards";
@@ -62,7 +63,7 @@ export default function SettingsPage() {
       <PageHeader
         eyebrow="Настройки"
         title="Настройки"
-        description="Приватность, согласия, привязка ФСП ID и статус поиска. Изменения вступают в силу сразу."
+        description="Приватность, согласия, привязка ФСП ID, статус поиска и уведомления. Изменения вступают в силу сразу."
       />
       {me.isPending ? (
         <SkeletonCards count={4} />
@@ -74,6 +75,7 @@ export default function SettingsPage() {
           <PrivacyCard privacy={me.data.privacy} />
           <FspLinkCard />
           <ConsentsCard />
+          <EmailNotificationsCard role="candidate" />
         </div>
       )}
     </>
