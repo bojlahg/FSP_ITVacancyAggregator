@@ -1,7 +1,20 @@
 (site) {
 	encode zstd gzip
 
+	# Заголовки безопасности для всего сайта; CSP — только для фронта (Swagger на /api/docs грузит CDN)
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Frame-Options SAMEORIGIN
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+		-Server
+	}
+
 	handle /api/* {
+		# Резюме — до 5 МБ (проверка в backend); больше Caddy не принимает и не пишет на диск
+		request_body {
+			max_size 10MB
+		}
 		reverse_proxy backend:8000
 	}
 
@@ -17,6 +30,7 @@
 	}
 
 	handle {
+		header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
 		root * /srv/site
 		try_files {path} /index.html
 		file_server
@@ -33,6 +47,7 @@
 # Домен: Caddy сам выпускает сертификат Let's Encrypt и редиректит HTTP → HTTPS.
 itscout.ru {
 	import site
+	header Strict-Transport-Security "max-age=31536000"
 }
 
 www.itscout.ru {
