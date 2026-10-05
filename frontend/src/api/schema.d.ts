@@ -559,7 +559,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Начать привязку через ФСП ID (OIDC, Keycloak) */
+        /**
+         * Начать привязку через ФСП ID (OIDC, Keycloak)
+         * @description Возвращает адрес входа ФСП ID (authorization code + PKCE), фронт переводит туда браузер. State, code_verifier и nonce сохраняются в подписанной httpOnly cookie на время флоу. 503 `fsp_idp_unavailable` — IdP недоступен.
+         */
         get: operations["oidc_start_api_v1_fsp_oidc_start_get"];
         put?: never;
         post?: never;
@@ -576,7 +579,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Callback OIDC: проверка state, обмен кода, импорт достижений, редирект в кабинет */
+        /**
+         * Callback OIDC: проверка state, обмен кода, импорт достижений, редирект в кабинет
+         * @description Всегда редиректит в кабинет кандидата: `?fsp_oidc=linked` или `?fsp_oidc=error&reason=<код>` (fsp_oidc_state_invalid, fsp_oidc_denied, fsp_oidc_code_rejected, fsp_oidc_token_invalid, fsp_oidc_no_fsp_id, fsp_id_taken, fsp_participant_not_found, fsp_idp_unavailable, fsp_registry_unavailable).
+         */
         get: operations["oidc_callback_api_v1_fsp_oidc_callback_get"];
         put?: never;
         post?: never;
@@ -4802,7 +4808,10 @@ export interface operations {
     };
     oidc_start_api_v1_fsp_oidc_start_get: {
         parameters: {
-            query?: never;
+            query: {
+                /** @description Согласие на импорт данных из реестра ФСП */
+                consent: boolean;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -4816,6 +4825,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OidcStartOut"];
+                };
+            };
+            /** @description Некорректный запрос */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Требуется вход */
@@ -4836,13 +4854,24 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Ошибка валидации данных */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
         };
     };
     oidc_callback_api_v1_fsp_oidc_callback_get: {
         parameters: {
-            query: {
-                code: string;
-                state: string;
+            query?: {
+                code?: string | null;
+                state?: string | null;
+                /** @description Ошибка от IdP, например access_denied */
+                error?: string | null;
             };
             header?: never;
             path?: never;

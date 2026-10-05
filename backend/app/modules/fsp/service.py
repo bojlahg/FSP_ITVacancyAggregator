@@ -14,6 +14,7 @@ from app.core.errors import AppError, ConflictError, NotFoundError
 from app.modules.auth.models import Consent
 from app.modules.candidates.models import Candidate, CandidateSkill
 from app.modules.catalog.service import get_catalog
+from app.modules.fsp import oidc
 from app.modules.fsp.evidence import RankRecord, ResultRecord, evaluate, percentile
 from app.modules.fsp.models import CandidateCompetency, FspAchievement, FspRank
 from app.modules.fsp.schemas import (
@@ -170,22 +171,48 @@ async def candidate_fsp_score(
 
 
 async def link_manual(db: AsyncSession, candidate: Candidate, body: FspLinkRequest) -> FspProfileOut:
-    from app.modules.matching import service as matching_service
-
     if not body.consent:
         raise AppError("Нужно согласие на импорт данных из реестра ФСП", code="consent_required")
+    await _link(db, candidate, body.fsp_id, FspLinkMethod.manual)
+    return await profile(db, candidate)
+
+
+async def oidc_start(candidate: Candidate, consent: bool) -> tuple[str, str]:
+    """(authorization_url для фронта, значение cookie флоу). Согласие даётся до ухода на ФСП ID."""
+    if not consent:
+        raise AppError("Нужно согласие на импорт данных из реестра ФСП", code="consent_required")
+    flow = oidc.new_flow(candidate.id)
+    return oidc.authorization_url(await oidc.discovery(), flow), oidc.encode_flow(flow)
+
+
+async def oidc_complete(db: AsyncSession, cookie: str | None, code: str | None, state: str | None) -> None:
+    """Callback: state из cookie → обмен кода → claim fsp_id из проверенного id_token → привязка."""
+    flow = oidc.decode_flow(cookie, state)
+    if not code:
+        raise oidc.OidcError("Вход через ФСП ID отменён", code="fsp_oidc_denied")
+    fsp_id = await oidc.exchange_code(code, flow)
+    candidate = await db.get(Candidate, flow.candidate_id)
+    if candidate is None:
+        raise NotFoundError("Профиль кандидата не найден")
+    await _link(db, candidate, fsp_id, FspLinkMethod.oidc)
+
+
+async def _link(db: AsyncSession, candidate: Candidate, fsp_id: str, method: FspLinkMethod) -> None:
+    """Общий путь ручной и OIDC-привязки: импорт из реестра, согласие, аудит, пересчёт индекса."""
+    from app.modules.matching import service as matching_service
+
     owner = await db.scalar(
-        select(Candidate.id).where(Candidate.fsp_id == body.fsp_id, Candidate.id != candidate.id)
+        select(Candidate.id).where(Candidate.fsp_id == fsp_id, Candidate.id != candidate.id)
     )
     if owner is not None:
         raise ConflictError("Этот ФСП ID уже привязан к другому профилю", code="fsp_id_taken")
-    fetched = await fetch_from_registry(body.fsp_id)
+    fetched = await fetch_from_registry(fsp_id)
     if fetched is None:
         raise NotFoundError("Участник с таким ФСП ID не найден в реестре", code="fsp_participant_not_found")
 
     await store_evidence(db, candidate, *fetched)
-    candidate.fsp_id = body.fsp_id
-    candidate.fsp_link_method = FspLinkMethod.manual
+    candidate.fsp_id = fsp_id
+    candidate.fsp_link_method = method
     candidate.fsp_linked_at = datetime.now(UTC)
     settings = get_settings()
     db.add(
@@ -199,12 +226,11 @@ async def link_manual(db: AsyncSession, candidate: Candidate, body: FspLinkReque
         action="fsp.linked",
         object_type="candidate",
         object_id=candidate.id,
-        meta={"fsp_id": body.fsp_id, "method": "manual"},
+        meta={"fsp_id": fsp_id, "method": method.value},
     )
     await db.flush()
     await matching_service.refresh_candidate(db, candidate.id)
     await db.commit()
-    return await profile(db, candidate)
 
 
 async def unlink(db: AsyncSession, candidate: Candidate) -> None:

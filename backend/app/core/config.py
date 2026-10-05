@@ -63,6 +63,18 @@ class Settings(BaseSettings):
     # Файл данных fsp-mock; генератор демо-данных пишет его в общий volume
     fsp_data_path: str = "/data/fsp/fsp.json"
 
+    # Привязка через ФСП ID по OIDC (§9.3). Discovery читаем по внутреннему адресу IdP: issuer и
+    # authorization_endpoint в нём публичные, token и jwks — внутренние (Keycloak с KC_HOSTNAME).
+    fsp_oidc_discovery_url: str = "http://keycloak:8080/fsp-id/realms/fsp/.well-known/openid-configuration"
+    fsp_oidc_client_id: str = "itscout"
+    # Пусто — публичный клиент с PKCE; для конфиденциального клиента секрет только в .env
+    fsp_oidc_client_secret: str = ""
+    # Пусто — {public_base_url}/api/v1/fsp/oidc/callback
+    fsp_oidc_redirect_uri: str = ""
+    fsp_oidc_return_path: str = "/candidate/settings"
+    fsp_oidc_state_ttl_seconds: int = 600
+    fsp_oidc_cookie_name: str = "itscout_fsp_oidc"
+
     upload_dir: str = "/data/uploads"
 
     # full — полный тест (§10.3), short — сокращённый для демо жюри

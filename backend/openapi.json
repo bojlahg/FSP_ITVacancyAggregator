@@ -2011,7 +2011,26 @@
           "candidate: fsp"
         ],
         "summary": "Начать привязку через ФСП ID (OIDC, Keycloak)",
+        "description": "Возвращает адрес входа ФСП ID (authorization code + PKCE), фронт переводит туда браузер. State, code_verifier и nonce сохраняются в подписанной httpOnly cookie на время флоу. 503 `fsp_idp_unavailable` — IdP недоступен.",
         "operationId": "oidc_start_api_v1_fsp_oidc_start_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "consent",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "boolean",
+              "description": "Согласие на импорт данных из реестра ФСП",
+              "title": "Consent"
+            },
+            "description": "Согласие на импорт данных из реестра ФСП"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -2019,6 +2038,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/OidcStartOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Некорректный запрос",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -2042,13 +2071,18 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Ошибка валидации данных",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/fsp/oidc/callback": {
@@ -2057,25 +2091,58 @@
           "candidate: fsp"
         ],
         "summary": "Callback OIDC: проверка state, обмен кода, импорт достижений, редирект в кабинет",
+        "description": "Всегда редиректит в кабинет кандидата: `?fsp_oidc=linked` или `?fsp_oidc=error&reason=<код>` (fsp_oidc_state_invalid, fsp_oidc_denied, fsp_oidc_code_rejected, fsp_oidc_token_invalid, fsp_oidc_no_fsp_id, fsp_id_taken, fsp_participant_not_found, fsp_idp_unavailable, fsp_registry_unavailable).",
         "operationId": "oidc_callback_api_v1_fsp_oidc_callback_get",
         "parameters": [
           {
             "name": "code",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Code"
             }
           },
           {
             "name": "state",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "State"
             }
+          },
+          {
+            "name": "error",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Ошибка от IdP, например access_denied",
+              "title": "Error"
+            },
+            "description": "Ошибка от IdP, например access_denied"
           }
         ],
         "responses": {

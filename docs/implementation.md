@@ -358,6 +358,26 @@ competency = max(competency, rank_floor)     # МС 0.95 … III 0.40
 
 Импорт выполняется при привязке и затем раз в сутки (APScheduler). Отзыв согласия удаляет импортированные данные.
 
+**OIDC-флоу (реализован, T17):**
+1. Кандидат отмечает согласие на импорт и жмёт «Войти через ФСП ID» (Настройки). `GET /fsp/oidc/start?consent=true` (нужен access JWT кандидата) генерирует `state`, `code_verifier` (PKCE S256) и `nonce`, кладёт их вместе с id кандидата в подписанную (`JWT_SECRET`) httpOnly cookie `itscout_fsp_oidc` на 10 минут (path `/api/v1/fsp/oidc`, SameSite=Lax) и возвращает `authorization_url`. Verifier в URL не попадает, callback привязан к браузеру и кандидату.
+2. IdP возвращает браузер на `GET /fsp/oidc/callback?code&state`. Backend сверяет `state` с cookie, обменивает код на токены по внутреннему адресу IdP, проверяет `id_token`: подпись по JWKS (только асимметричные алгоритмы), `iss`, `aud = client_id`, `exp`, `nonce`. Из claim `fsp_id` берётся номер участника.
+3. Дальше — общий путь с ручной привязкой: ФСП ID, привязанный к другому кандидату, → `fsp_id_taken`; импорт из реестра (`fetch_from_registry` + `store_evidence`), запись согласия `fsp_import`, аудит, пересчёт индекса выдачи; `fsp_link_method = oidc`, `ownership_verified = true`. Ручная привязка того же ФСП ID повышается до подтверждённой.
+4. Callback всегда редиректит в `/candidate/settings?fsp_oidc=linked` или `?fsp_oidc=error&reason=<код>`, cookie флоу удаляется (повтор callback не проходит).
+
+Эндпоинты IdP берутся из discovery (`FSP_OIDC_DISCOVERY_URL`, по умолчанию `http://keycloak:8080/fsp-id/realms/fsp/.well-known/openid-configuration`): у Keycloak с `KC_HOSTNAME` issuer и адрес входа публичные (`https://itscout.ru/fsp-id/realms/fsp`), token и JWKS — внутренние. Для настоящего ФСП ID меняются только настройки `FSP_OIDC_*` (секрет конфиденциального клиента — `FSP_OIDC_CLIENT_SECRET`, только в `.env`).
+
+**Мок IdP:** Keycloak 26 (`infra/keycloak/`: Dockerfile с `kc.sh build` и `fsp-realm.json`), встроенная H2 без volume — realm импортируется заново при каждом пересоздании контейнера. Публикация через Caddy на `https://itscout.ru/fsp-id/`; наружу открыты только `/fsp-id/realms/fsp/*` и `/fsp-id/resources/*`, админка и realm `master` закрыты (404). Пароль админа — `KEYCLOAK_ADMIN_PASSWORD` в `.env`. Клиент `itscout` публичный, authorization code + PKCE S256, без password grant; mapper кладёт атрибут пользователя `fsp_id` в одноимённый claim; изменить `fsp_id` может только админ.
+
+**Демо-участники мок-IdP** (логины и общий тестовый пароль лежат в `infra/keycloak/fsp-realm.json`; это демо-учётки мока, не реальные данные, поэтому они в публичном репозитории):
+
+| Логин | ФСП ID | Кто в сиде |
+|---|---|---|
+| `fsp-2026-7781` | FSP-2026-7781 | участник реестра без профиля на платформе (`FREE_FSP_ID`) — для живой привязки новым кандидатом |
+| `anna.kovaleva` | FSP-2026-1001 | герой Анна (демо-кандидат): ручная привязка повышается до подтверждённой |
+| `maria.orlova` | FSP-2026-1002 | героиня Мария: попытка привязать её ФСП ID к другому кандидату → `fsp_id_taken` |
+
+ФСП ID героев детерминированы сидом (`FSP-{год}-{1000+n}`, герои создаются первыми); при смене года в сиде realm нужно обновить.
+
 ### 9.4. Показ работодателю
 
 - В списке — бейдж «ФСП» и разряд.
@@ -653,7 +673,7 @@ GET  /tests/attempts/{id}/current          текущее задание (без
 POST /tests/attempts/{id}/answer           {item_id, response}
 GET  /tests/attempts/{id}/result
 GET  /candidates/me/fsp ; POST /candidates/me/fsp/link   {fsp_id, consent}   ручная привязка
-GET  /fsp/oidc/start ; GET /fsp/oidc/callback                     OIDC (P1)
+GET  /fsp/oidc/start?consent=true → {authorization_url} ; GET /fsp/oidc/callback   OIDC через ФСП ID (§9.3)
 DELETE /candidates/me/fsp
 GET  /candidates/me/invitations ; POST /invitations/{id}/view|accept|decline
 GET  /vacancies?match=true ; GET /vacancies/{id} ; POST /vacancies/{id}/apply ; GET /candidates/me/applications
@@ -767,7 +787,7 @@ POST /admin/reseed ; POST /admin/demo/reset-cooldowns     только при DE
 
 ## 20. Деплой и CI/CD
 
-- **compose:** `infra/docker-compose.yml` — сервисы `caddy`, `frontend` (сборка Vite, статика в volume для Caddy), `backend`, `db`, `fsp-mock`; профиль `fsp` добавляет `keycloak`. `docker-compose.dev.yml` добавляет `mailpit` и hot reload.
+- **compose:** `infra/docker-compose.yml` — сервисы `caddy`, `frontend` (сборка Vite, статика в volume для Caddy), `backend`, `db`, `fsp-mock`, `keycloak` (мок IdP «ФСП ID», `-Xmx320m`, `mem_limit: 700m`, около 420 МБ RAM, §9.3). `docker-compose.dev.yml` добавляет `mailpit` и hot reload.
 - **CI** (`.github/workflows/ci.yml`, на каждый push): ruff, миграции с нуля + `alembic check`, pytest, актуальность `openapi.json` и сгенерированного клиента, lint/typecheck/build фронта.
 - **Deploy** (push в `master`, после зелёного CI): rsync репозитория в `/opt/itscout/app` → `docker compose up -d --build` (backend сам применяет миграции при старте) → smoke-тест `/api/v1/health` (позже — Playwright). Единственный секрет GitHub — `DEPLOY_SSH_KEY` (отдельный ключ деплоя). Остальные секреты — в `/opt/itscout/app/.env` на сервере (права 600).
 - **HTTPS:** после появления A-записи `itscout.ru` в `Caddyfile` включается блок домена.
@@ -833,7 +853,7 @@ POST /admin/reseed ; POST /admin/demo/reset-cooldowns     только при DE
 | ~~A-запись `itscout.ru`~~ — работает, HTTPS включён; осталась A-запись `www` | HTTPS | решено |
 | Ключ Yandex AI Studio: берём из DealDojo или заводим новый | T08 | 6.10 |
 | ~~GitHub-репозиторий~~ — `bojlahg/FSP_ITVacancyAggregator`, приватный до конца разработки. Делаем публичным **11.10 перед отправкой ссылки**. С первого коммита — ни одного секрета в истории | T01 | решено |
-| Поднимаем ли Keycloak на проде (около 700 МБ RAM) — по умолчанию да, профиль `fsp` | T17 | 8.10 |
+| ~~Поднимаем ли Keycloak на проде~~ — да, постоянный сервис compose с ограничением памяти (около 420 МБ RAM) | T17 | решено |
 | **У экспертов ФСП:** дисциплины, есть ли роль в команде, как устроены разряды, какие поля ФСП ID будут в токене | раздел 9 | в течение недели |
 | Кто из команды размечает 100 пар для экспертной валидации | 12.2 | 9.10 |
 
