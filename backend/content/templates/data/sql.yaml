@@ -156,3 +156,22 @@
   irt: {a: 1.2, b: 1.6}
   time_limit_sec: 150
   generator: data.sql_not_in_null
+
+- id: ds.sql.fanout_sum
+  specializations: [data]
+  topic: sql
+  skills: [sql, sql_analytics]
+  kind: numeric
+  irt: {a: 1.3, b: 1.5}
+  time_limit_sec: 180
+  params:
+    amount: {int: [1000, 9000], step: 100}
+    items: {int: [2, 6]}
+    pays: {int: [2, 3]}
+  stem_variants:
+    - "У заказа сумма {{amount}} ₽, строк в order_items — {{items}}, строк в payments — {{pays}}. Аналитик соединил orders с order_items и payments по order_id и посчитал SUM(o.amount). Какое число он получит для этого заказа?"
+    - "Запрос: SELECT SUM(o.amount) FROM orders o JOIN order_items i ON i.order_id = o.id JOIN payments p ON p.order_id = o.id WHERE o.id = 1. У заказа 1 сумма {{amount}} ₽, позиций — {{items}}, платежей — {{pays}}. Что вернёт запрос?"
+  answer:
+    # каждая строка заказа размножается на позиции × платежи
+    expr: "{{amount}} * {{items}} * {{pays}}"
+    tolerance: 0
