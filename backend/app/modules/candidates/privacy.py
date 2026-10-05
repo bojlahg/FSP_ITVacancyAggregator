@@ -131,7 +131,9 @@ async def update_consent(db: AsyncSession, candidate: Candidate, body: ConsentUp
 
 async def delete_account(db: AsyncSession, candidate: Candidate) -> None:
     """Мягкое удаление: учётная запись закрыта, ПДн обезличены, профиль исчезает из выдачи (§13)."""
+    from app.modules.expert import service as expert_service
     from app.modules.fsp import service as fsp_service
+    from app.modules.integrations import service as integrations_service
     from app.modules.invitations.models import Invitation
     from app.modules.matching import service as matching_service
     from app.modules.resume.models import Resume
@@ -146,6 +148,9 @@ async def delete_account(db: AsyncSession, candidate: Candidate) -> None:
     await asyncio.to_thread(lambda: [path.unlink(missing_ok=True) for path in paths])
     await db.execute(delete(Resume).where(Resume.candidate_id == candidate.id))
     await db.execute(delete(CandidateExperience).where(CandidateExperience.candidate_id == candidate.id))
+    # Копии данных кандидата вне профиля: события для ATS и снимки экспертной разметки
+    await integrations_service.forget_candidate(db, candidate.id)
+    await expert_service.forget_candidate(db, candidate.id)
     await db.execute(
         update(Invitation)
         .where(

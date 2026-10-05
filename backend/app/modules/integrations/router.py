@@ -94,7 +94,7 @@ async def rotate_webhook_secret(user: CurrentEmployerSession, db: DbSession) -> 
     response_model=WebhookDeliveryOut,
     status_code=status.HTTP_202_ACCEPTED,
     summary="Отправить тестовое событие ping",
-    responses=OWNED,
+    responses=error_responses(401, 403, 404, 429),
 )
 async def test_webhook(
     user: CurrentEmployerSession, db: DbSession, background: BackgroundTasks
@@ -119,7 +119,7 @@ async def list_webhook_deliveries(user: CurrentEmployerSession, db: DbSession) -
     response_model=WebhookDeliveryOut,
     status_code=status.HTTP_202_ACCEPTED,
     summary="Повторить недоставленное событие",
-    responses=error_responses(401, 403, 404, 409),
+    responses=error_responses(401, 403, 404, 409, 429),
 )
 async def retry_webhook_delivery(
     delivery_id: int, user: CurrentEmployerSession, db: DbSession, background: BackgroundTasks

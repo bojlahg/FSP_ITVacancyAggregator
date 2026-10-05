@@ -18,14 +18,15 @@ from datetime import UTC, datetime, timedelta
 from urllib.parse import urlsplit
 
 import httpx
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import ratelimit
 from app.core.audit import audit
-from app.core.config import get_settings
+from app.core.config import Settings, get_settings
 from app.core.db import SessionFactory
 from app.core.enums import WebhookDeliveryStatus
-from app.core.errors import AppError, ConflictError, NotFoundError, UnauthorizedError
+from app.core.errors import AppError, ConflictError, ForbiddenError, NotFoundError, UnauthorizedError
 from app.modules.employers import service as employers_service
 from app.modules.employers.models import Employer
 from app.modules.integrations.models import EmployerApiKey, EmployerWebhook, WebhookDelivery
@@ -73,7 +74,20 @@ async def list_keys(db: AsyncSession, user_id: int) -> list[ApiKeyOut]:
     return [ApiKeyOut.model_validate(key) for key in await db.scalars(query)]
 
 
+async def _not_demo(db: AsyncSession, user_id: int) -> None:
+    """Общий демо-аккаунт открыт любому посетителю: ключ или webhook на нём перехватывали бы чужие отклики."""
+    from app.modules.auth import service as auth_service
+
+    user = await auth_service.get_user(db, user_id)
+    if user.email.lower() == get_settings().demo_employer_email.lower():
+        raise ForbiddenError(
+            "В общем демо-аккаунте интеграция с ATS недоступна — зарегистрируйте свою компанию",
+            code="demo_account",
+        )
+
+
 async def create_key(db: AsyncSession, user_id: int, body: ApiKeyCreate) -> ApiKeyCreated:
+    await _not_demo(db, user_id)
     employer = await employers_service.get_by_user(db, user_id)
     active = await db.scalar(
         select(func.count())
@@ -163,6 +177,7 @@ async def get_webhook(db: AsyncSession, user_id: int) -> WebhookOut | None:
 
 
 async def put_webhook(db: AsyncSession, user_id: int, body: WebhookUpdate) -> WebhookOut:
+    await _not_demo(db, user_id)
     employer = await employers_service.get_by_user(db, user_id)
     url = body.url.strip()
     await check_url(url)
@@ -210,6 +225,7 @@ async def enqueue(db: AsyncSession, employer_id: int, event: str, data: dict) ->
 
 async def send_test(db: AsyncSession, user_id: int) -> WebhookDeliveryOut:
     hook = await _own_webhook(db, user_id)
+    await _limit_manual(db, hook.employer_id)
     delivery = WebhookDelivery(
         employer_id=hook.employer_id, event="ping", payload={"message": "Проверка webhook ITScout"}
     )
@@ -237,6 +253,7 @@ async def retry_delivery(db: AsyncSession, user_id: int, delivery_id: int) -> We
         raise NotFoundError("Доставка не найдена")
     if item.status == WebhookDeliveryStatus.delivered:
         raise ConflictError("Событие уже доставлено", code="already_delivered")
+    await _limit_manual(db, employer.id)
     item.status = WebhookDeliveryStatus.pending
     item.next_attempt_at = _now()
     await db.commit()
@@ -251,11 +268,21 @@ def sign(secret: str, timestamp: int, body: bytes) -> str:
 
 
 async def post_webhook(url: str, headers: dict[str, str], body: bytes) -> int:
-    """Транспорт отдельно, чтобы тесты подменяли его без сети. Редиректы не выполняются (SSRF)."""
+    """Транспорт отдельно, чтобы тесты подменяли его без сети. Редиректы не выполняются (SSRF).
+
+    Общий тайм-аут на весь вызов (httpx считает тайм-аут на каждое чтение), тело ответа не читается:
+    медленный приёмник не может держать доставку бесконечно.
+    """
     timeout = get_settings().webhook_timeout_seconds
-    async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:
-        response = await client.post(url, headers=headers, content=body)
-        return response.status_code
+
+    async def call() -> int:
+        async with (
+            httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client,
+            client.stream("POST", url, headers=headers, content=body) as response,
+        ):
+            return response.status_code
+
+    return await asyncio.wait_for(call(), timeout)
 
 
 async def _send(hook: EmployerWebhook, delivery: WebhookDelivery) -> tuple[int | None, str | None]:
@@ -281,11 +308,19 @@ async def _send(hook: EmployerWebhook, delivery: WebhookDelivery) -> tuple[int |
     return status, None if 200 <= status < 300 else f"HTTP {status}"
 
 
-async def deliver_pending() -> int:
-    """Отправить созревшие события. SKIP LOCKED: фоновая задача запроса и цикл не шлют одно дважды."""
-    settings = get_settings()
-    delays = settings.webhook_retry_delays_seconds
+# Одна пачка доставок на процесс за раз: фоновые задачи запросов не копятся и не занимают пул БД
+_delivery_lock = asyncio.Lock()
+
+
+async def _claim(settings: Settings) -> list[int]:
+    """Аренда пачки короткой транзакцией: строки уходят из выборки на время отправки, без блокировки."""
     async with SessionFactory() as db:
+        await db.execute(
+            delete(WebhookDelivery).where(
+                WebhookDelivery.status != WebhookDeliveryStatus.pending,
+                WebhookDelivery.created_at < _now() - timedelta(days=settings.webhook_retention_days),
+            )
+        )
         query = (
             select(WebhookDelivery)
             .where(
@@ -297,13 +332,32 @@ async def deliver_pending() -> int:
             .with_for_update(skip_locked=True)
         )
         items = list(await db.scalars(query))
+        lease_until = _now() + timedelta(seconds=settings.webhook_lease_seconds)
         for item in items:
-            hook = await db.get(EmployerWebhook, item.employer_id)
-            if hook is None or not hook.enabled:
-                item.status = WebhookDeliveryStatus.failed
-                item.last_error = "Webhook отключён"
-                continue
-            status, error = await _send(hook, item)
+            item.next_attempt_at = lease_until
+        await db.commit()
+        return [item.id for item in items]
+
+
+async def _deliver_one(delivery_id: int, delays: list[int]) -> None:
+    async with SessionFactory() as db:
+        item = await db.get(WebhookDelivery, delivery_id)
+        hook = await db.get(EmployerWebhook, item.employer_id) if item else None
+    if item is None:
+        return
+    # Сетевой вызов — вне транзакции и без открытой сессии
+    if hook is None or not hook.enabled:
+        status, error = None, "Webhook отключён"
+    else:
+        status, error = await _send(hook, item)
+    async with SessionFactory() as db:
+        item = await db.get(WebhookDelivery, delivery_id)
+        if item is None:
+            return
+        if hook is None or not hook.enabled:
+            item.status = WebhookDeliveryStatus.failed
+            item.last_error = error
+        else:
             item.attempts += 1
             item.response_status = status
             item.last_error = error
@@ -315,7 +369,30 @@ async def deliver_pending() -> int:
             else:
                 item.next_attempt_at = _now() + timedelta(seconds=delays[item.attempts - 1])
         await db.commit()
-        return len(items)
+
+
+async def deliver_pending() -> int:
+    """Отправить созревшие события. Аренда строк (SKIP LOCKED) исключает двойную отправку между процессами."""
+    if _delivery_lock.locked():
+        return 0
+    async with _delivery_lock:
+        settings = get_settings()
+        ids = await _claim(settings)
+        for delivery_id in ids:
+            await _deliver_one(delivery_id, settings.webhook_retry_delays_seconds)
+        return len(ids)
+
+
+async def forget_candidate(db: AsyncSession, candidate_id: int) -> None:
+    """Удаление аккаунта (152-ФЗ): события с данными кандидата не должны пережить его. Коммитит вызывающий."""
+    candidate = WebhookDelivery.payload["candidate"]["id"].as_integer()
+    await db.execute(delete(WebhookDelivery).where(candidate == candidate_id))
+
+
+async def _limit_manual(db: AsyncSession, employer_id: int) -> None:
+    settings = get_settings()
+    if not await ratelimit.hit(db, f"webhook-manual:{employer_id}", settings.webhook_manual_per_hour, 3600):
+        raise ratelimit.TooManyRequestsError("Слишком много ручных отправок, попробуйте позже")
 
 
 async def delivery_loop() -> None:

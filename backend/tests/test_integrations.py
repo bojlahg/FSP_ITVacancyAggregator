@@ -172,3 +172,61 @@ def test_signature_golden():
     assert integrations_service.sign("secret", 1700000000, b'{"a":1}') == (
         "t=1700000000,v1=" + hmac.new(b"secret", b'1700000000.{"a":1}', hashlib.sha256).hexdigest()
     )
+
+
+async def test_post_webhook_has_total_timeout(monkeypatch):
+    """Приёмник, отдающий ответ по байту, не держит доставку: тайм-аут на весь вызов, а не на чтение."""
+    import asyncio
+
+    monkeypatch.setattr(get_settings(), "webhook_timeout_seconds", 0.2)
+
+    class HangingClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            await asyncio.sleep(10)
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+    monkeypatch.setattr(integrations_service.httpx, "AsyncClient", HangingClient)
+    started = asyncio.get_running_loop().time()
+    with pytest.raises(TimeoutError):
+        await integrations_service.post_webhook("https://ats.example.com", {}, b"{}")
+    assert asyncio.get_running_loop().time() - started < 2
+
+
+async def test_manual_sends_are_rate_limited(client, session, sent, monkeypatch):
+    monkeypatch.setattr(get_settings(), "webhook_manual_per_hour", 2)
+    employer = await signup(client, "hr@bank.ru")
+    await client.put(f"{API}/employers/me/webhook", json={"url": HOOK}, headers=employer)
+    codes = [
+        (await client.post(f"{API}/employers/me/webhook/test", headers=employer)).status_code
+        for _ in range(3)
+    ]
+    assert codes == [202, 202, 429]
+
+
+async def test_demo_employer_cannot_connect_ats(client, session):
+    demo = await signup(client, get_settings().demo_employer_email)
+    key = await client.post(f"{API}/employers/me/api-keys", json={"name": "x"}, headers=demo)
+    assert key.status_code == 403 and key.json()["error"]["code"] == "demo_account"
+    hook = await client.put(f"{API}/employers/me/webhook", json={"url": HOOK}, headers=demo)
+    assert hook.status_code == 403
+
+
+async def test_account_deletion_removes_webhook_payloads(client, session, sent):
+    employer = await signup(client, "hr@bank.ru")
+    await client.put(f"{API}/employers/me/webhook", json={"url": HOOK}, headers=employer)
+    candidate, cid = await make_candidate(client, session, "anna@example.com")
+    invitation = (await client.post(f"{API}/invitations", json=invite(cid), headers=employer)).json()
+    await client.post(f"{API}/invitations/{invitation['id']}/accept", headers=candidate)
+    assert await session.scalar(select(WebhookDelivery)) is not None
+    deleted = await client.request(
+        "DELETE", f"{API}/candidates/me", headers=candidate, json={"confirm": True}
+    )
+    assert deleted.status_code in (200, 204), deleted.text
+    session.expire_all()
+    assert await session.scalar(select(WebhookDelivery)) is None, "контакты удалённого кандидата не остаются"

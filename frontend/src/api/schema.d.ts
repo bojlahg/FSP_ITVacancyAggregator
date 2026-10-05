@@ -9722,6 +9722,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Слишком много запросов */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
         };
     };
     list_webhook_deliveries_api_v1_employers_me_webhook_deliveries_get: {
@@ -9820,6 +9829,15 @@ export interface operations {
             };
             /** @description Ошибка валидации данных */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Слишком много запросов */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

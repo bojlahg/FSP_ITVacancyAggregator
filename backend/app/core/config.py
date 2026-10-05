@@ -47,6 +47,10 @@ class Settings(BaseSettings):
     webhook_retry_delays_seconds: list[int] = [30, 300, 1800]
     webhook_worker_interval_seconds: int = 30
     webhook_batch_size: int = 20
+    # Аренда пачки на отправку: больше, чем batch × timeout, чтобы строку не взял другой процесс
+    webhook_lease_seconds: int = 180
+    webhook_retention_days: int = 30
+    webhook_manual_per_hour: int = 20
     webhook_allow_private_hosts: bool = False
 
     email_backend: Literal["console", "smtp"] = "console"

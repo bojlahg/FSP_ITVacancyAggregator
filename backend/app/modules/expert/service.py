@@ -10,7 +10,7 @@ from collections import defaultdict
 from itertools import combinations
 
 from scipy.stats import spearmanr
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -102,6 +102,11 @@ async def ensure_pairs(db: AsyncSession) -> int:
             )
     await db.commit()
     return await db.scalar(select(func.count()).select_from(ExpertPair)) or 0
+
+
+async def forget_candidate(db: AsyncSession, candidate_id: int) -> None:
+    """Удаление аккаунта: снимок карточки в паре удаляется вместе с оценками. Коммитит вызывающий."""
+    await db.execute(delete(ExpertPair).where(ExpertPair.candidate_id == candidate_id))
 
 
 def _order_key(pair: ExpertPair, rater: str) -> tuple:

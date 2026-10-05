@@ -6952,6 +6952,16 @@
                 }
               }
             }
+          },
+          "429": {
+            "description": "Слишком много запросов",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -7077,6 +7087,16 @@
           },
           "409": {
             "description": "Конфликт состояния",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Слишком много запросов",
             "content": {
               "application/json": {
                 "schema": {

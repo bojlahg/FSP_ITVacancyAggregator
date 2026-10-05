@@ -25,6 +25,7 @@ from app.modules.categories import service as categories_service
 from app.modules.categories.models import CandidateCategory
 from app.modules.fsp import service as fsp_service
 from app.modules.fsp.models import FspAchievement
+from app.modules.fsp.schemas import FspProfileOut
 from app.modules.invitations.models import ContactUnlock, Invitation
 from app.modules.matching import market, scoring
 from app.modules.matching.models import CandidateSearchIndex
@@ -1003,6 +1004,15 @@ async def json_resume(db: AsyncSession, user_id: int, candidate_id: int, need_id
     )
 
 
+async def _fsp_for_employer(db: AsyncSession, candidate: Candidate, unlocked: bool) -> FspProfileOut:
+    """Достижения ФСП видны сразу, а номер ФСП ID — только после раскрытия контактов: по нему человека
+    находят в публичном рейтинге федерации."""
+    profile = await fsp_service.profile(db, candidate)
+    if not unlocked:
+        profile.fsp_id = None
+    return profile
+
+
 async def blind_card(db: AsyncSession, employer_id: int, candidate_id: int) -> CandidateCard:
     """Обезличенная карточка без score, объяснения и статусов — для экспертной разметки (§12.2)."""
     return await _card(db, employer_id, candidate_id, None, blind=True)
@@ -1079,7 +1089,7 @@ async def _card(
         ],
         approach_answers=approach_answers,
         integrity=integrity,
-        fsp=await fsp_service.profile(db, candidate) if privacy.show_fsp and row.has_fsp else None,
+        fsp=await _fsp_for_employer(db, candidate, unlocked) if privacy.show_fsp and row.has_fsp else None,
         contacts_unlocked=unlocked,
         contacts=await contacts_of(db, candidate) if unlocked else None,
         match=match,
