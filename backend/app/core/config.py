@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     cookie_secure: bool = False
     email_token_ttl_hours: int = 24
     # Версия юридических документов (backend/content/legal): пишется в consents.policy_version
-    policy_version: str = "2026-10-05"
+    policy_version: str = "2026-10-06"
     # Оператор ПДн и контакт для обращений — подставляются в тексты документов (§13.1)
     legal_operator: str = "Команда ITScout (оператор будет указан при запуске)"
     legal_contact_email: str = "privacy@itscout.ru"
