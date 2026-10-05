@@ -591,6 +591,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/candidates/me/grade-explanation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Как определён грейд: θ̂, SE, порог грейда, дата теста (решение принимает только тест) */
+        get: operations["get_grade_explanation_api_v1_candidates_me_grade_explanation_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/candidates/me/appeals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Мои обращения по результату теста и ответы на них */
+        get: operations["list_my_appeals_api_v1_candidates_me_appeals_get"];
+        put?: never;
+        /** Оспорить текущую категорию: обращение рассматривает человек, грейд само не меняет */
+        post: operations["create_appeal_api_v1_candidates_me_appeals_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/candidates/me/fsp": {
         parameters: {
             query?: never;
@@ -1614,6 +1649,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/legal/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Список юридических документов: политика, согласия, правила рекомендаций */
+        get: operations["list_documents_api_v1_legal_documents_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/legal/documents/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Текст документа; числа в правилах рекомендаций — из действующих весов подбора */
+        get: operations["get_document_api_v1_legal_documents__slug__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/expert/next": {
         parameters: {
             query?: never;
@@ -1776,6 +1845,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/appeals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Обращения кандидатов по грейду (роль admin) */
+        get: operations["list_appeals_api_v1_admin_appeals_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/appeals/{appeal_id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ответить на обращение и закрыть его; категорию ответ сам не меняет */
+        post: operations["resolve_appeal_api_v1_admin_appeals__appeal_id__resolve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/debug/status": {
         parameters: {
             query?: never;
@@ -1865,6 +1968,36 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AdminAppealOut */
+        AdminAppealOut: {
+            /** Id */
+            id: number;
+            /** @description Оспариваемая категория — снимок на момент обращения */
+            category: components["schemas"]["CategoryRef"];
+            /** Theta */
+            theta: number;
+            /** Comment */
+            comment: string;
+            status: components["schemas"]["AppealStatus"];
+            /** Reply */
+            reply: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Resolved At */
+            resolved_at: string | null;
+            /** Candidate Id */
+            candidate_id: number;
+            /** Candidate Name */
+            candidate_name: string;
+            /**
+             * Category Is Current
+             * @description Оспариваемая категория всё ещё действующая
+             */
+            category_is_current: boolean;
+        };
         /** AngoffGradeSummary */
         AngoffGradeSummary: {
             grade: components["schemas"]["Grade"];
@@ -2103,6 +2236,48 @@ export interface components {
             /** Last Used At */
             last_used_at: string | null;
         };
+        /** AppealCreate */
+        AppealCreate: {
+            /**
+             * Comment
+             * @description Почему кандидат не согласен с результатом теста
+             */
+            comment: string;
+        };
+        /** AppealOut */
+        AppealOut: {
+            /** Id */
+            id: number;
+            /** @description Оспариваемая категория — снимок на момент обращения */
+            category: components["schemas"]["CategoryRef"];
+            /** Theta */
+            theta: number;
+            /** Comment */
+            comment: string;
+            status: components["schemas"]["AppealStatus"];
+            /** Reply */
+            reply: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Resolved At */
+            resolved_at: string | null;
+        };
+        /** AppealResolve */
+        AppealResolve: {
+            /**
+             * Reply
+             * @description Ответ проверяющего кандидату
+             */
+            reply: string;
+        };
+        /**
+         * AppealStatus
+         * @enum {string}
+         */
+        AppealStatus: "open" | "resolved";
         /** ApplicationForCandidate */
         ApplicationForCandidate: {
             /** Id */
@@ -3530,6 +3705,55 @@ export interface components {
             /** Reason */
             reason?: string | null;
         };
+        /**
+         * GradeDecision
+         * @description Как тест определил категорию (§10.4): θ̂ против порога грейда; решение — только по тесту.
+         */
+        GradeDecision: {
+            category: components["schemas"]["CategoryRef"];
+            /**
+             * Theta
+             * @description Оценка способности θ̂ на шкале специализации
+             */
+            theta: number;
+            /**
+             * Se
+             * @description Стандартная ошибка θ̂
+             */
+            se: number | null;
+            /**
+             * Cut
+             * @description Порог грейда на той же шкале
+             */
+            cut: number;
+            next_grade: components["schemas"]["Grade"] | null;
+            /**
+             * Next Cut
+             * @description Порог следующего грейда
+             */
+            next_cut: number | null;
+            /** @description pass — θ̂ ≥ порога; confident_pass — с запасом в SE */
+            result: components["schemas"]["AttemptResult"] | null;
+            /** Percentile */
+            percentile: number | null;
+            /** Attempt Id */
+            attempt_id: number | null;
+            /**
+             * Tested At
+             * Format: date-time
+             * @description Когда завершён тест, давший категорию
+             */
+            tested_at: string;
+            /**
+             * Valid Until
+             * Format: date-time
+             */
+            valid_until: string;
+        };
+        /** GradeExplanation */
+        GradeExplanation: {
+            current: components["schemas"]["GradeDecision"] | null;
+        };
         /** GradeOut */
         GradeOut: {
             slug: components["schemas"]["Grade"];
@@ -3906,6 +4130,52 @@ export interface components {
             endDate?: string | null;
             /** Summary */
             summary?: string | null;
+        };
+        /** LegalDocument */
+        LegalDocument: {
+            /**
+             * Slug
+             * @enum {string}
+             */
+            slug: "recommendations" | "privacy" | "consent-pd" | "consent-publication";
+            /** Title */
+            title: string;
+            /**
+             * Version
+             * @description Редакция текста; та же строка пишется в consents.policy_version
+             */
+            version: string;
+            /** Summary */
+            summary: string;
+            /** Sections */
+            sections: components["schemas"]["LegalSection"][];
+        };
+        /** LegalDocumentRef */
+        LegalDocumentRef: {
+            /**
+             * Slug
+             * @enum {string}
+             */
+            slug: "recommendations" | "privacy" | "consent-pd" | "consent-publication";
+            /** Title */
+            title: string;
+        };
+        /** LegalSection */
+        LegalSection: {
+            /** Heading */
+            heading: string;
+            /** Paragraphs */
+            paragraphs?: string[];
+            /** Items */
+            items?: string[];
+            table?: components["schemas"]["LegalTable"] | null;
+        };
+        /** LegalTable */
+        LegalTable: {
+            /** Columns */
+            columns: string[];
+            /** Rows */
+            rows: string[][];
         };
         /** LlmTemplateDraft */
         LlmTemplateDraft: {
@@ -6732,6 +7002,142 @@ export interface operations {
             };
             /** @description Недостаточно прав */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_grade_explanation_api_v1_candidates_me_grade_explanation_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GradeExplanation"];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_my_appeals_api_v1_candidates_me_appeals_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppealOut"][];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    create_appeal_api_v1_candidates_me_appeals_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppealCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppealOut"];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Конфликт состояния */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ошибка валидации данных */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10361,6 +10767,66 @@ export interface operations {
             };
         };
     };
+    list_documents_api_v1_legal_documents_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegalDocumentRef"][];
+                };
+            };
+        };
+    };
+    get_document_api_v1_legal_documents__slug__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegalDocument"];
+                };
+            };
+            /** @description Не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ошибка валидации данных */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     next_pair_api_v1_expert_next_get: {
         parameters: {
             query?: never;
@@ -10826,6 +11292,126 @@ export interface operations {
             };
             /** @description Не найдено */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ошибка валидации данных */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_appeals_api_v1_admin_appeals_get: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["AppealStatus"] | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminAppealOut"][];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ошибка валидации данных */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    resolve_appeal_api_v1_admin_appeals__appeal_id__resolve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appeal_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppealResolve"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminAppealOut"];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Конфликт состояния */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -12,7 +12,15 @@ from app.modules.candidates.models import Candidate
 from app.modules.catalog.service import get_catalog
 from app.modules.categories.models import CandidateCategory
 from app.modules.categories.rules import GRADES, AttemptRecord, CurrentCategory, Decision, RuleConfig, decide
-from app.modules.categories.schemas import AttemptSummary, CategoryRecord, GradeAction, GradeStatus
+from app.modules.categories.schemas import (
+    AttemptSummary,
+    CategoryRecord,
+    GradeAction,
+    GradeDecision,
+    GradeExplanation,
+    GradeStatus,
+)
+from app.modules.testing.engine.bank import get_blueprints
 from app.modules.testing.models import TestAttempt
 
 
@@ -144,6 +152,32 @@ async def grade_status(db: AsyncSession, candidate: Candidate) -> GradeStatus:
         ],
         actions=actions,
         cooldown_days=get_settings().grade_change_cooldown_days,
+    )
+
+
+async def grade_explanation(db: AsyncSession, candidate: Candidate) -> GradeExplanation:
+    """Блок «Как определён грейд» (152-ФЗ ст. 16): решение принимает тест, см. §10.4."""
+    current = await get_current(db, candidate.id)
+    if current is None:
+        return GradeExplanation(current=None)
+    attempt = await db.get(TestAttempt, current.attempt_id) if current.attempt_id else None
+    blueprints = get_blueprints()
+    grade = current.grade.value
+    next_grade = blueprints.next_grade(grade)
+    return GradeExplanation(
+        current=GradeDecision(
+            category=category_ref(current.specialization, grade),
+            theta=current.theta,
+            se=attempt.se if attempt else None,
+            cut=blueprints.cut(grade),
+            next_grade=Grade(next_grade) if next_grade else None,
+            next_cut=blueprints.cut(next_grade) if next_grade else None,
+            result=attempt.result if attempt else None,
+            percentile=current.percentile,
+            attempt_id=current.attempt_id,
+            tested_at=(attempt.finished_at if attempt and attempt.finished_at else current.assigned_at),
+            valid_until=current.valid_until,
+        )
     )
 
 

@@ -175,3 +175,8 @@ class WebhookDeliveryStatus(StrEnum):
     pending = "pending"
     delivered = "delivered"
     failed = "failed"
+
+
+class AppealStatus(StrEnum):
+    open = "open"
+    resolved = "resolved"

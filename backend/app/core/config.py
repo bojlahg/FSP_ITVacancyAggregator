@@ -33,7 +33,11 @@ class Settings(BaseSettings):
     # Secure-cookie включаем, когда прод работает по HTTPS
     cookie_secure: bool = False
     email_token_ttl_hours: int = 24
+    # Версия юридических документов (backend/content/legal): пишется в consents.policy_version
     policy_version: str = "2026-10-05"
+    # Оператор ПДн и контакт для обращений — подставляются в тексты документов (§13.1)
+    legal_operator: str = "Команда ITScout (оператор будет указан при запуске)"
+    legal_contact_email: str = "privacy@itscout.ru"
 
     # Ограничение частоты на /auth/*: запросов в окне на один IP
     auth_rate_limit: int = 20

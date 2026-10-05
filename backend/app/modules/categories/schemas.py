@@ -41,3 +41,23 @@ class GradeStatus(ApiModel):
     attempts: list[AttemptSummary]
     actions: list[GradeAction]
     cooldown_days: int
+
+
+class GradeDecision(ApiModel):
+    """Как тест определил категорию (§10.4): θ̂ против порога грейда; решение — только по тесту."""
+
+    category: CategoryRef
+    theta: float = Field(description="Оценка способности θ̂ на шкале специализации")
+    se: float | None = Field(description="Стандартная ошибка θ̂")
+    cut: float = Field(description="Порог грейда на той же шкале")
+    next_grade: Grade | None
+    next_cut: float | None = Field(description="Порог следующего грейда")
+    result: AttemptResult | None = Field(description="pass — θ̂ ≥ порога; confident_pass — с запасом в SE")
+    percentile: float | None
+    attempt_id: int | None
+    tested_at: datetime = Field(description="Когда завершён тест, давший категорию")
+    valid_until: datetime
+
+
+class GradeExplanation(ApiModel):
+    current: GradeDecision | None

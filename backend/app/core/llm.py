@@ -235,6 +235,8 @@ async def _yandex_call(system: str, user: str) -> tuple[str, int]:
     headers = {
         "Authorization": f"Api-Key {settings.yandex_api_key}",
         "x-folder-id": settings.yandex_folder_id,
+        # Yandex не сохраняет запросы и ответы у себя (политика ПДн, content/legal/privacy.yaml)
+        "x-data-logging-enabled": "false",
     }
     data = await post_json(YANDEX_COMPLETION_URL, headers, body)
     return data["result"]["alternatives"][0]["message"]["text"], _usage_tokens(data)

@@ -2127,6 +2127,176 @@
         ]
       }
     },
+    "/api/v1/candidates/me/grade-explanation": {
+      "get": {
+        "tags": [
+          "candidate: testing"
+        ],
+        "summary": "Как определён грейд: θ̂, SE, порог грейда, дата теста (решение принимает только тест)",
+        "operationId": "get_grade_explanation_api_v1_candidates_me_grade_explanation_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GradeExplanation"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Требуется вход",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Недостаточно прав",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/candidates/me/appeals": {
+      "get": {
+        "tags": [
+          "candidate: testing"
+        ],
+        "summary": "Мои обращения по результату теста и ответы на них",
+        "operationId": "list_my_appeals_api_v1_candidates_me_appeals_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AppealOut"
+                  },
+                  "type": "array",
+                  "title": "Response List My Appeals Api V1 Candidates Me Appeals Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Требуется вход",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Недостаточно прав",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "candidate: testing"
+        ],
+        "summary": "Оспорить текущую категорию: обращение рассматривает человек, грейд само не меняет",
+        "operationId": "create_appeal_api_v1_candidates_me_appeals_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AppealCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppealOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Требуется вход",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Недостаточно прав",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт состояния",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Ошибка валидации данных",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/candidates/me/fsp": {
       "get": {
         "tags": [
@@ -7499,6 +7669,83 @@
         }
       }
     },
+    "/api/v1/legal/documents": {
+      "get": {
+        "tags": [
+          "public: legal"
+        ],
+        "summary": "Список юридических документов: политика, согласия, правила рекомендаций",
+        "operationId": "list_documents_api_v1_legal_documents_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LegalDocumentRef"
+                  },
+                  "type": "array",
+                  "title": "Response List Documents Api V1 Legal Documents Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/legal/documents/{slug}": {
+      "get": {
+        "tags": [
+          "public: legal"
+        ],
+        "summary": "Текст документа; числа в правилах рекомендаций — из действующих весов подбора",
+        "operationId": "get_document_api_v1_legal_documents__slug__get",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegalDocument"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Не найдено",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Ошибка валидации данных",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/expert/next": {
       "get": {
         "tags": [
@@ -8154,6 +8401,181 @@
         }
       }
     },
+    "/api/v1/admin/appeals": {
+      "get": {
+        "tags": [
+          "admin: appeals"
+        ],
+        "summary": "Обращения кандидатов по грейду (роль admin)",
+        "operationId": "list_appeals_api_v1_admin_appeals_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/AppealStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AdminAppealOut"
+                  },
+                  "title": "Response List Appeals Api V1 Admin Appeals Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Требуется вход",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Недостаточно прав",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Ошибка валидации данных",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/appeals/{appeal_id}/resolve": {
+      "post": {
+        "tags": [
+          "admin: appeals"
+        ],
+        "summary": "Ответить на обращение и закрыть его; категорию ответ сам не меняет",
+        "operationId": "resolve_appeal_api_v1_admin_appeals__appeal_id__resolve_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "appeal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Appeal Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AppealResolve"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminAppealOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Требуется вход",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Недостаточно прав",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Не найдено",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт состояния",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Ошибка валидации данных",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/debug/status": {
       "get": {
         "tags": [
@@ -8457,6 +8879,85 @@
   },
   "components": {
     "schemas": {
+      "AdminAppealOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "category": {
+            "$ref": "#/components/schemas/CategoryRef",
+            "description": "Оспариваемая категория — снимок на момент обращения"
+          },
+          "theta": {
+            "type": "number",
+            "title": "Theta"
+          },
+          "comment": {
+            "type": "string",
+            "title": "Comment"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AppealStatus"
+          },
+          "reply": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reply"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          },
+          "candidate_id": {
+            "type": "integer",
+            "title": "Candidate Id"
+          },
+          "candidate_name": {
+            "type": "string",
+            "title": "Candidate Name"
+          },
+          "category_is_current": {
+            "type": "boolean",
+            "title": "Category Is Current",
+            "description": "Оспариваемая категория всё ещё действующая"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "category",
+          "theta",
+          "comment",
+          "status",
+          "reply",
+          "created_at",
+          "resolved_at",
+          "candidate_id",
+          "candidate_name",
+          "category_is_current"
+        ],
+        "title": "AdminAppealOut"
+      },
       "AngoffGradeSummary": {
         "properties": {
           "grade": {
@@ -8951,6 +9452,109 @@
           "last_used_at"
         ],
         "title": "ApiKeyOut"
+      },
+      "AppealCreate": {
+        "properties": {
+          "comment": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 10,
+            "title": "Comment",
+            "description": "Почему кандидат не согласен с результатом теста"
+          }
+        },
+        "type": "object",
+        "required": [
+          "comment"
+        ],
+        "title": "AppealCreate"
+      },
+      "AppealOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "category": {
+            "$ref": "#/components/schemas/CategoryRef",
+            "description": "Оспариваемая категория — снимок на момент обращения"
+          },
+          "theta": {
+            "type": "number",
+            "title": "Theta"
+          },
+          "comment": {
+            "type": "string",
+            "title": "Comment"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AppealStatus"
+          },
+          "reply": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reply"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "category",
+          "theta",
+          "comment",
+          "status",
+          "reply",
+          "created_at",
+          "resolved_at"
+        ],
+        "title": "AppealOut"
+      },
+      "AppealResolve": {
+        "properties": {
+          "reply": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Reply",
+            "description": "Ответ проверяющего кандидату"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reply"
+        ],
+        "title": "AppealResolve"
+      },
+      "AppealStatus": {
+        "type": "string",
+        "enum": [
+          "open",
+          "resolved"
+        ],
+        "title": "AppealStatus"
       },
       "ApplicationForCandidate": {
         "properties": {
@@ -12920,6 +13524,136 @@
         ],
         "title": "GradeAction"
       },
+      "GradeDecision": {
+        "properties": {
+          "category": {
+            "$ref": "#/components/schemas/CategoryRef"
+          },
+          "theta": {
+            "type": "number",
+            "title": "Theta",
+            "description": "Оценка способности θ̂ на шкале специализации"
+          },
+          "se": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Se",
+            "description": "Стандартная ошибка θ̂"
+          },
+          "cut": {
+            "type": "number",
+            "title": "Cut",
+            "description": "Порог грейда на той же шкале"
+          },
+          "next_grade": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Grade"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "next_cut": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cut",
+            "description": "Порог следующего грейда"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AttemptResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "pass — θ̂ ≥ порога; confident_pass — с запасом в SE"
+          },
+          "percentile": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percentile"
+          },
+          "attempt_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attempt Id"
+          },
+          "tested_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Tested At",
+            "description": "Когда завершён тест, давший категорию"
+          },
+          "valid_until": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Valid Until"
+          }
+        },
+        "type": "object",
+        "required": [
+          "category",
+          "theta",
+          "se",
+          "cut",
+          "next_grade",
+          "next_cut",
+          "result",
+          "percentile",
+          "attempt_id",
+          "tested_at",
+          "valid_until"
+        ],
+        "title": "GradeDecision",
+        "description": "Как тест определил категорию (§10.4): θ̂ против порога грейда; решение — только по тесту."
+      },
+      "GradeExplanation": {
+        "properties": {
+          "current": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GradeDecision"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "current"
+        ],
+        "title": "GradeExplanation"
+      },
       "GradeOut": {
         "properties": {
           "slug": {
@@ -13913,6 +14647,137 @@
           "position"
         ],
         "title": "JsonResumeWork"
+      },
+      "LegalDocument": {
+        "properties": {
+          "slug": {
+            "type": "string",
+            "enum": [
+              "recommendations",
+              "privacy",
+              "consent-pd",
+              "consent-publication"
+            ],
+            "title": "Slug"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version",
+            "description": "Редакция текста; та же строка пишется в consents.policy_version"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/LegalSection"
+            },
+            "type": "array",
+            "title": "Sections"
+          }
+        },
+        "type": "object",
+        "required": [
+          "slug",
+          "title",
+          "version",
+          "summary",
+          "sections"
+        ],
+        "title": "LegalDocument"
+      },
+      "LegalDocumentRef": {
+        "properties": {
+          "slug": {
+            "type": "string",
+            "enum": [
+              "recommendations",
+              "privacy",
+              "consent-pd",
+              "consent-publication"
+            ],
+            "title": "Slug"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          }
+        },
+        "type": "object",
+        "required": [
+          "slug",
+          "title"
+        ],
+        "title": "LegalDocumentRef"
+      },
+      "LegalSection": {
+        "properties": {
+          "heading": {
+            "type": "string",
+            "title": "Heading"
+          },
+          "paragraphs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Paragraphs"
+          },
+          "items": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "table": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LegalTable"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "heading"
+        ],
+        "title": "LegalSection"
+      },
+      "LegalTable": {
+        "properties": {
+          "columns": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Columns"
+          },
+          "rows": {
+            "items": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Rows"
+          }
+        },
+        "type": "object",
+        "required": [
+          "columns",
+          "rows"
+        ],
+        "title": "LegalTable"
       },
       "LlmTemplateDraft": {
         "properties": {
@@ -17000,6 +17865,14 @@
     {
       "name": "public: test explainer",
       "description": "Страница «Как работает тест» без входа"
+    },
+    {
+      "name": "public: legal",
+      "description": "Политика обработки ПДн, согласия и правила рекомендательных технологий без входа"
+    },
+    {
+      "name": "admin: appeals",
+      "description": "Рассмотрение возражений кандидатов против категории"
     },
     {
       "name": "expert",

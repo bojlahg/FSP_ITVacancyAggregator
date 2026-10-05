@@ -11,6 +11,7 @@ from app.core.db import SessionFactory
 from app.core.errors import register_error_handlers, use_unified_validation_schema
 from app.core.schemas import ApiModel
 from app.modules.admin.router import router as admin_router
+from app.modules.appeals import router as appeals
 from app.modules.applications import router as applications
 from app.modules.auth.router import me_router
 from app.modules.auth.router import router as auth_router
@@ -25,6 +26,7 @@ from app.modules.fsp.router import router as fsp_router
 from app.modules.integrations import service as integrations_service
 from app.modules.integrations.router import router as integrations_router
 from app.modules.invitations import router as invitations
+from app.modules.legal.router import router as legal_router
 from app.modules.matching.router import candidate_router as market_router
 from app.modules.matching.router import need_router as matching_need_router
 from app.modules.matching.router import router as matching_router
@@ -63,6 +65,11 @@ TAGS = [
         "description": "Интеграция с ATS: API-ключи (заголовок X-API-Key) и подписанные webhook'и",
     },
     {"name": "public: test explainer", "description": "Страница «Как работает тест» без входа"},
+    {
+        "name": "public: legal",
+        "description": "Политика обработки ПДн, согласия и правила рекомендательных технологий без входа",
+    },
+    {"name": "admin: appeals", "description": "Рассмотрение возражений кандидатов против категории"},
     {"name": "expert", "description": "Разметка пар, метрики подбора и modified Angoff для порогов"},
 ]
 
@@ -132,6 +139,7 @@ def create_app() -> FastAPI:
         survey_router,
         testing_router,
         categories_router,
+        appeals.candidate_router,
         fsp_router,
         invitations.candidate_router,
         applications.candidate_router,
@@ -147,9 +155,11 @@ def create_app() -> FastAPI:
         tasks.employer_router,
         integrations_router,
         explainer_router,
+        legal_router,
         expert_router,
         admin_router,
         invitations.admin_router,
+        appeals.admin_router,
         debug_router,
     ):
         api.include_router(router)

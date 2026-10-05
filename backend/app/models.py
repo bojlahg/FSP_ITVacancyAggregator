@@ -3,6 +3,7 @@
 from app.core.db import Base
 from app.core.ratelimit import RateLimitHit
 from app.core.types import add_enum_checks
+from app.modules.appeals.models import GradeAppeal
 from app.modules.applications.models import Application
 from app.modules.auth.models import AuditLog, Consent, EmailToken, RefreshToken, User
 from app.modules.candidates.models import Candidate, CandidateExperience, CandidateSkill
@@ -43,6 +44,7 @@ __all__ = [
     "EmployerTask",
     "FspAchievement",
     "FspRank",
+    "GradeAppeal",
     "HiringNeed",
     "Invitation",
     "InvitationReport",
