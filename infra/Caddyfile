@@ -23,7 +23,11 @@
 	import site
 }
 
-# Домен: Caddy сам выпускает сертификат Let's Encrypt и редиректит HTTP → HTTPS. www добавить после A-записи.
+# Домен: Caddy сам выпускает сертификат Let's Encrypt и редиректит HTTP → HTTPS.
 itscout.ru {
 	import site
+}
+
+www.itscout.ru {
+	redir https://itscout.ru{uri} permanent
 }
