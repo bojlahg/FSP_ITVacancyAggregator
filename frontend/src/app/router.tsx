@@ -41,6 +41,8 @@ export const router = createBrowserRouter([
             ),
           },
           { path: "verify-email", element: <VerifyEmailPage /> },
+          { path: "expert/join", lazy: lazyPage(() => import("@/pages/public/ExpertJoinPage")) },
+          { path: "how-it-works", lazy: lazyPage(() => import("@/pages/public/HowItWorksPage")) },
         ],
       },
       {
@@ -86,6 +88,16 @@ export const router = createBrowserRouter([
               { path: "vacancy-test", lazy: lazyPage(() => import("@/pages/employer/VacancyTestPage")) },
               { path: "tasks", lazy: lazyPage(() => import("@/pages/employer/EmployerTasksPage")) },
             ],
+          },
+        ],
+      },
+      {
+        path: "expert",
+        element: <RequireRole role="expert" />,
+        children: [
+          {
+            lazy: lazyPage(() => import("@/layouts/ExpertLayout")),
+            children: [{ index: true, lazy: lazyPage(() => import("@/pages/expert/ExpertPage")) }],
           },
         ],
       },

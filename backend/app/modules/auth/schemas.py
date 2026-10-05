@@ -17,6 +17,13 @@ class RegisterRequest(ApiModel):
     )
 
 
+class RegisterExpertRequest(ApiModel):
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=128)
+    code: str = Field(min_length=1, max_length=128, description="Код-приглашение от команды")
+    consent_pd_processing: bool = Field(description="Согласие на обработку ПДн — обязательно")
+
+
 class LoginRequest(ApiModel):
     email: EmailStr
     password: str

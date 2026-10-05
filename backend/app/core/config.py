@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     # Демо-админ (сброс демо-данных) создаётся генератором, только если пароль задан в .env
     demo_admin_email: str = "admin@itscout.ru"
     demo_admin_password: str | None = None
+    # Код-приглашение для регистрации экспертов разметки (§12.2); пусто — регистрация экспертов выключена
+    expert_invite_code: str = ""
 
     email_backend: Literal["console", "smtp"] = "console"
     email_verification_required: bool = False
@@ -85,6 +87,12 @@ class Settings(BaseSettings):
     # full — полный тест (§10.3), short — сокращённый для демо жюри
     test_mode: Literal["full", "short"] = "full"
     answer_grace_seconds: int = 5
+
+    # Публичная страница «Как работает тест»: лимиты, чтобы запросы без входа оставались дешёвыми
+    explainer_max_seeds: int = 6
+    explainer_max_sample: int = 200
+    explainer_leak_size: int = 50
+    explainer_simulations: int = 30
 
     # Правила грейда и подбора — см. docs/implementation.md §6.3, §8.6
     grade_change_cooldown_days: int = 90

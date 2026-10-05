@@ -54,6 +54,7 @@ export function useAuth(): AuthState {
 export function homePathFor(role: AuthUser["role"]): string {
   if (role === "candidate") return "/candidate";
   if (role === "employer") return "/employer";
+  if (role === "expert") return "/expert";
   return "/";
 }
 

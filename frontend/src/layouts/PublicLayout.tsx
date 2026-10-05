@@ -18,6 +18,11 @@ export default function PublicLayout() {
           <span className="hidden font-mono text-xs tracking-wide text-muted-foreground md:inline">
             Лидеры цифровой трансформации 2026 · спецтрек ФСП
           </span>
+          {pathname !== "/how-it-works" && (
+            <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
+              <Link to="/how-it-works">Как работает тест</Link>
+            </Button>
+          )}
           {user ? (
             <Button asChild variant={isLanding ? "outline" : "ghost"} size="sm">
               <Link to={homePathFor(user.role)}>В кабинет</Link>

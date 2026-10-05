@@ -105,6 +105,9 @@ def weighted(rng: random.Random, pairs: list[tuple]) -> object:
     return rng.choices(values, weights=weights, k=1)[0]
 
 
+PRESERVED_TABLES = {"expert_pairs", "expert_labels"}
+
+
 class Seeder:
     def __init__(self, db: AsyncSession, seed: int = SEED):
         self.db = db
@@ -127,7 +130,10 @@ class Seeder:
     # ---------- общее ----------
 
     async def reset(self) -> None:
-        tables = ", ".join(f'"{table.name}"' for table in Base.metadata.sorted_tables)
+        # Экспертная разметка не зависит от демо-данных (снимки пар) и переживает reseed
+        tables = ", ".join(
+            f'"{table.name}"' for table in Base.metadata.sorted_tables if table.name not in PRESERVED_TABLES
+        )
         await self.db.execute(text(f"TRUNCATE {tables} RESTART IDENTITY CASCADE"))
 
     def user(self, email: str, role: Role, created_at: datetime) -> User:

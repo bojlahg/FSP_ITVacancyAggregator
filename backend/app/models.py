@@ -7,6 +7,7 @@ from app.modules.auth.models import AuditLog, Consent, EmailToken, RefreshToken,
 from app.modules.candidates.models import Candidate, CandidateExperience, CandidateSkill
 from app.modules.categories.models import CandidateCategory
 from app.modules.employers.models import Employer
+from app.modules.expert.models import ExpertLabel, ExpertPair
 from app.modules.fsp.models import CandidateCompetency, FspAchievement, FspRank
 from app.modules.invitations.models import ContactUnlock, Invitation
 from app.modules.matching.models import CandidateSearchIndex
@@ -32,6 +33,8 @@ __all__ = [
     "ContactUnlock",
     "EmailToken",
     "Employer",
+    "ExpertLabel",
+    "ExpertPair",
     "EmployerTask",
     "FspAchievement",
     "FspRank",

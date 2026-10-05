@@ -25,6 +25,7 @@ class MatchingRules(BaseModel):
     freshness: dict[str, float]
     vps_weights: dict[str, float]
     market: dict[str, float]
+    expert: dict[str, float]
     recommendations: dict[str, int]
 
 

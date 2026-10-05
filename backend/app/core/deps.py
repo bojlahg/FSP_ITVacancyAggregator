@@ -53,3 +53,16 @@ CurrentUser = Annotated[AuthUser, Depends(get_current_user)]
 CurrentCandidate = Annotated[AuthUser, Depends(_require(Role.candidate))]
 CurrentEmployer = Annotated[AuthUser, Depends(_require(Role.employer))]
 CurrentAdmin = Annotated[AuthUser, Depends(_require(Role.admin))]
+CurrentExpert = Annotated[AuthUser, Depends(_require(Role.expert))]
+
+
+def _require_any(*roles: Role):
+    def dependency(user: Annotated[AuthUser, Depends(get_current_user)]) -> AuthUser:
+        if user.role not in roles:
+            raise ForbiddenError()
+        return user
+
+    return dependency
+
+
+CurrentExpertOrAdmin = Annotated[AuthUser, Depends(_require_any(Role.expert, Role.admin))]

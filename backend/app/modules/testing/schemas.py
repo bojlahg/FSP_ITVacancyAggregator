@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import Field, model_validator
 
@@ -189,3 +190,116 @@ class VacancyTestPreview(ApiModel):
     llm_available: bool = Field(description="Генерация черновиков LLM включена на стенде")
     llm_note: str = Field(description="Что с черновиками: созданы, не нужны или генерация выключена")
     llm_drafts: list[LlmTemplateDraft]
+
+
+# Публичная страница «Как работает тест». Ключи ответов сюда не попадают (инвариант §13).
+
+
+class ExplainerGrade(ApiModel):
+    grade: Grade
+    name: str
+    cut: float = Field(description="Порог грейда на IRT-шкале специализации, логиты")
+
+
+class ExplainerSpecialization(ApiModel):
+    slug: str
+    name: str
+    active_templates: int = Field(description="Активных шаблонов с автопроверкой в банке специализации")
+    topics: int = Field(description="Тем в blueprint специализации")
+
+
+class ExplainerOverview(ApiModel):
+    grades: list[ExplainerGrade]
+    active_templates: int = Field(description="Активных шаблонов с автопроверкой во всём банке")
+    specializations: list[ExplainerSpecialization] = Field(description="Только специализации с тестом")
+    stage1_items: int
+    stage2_items: int
+    extra_items_max: int
+    stage_split: float = Field(description="Насколько θ̂ этапа 1 должна отойти от порога, чтобы сменить блок")
+    max_seeds: int = Field(description="Сколько экземпляров можно запросить за раз")
+    max_sample: int = Field(description="Максимальный размер выборки для подсчёта разнообразия")
+    leak_size: int = Field(description="Сколько экземпляров шаблона считаются «слитыми» в подсчёте")
+
+
+class ExplainerTemplate(ApiModel):
+    id: str
+    topic: str
+    topic_name: str
+    kind: ItemKind
+    skills: list[str] = Field(description="Названия навыков, которые проверяет шаблон")
+    a: float = Field(description="Дискриминация")
+    b: float = Field(description="Сложность на IRT-шкале специализации, логиты")
+    c: float = Field(description="Вероятность угадать: 1/k для выбора одного варианта, иначе 0")
+    difficulty: str = Field(description="Сложность словами относительно порогов грейдов")
+
+
+class CurvePoint(ApiModel):
+    theta: float
+    value: float
+
+
+class ExplainerInstance(ApiModel):
+    seed: int
+    stem: str
+    code: str | None = None
+    code_language: str | None = None
+    options: list[ItemOption]
+
+
+class ExplainerInstances(ApiModel):
+    template: ExplainerTemplate
+    icc: list[CurvePoint] = Field(description="Вероятность верного ответа P(θ) по модели 3PL")
+    instances: list[ExplainerInstance]
+
+
+class ExplainerDiversity(ApiModel):
+    template_id: str
+    sample: int = Field(description="Сколько экземпляров отрендерено")
+    distinct: int = Field(description="Сколько из них различны по тексту, коду и набору вариантов")
+    collision_probability: float = Field(
+        description="Вероятность, что два кандидата получат одинаковый экземпляр"
+    )
+    leak_size: int = Field(description="Сколько экземпляров считаются слитыми")
+    leak_match_share: float = Field(
+        description="Доля новых экземпляров, совпавших с одним из слитых: столько ответов помогла бы утечка"
+    )
+
+
+class InformationPoint(ApiModel):
+    theta: float
+    information: float = Field(description="Информация Фишера теста в точке θ")
+    se: float = Field(description="Ожидаемая стандартная ошибка θ̂: 1/√(I + 1) с априорным N(0,1)")
+
+
+class ExplainerItemPoint(ApiModel):
+    b: float
+    a: float
+    stage: int = Field(description="1 — этап 1, 2 — этап 2, 3 — дополнительное задание у порога")
+
+
+class ExplainerScenario(ApiModel):
+    scenario: Literal["below", "at", "above"]
+    label: str
+    theta_true: float = Field(description="Истинная способность симулированного кандидата")
+    stage2_target: float = Field(description="Куда чаще всего уходит блок этапа 2 (средняя цель)")
+    items_mean: float = Field(description="Среднее число оценённых заданий")
+    se_mean: float = Field(description="Средняя итоговая SE оценки θ̂")
+    pass_share: float = Field(description="Доля симуляций с решением «пройден»")
+    information: list[InformationPoint] = Field(description="Средняя информационная функция теста")
+    items: list[ExplainerItemPoint] = Field(description="Задания одной симулированной попытки")
+
+
+class ExplainerInformation(ApiModel):
+    specialization: str
+    grade: Grade
+    cut: float
+    grades: list[ExplainerGrade]
+    stack_module: str | None = Field(description="Стек-модуль симулированных кандидатов")
+    simulations: int = Field(description="Симулированных попыток на сценарий")
+    template_overlap: float = Field(
+        description="Средняя доля общих шаблонов у двух попыток сценария «у порога»"
+    )
+    instance_overlap: float = Field(
+        description="Средняя доля общих экземпляров (тот же текст, код и варианты) у тех же пар попыток"
+    )
+    scenarios: list[ExplainerScenario]

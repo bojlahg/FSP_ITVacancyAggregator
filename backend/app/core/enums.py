@@ -5,6 +5,7 @@ class Role(StrEnum):
     candidate = "candidate"
     employer = "employer"
     admin = "admin"
+    expert = "expert"  # разметка пар «потребность — кандидат» для экспертной валидации подбора (§12.2)
 
 
 class Grade(StrEnum):

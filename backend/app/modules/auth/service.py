@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.audit import audit
 from app.core.config import get_settings
 from app.core.enums import ConsentKind, EmailTokenPurpose, Role
-from app.core.errors import AppError, ConflictError, UnauthorizedError
+from app.core.errors import AppError, ConflictError, ForbiddenError, NotFoundError, UnauthorizedError
 from app.core.mail import Mail
 from app.core.security import (
     create_access_token,
@@ -19,7 +19,7 @@ from app.core.security import (
     verify_password,
 )
 from app.modules.auth.models import Consent, EmailToken, RefreshToken, User
-from app.modules.auth.schemas import RegisterRequest, TokenResponse, UserOut
+from app.modules.auth.schemas import RegisterExpertRequest, RegisterRequest, TokenResponse, UserOut
 from app.modules.candidates import service as candidates_service
 from app.modules.employers import service as employers_service
 
@@ -139,6 +139,34 @@ async def register(db: AsyncSession, body: RegisterRequest) -> Session:
 
     mail = await _verification_mail(db, user)
     return await _issue_session(db, user, verification_mail=mail)
+
+
+async def register_expert(db: AsyncSession, body: RegisterExpertRequest) -> Session:
+    """Эксперт разметки (§12.2) регистрируется сам по коду-приглашению; без кода функция выключена."""
+    settings = get_settings()
+    if not settings.expert_invite_code:
+        raise NotFoundError("Регистрация экспертов выключена")
+    if not secrets.compare_digest(body.code.strip(), settings.expert_invite_code):
+        raise ForbiddenError("Неверный код-приглашение", code="invalid_invite_code")
+    if not body.consent_pd_processing:
+        raise AppError(
+            "Без согласия на обработку персональных данных регистрация невозможна", code="consent_required"
+        )
+    if await _get_user_by_email(db, body.email):
+        raise ConflictError("Этот email уже зарегистрирован", code="email_taken")
+    user = User(
+        email=body.email.lower(),
+        password_hash=hash_password(body.password),
+        role=Role.expert,
+        email_verified_at=_now(),  # адрес подтверждает код-приглашение, письмо не нужно
+    )
+    db.add(user)
+    await db.flush()
+    db.add(Consent(user_id=user.id, kind=ConsentKind.pd_processing, policy_version=settings.policy_version))
+    audit(
+        db, actor_user_id=user.id, action="expert.registered", object_type="user", object_id=user.id, meta={}
+    )
+    return await _issue_session(db, user)
 
 
 async def login(db: AsyncSession, email: str, password: str) -> Session:

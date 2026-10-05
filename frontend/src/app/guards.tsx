@@ -1,9 +1,9 @@
 import { useState, type ReactNode } from "react";
 import { Navigate, Outlet, useLocation, useSearchParams } from "react-router";
-import { authStore, homePathFor, postLoginPath, useAuth, type UserRole } from "@/lib/auth";
+import { type AuthUser, authStore, homePathFor, postLoginPath, useAuth } from "@/lib/auth";
 
 /** Кабинет роли: аноним → /login?next=<путь>, чужая роль → в свой кабинет. */
-export function RequireRole({ role }: { role: UserRole }) {
+export function RequireRole({ role }: { role: AuthUser["role"] }) {
   const { user } = useAuth();
   const location = useLocation();
 

@@ -640,6 +640,40 @@ async def invitation_statuses(
     return latest
 
 
+# ---------- экспертная разметка (§12.2) ----------
+
+
+async def rank_for_need(db: AsyncSession, need: HiringNeed) -> list[tuple[int, int]]:
+    """Порядок подборки по умолчанию: по категориям, внутри — по score, «вне фильтров» в конце."""
+    spec = need_spec(need)
+    specs, grades = _neighbourhood(spec)
+    rows = await _visible_rows(db, need.employer_id, specs, grades)
+    best = await _best_fsp(db, [row.candidate_id for row, _ in rows])
+    now = datetime.now(UTC)
+    ranked = []
+    for row, _candidate in rows:
+        facts = _facts(row, best.get(row.candidate_id), now)
+        result = scoring.evaluate(facts, spec, _labels(row))
+        if result is None:
+            continue
+        key = (bool(result.out_of_filter), FIT_ORDER[result.fit], -result.score, -facts.fsp_score)
+        ranked.append((key, row.candidate_id, result.score))
+    return [(candidate_id, score) for _key, candidate_id, score in sorted(ranked)]
+
+
+async def keyword_rank(db: AsyncSession, need: HiringNeed) -> list[int]:
+    """Базовая линия «как на обычной площадке»: специализация и счёт навыков профиля, без теста и score."""
+    rows = await _visible_rows(db, need.employer_id, {need.specialization})
+    required, optional = list(need.required_skills or []), list(need.optional_skills or [])
+
+    def keywords(row: CandidateSearchIndex) -> float:
+        skills = row.skills_status or {}
+        return sum(1.0 for s in required if s in skills) + sum(0.3 for s in optional if s in skills)
+
+    ordered = sorted(rows, key=lambda pair: (-keywords(pair[0]), pair[0].candidate_id))
+    return [row.candidate_id for row, _ in ordered]
+
+
 # ---------- каталог и поиск ----------
 
 
@@ -755,9 +789,25 @@ async def candidate_card(
     db: AsyncSession, user_id: int, candidate_id: int, need_id: int | None
 ) -> CandidateCard:
     employer_id = await _employer_id(db, user_id)
+    need = None
+    if need_id is not None:
+        from app.modules.needs import service as needs_service
+
+        need = await needs_service.get_own_need(db, user_id, need_id)
+    return await _card(db, employer_id, candidate_id, need, blind=False)
+
+
+async def blind_card(db: AsyncSession, employer_id: int, candidate_id: int) -> CandidateCard:
+    """Обезличенная карточка без score, объяснения и статусов — для экспертной разметки (§12.2)."""
+    return await _card(db, employer_id, candidate_id, None, blind=True)
+
+
+async def _card(
+    db: AsyncSession, employer_id: int, candidate_id: int, need: HiringNeed | None, *, blind: bool
+) -> CandidateCard:
     row = await db.get(CandidateSearchIndex, candidate_id)
     candidate = await db.get(Candidate, candidate_id)
-    unlocked = candidate is not None and await contacts_unlocked(db, employer_id, candidate_id)
+    unlocked = not blind and candidate is not None and await contacts_unlocked(db, employer_id, candidate_id)
     # Кандидат, скрывший профиль, остаётся доступен только тем, кому уже открыл контакты
     if row is None or candidate is None or not await reachable(db, employer_id, candidate_id):
         raise NotFoundError("Кандидат не найден")
@@ -779,13 +829,8 @@ async def candidate_card(
             .order_by(CandidateCategory.assigned_at)
         )
     )
-    match = None
-    if need_id is not None:
-        from app.modules.needs import service as needs_service
-
-        need = await needs_service.get_own_need(db, user_id, need_id)
-        match = await match_for(db, employer_id, candidate_id, need)
-    statuses = await invitation_statuses(db, employer_id, [candidate_id])
+    match = await match_for(db, employer_id, candidate_id, need) if need is not None else None
+    statuses = {} if blind else await invitation_statuses(db, employer_id, [candidate_id])
     if match is not None:
         match.invitation_status = statuses.get(candidate_id)
     current = await categories_service.get_current(db, candidate_id)

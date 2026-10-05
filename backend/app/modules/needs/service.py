@@ -69,6 +69,12 @@ def _latest_only(query: Select) -> Select:
     return query.where(~exists(select(child.id).where(child.parent_id == HiringNeed.id)))
 
 
+async def active_latest_needs(db: AsyncSession) -> list[HiringNeed]:
+    """Действующие последние версии потребностей всех работодателей — для набора экспертной разметки."""
+    query = _latest_only(select(HiringNeed).where(HiringNeed.status == NeedStatus.active))
+    return list(await db.scalars(query.order_by(HiringNeed.id)))
+
+
 async def _employer(db: AsyncSession, user_id: int) -> Employer:
     return await employers_service.get_by_user(db, user_id)
 

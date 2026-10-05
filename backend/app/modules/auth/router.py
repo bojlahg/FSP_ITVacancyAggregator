@@ -13,6 +13,7 @@ from app.modules.auth import service
 from app.modules.auth.schemas import (
     DemoLoginRequest,
     LoginRequest,
+    RegisterExpertRequest,
     RegisterRequest,
     TokenResponse,
     UserOut,
@@ -64,6 +65,20 @@ async def register(
     body: RegisterRequest, response: Response, background: BackgroundTasks, db: DbSession
 ) -> TokenResponse:
     return _finish(response, background, await service.register(db, body))
+
+
+@router.post(
+    "/register-expert",
+    response_model=TokenResponse,
+    status_code=201,
+    summary="Регистрация эксперта разметки по коду-приглашению (экспертная валидация подбора)",
+    dependencies=RateLimited,
+    responses=error_responses(403, 404, 409, 422, 429),
+)
+async def register_expert(body: RegisterExpertRequest, response: Response, db: DbSession) -> TokenResponse:
+    session = await service.register_expert(db, body)
+    _set_refresh_cookie(response, session.refresh_token)
+    return session.response
 
 
 @router.post(

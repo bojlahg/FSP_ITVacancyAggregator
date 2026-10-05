@@ -15,6 +15,7 @@ from app.modules.catalog.router import router as catalog_router
 from app.modules.catalog.service import get_catalog
 from app.modules.categories.router import router as categories_router
 from app.modules.employers.router import router as employers_router
+from app.modules.expert.router import router as expert_router
 from app.modules.fsp.router import router as fsp_router
 from app.modules.invitations import router as invitations
 from app.modules.matching.router import need_router as matching_need_router
@@ -23,6 +24,7 @@ from app.modules.needs.router import router as needs_router
 from app.modules.resume.router import router as resume_router
 from app.modules.survey.router import router as survey_router
 from app.modules.tasks import router as tasks
+from app.modules.testing.explainer_router import router as explainer_router
 from app.modules.testing.preview_router import router as vacancy_test_router
 from app.modules.testing.router import router as testing_router
 
@@ -46,6 +48,8 @@ TAGS = [
     {"name": "employer: vacancies", "description": "Отклики на вакансии"},
     {"name": "employer: vacancy test preview", "description": "Как собирается тест под вакансию"},
     {"name": "employer: tasks", "description": "Короткие задания для кандидатов"},
+    {"name": "public: test explainer", "description": "Страница «Как работает тест» без входа"},
+    {"name": "expert", "description": "Экспертная разметка пар «потребность — кандидат» и метрики подбора"},
 ]
 
 
@@ -112,6 +116,8 @@ def create_app() -> FastAPI:
         applications.employer_router,
         vacancy_test_router,
         tasks.employer_router,
+        explainer_router,
+        expert_router,
         admin_router,
     ):
         api.include_router(router)

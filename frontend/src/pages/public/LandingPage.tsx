@@ -101,6 +101,12 @@ export default function LandingPage() {
             </Link>
           </Button>
         </div>
+        <Link
+          to="/how-it-works"
+          className="mt-5 self-start font-mono text-sm font-medium text-primary underline-offset-4 hover:underline"
+        >
+          Как работает тест: шаблоны, адаптивность, защита от слива <ArrowRight className="inline size-4 align-[-3px]" aria-hidden />
+        </Link>
 
         <dl className="mt-14 grid grid-cols-1 border-t-[1.5px] border-ink sm:grid-cols-3">
           {facts.map((fact) => (

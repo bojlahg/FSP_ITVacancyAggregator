@@ -38,6 +38,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/register-expert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Регистрация эксперта разметки по коду-приглашению (экспертная валидация подбора) */
+        post: operations["register_expert_api_v1_auth_register_expert_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/verify-email": {
         parameters: {
             query?: never;
@@ -1301,6 +1318,157 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/explainer/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Шкала грейдов, специализации с тестом и параметры MST
+         * @description Публичный метод без входа: данные для страницы «Как работает тест».
+         */
+        get: operations["explainer_overview_api_v1_explainer_overview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/explainer/specializations/{specialization}/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Активные шаблоны специализации с параметрами IRT (без ключей ответов)
+         * @description 404 specialization_not_found — специализации нет или для неё нет теста.
+         */
+        get: operations["explainer_templates_api_v1_explainer_specializations__specialization__templates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/explainer/templates/{template_id}/instances": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Экземпляры шаблона для заданных seed: одна идея и сложность, разные числа и код
+         * @description Не больше 6 seed за запрос, повторы отбрасываются. Ключи ответов не передаются. 404 template_not_found — шаблона нет или он не активен.
+         */
+        get: operations["explainer_instances_api_v1_explainer_templates__template_id__instances_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/explainer/templates/{template_id}/diversity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Разнообразие экземпляров шаблона и польза от утечки
+         * @description Рендерит sample экземпляров и считает, сколько из них различны, вероятность совпадения у двух кандидатов и долю, совпавшую с «слитыми» экземплярами. 404 template_not_found.
+         */
+        get: operations["explainer_diversity_api_v1_explainer_templates__template_id__diversity_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/explainer/specializations/{specialization}/information": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Информационная функция MST-теста на грейд по симуляции движка
+         * @description Три симулированных кандидата (слабее порога, у порога, сильнее) проходят тест настоящим Planner'ом; кривые — средняя информация Фишера по реальным параметрам банка (a, b, c). 404 specialization_not_found.
+         */
+        get: operations["explainer_information_api_v1_explainer_specializations__specialization__information_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/expert/next": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Следующая пара «потребность — кандидат» для разметки (карточка без score и места в выдаче) */
+        get: operations["next_pair_api_v1_expert_next_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/expert/pairs/{pair_id}/label": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Оценка пары по шкале 0–3; повторная оценка заменяет прежнюю */
+        post: operations["label_pair_api_v1_expert_pairs__pair_id__label_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/expert/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Метрики подбора на экспертных оценках: P@5 ITScout и ключевых слов, Спирмен, согласие экспертов */
+        get: operations["summary_api_v1_expert_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/reseed": {
         parameters: {
             query?: never;
@@ -2028,6 +2196,13 @@ export interface components {
              */
             deadline_at?: string | null;
         };
+        /** CurvePoint */
+        CurvePoint: {
+            /** Theta */
+            theta: number;
+            /** Value */
+            value: number;
+        };
         /** DeclaredSkill */
         DeclaredSkill: {
             /**
@@ -2265,6 +2440,343 @@ export interface components {
             /** Description */
             description?: string | null;
         };
+        /** ExpertLabelRequest */
+        ExpertLabelRequest: {
+            /**
+             * Label
+             * @description 0 — не подходит; 1 — слабо; 2 — подходит с оговорками; 3 — полностью подходит
+             */
+            label: number;
+        };
+        /** ExpertNeed */
+        ExpertNeed: {
+            /** Title */
+            title: string;
+            /**
+             * Category
+             * @description «Backend · Middle»
+             */
+            category: string;
+            /** Required Skills */
+            required_skills: string[];
+            /** Optional Skills */
+            optional_skills: string[];
+            /** Salary From */
+            salary_from: number;
+            /** Salary To */
+            salary_to: number;
+            /** Work Format */
+            work_format: string | null;
+            /** City */
+            city: string | null;
+            /** Industry */
+            industry: string | null;
+            /** Team Description */
+            team_description: string | null;
+        };
+        /** ExpertProgress */
+        ExpertProgress: {
+            /**
+             * Done
+             * @description Сколько пар разметил этот эксперт
+             */
+            done: number;
+            /** Total */
+            total: number;
+        };
+        /** ExpertSummary */
+        ExpertSummary: {
+            /** Raters */
+            raters: number;
+            /** Labels */
+            labels: number;
+            /** Pairs Total */
+            pairs_total: number;
+            /** Pairs Labeled */
+            pairs_labeled: number;
+            /** Relevant From */
+            relevant_from: number;
+            /** Rankers */
+            rankers: components["schemas"]["RankerQuality"][];
+            /**
+             * Spearman
+             * @description Корреляция Спирмена score ITScout со средней оценкой
+             */
+            spearman: number | null;
+            /** Spearman Pairs */
+            spearman_pairs: number;
+            /**
+             * Agreement Pairs
+             * @description Пар, размеченных двумя и более экспертами
+             */
+            agreement_pairs: number;
+            /** Exact Agreement */
+            exact_agreement: number | null;
+            /**
+             * Weighted Kappa
+             * @description Квадратично взвешенная κ согласия экспертов
+             */
+            weighted_kappa: number | null;
+        };
+        /** ExpertTask */
+        ExpertTask: {
+            progress: components["schemas"]["ExpertProgress"];
+            /**
+             * Pair Id
+             * @description null — все пары размечены
+             */
+            pair_id: number | null;
+            need: components["schemas"]["ExpertNeed"] | null;
+            /** @description Обезличенная карточка без score и объяснения */
+            candidate: components["schemas"]["CandidateCard"] | null;
+        };
+        /** ExplainerDiversity */
+        ExplainerDiversity: {
+            /** Template Id */
+            template_id: string;
+            /**
+             * Sample
+             * @description Сколько экземпляров отрендерено
+             */
+            sample: number;
+            /**
+             * Distinct
+             * @description Сколько из них различны по тексту, коду и набору вариантов
+             */
+            distinct: number;
+            /**
+             * Collision Probability
+             * @description Вероятность, что два кандидата получат одинаковый экземпляр
+             */
+            collision_probability: number;
+            /**
+             * Leak Size
+             * @description Сколько экземпляров считаются слитыми
+             */
+            leak_size: number;
+            /**
+             * Leak Match Share
+             * @description Доля новых экземпляров, совпавших с одним из слитых: столько ответов помогла бы утечка
+             */
+            leak_match_share: number;
+        };
+        /** ExplainerGrade */
+        ExplainerGrade: {
+            grade: components["schemas"]["Grade"];
+            /** Name */
+            name: string;
+            /**
+             * Cut
+             * @description Порог грейда на IRT-шкале специализации, логиты
+             */
+            cut: number;
+        };
+        /** ExplainerInformation */
+        ExplainerInformation: {
+            /** Specialization */
+            specialization: string;
+            grade: components["schemas"]["Grade"];
+            /** Cut */
+            cut: number;
+            /** Grades */
+            grades: components["schemas"]["ExplainerGrade"][];
+            /**
+             * Stack Module
+             * @description Стек-модуль симулированных кандидатов
+             */
+            stack_module: string | null;
+            /**
+             * Simulations
+             * @description Симулированных попыток на сценарий
+             */
+            simulations: number;
+            /**
+             * Template Overlap
+             * @description Средняя доля общих шаблонов у двух попыток сценария «у порога»
+             */
+            template_overlap: number;
+            /**
+             * Instance Overlap
+             * @description Средняя доля общих экземпляров (тот же текст, код и варианты) у тех же пар попыток
+             */
+            instance_overlap: number;
+            /** Scenarios */
+            scenarios: components["schemas"]["ExplainerScenario"][];
+        };
+        /** ExplainerInstance */
+        ExplainerInstance: {
+            /** Seed */
+            seed: number;
+            /** Stem */
+            stem: string;
+            /** Code */
+            code?: string | null;
+            /** Code Language */
+            code_language?: string | null;
+            /** Options */
+            options: components["schemas"]["ItemOption"][];
+        };
+        /** ExplainerInstances */
+        ExplainerInstances: {
+            template: components["schemas"]["ExplainerTemplate"];
+            /**
+             * Icc
+             * @description Вероятность верного ответа P(θ) по модели 3PL
+             */
+            icc: components["schemas"]["CurvePoint"][];
+            /** Instances */
+            instances: components["schemas"]["ExplainerInstance"][];
+        };
+        /** ExplainerItemPoint */
+        ExplainerItemPoint: {
+            /** B */
+            b: number;
+            /** A */
+            a: number;
+            /**
+             * Stage
+             * @description 1 — этап 1, 2 — этап 2, 3 — дополнительное задание у порога
+             */
+            stage: number;
+        };
+        /** ExplainerOverview */
+        ExplainerOverview: {
+            /** Grades */
+            grades: components["schemas"]["ExplainerGrade"][];
+            /**
+             * Active Templates
+             * @description Активных шаблонов с автопроверкой во всём банке
+             */
+            active_templates: number;
+            /**
+             * Specializations
+             * @description Только специализации с тестом
+             */
+            specializations: components["schemas"]["ExplainerSpecialization"][];
+            /** Stage1 Items */
+            stage1_items: number;
+            /** Stage2 Items */
+            stage2_items: number;
+            /** Extra Items Max */
+            extra_items_max: number;
+            /**
+             * Stage Split
+             * @description Насколько θ̂ этапа 1 должна отойти от порога, чтобы сменить блок
+             */
+            stage_split: number;
+            /**
+             * Max Seeds
+             * @description Сколько экземпляров можно запросить за раз
+             */
+            max_seeds: number;
+            /**
+             * Max Sample
+             * @description Максимальный размер выборки для подсчёта разнообразия
+             */
+            max_sample: number;
+            /**
+             * Leak Size
+             * @description Сколько экземпляров шаблона считаются «слитыми» в подсчёте
+             */
+            leak_size: number;
+        };
+        /** ExplainerScenario */
+        ExplainerScenario: {
+            /**
+             * Scenario
+             * @enum {string}
+             */
+            scenario: "below" | "at" | "above";
+            /** Label */
+            label: string;
+            /**
+             * Theta True
+             * @description Истинная способность симулированного кандидата
+             */
+            theta_true: number;
+            /**
+             * Stage2 Target
+             * @description Куда чаще всего уходит блок этапа 2 (средняя цель)
+             */
+            stage2_target: number;
+            /**
+             * Items Mean
+             * @description Среднее число оценённых заданий
+             */
+            items_mean: number;
+            /**
+             * Se Mean
+             * @description Средняя итоговая SE оценки θ̂
+             */
+            se_mean: number;
+            /**
+             * Pass Share
+             * @description Доля симуляций с решением «пройден»
+             */
+            pass_share: number;
+            /**
+             * Information
+             * @description Средняя информационная функция теста
+             */
+            information: components["schemas"]["InformationPoint"][];
+            /**
+             * Items
+             * @description Задания одной симулированной попытки
+             */
+            items: components["schemas"]["ExplainerItemPoint"][];
+        };
+        /** ExplainerSpecialization */
+        ExplainerSpecialization: {
+            /** Slug */
+            slug: string;
+            /** Name */
+            name: string;
+            /**
+             * Active Templates
+             * @description Активных шаблонов с автопроверкой в банке специализации
+             */
+            active_templates: number;
+            /**
+             * Topics
+             * @description Тем в blueprint специализации
+             */
+            topics: number;
+        };
+        /** ExplainerTemplate */
+        ExplainerTemplate: {
+            /** Id */
+            id: string;
+            /** Topic */
+            topic: string;
+            /** Topic Name */
+            topic_name: string;
+            kind: components["schemas"]["ItemKind"];
+            /**
+             * Skills
+             * @description Названия навыков, которые проверяет шаблон
+             */
+            skills: string[];
+            /**
+             * A
+             * @description Дискриминация
+             */
+            a: number;
+            /**
+             * B
+             * @description Сложность на IRT-шкале специализации, логиты
+             */
+            b: number;
+            /**
+             * C
+             * @description Вероятность угадать: 1/k для выбора одного варианта, иначе 0
+             */
+            c: number;
+            /**
+             * Difficulty
+             * @description Сложность словами относительно порогов грейдов
+             */
+            difficulty: string;
+        };
         /**
          * Explanation
          * @description Объяснение собирается кодом из тех же компонентов, что и score (§8.4).
@@ -2453,6 +2965,21 @@ export interface components {
             slug: string;
             /** Name */
             name: string;
+        };
+        /** InformationPoint */
+        InformationPoint: {
+            /** Theta */
+            theta: number;
+            /**
+             * Information
+             * @description Информация Фишера теста в точке θ
+             */
+            information: number;
+            /**
+             * Se
+             * @description Ожидаемая стандартная ошибка θ̂: 1/√(I + 1) с априорным N(0,1)
+             */
+            se: number;
         };
         /** InvitationCreate */
         InvitationCreate: {
@@ -2892,6 +3419,21 @@ export interface components {
              */
             hidden_employer_ids?: number[];
         };
+        /** RankerQuality */
+        RankerQuality: {
+            /** Name */
+            name: string;
+            /**
+             * Precision At 5
+             * @description Доля релевантных (средняя оценка ≥ порога) в топ-5
+             */
+            precision_at_5: number | null;
+            /**
+             * Needs
+             * @description Потребностей, у которых топ-5 размечен полностью
+             */
+            needs: number;
+        };
         /** RecommendationsOut */
         RecommendationsOut: {
             /** Need Id */
@@ -2914,6 +3456,26 @@ export interface components {
             shortlist: components["schemas"]["CandidateMatch"][];
             /** Total */
             total: number;
+        };
+        /** RegisterExpertRequest */
+        RegisterExpertRequest: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+            /** Password */
+            password: string;
+            /**
+             * Code
+             * @description Код-приглашение от команды
+             */
+            code: string;
+            /**
+             * Consent Pd Processing
+             * @description Согласие на обработку ПДн — обязательно
+             */
+            consent_pd_processing: boolean;
         };
         /** RegisterRequest */
         RegisterRequest: {
@@ -2968,7 +3530,7 @@ export interface components {
          * Role
          * @enum {string}
          */
-        Role: "candidate" | "employer" | "admin";
+        Role: "candidate" | "employer" | "admin" | "expert";
         /** SalaryBucket */
         SalaryBucket: {
             /** Salary From */
@@ -3507,6 +4069,75 @@ export interface operations {
             };
             /** @description Некорректный запрос */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Конфликт состояния */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ошибка валидации данных */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Слишком много запросов */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    register_expert_api_v1_auth_register_expert_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterExpertRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Не найдено */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7734,6 +8365,334 @@ export interface operations {
             };
             /** @description Ошибка валидации данных */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    explainer_overview_api_v1_explainer_overview_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExplainerOverview"];
+                };
+            };
+        };
+    };
+    explainer_templates_api_v1_explainer_specializations__specialization__templates_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                specialization: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExplainerTemplate"][];
+                };
+            };
+            /** @description Не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ошибка валидации данных */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    explainer_instances_api_v1_explainer_templates__template_id__instances_get: {
+        parameters: {
+            query: {
+                /** @description seed экземпляров */
+                seeds: number[];
+            };
+            header?: never;
+            path: {
+                /** @description id шаблона, например be.db.where_vs_having */
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExplainerInstances"];
+                };
+            };
+            /** @description Не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ошибка валидации данных */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    explainer_diversity_api_v1_explainer_templates__template_id__diversity_get: {
+        parameters: {
+            query?: {
+                sample?: number;
+            };
+            header?: never;
+            path: {
+                /** @description id шаблона, например be.db.where_vs_having */
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExplainerDiversity"];
+                };
+            };
+            /** @description Не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ошибка валидации данных */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    explainer_information_api_v1_explainer_specializations__specialization__information_get: {
+        parameters: {
+            query: {
+                /** @description Грейд, на который идёт тест */
+                grade: components["schemas"]["Grade"];
+            };
+            header?: never;
+            path: {
+                specialization: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExplainerInformation"];
+                };
+            };
+            /** @description Не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ошибка валидации данных */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    next_pair_api_v1_expert_next_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpertTask"];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    label_pair_api_v1_expert_pairs__pair_id__label_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pair_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExpertLabelRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpertProgress"];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ошибка валидации данных */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    summary_api_v1_expert_summary_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpertSummary"];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

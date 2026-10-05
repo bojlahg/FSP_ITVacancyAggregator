@@ -98,6 +98,87 @@
         }
       }
     },
+    "/api/v1/auth/register-expert": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Регистрация эксперта разметки по коду-приглашению (экспертная валидация подбора)",
+        "operationId": "register_expert_api_v1_auth_register_expert_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterExpertRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Недостаточно прав",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Не найдено",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт состояния",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Ошибка валидации данных",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Слишком много запросов",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/verify-email": {
       "post": {
         "tags": [
@@ -6111,6 +6192,469 @@
         }
       }
     },
+    "/api/v1/explainer/overview": {
+      "get": {
+        "tags": [
+          "public: test explainer"
+        ],
+        "summary": "Шкала грейдов, специализации с тестом и параметры MST",
+        "description": "Публичный метод без входа: данные для страницы «Как работает тест».",
+        "operationId": "explainer_overview_api_v1_explainer_overview_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExplainerOverview"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/explainer/specializations/{specialization}/templates": {
+      "get": {
+        "tags": [
+          "public: test explainer"
+        ],
+        "summary": "Активные шаблоны специализации с параметрами IRT (без ключей ответов)",
+        "description": "404 specialization_not_found — специализации нет или для неё нет теста.",
+        "operationId": "explainer_templates_api_v1_explainer_specializations__specialization__templates_get",
+        "parameters": [
+          {
+            "name": "specialization",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Specialization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExplainerTemplate"
+                  },
+                  "title": "Response Explainer Templates Api V1 Explainer Specializations  Specialization  Templates Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Не найдено",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Ошибка валидации данных",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/explainer/templates/{template_id}/instances": {
+      "get": {
+        "tags": [
+          "public: test explainer"
+        ],
+        "summary": "Экземпляры шаблона для заданных seed: одна идея и сложность, разные числа и код",
+        "description": "Не больше 6 seed за запрос, повторы отбрасываются. Ключи ответов не передаются. 404 template_not_found — шаблона нет или он не активен.",
+        "operationId": "explainer_instances_api_v1_explainer_templates__template_id__instances_get",
+        "parameters": [
+          {
+            "name": "template_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 120,
+              "description": "id шаблона, например be.db.where_vs_having",
+              "title": "Template Id"
+            },
+            "description": "id шаблона, например be.db.where_vs_having"
+          },
+          {
+            "name": "seeds",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "maximum": 2000000000,
+                "minimum": 0
+              },
+              "minItems": 1,
+              "maxItems": 6,
+              "description": "seed экземпляров",
+              "title": "Seeds"
+            },
+            "description": "seed экземпляров"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExplainerInstances"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Не найдено",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Ошибка валидации данных",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/explainer/templates/{template_id}/diversity": {
+      "get": {
+        "tags": [
+          "public: test explainer"
+        ],
+        "summary": "Разнообразие экземпляров шаблона и польза от утечки",
+        "description": "Рендерит sample экземпляров и считает, сколько из них различны, вероятность совпадения у двух кандидатов и долю, совпавшую с «слитыми» экземплярами. 404 template_not_found.",
+        "operationId": "explainer_diversity_api_v1_explainer_templates__template_id__diversity_get",
+        "parameters": [
+          {
+            "name": "template_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 120,
+              "description": "id шаблона, например be.db.where_vs_having",
+              "title": "Template Id"
+            },
+            "description": "id шаблона, например be.db.where_vs_having"
+          },
+          {
+            "name": "sample",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 2,
+              "default": 200,
+              "title": "Sample"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExplainerDiversity"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Не найдено",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Ошибка валидации данных",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/explainer/specializations/{specialization}/information": {
+      "get": {
+        "tags": [
+          "public: test explainer"
+        ],
+        "summary": "Информационная функция MST-теста на грейд по симуляции движка",
+        "description": "Три симулированных кандидата (слабее порога, у порога, сильнее) проходят тест настоящим Planner'ом; кривые — средняя информация Фишера по реальным параметрам банка (a, b, c). 404 specialization_not_found.",
+        "operationId": "explainer_information_api_v1_explainer_specializations__specialization__information_get",
+        "parameters": [
+          {
+            "name": "specialization",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Specialization"
+            }
+          },
+          {
+            "name": "grade",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Grade",
+              "description": "Грейд, на который идёт тест"
+            },
+            "description": "Грейд, на который идёт тест"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExplainerInformation"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Не найдено",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Ошибка валидации данных",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/expert/next": {
+      "get": {
+        "tags": [
+          "expert"
+        ],
+        "summary": "Следующая пара «потребность — кандидат» для разметки (карточка без score и места в выдаче)",
+        "operationId": "next_pair_api_v1_expert_next_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExpertTask"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Требуется вход",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Недостаточно прав",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/expert/pairs/{pair_id}/label": {
+      "post": {
+        "tags": [
+          "expert"
+        ],
+        "summary": "Оценка пары по шкале 0–3; повторная оценка заменяет прежнюю",
+        "operationId": "label_pair_api_v1_expert_pairs__pair_id__label_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "pair_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pair Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExpertLabelRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExpertProgress"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Требуется вход",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Недостаточно прав",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Не найдено",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Ошибка валидации данных",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/expert/summary": {
+      "get": {
+        "tags": [
+          "expert"
+        ],
+        "summary": "Метрики подбора на экспертных оценках: P@5 ITScout и ключевых слов, Спирмен, согласие экспертов",
+        "operationId": "summary_api_v1_expert_summary_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExpertSummary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Требуется вход",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Недостаточно прав",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/admin/reseed": {
       "post": {
         "tags": [
@@ -8339,6 +8883,24 @@
         "title": "CurrentItem",
         "description": "Текущее задание. Ключ ответа никогда не передаётся (§13)."
       },
+      "CurvePoint": {
+        "properties": {
+          "theta": {
+            "type": "number",
+            "title": "Theta"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "theta",
+          "value"
+        ],
+        "title": "CurvePoint"
+      },
       "DeclaredSkill": {
         "properties": {
           "skill_id": {
@@ -9068,6 +9630,739 @@
         ],
         "title": "ExperienceItem"
       },
+      "ExpertLabelRequest": {
+        "properties": {
+          "label": {
+            "type": "integer",
+            "maximum": 3.0,
+            "minimum": 0.0,
+            "title": "Label",
+            "description": "0 — не подходит; 1 — слабо; 2 — подходит с оговорками; 3 — полностью подходит"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label"
+        ],
+        "title": "ExpertLabelRequest"
+      },
+      "ExpertNeed": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category",
+            "description": "«Backend · Middle»"
+          },
+          "required_skills": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Required Skills"
+          },
+          "optional_skills": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Optional Skills"
+          },
+          "salary_from": {
+            "type": "integer",
+            "title": "Salary From"
+          },
+          "salary_to": {
+            "type": "integer",
+            "title": "Salary To"
+          },
+          "work_format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Work Format"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "industry": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Industry"
+          },
+          "team_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "category",
+          "required_skills",
+          "optional_skills",
+          "salary_from",
+          "salary_to",
+          "work_format",
+          "city",
+          "industry",
+          "team_description"
+        ],
+        "title": "ExpertNeed"
+      },
+      "ExpertProgress": {
+        "properties": {
+          "done": {
+            "type": "integer",
+            "title": "Done",
+            "description": "Сколько пар разметил этот эксперт"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "done",
+          "total"
+        ],
+        "title": "ExpertProgress"
+      },
+      "ExpertSummary": {
+        "properties": {
+          "raters": {
+            "type": "integer",
+            "title": "Raters"
+          },
+          "labels": {
+            "type": "integer",
+            "title": "Labels"
+          },
+          "pairs_total": {
+            "type": "integer",
+            "title": "Pairs Total"
+          },
+          "pairs_labeled": {
+            "type": "integer",
+            "title": "Pairs Labeled"
+          },
+          "relevant_from": {
+            "type": "number",
+            "title": "Relevant From"
+          },
+          "rankers": {
+            "items": {
+              "$ref": "#/components/schemas/RankerQuality"
+            },
+            "type": "array",
+            "title": "Rankers"
+          },
+          "spearman": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spearman",
+            "description": "Корреляция Спирмена score ITScout со средней оценкой"
+          },
+          "spearman_pairs": {
+            "type": "integer",
+            "title": "Spearman Pairs"
+          },
+          "agreement_pairs": {
+            "type": "integer",
+            "title": "Agreement Pairs",
+            "description": "Пар, размеченных двумя и более экспертами"
+          },
+          "exact_agreement": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exact Agreement"
+          },
+          "weighted_kappa": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weighted Kappa",
+            "description": "Квадратично взвешенная κ согласия экспертов"
+          }
+        },
+        "type": "object",
+        "required": [
+          "raters",
+          "labels",
+          "pairs_total",
+          "pairs_labeled",
+          "relevant_from",
+          "rankers",
+          "spearman",
+          "spearman_pairs",
+          "agreement_pairs",
+          "exact_agreement",
+          "weighted_kappa"
+        ],
+        "title": "ExpertSummary"
+      },
+      "ExpertTask": {
+        "properties": {
+          "progress": {
+            "$ref": "#/components/schemas/ExpertProgress"
+          },
+          "pair_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pair Id",
+            "description": "null — все пары размечены"
+          },
+          "need": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExpertNeed"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "candidate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CandidateCard"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Обезличенная карточка без score и объяснения"
+          }
+        },
+        "type": "object",
+        "required": [
+          "progress",
+          "pair_id",
+          "need",
+          "candidate"
+        ],
+        "title": "ExpertTask"
+      },
+      "ExplainerDiversity": {
+        "properties": {
+          "template_id": {
+            "type": "string",
+            "title": "Template Id"
+          },
+          "sample": {
+            "type": "integer",
+            "title": "Sample",
+            "description": "Сколько экземпляров отрендерено"
+          },
+          "distinct": {
+            "type": "integer",
+            "title": "Distinct",
+            "description": "Сколько из них различны по тексту, коду и набору вариантов"
+          },
+          "collision_probability": {
+            "type": "number",
+            "title": "Collision Probability",
+            "description": "Вероятность, что два кандидата получат одинаковый экземпляр"
+          },
+          "leak_size": {
+            "type": "integer",
+            "title": "Leak Size",
+            "description": "Сколько экземпляров считаются слитыми"
+          },
+          "leak_match_share": {
+            "type": "number",
+            "title": "Leak Match Share",
+            "description": "Доля новых экземпляров, совпавших с одним из слитых: столько ответов помогла бы утечка"
+          }
+        },
+        "type": "object",
+        "required": [
+          "template_id",
+          "sample",
+          "distinct",
+          "collision_probability",
+          "leak_size",
+          "leak_match_share"
+        ],
+        "title": "ExplainerDiversity"
+      },
+      "ExplainerGrade": {
+        "properties": {
+          "grade": {
+            "$ref": "#/components/schemas/Grade"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "cut": {
+            "type": "number",
+            "title": "Cut",
+            "description": "Порог грейда на IRT-шкале специализации, логиты"
+          }
+        },
+        "type": "object",
+        "required": [
+          "grade",
+          "name",
+          "cut"
+        ],
+        "title": "ExplainerGrade"
+      },
+      "ExplainerInformation": {
+        "properties": {
+          "specialization": {
+            "type": "string",
+            "title": "Specialization"
+          },
+          "grade": {
+            "$ref": "#/components/schemas/Grade"
+          },
+          "cut": {
+            "type": "number",
+            "title": "Cut"
+          },
+          "grades": {
+            "items": {
+              "$ref": "#/components/schemas/ExplainerGrade"
+            },
+            "type": "array",
+            "title": "Grades"
+          },
+          "stack_module": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stack Module",
+            "description": "Стек-модуль симулированных кандидатов"
+          },
+          "simulations": {
+            "type": "integer",
+            "title": "Simulations",
+            "description": "Симулированных попыток на сценарий"
+          },
+          "template_overlap": {
+            "type": "number",
+            "title": "Template Overlap",
+            "description": "Средняя доля общих шаблонов у двух попыток сценария «у порога»"
+          },
+          "instance_overlap": {
+            "type": "number",
+            "title": "Instance Overlap",
+            "description": "Средняя доля общих экземпляров (тот же текст, код и варианты) у тех же пар попыток"
+          },
+          "scenarios": {
+            "items": {
+              "$ref": "#/components/schemas/ExplainerScenario"
+            },
+            "type": "array",
+            "title": "Scenarios"
+          }
+        },
+        "type": "object",
+        "required": [
+          "specialization",
+          "grade",
+          "cut",
+          "grades",
+          "stack_module",
+          "simulations",
+          "template_overlap",
+          "instance_overlap",
+          "scenarios"
+        ],
+        "title": "ExplainerInformation"
+      },
+      "ExplainerInstance": {
+        "properties": {
+          "seed": {
+            "type": "integer",
+            "title": "Seed"
+          },
+          "stem": {
+            "type": "string",
+            "title": "Stem"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "code_language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code Language"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/ItemOption"
+            },
+            "type": "array",
+            "title": "Options"
+          }
+        },
+        "type": "object",
+        "required": [
+          "seed",
+          "stem",
+          "options"
+        ],
+        "title": "ExplainerInstance"
+      },
+      "ExplainerInstances": {
+        "properties": {
+          "template": {
+            "$ref": "#/components/schemas/ExplainerTemplate"
+          },
+          "icc": {
+            "items": {
+              "$ref": "#/components/schemas/CurvePoint"
+            },
+            "type": "array",
+            "title": "Icc",
+            "description": "Вероятность верного ответа P(θ) по модели 3PL"
+          },
+          "instances": {
+            "items": {
+              "$ref": "#/components/schemas/ExplainerInstance"
+            },
+            "type": "array",
+            "title": "Instances"
+          }
+        },
+        "type": "object",
+        "required": [
+          "template",
+          "icc",
+          "instances"
+        ],
+        "title": "ExplainerInstances"
+      },
+      "ExplainerItemPoint": {
+        "properties": {
+          "b": {
+            "type": "number",
+            "title": "B"
+          },
+          "a": {
+            "type": "number",
+            "title": "A"
+          },
+          "stage": {
+            "type": "integer",
+            "title": "Stage",
+            "description": "1 — этап 1, 2 — этап 2, 3 — дополнительное задание у порога"
+          }
+        },
+        "type": "object",
+        "required": [
+          "b",
+          "a",
+          "stage"
+        ],
+        "title": "ExplainerItemPoint"
+      },
+      "ExplainerOverview": {
+        "properties": {
+          "grades": {
+            "items": {
+              "$ref": "#/components/schemas/ExplainerGrade"
+            },
+            "type": "array",
+            "title": "Grades"
+          },
+          "active_templates": {
+            "type": "integer",
+            "title": "Active Templates",
+            "description": "Активных шаблонов с автопроверкой во всём банке"
+          },
+          "specializations": {
+            "items": {
+              "$ref": "#/components/schemas/ExplainerSpecialization"
+            },
+            "type": "array",
+            "title": "Specializations",
+            "description": "Только специализации с тестом"
+          },
+          "stage1_items": {
+            "type": "integer",
+            "title": "Stage1 Items"
+          },
+          "stage2_items": {
+            "type": "integer",
+            "title": "Stage2 Items"
+          },
+          "extra_items_max": {
+            "type": "integer",
+            "title": "Extra Items Max"
+          },
+          "stage_split": {
+            "type": "number",
+            "title": "Stage Split",
+            "description": "Насколько θ̂ этапа 1 должна отойти от порога, чтобы сменить блок"
+          },
+          "max_seeds": {
+            "type": "integer",
+            "title": "Max Seeds",
+            "description": "Сколько экземпляров можно запросить за раз"
+          },
+          "max_sample": {
+            "type": "integer",
+            "title": "Max Sample",
+            "description": "Максимальный размер выборки для подсчёта разнообразия"
+          },
+          "leak_size": {
+            "type": "integer",
+            "title": "Leak Size",
+            "description": "Сколько экземпляров шаблона считаются «слитыми» в подсчёте"
+          }
+        },
+        "type": "object",
+        "required": [
+          "grades",
+          "active_templates",
+          "specializations",
+          "stage1_items",
+          "stage2_items",
+          "extra_items_max",
+          "stage_split",
+          "max_seeds",
+          "max_sample",
+          "leak_size"
+        ],
+        "title": "ExplainerOverview"
+      },
+      "ExplainerScenario": {
+        "properties": {
+          "scenario": {
+            "type": "string",
+            "enum": [
+              "below",
+              "at",
+              "above"
+            ],
+            "title": "Scenario"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "theta_true": {
+            "type": "number",
+            "title": "Theta True",
+            "description": "Истинная способность симулированного кандидата"
+          },
+          "stage2_target": {
+            "type": "number",
+            "title": "Stage2 Target",
+            "description": "Куда чаще всего уходит блок этапа 2 (средняя цель)"
+          },
+          "items_mean": {
+            "type": "number",
+            "title": "Items Mean",
+            "description": "Среднее число оценённых заданий"
+          },
+          "se_mean": {
+            "type": "number",
+            "title": "Se Mean",
+            "description": "Средняя итоговая SE оценки θ̂"
+          },
+          "pass_share": {
+            "type": "number",
+            "title": "Pass Share",
+            "description": "Доля симуляций с решением «пройден»"
+          },
+          "information": {
+            "items": {
+              "$ref": "#/components/schemas/InformationPoint"
+            },
+            "type": "array",
+            "title": "Information",
+            "description": "Средняя информационная функция теста"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ExplainerItemPoint"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "Задания одной симулированной попытки"
+          }
+        },
+        "type": "object",
+        "required": [
+          "scenario",
+          "label",
+          "theta_true",
+          "stage2_target",
+          "items_mean",
+          "se_mean",
+          "pass_share",
+          "information",
+          "items"
+        ],
+        "title": "ExplainerScenario"
+      },
+      "ExplainerSpecialization": {
+        "properties": {
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "active_templates": {
+            "type": "integer",
+            "title": "Active Templates",
+            "description": "Активных шаблонов с автопроверкой в банке специализации"
+          },
+          "topics": {
+            "type": "integer",
+            "title": "Topics",
+            "description": "Тем в blueprint специализации"
+          }
+        },
+        "type": "object",
+        "required": [
+          "slug",
+          "name",
+          "active_templates",
+          "topics"
+        ],
+        "title": "ExplainerSpecialization"
+      },
+      "ExplainerTemplate": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "topic": {
+            "type": "string",
+            "title": "Topic"
+          },
+          "topic_name": {
+            "type": "string",
+            "title": "Topic Name"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ItemKind"
+          },
+          "skills": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Skills",
+            "description": "Названия навыков, которые проверяет шаблон"
+          },
+          "a": {
+            "type": "number",
+            "title": "A",
+            "description": "Дискриминация"
+          },
+          "b": {
+            "type": "number",
+            "title": "B",
+            "description": "Сложность на IRT-шкале специализации, логиты"
+          },
+          "c": {
+            "type": "number",
+            "title": "C",
+            "description": "Вероятность угадать: 1/k для выбора одного варианта, иначе 0"
+          },
+          "difficulty": {
+            "type": "string",
+            "title": "Difficulty",
+            "description": "Сложность словами относительно порогов грейдов"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "topic",
+          "topic_name",
+          "kind",
+          "skills",
+          "a",
+          "b",
+          "c",
+          "difficulty"
+        ],
+        "title": "ExplainerTemplate"
+      },
       "Explanation": {
         "properties": {
           "lines": {
@@ -9547,6 +10842,31 @@
           "name"
         ],
         "title": "IndustryOut"
+      },
+      "InformationPoint": {
+        "properties": {
+          "theta": {
+            "type": "number",
+            "title": "Theta"
+          },
+          "information": {
+            "type": "number",
+            "title": "Information",
+            "description": "Информация Фишера теста в точке θ"
+          },
+          "se": {
+            "type": "number",
+            "title": "Se",
+            "description": "Ожидаемая стандартная ошибка θ̂: 1/√(I + 1) с априорным N(0,1)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "theta",
+          "information",
+          "se"
+        ],
+        "title": "InformationPoint"
       },
       "InvitationCreate": {
         "properties": {
@@ -10782,6 +12102,38 @@
         "type": "object",
         "title": "PrivacySettings"
       },
+      "RankerQuality": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "precision_at_5": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precision At 5",
+            "description": "Доля релевантных (средняя оценка ≥ порога) в топ-5"
+          },
+          "needs": {
+            "type": "integer",
+            "title": "Needs",
+            "description": "Потребностей, у которых топ-5 размечен полностью"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "precision_at_5",
+          "needs"
+        ],
+        "title": "RankerQuality"
+      },
       "RecommendationsOut": {
         "properties": {
           "need_id": {
@@ -10838,6 +12190,41 @@
           "total"
         ],
         "title": "RecommendationsOut"
+      },
+      "RegisterExpertRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 8,
+            "title": "Password"
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Code",
+            "description": "Код-приглашение от команды"
+          },
+          "consent_pd_processing": {
+            "type": "boolean",
+            "title": "Consent Pd Processing",
+            "description": "Согласие на обработку ПДн — обязательно"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "password",
+          "code",
+          "consent_pd_processing"
+        ],
+        "title": "RegisterExpertRequest"
       },
       "RegisterRequest": {
         "properties": {
@@ -10944,7 +12331,8 @@
         "enum": [
           "candidate",
           "employer",
-          "admin"
+          "admin",
+          "expert"
         ],
         "title": "Role"
       },
@@ -12302,6 +13690,14 @@
     {
       "name": "employer: tasks",
       "description": "Короткие задания для кандидатов"
+    },
+    {
+      "name": "public: test explainer",
+      "description": "Страница «Как работает тест» без входа"
+    },
+    {
+      "name": "expert",
+      "description": "Экспертная разметка пар «потребность — кандидат» и метрики подбора"
     }
   ]
 }
