@@ -56,7 +56,7 @@
 | Frontend | React 19, Vite, TypeScript, React Router, TanStack Query, react-hook-form + zod, Tailwind и shadcn/ui, Recharts |
 | Контракт API | OpenAPI из FastAPI → `openapi-typescript` и `openapi-fetch` на фронте |
 | LLM | Yandex AI Studio (OpenAI-совместимый endpoint, ключ как в DealDojo); откат на словарь |
-| Почта | Unisender Go через HTTPS API (исходящие SMTP-порты на VDS закрыты хостером); в dev — Mailpit через SMTP. Интерфейс `EmailSender` с реализациями `unisender`, `smtp`, `console` |
+| Почта | Собственный send-only Postfix (контейнер `mail`, DKIM) от `noreply@itscout.ru`; VDSina открыла порт 25 по запросу. В dev — Mailpit. Интерфейс `EmailSender`: `smtp` (с SSL/STARTTLS и логином), `unisender` (запасной), `console` |
 | Инфраструктура | Docker Compose, Caddy (HTTPS), GitHub Actions → деплой по SSH |
 | Тесты | pytest, Playwright (e2e) |
 | Лицензия | MIT |
@@ -142,7 +142,7 @@
 
 ### 6.2. Онбординг (P0)
 
-1. **Опрос по отрасли и специализации** (8–10 вопросов):
+1. **Опрос по отрасли и специализации** (12 вопросов, `content/survey.yaml`). Шаги онбординга в API: `survey → specialization → grade → test → done`:
    - чем занимаетесь каждый день — несколько вариантов, к каждому привязаны веса специализаций;
    - основной язык и фреймворки (из онтологии);
    - стаж в ИТ;
@@ -443,7 +443,7 @@ backend:
 ### 10.4. Оценка и грейд
 
 - θ̂ — **EAP** с априорным N(0, 1), квадратура на 61 точке (numpy). SE — апостериорное стандартное отклонение.
-- **Пороги** на шкале специализации (стартовые): `cut_junior = −0.8`, `cut_middle = 0.2`, `cut_senior = 1.2`; ниже `cut_junior` — `intern`. Окончательные пороги — экспертная процедура *modified Angoff*: эксперт оценивает, с какой вероятностью «минимально компетентный Middle» решит каждый шаблон, и порог выводится из этих оценок. Описывается в документации.
+- **Пороги** на шкале специализации (стартовые, `content/blueprints.yaml`): `cut_intern = −1.8`, `cut_junior = −0.8`, `cut_middle = 0.2`, `cut_senior = 1.2`. Ниже порога стажёра категория не присваивается. Окончательные пороги — экспертная процедура *modified Angoff*: эксперт оценивает, с какой вероятностью «минимально компетентный Middle» решит каждый шаблон, и порог выводится из этих оценок. Описывается в документации.
 - **Решение** по тесту на грейд G:
   - не пройден — θ̂ < cut_G;
   - пройден — θ̂ ≥ cut_G;
@@ -765,7 +765,7 @@ POST /admin/reseed ; POST /admin/demo/reset-cooldowns     только при DE
 - **CI** (`.github/workflows/ci.yml`, на каждый push): ruff, миграции с нуля + `alembic check`, pytest, актуальность `openapi.json` и сгенерированного клиента, lint/typecheck/build фронта.
 - **Deploy** (push в `master`, после зелёного CI): rsync репозитория в `/opt/itscout/app` → `docker compose up -d --build` (backend сам применяет миграции при старте) → smoke-тест `/api/v1/health` (позже — Playwright). Единственный секрет GitHub — `DEPLOY_SSH_KEY` (отдельный ключ деплоя). Остальные секреты — в `/opt/itscout/app/.env` на сервере (права 600).
 - **HTTPS:** после появления A-записи `itscout.ru` в `Caddyfile` включается блок домена.
-- **Почта:** Unisender Go, отправитель `noreply@itscout.ru`, домен подтверждён записями SPF, DKIM и DMARC. Ключ `UNISENDER_API_KEY` хранится в `.env` на сервере. VDSina блокирует исходящие 25/465/587, поэтому только HTTPS API.
+- **Почта:** контейнер `mail` (Postfix, только отправка) подписывает письма DKIM (селектор `mail`, ключ в volume `dkim`). В DNS: SPF `v=spf1 ip4:94.103.87.151 -all`, DKIM `mail._domainkey`, DMARC; PTR IP → `itscout.ru` в панели VDSina.
 - **Запуск с нуля:** `docs/deploy.md` — `cp .env.example .env && docker compose up -d` поднимает всё, включая seed.
 
 ---
@@ -823,8 +823,8 @@ POST /admin/reseed ; POST /admin/demo/reset-cooldowns     только при DE
 
 | Вопрос | Нужно для | Срок |
 |---|---|---|
-| ~~Почтовый провайдер~~ — Unisender Go (HTTPS API); пользователь подтверждает домен, ключ кладётся в `.env` на сервере; до этого `EMAIL_VERIFICATION_REQUIRED=false` | T03 | решено |
-| A-запись `itscout.ru` → `94.103.87.151` | HTTPS | 5.10 |
+| ~~Почта~~ — собственный Postfix с DKIM; осталось: SPF/DKIM/DMARC в DNS reg.ru и PTR в VDSina; до проверки доставляемости `EMAIL_VERIFICATION_REQUIRED=false` | T03 | в работе |
+| ~~A-запись `itscout.ru`~~ — работает, HTTPS включён; осталась A-запись `www` | HTTPS | решено |
 | Ключ Yandex AI Studio: берём из DealDojo или заводим новый | T08 | 6.10 |
 | ~~GitHub-репозиторий~~ — `bojlahg/FSP_ITVacancyAggregator`, приватный до конца разработки. Делаем публичным **11.10 перед отправкой ссылки**. С первого коммита — ни одного секрета в истории | T01 | решено |
 | Поднимаем ли Keycloak на проде (около 700 МБ RAM) — по умолчанию да, профиль `fsp` | T17 | 8.10 |
