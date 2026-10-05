@@ -1557,6 +1557,8 @@ export interface components {
             contacts: components["schemas"]["Contacts"] | null;
             /** @description Если передан need_id */
             match: components["schemas"]["CandidateMatch"] | null;
+            /** @description Статус последнего приглашения от вашей компании, если оно было */
+            invitation_status?: components["schemas"]["InvitationStatus"] | null;
             /** Grade History */
             grade_history: components["schemas"]["CategoryRef"][];
         };
@@ -1574,6 +1576,8 @@ export interface components {
             shortlisted: boolean;
             /** Out Of Filter Reasons */
             out_of_filter_reasons?: string[];
+            /** @description Статус последнего приглашения от вашей компании, если оно было */
+            invitation_status?: components["schemas"]["InvitationStatus"] | null;
         };
         /** CandidateProfileOut */
         CandidateProfileOut: {
@@ -2339,7 +2343,8 @@ export interface components {
             salary_from: number;
             /** Salary To */
             salary_to: number;
-            contact_method: components["schemas"]["ContactMethod"];
+            /** @description Контакт рекрутера — после принятия приглашения */
+            contact_method: components["schemas"]["ContactMethod"] | null;
             /** @description Почему выбрали именно вас — тот же расчёт, что видит работодатель */
             why_you: components["schemas"]["Explanation"];
             status: components["schemas"]["InvitationStatus"];

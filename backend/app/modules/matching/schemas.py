@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from app.core.enums import WorkFormat
+from app.core.enums import InvitationStatus, WorkFormat
 from app.core.schemas import ApiModel, CategoryRef, Explanation, FspBadge
 from app.modules.candidates.schemas import Contacts, ExperienceItem, SkillState
 from app.modules.fsp.schemas import FspProfileOut
@@ -48,6 +48,9 @@ class CandidateMatch(ApiModel):
     explanation: Explanation
     shortlisted: bool = False
     out_of_filter_reasons: list[str] = Field(default_factory=list)
+    invitation_status: InvitationStatus | None = Field(
+        default=None, description="Статус последнего приглашения от вашей компании, если оно было"
+    )
 
 
 class CategoryRecommendation(ApiModel):
@@ -112,4 +115,7 @@ class CandidateCard(ApiModel):
     contacts_unlocked: bool
     contacts: Contacts | None = Field(description="Только после принятого приглашения или отклика")
     match: CandidateMatch | None = Field(description="Если передан need_id")
+    invitation_status: InvitationStatus | None = Field(
+        default=None, description="Статус последнего приглашения от вашей компании, если оно было"
+    )
     grade_history: list[CategoryRef]

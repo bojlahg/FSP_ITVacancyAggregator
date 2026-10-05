@@ -122,7 +122,7 @@ export default function CandidateCardPage() {
           </>
         }
         actions={
-          invited ? (
+          invited || ["sent", "viewed", "accepted"].includes(data.invitation_status ?? "") ? (
             <Button variant="secondary" disabled>
               <CheckCircle2 /> Приглашение отправлено
             </Button>

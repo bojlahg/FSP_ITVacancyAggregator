@@ -6620,6 +6620,17 @@
             ],
             "description": "Если передан need_id"
           },
+          "invitation_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InvitationStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Статус последнего приглашения от вашей компании, если оно было"
+          },
           "grade_history": {
             "items": {
               "$ref": "#/components/schemas/CategoryRef"
@@ -6675,6 +6686,17 @@
             },
             "type": "array",
             "title": "Out Of Filter Reasons"
+          },
+          "invitation_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InvitationStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Статус последнего приглашения от вашей компании, если оно было"
           }
         },
         "type": "object",
@@ -9044,7 +9066,15 @@
             "title": "Salary To"
           },
           "contact_method": {
-            "$ref": "#/components/schemas/ContactMethod"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContactMethod"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Контакт рекрутера — после принятия приглашения"
           },
           "why_you": {
             "$ref": "#/components/schemas/Explanation",

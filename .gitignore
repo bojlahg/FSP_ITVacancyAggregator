@@ -35,3 +35,4 @@ backend/uploads/
 Thumbs.db
 .idea/
 .vscode/
+.claude/worktrees/

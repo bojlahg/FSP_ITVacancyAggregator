@@ -222,10 +222,16 @@ function InvitationCard({ invitation, open, onToggle, accepting, onAccept, onDec
   );
 }
 
-/** Контакт рекрутера: каналы видны сразу, сами адреса — после принятия (§8.5). */
+/** Контакт рекрутера приходит с сервера только после принятия — симметрично раскрытию ваших контактов (§8.5). */
 function ContactBlock({ invitation }: { invitation: InvitationForCandidate }) {
   const contact = invitation.contact_method;
-  const revealed = invitation.status === "accepted";
+  if (!contact) {
+    return (
+      <p className="rounded-lg border px-3 py-2.5 text-xs text-muted-foreground">
+        Контакт рекрутера откроется, когда вы примете приглашение.
+      </p>
+    );
+  }
   const channels = [
     { icon: MessageCircle, label: "Telegram", value: contact.telegram, href: null },
     { icon: Mail, label: "Email", value: contact.email, href: contact.email ? `mailto:${contact.email}` : null },
@@ -237,27 +243,20 @@ function ContactBlock({ invitation }: { invitation: InvitationForCandidate }) {
       <div className="flex items-center gap-1.5 font-medium">
         <User className="size-4 text-primary" aria-hidden /> Контакт: {contact.name}
       </div>
-      {revealed ? (
-        <ul className="grid gap-1">
-          {channels.map(({ icon: Icon, label, value, href }) => (
-            <li key={label} className="flex items-center gap-2">
-              <Icon className="size-3.5 text-muted-foreground" aria-hidden />
-              {href ? (
-                <a href={href} className="font-mono hover:text-primary hover:underline">
-                  {value}
-                </a>
-              ) : (
-                <span className="font-mono">{value}</span>
-              )}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-xs text-muted-foreground">
-          {channels.length > 0 ? `Связь через: ${channels.map((channel) => channel.label).join(", ")}. ` : ""}
-          Контакты рекрутера откроются, когда вы примете приглашение.
-        </p>
-      )}
+      <ul className="grid gap-1">
+        {channels.map(({ icon: Icon, label, value, href }) => (
+          <li key={label} className="flex items-center gap-2">
+            <Icon className="size-3.5 text-muted-foreground" aria-hidden />
+            {href ? (
+              <a href={href} className="font-mono hover:text-primary hover:underline">
+                {value}
+              </a>
+            ) : (
+              <span className="font-mono">{value}</span>
+            )}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

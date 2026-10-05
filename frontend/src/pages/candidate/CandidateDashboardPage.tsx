@@ -14,11 +14,11 @@ import { SkeletonCards } from "@/components/SkeletonCards";
 import { apiError } from "@/lib/api-error";
 import { formatDate, formatDaysAgo, toPercent } from "@/lib/format";
 import { type CandidateProfile, useCandidateMe, useGradeStatus } from "@/lib/testing-queries";
-// MOCK: заменить на GET /candidates/me/invitations
-import { mockCandidateInvitations } from "@/mocks/candidate";
+import { useMyInvitations } from "@/lib/invitation-queries";
 
 export default function CandidateDashboardPage() {
-  const newInvitations = mockCandidateInvitations.filter((invitation) => invitation.status === "sent").length;
+  const invitations = useMyInvitations();
+  const newInvitations = (invitations.data ?? []).filter((invitation) => invitation.status === "sent").length;
   const me = useCandidateMe();
   const firstName = me.data?.first_name;
 
@@ -85,7 +85,11 @@ export default function CandidateDashboardPage() {
             </CardAction>
           </CardHeader>
           <CardContent>
-            {mockCandidateInvitations.length === 0 ? (
+            {invitations.isPending ? (
+              <SkeletonCards count={1} />
+            ) : invitations.isError ? (
+              <ErrorState description={apiError(invitations.error).message} onRetry={() => void invitations.refetch()} />
+            ) : invitations.data.length === 0 ? (
               <EmptyState
                 icon={Mail}
                 title="Пока нет приглашений"
@@ -93,16 +97,16 @@ export default function CandidateDashboardPage() {
               />
             ) : (
               <ul className="divide-y divide-border-subtle">
-                {mockCandidateInvitations.map((invitation) => (
+                {invitations.data.slice(0, 4).map((invitation) => (
                   <li key={invitation.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                     <div className="min-w-0">
                       <div className="truncate font-medium">{invitation.title}</div>
                       <div className="text-xs text-muted-foreground">
-                        {invitation.company} · {formatDaysAgo(invitation.sentDaysAgo)}
+                        {invitation.company.company_name} · {formatDaysAgo(daysSince(invitation.created_at))}
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <SalaryRange from={invitation.salaryFrom} to={invitation.salaryTo} className="text-sm" />
+                      <SalaryRange from={invitation.salary_from} to={invitation.salary_to} className="text-sm" />
                       <StatusBadge status={invitation.status} />
                     </div>
                   </li>
@@ -205,4 +209,8 @@ function CategoryCard({ category }: { category: NonNullable<CandidateProfile["ca
       </CardContent>
     </Card>
   );
+}
+
+function daysSince(iso: string): number {
+  return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000));
 }

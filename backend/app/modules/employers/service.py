@@ -9,6 +9,7 @@ from app.modules.applications.models import Application
 from app.modules.catalog.service import get_catalog
 from app.modules.employers.models import Employer
 from app.modules.employers.schemas import (
+    CompanyPublic,
     EmployerProfileFields,
     EmployerProfileOut,
     EmployerProfileUpdate,
@@ -63,6 +64,18 @@ async def reputation(db: AsyncSession, employer_id: int) -> EmployerReputation:
         acceptance_rate=accepted / (accepted + declined) if accepted + declined else None,
         withdrawn_rate=withdrawn / total if total else None,
         median_response_hours=round(median(hours), 1) if hours else None,
+    )
+
+
+async def company_public(db: AsyncSession, employer: Employer) -> CompanyPublic:
+    """Что кандидат видит о компании в приглашении и вакансии."""
+    return CompanyPublic(
+        id=employer.id,
+        company_name=employer.company_name or "Компания",
+        industry=employer.industry,
+        website=employer.website,
+        description=employer.description,
+        reputation=await reputation(db, employer.id),
     )
 
 

@@ -2,7 +2,8 @@ from fastapi import APIRouter, Query
 
 from app.core.deps import CurrentCandidate, CurrentEmployer, DbSession
 from app.core.enums import InvitationStatus
-from app.core.errors import NotImplementedApiError, error_responses
+from app.core.errors import error_responses
+from app.modules.invitations import service
 from app.modules.invitations.schemas import (
     DeclineRequest,
     DeclineStats,
@@ -27,7 +28,7 @@ TRANSITION = error_responses(401, 403, 404, 409)
 async def list_my_invitations(
     user: CurrentCandidate, db: DbSession, status: InvitationStatus | None = Query(default=None)
 ) -> list[InvitationForCandidate]:
-    raise NotImplementedApiError()
+    return await service.list_mine(db, user.id, status)
 
 
 @candidate_router.post(
@@ -39,7 +40,7 @@ async def list_my_invitations(
 async def view_invitation(
     invitation_id: int, user: CurrentCandidate, db: DbSession
 ) -> InvitationForCandidate:
-    raise NotImplementedApiError()
+    return await service.view(db, user.id, invitation_id)
 
 
 @candidate_router.post(
@@ -51,7 +52,7 @@ async def view_invitation(
 async def accept_invitation(
     invitation_id: int, user: CurrentCandidate, db: DbSession
 ) -> InvitationForCandidate:
-    raise NotImplementedApiError()
+    return await service.accept(db, user.id, invitation_id)
 
 
 @candidate_router.post(
@@ -63,7 +64,7 @@ async def accept_invitation(
 async def decline_invitation(
     invitation_id: int, body: DeclineRequest, user: CurrentCandidate, db: DbSession
 ) -> InvitationForCandidate:
-    raise NotImplementedApiError()
+    return await service.decline(db, user.id, invitation_id, body)
 
 
 @employer_router.post(
@@ -76,7 +77,7 @@ async def decline_invitation(
 async def create_invitation(
     body: InvitationCreate, user: CurrentEmployer, db: DbSession
 ) -> InvitationForEmployer:
-    raise NotImplementedApiError()
+    return await service.create(db, user.id, body)
 
 
 @employer_router.get(
@@ -91,7 +92,7 @@ async def list_sent_invitations(
     status: InvitationStatus | None = Query(default=None),
     need_id: int | None = Query(default=None),
 ) -> list[InvitationForEmployer]:
-    raise NotImplementedApiError()
+    return await service.list_sent(db, user.id, status, need_id)
 
 
 @employer_router.post(
@@ -103,7 +104,7 @@ async def list_sent_invitations(
 async def withdraw_invitation(
     invitation_id: int, user: CurrentEmployer, db: DbSession
 ) -> InvitationForEmployer:
-    raise NotImplementedApiError()
+    return await service.withdraw(db, user.id, invitation_id)
 
 
 @employer_router.get(
@@ -115,4 +116,4 @@ async def withdraw_invitation(
 async def get_decline_stats(
     user: CurrentEmployer, db: DbSession, need_id: int | None = Query(default=None)
 ) -> DeclineStats:
-    raise NotImplementedApiError()
+    return await service.decline_stats(db, user.id, need_id)

@@ -166,7 +166,7 @@ function NeedView({ need }: { need: Need }) {
   const pendingShortlistId = shortlist.isPending ? shortlist.variables?.match.candidate.id : undefined;
 
   const renderRow = (match: CandidateMatch) => {
-    const invitedStatus = invited.get(match.candidate.id);
+    const invitedStatus = invited.get(match.candidate.id) ?? openInvitation(match.invitation_status);
     return (
       <CandidateRow
         key={match.candidate.id}
@@ -183,7 +183,7 @@ function NeedView({ need }: { need: Need }) {
           <>
             {invitedStatus ? (
               <Button size="sm" variant="secondary" disabled>
-                <CheckCircle2 /> Приглашение отправлено
+                <CheckCircle2 /> {invitedStatus === "accepted" ? "Приглашение принято" : "Приглашение отправлено"}
               </Button>
             ) : (
               <Button
@@ -327,7 +327,7 @@ function NeedView({ need }: { need: Need }) {
                           {match.candidate.category.label}
                         </span>
                       </Link>
-                      {!invited.has(match.candidate.id) && (
+                      {!invited.has(match.candidate.id) && !openInvitation(match.invitation_status) && (
                         <Button
                           variant="ghost"
                           size="icon-sm"
@@ -808,4 +808,9 @@ function OlderVersionNotice({ need }: { need: Need }) {
       )}
     </div>
   );
+}
+
+/** Повторно пригласить нельзя, пока приглашение активно или уже принято; после отказа или истечения — можно. */
+function openInvitation(status: CandidateMatch["invitation_status"]): string | undefined {
+  return status === "sent" || status === "viewed" || status === "accepted" ? status : undefined;
 }

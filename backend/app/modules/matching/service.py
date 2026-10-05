@@ -1,6 +1,7 @@
 """Индекс выдачи (§14) и подбор (§8): подборка по потребности, поиск по базе, каталог категорий, карточка."""
 
 from collections import Counter, defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from statistics import median
@@ -8,7 +9,7 @@ from statistics import median
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.enums import ConsentKind, Grade, SearchStatus, SkillSource, WorkFormat
+from app.core.enums import ConsentKind, Grade, InvitationStatus, SearchStatus, SkillSource, WorkFormat
 from app.core.errors import NotFoundError
 from app.core.schemas import CategoryRef, Explanation, ExplanationLine, FspBadge
 from app.modules.auth import service as auth_service
@@ -21,7 +22,7 @@ from app.modules.categories import service as categories_service
 from app.modules.categories.models import CandidateCategory
 from app.modules.fsp import service as fsp_service
 from app.modules.fsp.models import FspAchievement
-from app.modules.invitations.models import ContactUnlock
+from app.modules.invitations.models import ContactUnlock, Invitation
 from app.modules.matching import scoring
 from app.modules.matching.models import CandidateSearchIndex
 from app.modules.matching.schemas import (
@@ -390,6 +391,9 @@ async def recommendations(
         matched.sort(key=_sort_key)
     outside.sort(key=_sort_key)
     shortlist.sort(key=_sort_key)
+    statuses = await invitation_statuses(db, employer_id, ids)
+    for match in (*matched, *outside, *shortlist):
+        match.invitation_status = statuses.get(match.candidate.id)
     return RecommendationsOut(
         need_id=need.id,
         need_version=need.version,
@@ -458,18 +462,113 @@ async def match_for(
     db: AsyncSession, employer_id: int, candidate_id: int, need: HiringNeed
 ) -> CandidateMatch | None:
     """Совпадение одного кандидата с потребностью — для карточки и снимка в приглашении."""
+    return await _match_one(db, candidate_id, lambda row: need_spec(need))
+
+
+async def snapshot_for(
+    db: AsyncSession, employer_id: int, candidate_id: int, need: HiringNeed | None
+) -> CandidateMatch | None:
+    """Снимок «почему вы» для приглашения: по потребности, а без неё (или вне её категорий) — по категории."""
+    if need is not None:
+        match = await match_for(db, employer_id, candidate_id, need)
+        if match is not None:
+            return match
+    return await _match_one(
+        db,
+        candidate_id,
+        lambda row: scoring.NeedSpec(specialization=row.specialization, grade=row.grade.value),
+    )
+
+
+async def _match_one(
+    db: AsyncSession, candidate_id: int, spec_of: Callable[[CandidateSearchIndex], scoring.NeedSpec]
+) -> CandidateMatch | None:
     row = await db.get(CandidateSearchIndex, candidate_id)
     candidate = await db.get(Candidate, candidate_id)
     if row is None or candidate is None:
         return None
     best = await _best_fsp(db, [candidate_id])
-    result = scoring.evaluate(
-        _facts(row, best.get(candidate_id), datetime.now(UTC)), need_spec(need), _labels(row)
-    )
+    facts = _facts(row, best.get(candidate_id), datetime.now(UTC))
+    result = scoring.evaluate(facts, spec_of(row), _labels(row))
     if result is None:
         return None
     counts = await _fsp_counts(db, [candidate_id])
     return _match(result, _brief(row, candidate, counts.get(candidate_id, 0)), False)
+
+
+async def briefs(db: AsyncSession, candidate_ids: list[int]) -> dict[int, CandidateBrief]:
+    """Обезличенные карточки для списков приглашений и откликов.
+
+    Кандидат мог с тех пор потерять текущую категорию (строки индекса нет) — тогда берём последнюю известную.
+    """
+    ids = list(set(candidate_ids))
+    if not ids:
+        return {}
+    rows = {
+        row.candidate_id: row
+        for row in await db.scalars(
+            select(CandidateSearchIndex).where(CandidateSearchIndex.candidate_id.in_(ids))
+        )
+    }
+    candidates = list(await db.scalars(select(Candidate).where(Candidate.id.in_(ids))))
+    counts = await _fsp_counts(db, ids)
+    result: dict[int, CandidateBrief] = {}
+    for candidate in candidates:
+        row = rows.get(candidate.id) or await _detached_row(db, candidate)
+        if row is not None:
+            result[candidate.id] = _brief(row, candidate, counts.get(candidate.id, 0))
+    return result
+
+
+async def _detached_row(db: AsyncSession, candidate: Candidate) -> CandidateSearchIndex | None:
+    last = await db.scalar(
+        select(CandidateCategory)
+        .where(CandidateCategory.candidate_id == candidate.id)
+        .order_by(CandidateCategory.assigned_at.desc())
+        .limit(1)
+    )
+    if last is None:
+        return None
+    # В сессию не добавляется: только источник полей для _brief
+    return CandidateSearchIndex(
+        candidate_id=candidate.id,
+        specialization=last.specialization,
+        grade=last.grade,
+        percentile=None,
+        vps=0.0,
+        city=candidate.city,
+        relocation=candidate.relocation,
+        work_formats=list(candidate.work_formats or []),
+        salary_min=candidate.salary_min,
+        has_fsp=False,
+        max_rank=None,
+        skills_status={},
+        last_activity_at=last.assigned_at,
+    )
+
+
+async def reachable(db: AsyncSession, employer_id: int, candidate_id: int) -> bool:
+    """Работодатель может обратиться к кандидату: тот виден компании в поиске или контакты уже открыты."""
+    row = await db.get(CandidateSearchIndex, candidate_id)
+    visible = row is not None and row.visible and employer_id not in (row.hidden_employer_ids or [])
+    return visible or await contacts_unlocked(db, employer_id, candidate_id)
+
+
+async def invitation_statuses(
+    db: AsyncSession, employer_id: int, candidate_ids: list[int]
+) -> dict[int, InvitationStatus]:
+    """Статус последнего приглашения компании каждому кандидату — чтобы не приглашать повторно."""
+    if not candidate_ids:
+        return {}
+    rows = await db.execute(
+        select(Invitation.candidate_id, Invitation.status)
+        .where(Invitation.employer_id == employer_id, Invitation.candidate_id.in_(candidate_ids))
+        .order_by(Invitation.created_at.desc(), Invitation.id.desc())
+    )
+    latest: dict[int, InvitationStatus] = {}
+    for candidate_id, status in rows.all():
+        latest.setdefault(candidate_id, status)
+    return latest
 
 
 # ---------- каталог и поиск ----------
@@ -590,9 +689,8 @@ async def candidate_card(
     row = await db.get(CandidateSearchIndex, candidate_id)
     candidate = await db.get(Candidate, candidate_id)
     unlocked = candidate is not None and await contacts_unlocked(db, employer_id, candidate_id)
-    visible = row is not None and row.visible and employer_id not in (row.hidden_employer_ids or [])
     # Кандидат, скрывший профиль, остаётся доступен только тем, кому уже открыл контакты
-    if row is None or candidate is None or not (visible or unlocked):
+    if row is None or candidate is None or not await reachable(db, employer_id, candidate_id):
         raise NotFoundError("Кандидат не найден")
 
     privacy = candidates_service.privacy_of(candidate)
@@ -618,6 +716,9 @@ async def candidate_card(
 
         need = await needs_service.get_own_need(db, user_id, need_id)
         match = await match_for(db, employer_id, candidate_id, need)
+    statuses = await invitation_statuses(db, employer_id, [candidate_id])
+    if match is not None:
+        match.invitation_status = statuses.get(candidate_id)
 
     return CandidateCard(
         brief=_brief(row, candidate, counts.get(candidate_id, 0)),
@@ -648,6 +749,7 @@ async def candidate_card(
         contacts_unlocked=unlocked,
         contacts=await contacts_of(db, candidate) if unlocked else None,
         match=match,
+        invitation_status=statuses.get(candidate_id),
         grade_history=[
             CategoryRef(**categories_service.category_ref(item.specialization, item.grade.value).model_dump())
             for item in history

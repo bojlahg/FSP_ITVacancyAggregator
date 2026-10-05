@@ -40,7 +40,7 @@ class InvitationForCandidate(ApiModel):
     message: str
     salary_from: int
     salary_to: int
-    contact_method: ContactMethod
+    contact_method: ContactMethod | None = Field(description="Контакт рекрутера — после принятия приглашения")
     why_you: Explanation = Field(
         description="Почему выбрали именно вас — тот же расчёт, что видит работодатель"
     )
