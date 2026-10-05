@@ -195,13 +195,13 @@ def test_similarity_table_is_valid():
 
 
 def test_similar_skill_partial_credit_golden(monkeypatch):
-    # PostgreSQL ← проверенный MySQL: min(0.6, 0.7 · 1.0) = 0.6; Kafka ← заявленный RabbitMQ: 0.5 · 0.5 = 0.25
-    # skills = (1.0 + 0.6 + 0.25 + 0.3·0) / 3.3
+    # PostgreSQL ← проверенный MySQL: min(0.3, 0.7 · 1.0) = 0.3; Kafka ← заявленный RabbitMQ: 0.5 · 0.5 = 0.25
+    # skills = (1.0 + 0.3 + 0.25 + 0.3·0) / 3.3
     candidate = facts(1, skills_status={"python": "verified", "mysql": "verified", "rabbitmq": "declared"})
     result = evaluate(candidate, NEED, SIMILAR_LABELS)
-    assert result.components["skills"] == pytest.approx(1.85 / 3.3, abs=1e-4)
+    assert result.components["skills"] == pytest.approx(1.55 / 3.3, abs=1e-4)
     texts = [line["text"] for line in result.lines]
-    assert "PostgreSQL — нет, есть близкий MySQL (зачтено 60%)" in texts
+    assert "PostgreSQL — нет, есть близкий MySQL (зачтено 30%)" in texts
     assert "Kafka — нет, есть близкий RabbitMQ (зачтено 25%)" in texts
     without_similar = evaluate(facts(2, skills_status={"python": "verified"}), NEED, SIMILAR_LABELS)
     assert result.score > without_similar.score
@@ -223,13 +223,13 @@ def test_similarity_does_not_change_market_status():
 
 
 def test_similarity_respects_cap_and_parent_only(monkeypatch):
-    # Нужен CI/CD, у кандидата проверенный GitLab CI: 0.6 × 1.0 = 0.6 (без близости — 0: parent_only
+    # Нужен CI/CD, у кандидата проверенный GitLab CI: min(0.3, 0.6 × 1.0) = 0.3 (без близости — 0: parent_only
     # работает только в сторону «есть родитель, нужен потомок»)
     need = NeedSpec(specialization="devops", grade="middle", required=("ci_cd",))
     candidate = facts(1, specialization="devops", skills_status={"gitlab_ci": "verified"})
+    assert evaluate(candidate, need, {}).components["skills"] == pytest.approx(0.3)
+    monkeypatch.setitem(get_rules().skill_similarity, "max_credit", 1.0)
     assert evaluate(candidate, need, {}).components["skills"] == pytest.approx(0.6)
-    monkeypatch.setitem(get_rules().skill_similarity, "max_credit", 0.4)
-    assert evaluate(candidate, need, {}).components["skills"] == pytest.approx(0.4)
 
 
 # ---------- C1: вероятность принятия приглашения (§8.3.1) ----------
