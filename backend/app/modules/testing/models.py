@@ -1,6 +1,16 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, Float, ForeignKey, Integer, String, func
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -36,6 +46,8 @@ class TestAttempt(Base):
 
 class TestAttemptItem(Base):
     __tablename__ = "test_attempt_items"
+    # Одна позиция — одно задание: защита от двойной выдачи при параллельных запросах (§10.3)
+    __table_args__ = (UniqueConstraint("attempt_id", "position"),)
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     attempt_id: Mapped[int] = mapped_column(ForeignKey("test_attempts.id", ondelete="CASCADE"), index=True)

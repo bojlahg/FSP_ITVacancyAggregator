@@ -1,7 +1,9 @@
+import asyncio
+import contextlib
 from datetime import timedelta
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.core.config import get_settings
 from app.modules.testing import service as testing_service
@@ -174,6 +176,40 @@ async def test_attempt_rules_and_isolation(client, session):
         headers=headers,
     )
     assert wrong_item.json()["error"]["code"] == "not_current_item"
+
+
+async def test_parallel_current_requests_give_one_item(client, session, monkeypatch):
+    """Ревью 06.10, №4: два одновременных запроса не выдают два «текущих» задания."""
+    headers = await signup(client, "anna@example.com")
+    await onboard(client, headers)
+    started = await client.post(
+        f"{API}/tests/attempts", json={"specialization": "backend", "grade_target": "junior"}, headers=headers
+    )
+    attempt_id = started.json()["id"]
+
+    # Первый запрос задерживается после чтения истории — окно, в котором второй раньше читал ту же историю
+    read_history = testing_service._items
+    both_inside = asyncio.Event()
+    inside = 0
+
+    async def slow_items(db, attempt):
+        nonlocal inside
+        items = await read_history(db, attempt)
+        inside += 1
+        if inside == 2:
+            both_inside.set()
+        with contextlib.suppress(TimeoutError):
+            await asyncio.wait_for(both_inside.wait(), 1.0)
+        return items
+
+    monkeypatch.setattr(testing_service, "_items", slow_items)
+    url = f"{API}/tests/attempts/{attempt_id}/current"
+    first, second = await asyncio.gather(client.get(url, headers=headers), client.get(url, headers=headers))
+
+    assert first.status_code == second.status_code == 200
+    assert first.json()["item_id"] == second.json()["item_id"]
+    count = select(func.count()).select_from(AttemptItem).where(AttemptItem.attempt_id == attempt_id)
+    assert await session.scalar(count) == 1
 
 
 async def test_late_answer_scores_zero(client, session):

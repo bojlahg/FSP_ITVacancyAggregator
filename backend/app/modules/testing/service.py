@@ -46,8 +46,12 @@ def _now() -> datetime:
     return datetime.now(UTC)
 
 
-async def _owned_attempt(db: AsyncSession, candidate: Candidate, attempt_id: int) -> TestAttempt:
-    attempt = await db.get(TestAttempt, attempt_id)
+async def _owned_attempt(
+    db: AsyncSession, candidate: Candidate, attempt_id: int, lock: bool = False
+) -> TestAttempt:
+    # lock — изменения попытки идут по одной: параллельный запрос ждёт коммита первого, иначе оба
+    # прочитают одну историю и выдадут два «текущих» задания (§10.3)
+    attempt = await db.get(TestAttempt, attempt_id, with_for_update=lock)
     # Чужая попытка неотличима от несуществующей
     if attempt is None or attempt.candidate_id != candidate.id:
         raise NotFoundError("Попытка не найдена")
@@ -124,6 +128,8 @@ async def start(db: AsyncSession, candidate: Candidate, body: AttemptCreate) -> 
     if not spec.has_test:
         raise AppError("Для этой специализации тест появится позже", code="no_test_for_specialization")
 
+    # Два параллельных старта не должны создать две попытки: проверка и создание — под блокировкой кандидата
+    await db.execute(select(Candidate.id).where(Candidate.id == candidate.id).with_for_update())
     in_progress = await db.scalar(
         select(TestAttempt).where(
             TestAttempt.candidate_id == candidate.id, TestAttempt.status == AttemptStatus.in_progress
@@ -226,7 +232,7 @@ def _mark_answered(item: TestAttemptItem, response: dict | None, at: datetime, l
 
 
 async def current_item(db: AsyncSession, candidate: Candidate, attempt_id: int) -> CurrentItem:
-    attempt = await _owned_attempt(db, candidate, attempt_id)
+    attempt = await _owned_attempt(db, candidate, attempt_id, lock=True)
     if attempt.status != AttemptStatus.in_progress:
         return CurrentItem(finished=True)
     planner = await _planner(db, attempt)
@@ -266,7 +272,7 @@ async def current_item(db: AsyncSession, candidate: Candidate, attempt_id: int) 
 
 
 async def answer(db: AsyncSession, candidate: Candidate, attempt_id: int, body: AnswerRequest) -> AnswerAck:
-    attempt = await _owned_attempt(db, candidate, attempt_id)
+    attempt = await _owned_attempt(db, candidate, attempt_id, lock=True)
     if attempt.status != AttemptStatus.in_progress:
         raise ConflictError("Тест уже завершён", code="attempt_finished")
     items = await _items(db, attempt.id)
