@@ -7930,8 +7930,8 @@
         "tags": [
           "expert"
         ],
-        "summary": "Modified Angoff: шаблоны у порога грейда с примером экземпляра (без ключей) и оценками",
-        "description": "404 specialization_not_found — для специализации нет теста.",
+        "summary": "Modified Angoff: шаблоны у порога грейда с примером экземпляра (без ключей) и оценками раунда",
+        "description": "Раунд 2 дополнительно отдаёт собственную оценку раунда 1 и медиану и разброс оценок группы. 404 specialization_not_found — для специализации нет теста; 409 round1_incomplete — раунд 2 до полного раунда 1.",
         "operationId": "angoff_tasks_api_v1_expert_angoff_tasks_get",
         "security": [
           {
@@ -7958,6 +7958,20 @@
               "description": "Граница грейда: минимально компетентный кандидат этого грейда"
             },
             "description": "Граница грейда: минимально компетентный кандидат этого грейда"
+          },
+          {
+            "name": "round",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 2,
+              "minimum": 1,
+              "description": "Раунд оценки",
+              "default": 1,
+              "title": "Round"
+            },
+            "description": "Раунд оценки"
           }
         ],
         "responses": {
@@ -8001,6 +8015,16 @@
               }
             }
           },
+          "409": {
+            "description": "Конфликт состояния",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Ошибка валидации данных",
             "content": {
@@ -8019,8 +8043,8 @@
         "tags": [
           "expert"
         ],
-        "summary": "Modified Angoff: оценка шаблона 0–1; повторная оценка заменяет прежнюю",
-        "description": "404 template_not_found — шаблона нет в наборе для этой специализации и грейда.",
+        "summary": "Modified Angoff: оценка шаблона 0–1 в раунде; повторная оценка заменяет прежнюю",
+        "description": "404 template_not_found — шаблона нет в наборе для этой специализации и грейда; 409 round1_incomplete — оценка раунда 2 до полного раунда 1.",
         "operationId": "angoff_rate_api_v1_expert_angoff_ratings_put",
         "requestBody": {
           "content": {
@@ -8039,6 +8063,279 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AngoffProgress"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Требуется вход",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Недостаточно прав",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Не найдено",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт состояния",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Ошибка валидации данных",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/expert/angoff/round2": {
+      "post": {
+        "tags": [
+          "expert"
+        ],
+        "summary": "Modified Angoff: начать раунд 2 — копия оценок раунда 1 для пересмотра",
+        "description": "Уже поставленные оценки раунда 2 не перезаписываются. 404 specialization_not_found; 409 round1_incomplete — раунд 1 не завершён.",
+        "operationId": "angoff_start_round2_api_v1_expert_angoff_round2_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AngoffRoundStart"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AngoffProgress"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Требуется вход",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Недостаточно прав",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Не найдено",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт состояния",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Ошибка валидации данных",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/expert/angoff/impact": {
+      "get": {
+        "tags": [
+          "expert"
+        ],
+        "summary": "Modified Angoff: после раунда 1 — доли кандидатов по грейдам и пороги группы",
+        "description": "Доли — по последней завершённой попытке каждого кандидата специализации, при нехватке результатов — по синтетической популяции. Доступно после полного раунда 1, чтобы не влиять на первичную оценку. 404 specialization_not_found; 409 round1_incomplete.",
+        "operationId": "angoff_impact_api_v1_expert_angoff_impact_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "specialization",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 32,
+              "title": "Specialization"
+            }
+          },
+          {
+            "name": "grade",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Grade",
+              "description": "Граница грейда"
+            },
+            "description": "Граница грейда"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AngoffImpact"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Требуется вход",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Недостаточно прав",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Не найдено",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт состояния",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Ошибка валидации данных",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/expert/angoff/hofstee": {
+      "put": {
+        "tags": [
+          "expert"
+        ],
+        "summary": "Проверка Hofstee: допустимые порог (доля верных) и доля не дотягивающих до грейда",
+        "description": "Повторная отправка заменяет прежние. 404 specialization_not_found; 422 — min > max.",
+        "operationId": "angoff_hofstee_api_v1_expert_angoff_hofstee_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AngoffHofsteeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AngoffHofsteeValues"
                 }
               }
             }
@@ -8096,8 +8393,8 @@
         "tags": [
           "expert"
         ],
-        "summary": "Modified Angoff: рекомендуемые пороги грейдов по оценкам экспертов против действующих",
-        "description": "Порог эксперта — θ, при котором ожидаемый балл по набору равен сумме его оценок. Пороги в blueprints.yaml автоматически не меняются. 404 specialization_not_found.",
+        "summary": "Modified Angoff: пороги раундов 1 и 2, проверка Hofstee, рекомендация против действующих",
+        "description": "Порог эксперта — θ, при котором ожидаемый балл по набору равен сумме его оценок. Рекомендация — по последнему раунду, который прошёл хотя бы один эксперт. Пороги в blueprints.yaml автоматически не меняются. 404 specialization_not_found.",
         "operationId": "angoff_summary_api_v1_expert_angoff_summary_get",
         "security": [
           {
@@ -8958,6 +9255,37 @@
         ],
         "title": "AdminAppealOut"
       },
+      "AngoffBandShare": {
+        "properties": {
+          "band": {
+            "type": "string",
+            "title": "Band",
+            "description": "below — ниже стажёра, иначе грейд"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "current": {
+            "type": "number",
+            "title": "Current",
+            "description": "Доля кандидатов в полосе при действующих порогах"
+          },
+          "proposed": {
+            "type": "number",
+            "title": "Proposed",
+            "description": "Доля кандидатов в полосе при предложенных порогах"
+          }
+        },
+        "type": "object",
+        "required": [
+          "band",
+          "name",
+          "current",
+          "proposed"
+        ],
+        "title": "AngoffBandShare"
+      },
       "AngoffGradeSummary": {
         "properties": {
           "grade": {
@@ -8972,39 +9300,23 @@
             "title": "Items",
             "description": "Шаблонов в наборе"
           },
-          "raters": {
-            "type": "integer",
-            "title": "Raters",
-            "description": "Экспертов, оценивших весь набор"
-          },
-          "incomplete_raters": {
-            "type": "integer",
-            "title": "Incomplete Raters",
-            "description": "Экспертов, оценивших набор частично (в расчёт не входят)"
-          },
-          "rater_cuts": {
+          "rounds": {
             "items": {
-              "$ref": "#/components/schemas/AngoffRaterCut"
+              "$ref": "#/components/schemas/AngoffRoundSummary"
             },
             "type": "array",
-            "title": "Rater Cuts"
+            "title": "Rounds",
+            "description": "Раунды, где хотя бы один эксперт оценил весь набор"
           },
-          "mean_cut": {
+          "recommended_round": {
+            "type": "integer",
+            "title": "Recommended Round",
+            "description": "Раунд, по которому дана рекомендация: последний пройденный"
+          },
+          "recommended_cut": {
             "type": "number",
-            "title": "Mean Cut",
-            "description": "Рекомендуемый порог: среднее порогов экспертов"
-          },
-          "sd": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Sd",
-            "description": "Стандартное отклонение порогов экспертов; null при одном эксперте"
+            "title": "Recommended Cut",
+            "description": "Рекомендуемый порог: среднее порогов экспертов в этом раунде"
           },
           "se": {
             "anyOf": [
@@ -9016,7 +9328,7 @@
               }
             ],
             "title": "Se",
-            "description": "Стандартная ошибка среднего: SD / √k"
+            "description": "SE рекомендуемого порога"
           },
           "current_cut": {
             "type": "number",
@@ -9026,7 +9338,35 @@
           "difference": {
             "type": "number",
             "title": "Difference",
-            "description": "mean_cut − current_cut"
+            "description": "recommended_cut − current_cut"
+          },
+          "recommended_raters": {
+            "type": "integer",
+            "title": "Recommended Raters",
+            "description": "Рекомендуемое число экспертов (content/angoff.yaml)"
+          },
+          "hofstee": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AngoffHofsteeCheck"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "null — никто не заполнил окно Hofstee"
+          },
+          "impact_source": {
+            "type": "string",
+            "enum": [
+              "results",
+              "synthetic"
+            ],
+            "title": "Impact Source"
+          },
+          "impact_candidates": {
+            "type": "integer",
+            "title": "Impact Candidates"
           }
         },
         "type": "object",
@@ -9034,23 +9374,343 @@
           "grade",
           "grade_name",
           "items",
-          "raters",
-          "incomplete_raters",
-          "rater_cuts",
-          "mean_cut",
-          "sd",
+          "rounds",
+          "recommended_round",
+          "recommended_cut",
           "se",
           "current_cut",
-          "difference"
+          "difference",
+          "recommended_raters",
+          "hofstee",
+          "impact_source",
+          "impact_candidates"
         ],
         "title": "AngoffGradeSummary"
+      },
+      "AngoffGroupFeedback": {
+        "properties": {
+          "raters": {
+            "type": "integer",
+            "title": "Raters",
+            "description": "Экспертов, полностью прошедших раунд 1"
+          },
+          "median_cut": {
+            "type": "number",
+            "title": "Median Cut"
+          },
+          "min_cut": {
+            "type": "number",
+            "title": "Min Cut"
+          },
+          "max_cut": {
+            "type": "number",
+            "title": "Max Cut"
+          },
+          "sd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sd",
+            "description": "Стандартное отклонение порогов; null при одном эксперте"
+          }
+        },
+        "type": "object",
+        "required": [
+          "raters",
+          "median_cut",
+          "min_cut",
+          "max_cut",
+          "sd"
+        ],
+        "title": "AngoffGroupFeedback"
+      },
+      "AngoffHofsteeCheck": {
+        "properties": {
+          "raters": {
+            "type": "integer",
+            "title": "Raters",
+            "description": "Экспертов, заполнивших окно Hofstee"
+          },
+          "box": {
+            "$ref": "#/components/schemas/AngoffHofsteeValues",
+            "description": "Окно Hofstee: средние границы экспертов"
+          },
+          "cut_share": {
+            "type": "number",
+            "title": "Cut Share",
+            "description": "Порог Hofstee: доля верных по набору"
+          },
+          "cut_theta": {
+            "type": "number",
+            "title": "Cut Theta",
+            "description": "Порог Hofstee на шкале θ (через TCC набора)"
+          },
+          "fail_rate": {
+            "type": "number",
+            "title": "Fail Rate",
+            "description": "Доля не дотягивающих при пороге Hofstee"
+          },
+          "intersects": {
+            "type": "boolean",
+            "title": "Intersects",
+            "description": "Кривая доли не дотягивающих пересекает диагональ окна внутри окна"
+          },
+          "angoff_share": {
+            "type": "number",
+            "title": "Angoff Share",
+            "description": "Рекомендуемый порог Angoff как доля верных по набору"
+          },
+          "angoff_fail_rate": {
+            "type": "number",
+            "title": "Angoff Fail Rate",
+            "description": "Доля не дотягивающих при пороге Angoff"
+          },
+          "in_box": {
+            "type": "boolean",
+            "title": "In Box",
+            "description": "Порог Angoff внутри окна Hofstee по обеим осям"
+          }
+        },
+        "type": "object",
+        "required": [
+          "raters",
+          "box",
+          "cut_share",
+          "cut_theta",
+          "fail_rate",
+          "intersects",
+          "angoff_share",
+          "angoff_fail_rate",
+          "in_box"
+        ],
+        "title": "AngoffHofsteeCheck"
+      },
+      "AngoffHofsteeRequest": {
+        "properties": {
+          "min_cut": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Min Cut",
+            "description": "Минимальный допустимый порог: доля верных по набору"
+          },
+          "max_cut": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Max Cut",
+            "description": "Максимальный допустимый порог: доля верных по набору"
+          },
+          "min_fail": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Min Fail",
+            "description": "Минимальная допустимая доля не дотягивающих до грейда"
+          },
+          "max_fail": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Max Fail",
+            "description": "Максимальная допустимая доля не дотягивающих до грейда"
+          },
+          "specialization": {
+            "type": "string",
+            "maxLength": 32,
+            "title": "Specialization"
+          },
+          "grade": {
+            "$ref": "#/components/schemas/Grade"
+          }
+        },
+        "type": "object",
+        "required": [
+          "min_cut",
+          "max_cut",
+          "min_fail",
+          "max_fail",
+          "specialization",
+          "grade"
+        ],
+        "title": "AngoffHofsteeRequest"
+      },
+      "AngoffHofsteeValues": {
+        "properties": {
+          "min_cut": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Min Cut",
+            "description": "Минимальный допустимый порог: доля верных по набору"
+          },
+          "max_cut": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Max Cut",
+            "description": "Максимальный допустимый порог: доля верных по набору"
+          },
+          "min_fail": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Min Fail",
+            "description": "Минимальная допустимая доля не дотягивающих до грейда"
+          },
+          "max_fail": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Max Fail",
+            "description": "Максимальная допустимая доля не дотягивающих до грейда"
+          }
+        },
+        "type": "object",
+        "required": [
+          "min_cut",
+          "max_cut",
+          "min_fail",
+          "max_fail"
+        ],
+        "title": "AngoffHofsteeValues"
+      },
+      "AngoffImpact": {
+        "properties": {
+          "specialization": {
+            "type": "string",
+            "title": "Specialization"
+          },
+          "grade": {
+            "$ref": "#/components/schemas/Grade"
+          },
+          "grade_name": {
+            "type": "string",
+            "title": "Grade Name"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "results",
+              "synthetic"
+            ],
+            "title": "Source",
+            "description": "results — последние результаты тестов; synthetic — синтетическая популяция, если результатов меньше impact.min_candidates"
+          },
+          "candidates": {
+            "type": "integer",
+            "title": "Candidates",
+            "description": "Размер популяции, по которой считаются доли"
+          },
+          "your_cut": {
+            "type": "number",
+            "title": "Your Cut",
+            "description": "Порог эксперта по раунду 1 (θ)"
+          },
+          "your_fail_rate": {
+            "type": "number",
+            "title": "Your Fail Rate",
+            "description": "Доля кандидатов ниже порога эксперта"
+          },
+          "group": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AngoffGroupFeedback"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Пороги группы в раунде 1; null, если раунд 1 прошли меньше feedback_min_raters"
+          },
+          "current_cut": {
+            "type": "number",
+            "title": "Current Cut"
+          },
+          "current_fail_rate": {
+            "type": "number",
+            "title": "Current Fail Rate",
+            "description": "Доля кандидатов ниже действующего порога"
+          },
+          "proposed_cut": {
+            "type": "number",
+            "title": "Proposed Cut",
+            "description": "Медиана группы, а при недостатке экспертов — порог эксперта"
+          },
+          "proposed_fail_rate": {
+            "type": "number",
+            "title": "Proposed Fail Rate"
+          },
+          "bands": {
+            "items": {
+              "$ref": "#/components/schemas/AngoffBandShare"
+            },
+            "type": "array",
+            "title": "Bands",
+            "description": "Распределение по грейдам: действующие пороги против действующих с заменой этого порога"
+          }
+        },
+        "type": "object",
+        "required": [
+          "specialization",
+          "grade",
+          "grade_name",
+          "source",
+          "candidates",
+          "your_cut",
+          "your_fail_rate",
+          "group",
+          "current_cut",
+          "current_fail_rate",
+          "proposed_cut",
+          "proposed_fail_rate",
+          "bands"
+        ],
+        "title": "AngoffImpact"
+      },
+      "AngoffItemFeedback": {
+        "properties": {
+          "raters": {
+            "type": "integer",
+            "title": "Raters",
+            "description": "Экспертов, полностью прошедших раунд 1"
+          },
+          "median": {
+            "type": "number",
+            "title": "Median",
+            "description": "Медиана оценок группы в раунде 1"
+          },
+          "low": {
+            "type": "number",
+            "title": "Low",
+            "description": "Минимальная оценка группы"
+          },
+          "high": {
+            "type": "number",
+            "title": "High",
+            "description": "Максимальная оценка группы"
+          }
+        },
+        "type": "object",
+        "required": [
+          "raters",
+          "median",
+          "low",
+          "high"
+        ],
+        "title": "AngoffItemFeedback"
       },
       "AngoffProgress": {
         "properties": {
           "done": {
             "type": "integer",
             "title": "Done",
-            "description": "Сколько шаблонов набора оценил этот эксперт"
+            "description": "Сколько шаблонов набора оценил этот эксперт в раунде"
           },
           "total": {
             "type": "integer",
@@ -9117,6 +9777,14 @@
             "maxLength": 120,
             "title": "Template Id"
           },
+          "round": {
+            "type": "integer",
+            "maximum": 2.0,
+            "minimum": 1.0,
+            "title": "Round",
+            "description": "Раунд оценки; раунд 2 — после полного раунда 1",
+            "default": 1
+          },
           "rating": {
             "type": "number",
             "maximum": 1.0,
@@ -9133,6 +9801,94 @@
           "rating"
         ],
         "title": "AngoffRatingRequest"
+      },
+      "AngoffRoundStart": {
+        "properties": {
+          "specialization": {
+            "type": "string",
+            "maxLength": 32,
+            "title": "Specialization"
+          },
+          "grade": {
+            "$ref": "#/components/schemas/Grade"
+          }
+        },
+        "type": "object",
+        "required": [
+          "specialization",
+          "grade"
+        ],
+        "title": "AngoffRoundStart"
+      },
+      "AngoffRoundSummary": {
+        "properties": {
+          "round": {
+            "type": "integer",
+            "title": "Round"
+          },
+          "raters": {
+            "type": "integer",
+            "title": "Raters",
+            "description": "Экспертов, оценивших весь набор в этом раунде"
+          },
+          "incomplete_raters": {
+            "type": "integer",
+            "title": "Incomplete Raters",
+            "description": "Экспертов, оценивших набор частично (в расчёт не входят)"
+          },
+          "rater_cuts": {
+            "items": {
+              "$ref": "#/components/schemas/AngoffRaterCut"
+            },
+            "type": "array",
+            "title": "Rater Cuts"
+          },
+          "mean_cut": {
+            "type": "number",
+            "title": "Mean Cut",
+            "description": "Среднее порогов экспертов"
+          },
+          "median_cut": {
+            "type": "number",
+            "title": "Median Cut"
+          },
+          "sd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sd",
+            "description": "Стандартное отклонение порогов экспертов; null при одном эксперте"
+          },
+          "se": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Se",
+            "description": "Стандартная ошибка среднего: SD / √k"
+          }
+        },
+        "type": "object",
+        "required": [
+          "round",
+          "raters",
+          "incomplete_raters",
+          "rater_cuts",
+          "mean_cut",
+          "median_cut",
+          "sd",
+          "se"
+        ],
+        "title": "AngoffRoundSummary"
       },
       "AngoffSummary": {
         "properties": {
@@ -9183,7 +9939,30 @@
               }
             ],
             "title": "Rating",
-            "description": "Текущая оценка эксперта, null — ещё не оценён"
+            "description": "Оценка эксперта в этом раунде, null — ещё не оценён"
+          },
+          "round1_rating": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Round1 Rating",
+            "description": "Раунд 2: собственная оценка эксперта в раунде 1"
+          },
+          "group": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AngoffItemFeedback"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Раунд 2: оценки группы в раунде 1; null, если раунд 1 прошли меньше feedback_min_raters"
           }
         },
         "type": "object",
@@ -9209,13 +9988,44 @@
             "type": "string",
             "title": "Grade Name"
           },
+          "round": {
+            "type": "integer",
+            "title": "Round",
+            "description": "1 — первичная оценка, 2 — пересмотр после данных о последствиях"
+          },
           "rating_step": {
             "type": "number",
             "title": "Rating Step",
             "description": "Шаг шкалы оценки, доля"
           },
           "progress": {
-            "$ref": "#/components/schemas/AngoffProgress"
+            "$ref": "#/components/schemas/AngoffProgress",
+            "description": "Прогресс в запрошенном раунде"
+          },
+          "round1_complete": {
+            "type": "boolean",
+            "title": "Round1 Complete",
+            "description": "Эксперт оценил весь набор в раунде 1 — открыт раунд 2"
+          },
+          "round2_started": {
+            "type": "boolean",
+            "title": "Round2 Started",
+            "description": "У эксперта есть оценки раунда 2"
+          },
+          "hofstee": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AngoffHofsteeValues"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Ответы эксперта для проверки Hofstee"
+          },
+          "hofstee_defaults": {
+            "$ref": "#/components/schemas/AngoffHofsteeValues",
+            "description": "Значения формы Hofstee по умолчанию"
           },
           "tasks": {
             "items": {
@@ -9230,8 +10040,13 @@
           "specialization",
           "grade",
           "grade_name",
+          "round",
           "rating_step",
           "progress",
+          "round1_complete",
+          "round2_started",
+          "hofstee",
+          "hofstee_defaults",
           "tasks"
         ],
         "title": "AngoffTasks"

@@ -4,7 +4,7 @@ import secrets
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import delete, func, select
-from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.dialects.postgresql import distinct_on, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import llm
@@ -533,3 +533,21 @@ async def _next_actions(db: AsyncSession, candidate: Candidate, attempt: TestAtt
     return [
         NextAction(action=action, grade=Grade(target), available_at=decision.available_at, message=message)
     ]
+
+
+async def latest_thetas(db: AsyncSession, specialization: str) -> list[float]:
+    """θ̂ последней завершённой попытки каждого кандидата специализации — данные о последствиях Angoff."""
+    query = (
+        select(TestAttempt.theta)
+        .where(
+            TestAttempt.specialization == specialization,
+            TestAttempt.status == AttemptStatus.completed,
+            TestAttempt.theta.is_not(None),
+            TestAttempt.candidate_id.is_not(None),
+        )
+        .order_by(
+            TestAttempt.candidate_id, TestAttempt.finished_at.desc().nulls_last(), TestAttempt.id.desc()
+        )
+        .ext(distinct_on(TestAttempt.candidate_id))
+    )
+    return [float(theta) for theta in await db.scalars(query)]

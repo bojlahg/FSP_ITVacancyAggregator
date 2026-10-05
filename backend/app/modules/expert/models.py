@@ -68,9 +68,15 @@ class AngoffRating(Base):
     __tablename__ = "angoff_ratings"
     __table_args__ = (
         UniqueConstraint(
-            "rater_email", "specialization", "grade", "template_id", name="uq_angoff_ratings_rater_item"
+            "rater_email",
+            "specialization",
+            "grade",
+            "template_id",
+            "round",
+            name="uq_angoff_ratings_rater_item_round",
         ),
         CheckConstraint("rating BETWEEN 0 AND 1", name="rating_range"),
+        CheckConstraint("round IN (1, 2)", name="round_range"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
@@ -78,7 +84,33 @@ class AngoffRating(Base):
     specialization: Mapped[str] = mapped_column(String(32))
     grade: Mapped[Grade] = mapped_column(enum_type(Grade))
     template_id: Mapped[str] = mapped_column(String(120))
+    # Раунд 1 — до данных о последствиях, раунд 2 — пересмотр после них (§12.4); хранятся раздельно
+    round: Mapped[int] = mapped_column(SmallInteger, server_default="1")
     rating: Mapped[float] = mapped_column(Float)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class AngoffHofstee(Base):
+    """Ответы эксперта для проверки Hofstee (§12.4): допустимые порог (доля верных) и доля не дотягивающих."""
+
+    __tablename__ = "angoff_hofstee"
+    __table_args__ = (
+        UniqueConstraint("rater_email", "specialization", "grade", name="uq_angoff_hofstee_rater_grade"),
+        CheckConstraint("min_cut >= 0 AND min_cut <= max_cut AND max_cut <= 1", name="cut_range"),
+        CheckConstraint("min_fail >= 0 AND min_fail <= max_fail AND max_fail <= 1", name="fail_range"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    rater_email: Mapped[str] = mapped_column(String(320))
+    specialization: Mapped[str] = mapped_column(String(32))
+    grade: Mapped[Grade] = mapped_column(enum_type(Grade))
+    min_cut: Mapped[float] = mapped_column(Float)
+    max_cut: Mapped[float] = mapped_column(Float)
+    min_fail: Mapped[float] = mapped_column(Float)
+    max_fail: Mapped[float] = mapped_column(Float)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

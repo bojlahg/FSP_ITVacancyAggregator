@@ -9,7 +9,7 @@ from app.modules.auth.models import AuditLog, Consent, EmailToken, RefreshToken,
 from app.modules.candidates.models import Candidate, CandidateExperience, CandidateSkill
 from app.modules.categories.models import CandidateCategory
 from app.modules.employers.models import Employer
-from app.modules.expert.models import AngoffRating, ExpertLabel, ExpertPair
+from app.modules.expert.models import AngoffHofstee, AngoffRating, ExpertLabel, ExpertPair
 from app.modules.fsp.models import CandidateCompetency, FspAchievement, FspRank
 from app.modules.integrations.models import EmployerApiKey, EmployerWebhook, WebhookDelivery
 from app.modules.invitations.models import ContactUnlock, Invitation, InvitationReport
@@ -23,6 +23,7 @@ from app.modules.testing.models import TemplateStat, TestAttempt, TestAttemptIte
 add_enum_checks(Base.metadata)
 
 __all__ = [
+    "AngoffHofstee",
     "AngoffRating",
     "Application",
     "AuditLog",

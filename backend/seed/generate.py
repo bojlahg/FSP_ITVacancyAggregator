@@ -107,7 +107,7 @@ def weighted(rng: random.Random, pairs: list[tuple]) -> object:
     return rng.choices(values, weights=weights, k=1)[0]
 
 
-PRESERVED_TABLES = {"expert_pairs", "expert_labels", "angoff_ratings"}
+PRESERVED_TABLES = {"expert_pairs", "expert_labels", "angoff_ratings", "angoff_hofstee"}
 
 
 _CYRILLIC = dict(

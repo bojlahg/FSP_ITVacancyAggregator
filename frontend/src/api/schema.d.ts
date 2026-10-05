@@ -1742,8 +1742,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Modified Angoff: шаблоны у порога грейда с примером экземпляра (без ключей) и оценками
-         * @description 404 specialization_not_found — для специализации нет теста.
+         * Modified Angoff: шаблоны у порога грейда с примером экземпляра (без ключей) и оценками раунда
+         * @description Раунд 2 дополнительно отдаёт собственную оценку раунда 1 и медиану и разброс оценок группы. 404 specialization_not_found — для специализации нет теста; 409 round1_incomplete — раунд 2 до полного раунда 1.
          */
         get: operations["angoff_tasks_api_v1_expert_angoff_tasks_get"];
         put?: never;
@@ -1763,10 +1763,70 @@ export interface paths {
         };
         get?: never;
         /**
-         * Modified Angoff: оценка шаблона 0–1; повторная оценка заменяет прежнюю
-         * @description 404 template_not_found — шаблона нет в наборе для этой специализации и грейда.
+         * Modified Angoff: оценка шаблона 0–1 в раунде; повторная оценка заменяет прежнюю
+         * @description 404 template_not_found — шаблона нет в наборе для этой специализации и грейда; 409 round1_incomplete — оценка раунда 2 до полного раунда 1.
          */
         put: operations["angoff_rate_api_v1_expert_angoff_ratings_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/expert/angoff/round2": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Modified Angoff: начать раунд 2 — копия оценок раунда 1 для пересмотра
+         * @description Уже поставленные оценки раунда 2 не перезаписываются. 404 specialization_not_found; 409 round1_incomplete — раунд 1 не завершён.
+         */
+        post: operations["angoff_start_round2_api_v1_expert_angoff_round2_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/expert/angoff/impact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Modified Angoff: после раунда 1 — доли кандидатов по грейдам и пороги группы
+         * @description Доли — по последней завершённой попытке каждого кандидата специализации, при нехватке результатов — по синтетической популяции. Доступно после полного раунда 1, чтобы не влиять на первичную оценку. 404 specialization_not_found; 409 round1_incomplete.
+         */
+        get: operations["angoff_impact_api_v1_expert_angoff_impact_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/expert/angoff/hofstee": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Проверка Hofstee: допустимые порог (доля верных) и доля не дотягивающих до грейда
+         * @description Повторная отправка заменяет прежние. 404 specialization_not_found; 422 — min > max.
+         */
+        put: operations["angoff_hofstee_api_v1_expert_angoff_hofstee_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1782,8 +1842,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Modified Angoff: рекомендуемые пороги грейдов по оценкам экспертов против действующих
-         * @description Порог эксперта — θ, при котором ожидаемый балл по набору равен сумме его оценок. Пороги в blueprints.yaml автоматически не меняются. 404 specialization_not_found.
+         * Modified Angoff: пороги раундов 1 и 2, проверка Hofstee, рекомендация против действующих
+         * @description Порог эксперта — θ, при котором ожидаемый балл по набору равен сумме его оценок. Рекомендация — по последнему раунду, который прошёл хотя бы один эксперт. Пороги в blueprints.yaml автоматически не меняются. 404 specialization_not_found.
          */
         get: operations["angoff_summary_api_v1_expert_angoff_summary_get"];
         put?: never;
@@ -1998,6 +2058,26 @@ export interface components {
              */
             category_is_current: boolean;
         };
+        /** AngoffBandShare */
+        AngoffBandShare: {
+            /**
+             * Band
+             * @description below — ниже стажёра, иначе грейд
+             */
+            band: string;
+            /** Name */
+            name: string;
+            /**
+             * Current
+             * @description Доля кандидатов в полосе при действующих порогах
+             */
+            current: number;
+            /**
+             * Proposed
+             * @description Доля кандидатов в полосе при предложенных порогах
+             */
+            proposed: number;
+        };
         /** AngoffGradeSummary */
         AngoffGradeSummary: {
             grade: components["schemas"]["Grade"];
@@ -2009,30 +2089,23 @@ export interface components {
              */
             items: number;
             /**
-             * Raters
-             * @description Экспертов, оценивших весь набор
+             * Rounds
+             * @description Раунды, где хотя бы один эксперт оценил весь набор
              */
-            raters: number;
+            rounds: components["schemas"]["AngoffRoundSummary"][];
             /**
-             * Incomplete Raters
-             * @description Экспертов, оценивших набор частично (в расчёт не входят)
+             * Recommended Round
+             * @description Раунд, по которому дана рекомендация: последний пройденный
              */
-            incomplete_raters: number;
-            /** Rater Cuts */
-            rater_cuts: components["schemas"]["AngoffRaterCut"][];
+            recommended_round: number;
             /**
-             * Mean Cut
-             * @description Рекомендуемый порог: среднее порогов экспертов
+             * Recommended Cut
+             * @description Рекомендуемый порог: среднее порогов экспертов в этом раунде
              */
-            mean_cut: number;
-            /**
-             * Sd
-             * @description Стандартное отклонение порогов экспертов; null при одном эксперте
-             */
-            sd: number | null;
+            recommended_cut: number;
             /**
              * Se
-             * @description Стандартная ошибка среднего: SD / √k
+             * @description SE рекомендуемого порога
              */
             se: number | null;
             /**
@@ -2042,15 +2115,215 @@ export interface components {
             current_cut: number;
             /**
              * Difference
-             * @description mean_cut − current_cut
+             * @description recommended_cut − current_cut
              */
             difference: number;
+            /**
+             * Recommended Raters
+             * @description Рекомендуемое число экспертов (content/angoff.yaml)
+             */
+            recommended_raters: number;
+            /** @description null — никто не заполнил окно Hofstee */
+            hofstee: components["schemas"]["AngoffHofsteeCheck"] | null;
+            /**
+             * Impact Source
+             * @enum {string}
+             */
+            impact_source: "results" | "synthetic";
+            /** Impact Candidates */
+            impact_candidates: number;
+        };
+        /** AngoffGroupFeedback */
+        AngoffGroupFeedback: {
+            /**
+             * Raters
+             * @description Экспертов, полностью прошедших раунд 1
+             */
+            raters: number;
+            /** Median Cut */
+            median_cut: number;
+            /** Min Cut */
+            min_cut: number;
+            /** Max Cut */
+            max_cut: number;
+            /**
+             * Sd
+             * @description Стандартное отклонение порогов; null при одном эксперте
+             */
+            sd: number | null;
+        };
+        /** AngoffHofsteeCheck */
+        AngoffHofsteeCheck: {
+            /**
+             * Raters
+             * @description Экспертов, заполнивших окно Hofstee
+             */
+            raters: number;
+            /** @description Окно Hofstee: средние границы экспертов */
+            box: components["schemas"]["AngoffHofsteeValues"];
+            /**
+             * Cut Share
+             * @description Порог Hofstee: доля верных по набору
+             */
+            cut_share: number;
+            /**
+             * Cut Theta
+             * @description Порог Hofstee на шкале θ (через TCC набора)
+             */
+            cut_theta: number;
+            /**
+             * Fail Rate
+             * @description Доля не дотягивающих при пороге Hofstee
+             */
+            fail_rate: number;
+            /**
+             * Intersects
+             * @description Кривая доли не дотягивающих пересекает диагональ окна внутри окна
+             */
+            intersects: boolean;
+            /**
+             * Angoff Share
+             * @description Рекомендуемый порог Angoff как доля верных по набору
+             */
+            angoff_share: number;
+            /**
+             * Angoff Fail Rate
+             * @description Доля не дотягивающих при пороге Angoff
+             */
+            angoff_fail_rate: number;
+            /**
+             * In Box
+             * @description Порог Angoff внутри окна Hofstee по обеим осям
+             */
+            in_box: boolean;
+        };
+        /** AngoffHofsteeRequest */
+        AngoffHofsteeRequest: {
+            /**
+             * Min Cut
+             * @description Минимальный допустимый порог: доля верных по набору
+             */
+            min_cut: number;
+            /**
+             * Max Cut
+             * @description Максимальный допустимый порог: доля верных по набору
+             */
+            max_cut: number;
+            /**
+             * Min Fail
+             * @description Минимальная допустимая доля не дотягивающих до грейда
+             */
+            min_fail: number;
+            /**
+             * Max Fail
+             * @description Максимальная допустимая доля не дотягивающих до грейда
+             */
+            max_fail: number;
+            /** Specialization */
+            specialization: string;
+            grade: components["schemas"]["Grade"];
+        };
+        /** AngoffHofsteeValues */
+        AngoffHofsteeValues: {
+            /**
+             * Min Cut
+             * @description Минимальный допустимый порог: доля верных по набору
+             */
+            min_cut: number;
+            /**
+             * Max Cut
+             * @description Максимальный допустимый порог: доля верных по набору
+             */
+            max_cut: number;
+            /**
+             * Min Fail
+             * @description Минимальная допустимая доля не дотягивающих до грейда
+             */
+            min_fail: number;
+            /**
+             * Max Fail
+             * @description Максимальная допустимая доля не дотягивающих до грейда
+             */
+            max_fail: number;
+        };
+        /** AngoffImpact */
+        AngoffImpact: {
+            /** Specialization */
+            specialization: string;
+            grade: components["schemas"]["Grade"];
+            /** Grade Name */
+            grade_name: string;
+            /**
+             * Source
+             * @description results — последние результаты тестов; synthetic — синтетическая популяция, если результатов меньше impact.min_candidates
+             * @enum {string}
+             */
+            source: "results" | "synthetic";
+            /**
+             * Candidates
+             * @description Размер популяции, по которой считаются доли
+             */
+            candidates: number;
+            /**
+             * Your Cut
+             * @description Порог эксперта по раунду 1 (θ)
+             */
+            your_cut: number;
+            /**
+             * Your Fail Rate
+             * @description Доля кандидатов ниже порога эксперта
+             */
+            your_fail_rate: number;
+            /** @description Пороги группы в раунде 1; null, если раунд 1 прошли меньше feedback_min_raters */
+            group: components["schemas"]["AngoffGroupFeedback"] | null;
+            /** Current Cut */
+            current_cut: number;
+            /**
+             * Current Fail Rate
+             * @description Доля кандидатов ниже действующего порога
+             */
+            current_fail_rate: number;
+            /**
+             * Proposed Cut
+             * @description Медиана группы, а при недостатке экспертов — порог эксперта
+             */
+            proposed_cut: number;
+            /** Proposed Fail Rate */
+            proposed_fail_rate: number;
+            /**
+             * Bands
+             * @description Распределение по грейдам: действующие пороги против действующих с заменой этого порога
+             */
+            bands: components["schemas"]["AngoffBandShare"][];
+        };
+        /** AngoffItemFeedback */
+        AngoffItemFeedback: {
+            /**
+             * Raters
+             * @description Экспертов, полностью прошедших раунд 1
+             */
+            raters: number;
+            /**
+             * Median
+             * @description Медиана оценок группы в раунде 1
+             */
+            median: number;
+            /**
+             * Low
+             * @description Минимальная оценка группы
+             */
+            low: number;
+            /**
+             * High
+             * @description Максимальная оценка группы
+             */
+            high: number;
         };
         /** AngoffProgress */
         AngoffProgress: {
             /**
              * Done
-             * @description Сколько шаблонов набора оценил этот эксперт
+             * @description Сколько шаблонов набора оценил этот эксперт в раунде
              */
             done: number;
             /** Total */
@@ -2092,10 +2365,56 @@ export interface components {
             /** Template Id */
             template_id: string;
             /**
+             * Round
+             * @description Раунд оценки; раунд 2 — после полного раунда 1
+             * @default 1
+             */
+            round: number;
+            /**
              * Rating
              * @description Вероятность, что минимально компетентный кандидат грейда решит задание
              */
             rating: number;
+        };
+        /** AngoffRoundStart */
+        AngoffRoundStart: {
+            /** Specialization */
+            specialization: string;
+            grade: components["schemas"]["Grade"];
+        };
+        /** AngoffRoundSummary */
+        AngoffRoundSummary: {
+            /** Round */
+            round: number;
+            /**
+             * Raters
+             * @description Экспертов, оценивших весь набор в этом раунде
+             */
+            raters: number;
+            /**
+             * Incomplete Raters
+             * @description Экспертов, оценивших набор частично (в расчёт не входят)
+             */
+            incomplete_raters: number;
+            /** Rater Cuts */
+            rater_cuts: components["schemas"]["AngoffRaterCut"][];
+            /**
+             * Mean Cut
+             * @description Среднее порогов экспертов
+             */
+            mean_cut: number;
+            /** Median Cut */
+            median_cut: number;
+            /**
+             * Sd
+             * @description Стандартное отклонение порогов экспертов; null при одном эксперте
+             */
+            sd: number | null;
+            /**
+             * Se
+             * @description Стандартная ошибка среднего: SD / √k
+             */
+            se: number | null;
         };
         /** AngoffSummary */
         AngoffSummary: {
@@ -2118,9 +2437,16 @@ export interface components {
             instance: components["schemas"]["ExplainerInstance"];
             /**
              * Rating
-             * @description Текущая оценка эксперта, null — ещё не оценён
+             * @description Оценка эксперта в этом раунде, null — ещё не оценён
              */
             rating: number | null;
+            /**
+             * Round1 Rating
+             * @description Раунд 2: собственная оценка эксперта в раунде 1
+             */
+            round1_rating?: number | null;
+            /** @description Раунд 2: оценки группы в раунде 1; null, если раунд 1 прошли меньше feedback_min_raters */
+            group?: components["schemas"]["AngoffItemFeedback"] | null;
         };
         /** AngoffTasks */
         AngoffTasks: {
@@ -2130,11 +2456,31 @@ export interface components {
             /** Grade Name */
             grade_name: string;
             /**
+             * Round
+             * @description 1 — первичная оценка, 2 — пересмотр после данных о последствиях
+             */
+            round: number;
+            /**
              * Rating Step
              * @description Шаг шкалы оценки, доля
              */
             rating_step: number;
+            /** @description Прогресс в запрошенном раунде */
             progress: components["schemas"]["AngoffProgress"];
+            /**
+             * Round1 Complete
+             * @description Эксперт оценил весь набор в раунде 1 — открыт раунд 2
+             */
+            round1_complete: boolean;
+            /**
+             * Round2 Started
+             * @description У эксперта есть оценки раунда 2
+             */
+            round2_started: boolean;
+            /** @description Ответы эксперта для проверки Hofstee */
+            hofstee: components["schemas"]["AngoffHofsteeValues"] | null;
+            /** @description Значения формы Hofstee по умолчанию */
+            hofstee_defaults: components["schemas"]["AngoffHofsteeValues"];
             /** Tasks */
             tasks: components["schemas"]["AngoffTask"][];
         };
@@ -11071,6 +11417,8 @@ export interface operations {
                 specialization: string;
                 /** @description Граница грейда: минимально компетентный кандидат этого грейда */
                 grade: components["schemas"]["Grade"];
+                /** @description Раунд оценки */
+                round?: number;
             };
             header?: never;
             path?: never;
@@ -11114,6 +11462,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Конфликт состояния */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Ошибка валидации данных */
             422: {
                 headers: {
@@ -11145,6 +11502,213 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AngoffProgress"];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Конфликт состояния */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ошибка валидации данных */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    angoff_start_round2_api_v1_expert_angoff_round2_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AngoffRoundStart"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AngoffProgress"];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Конфликт состояния */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ошибка валидации данных */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    angoff_impact_api_v1_expert_angoff_impact_get: {
+        parameters: {
+            query: {
+                specialization: string;
+                /** @description Граница грейда */
+                grade: components["schemas"]["Grade"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AngoffImpact"];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Конфликт состояния */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ошибка валидации данных */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    angoff_hofstee_api_v1_expert_angoff_hofstee_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AngoffHofsteeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AngoffHofsteeValues"];
                 };
             };
             /** @description Требуется вход */
