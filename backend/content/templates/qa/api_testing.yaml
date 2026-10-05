@@ -280,3 +280,23 @@
   kind: numeric
   irt: {a: 1.0, b: -2.2}
   generator: qa.json_flag_count
+
+# --- Senior: условные запросы и rate limit ---
+
+- id: qa.api.etag_sequence
+  specializations: [qa]
+  topic: api_testing
+  skills: [api_testing, http, rest]
+  kind: code_output
+  irt: {a: 1.4, b: 1.5}
+  time_limit_sec: 180
+  generator: qa.etag_sequence
+
+- id: qa.api.token_bucket
+  specializations: [qa]
+  topic: api_testing
+  skills: [api_testing, http]
+  kind: numeric
+  irt: {a: 1.4, b: 1.6}
+  time_limit_sec: 180
+  generator: qa.token_bucket

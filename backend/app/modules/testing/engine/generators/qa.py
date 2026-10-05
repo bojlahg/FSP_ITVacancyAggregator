@@ -2299,3 +2299,419 @@ def json_flag_count(rng: random.Random) -> Generated:
         f'Сколько объектов в массиве data имеют "{flag}": true?'
     )
     return Generated(stem=stem, code=code, code_language="json", number=float(truthy))
+
+
+# --- Senior: метаморфное тестирование, условные запросы, rate limit, фикстуры, JUnit, SQL ---------
+
+METAMORPHIC_DOMAINS = [
+    (
+        "поиска товаров с фильтрами",
+        [
+            "Добавление ещё одного фильтра к запросу не увеличивает число найденных товаров",
+            "Перестановка порядка применения фильтров не меняет набор результатов",
+            "Повторный запрос с теми же параметрами при неизменном каталоге возвращает тот же набор товаров",
+        ],
+        [
+            "Ослабление фильтра (расширение диапазона цены) уменьшает число результатов",
+            "Смена сортировки с цены на рейтинг меняет число найденных товаров",
+            "Результаты с фильтром «цена ≤ X» совпадают с результатами без фильтра",
+        ],
+    ),
+    (
+        "сервиса кратчайших маршрутов по дорожному графу",
+        [
+            "Расстояние A→B не больше суммы расстояний A→C и C→B",
+            "Добавление новой дороги не увеличивает длину кратчайшего пути A→B",
+            "Если каждая дорога двусторонняя и одной длины в обе стороны, расстояние A→B равно B→A",
+        ],
+        [
+            "Удаление любой дороги не меняет длину кратчайшего пути A→B",
+            "Увеличение длины любой дороги увеличивает длину кратчайшего пути A→B",
+            "Расстояние A→B всегда меньше расстояния A→C, если C дальше от A по прямой",
+        ],
+    ),
+    (
+        "функции сортировки списка чисел",
+        [
+            "Сортировка любой перестановки входа даёт тот же результат",
+            "Повторная сортировка результата не меняет его",
+            "Результат содержит те же элементы с теми же кратностями, что и вход",
+        ],
+        [
+            "Сортировка входа, записанного в обратном порядке, даёт результат в обратном порядке",
+            "Первый элемент результата совпадает с первым элементом входа",
+            "Добавление нового элемента не меняет позицию прежнего максимума",
+        ],
+    ),
+    (
+        "калькулятора аннуитетного платежа по кредиту со ставкой больше нуля",
+        [
+            "Увеличение суммы кредита при прочих равных не уменьшает ежемесячный платёж",
+            "Увеличение ставки при прочих равных не уменьшает ежемесячный платёж",
+            "Удвоение суммы кредита при прочих равных удваивает ежемесячный платёж",
+        ],
+        [
+            "Увеличение срока кредита увеличивает ежемесячный платёж",
+            "Удвоение срока кредита ровно вдвое уменьшает ежемесячный платёж",
+            "При сроке больше года платёж не зависит от ставки",
+        ],
+    ),
+]
+
+
+@generator("qa.metamorphic_relations")
+def metamorphic_relations(rng: random.Random) -> Generated:
+    """Метаморфное тестирование: проверяются отношения между выходами связанных входов, когда оракула нет."""
+    domain, correct, wrong = rng.choice(METAMORPHIC_DOMAINS)
+    stem = rng.choice(
+        [
+            f"Для {domain} нет эталонных ожидаемых значений на больших входах (проблема тестового оракула). "
+            "Какие метаморфные отношения корректны и годятся для автоматической проверки?",
+            f"Тестируете реализацию {domain}: ожидаемый результат для случайных входов неизвестен, "
+            "поэтому применяют метаморфное тестирование. Какие отношения между запусками верны всегда?",
+        ]
+    )
+    return Generated(stem=stem, correct=tuple(correct), wrong=tuple(wrong))
+
+
+def _etag(rng: random.Random) -> str:
+    return '"' + "".join(rng.choice("0123456789abcdef") for _ in range(6)) + '"'
+
+
+@generator("qa.etag_sequence")
+def etag_sequence(rng: random.Random) -> Generated:
+    """Условные запросы: If-None-Match совпал → 304; If-Match не совпал → 412; запись без условия на сервере,
+    требующем условные запросы, → 428 (RFC 9110, RFC 6585)."""
+    resource = rng.choice(["/orders/17", "/profiles/me", "/carts/42", "/documents/9", "/tariffs/3"])
+    versions = [_etag(rng)]
+    known = {"A": versions[0], "B": versions[0]}
+    lines = [
+        f"Ресурс {resource}, текущий ETag {versions[0]}. Оба клиента уже прочитали его и знают этот ETag.",
+        "Сервер требует условные запросы для изменений (иначе 428).",
+    ]
+    statuses: list[int] = []
+    naive: list[int] = []
+    conflict: list[int] = []
+    gets: set[int] = set()
+    while True:
+        lines, statuses, naive, conflict, gets = lines[:2], [], [], [], set()
+        versions = versions[:1]
+        known = {"A": versions[0], "B": versions[0]}
+        current = versions[0]
+        for step in range(5):
+            client = rng.choice("AB")
+            action = rng.choice(["put", "put", "get", "get", "put_plain"]) if step else "put"
+            tag = known[client]
+            if action == "put":
+                lines.append(f"{step + 1}) {client}: PUT {resource}, If-Match: {tag}")
+                if tag == current:
+                    current = _etag(rng)
+                    versions.append(current)
+                    known[client] = current
+                    statuses.append(200)
+                    lines[-1] += f" → новый ETag {current}"
+                    naive.append(200)
+                    conflict.append(200)
+                else:
+                    statuses.append(412)
+                    naive.append(200)
+                    conflict.append(409)
+            elif action == "get":
+                gets.add(step)
+                lines.append(f"{step + 1}) {client}: GET {resource}, If-None-Match: {tag}")
+                if tag == current:
+                    statuses.append(304)
+                    naive.append(304)
+                    conflict.append(304)
+                else:
+                    statuses.append(200)
+                    known[client] = current
+                    naive.append(304)
+                    conflict.append(200)
+            else:
+                lines.append(f"{step + 1}) {client}: PUT {resource} без заголовков условия")
+                statuses.append(428)
+                naive.append(200)
+                conflict.append(400)
+        if 412 in statuses and len(set(statuses)) >= 3:
+            break
+    correct = " ".join(map(str, statuses))
+    swapped = [{304: 200, 200: 304}.get(s, s) if i in gets else s for i, s in enumerate(statuses)]
+    wrong = [" ".join(map(str, v)) for v in (naive, conflict, swapped)]
+    wrong.append(" ".join(str(409 if s == 412 else 412 if s == 428 else s) for s in statuses))
+    wrong.append(" ".join(str(s if s != 412 else 200) for s in statuses))
+    return Generated(
+        stem="Запросы выполняются по порядку. Какие коды ответа вернёт сервер на шаги 1–5 (через пробел)?",
+        code="\n".join(lines),
+        code_language="text",
+        correct=(correct,),
+        wrong=_distinct_wrong(correct, wrong),
+    )
+
+
+@generator("qa.token_bucket")
+def token_bucket(rng: random.Random) -> Generated:
+    """Token bucket: ёмкость — допустимый всплеск, пополнение — средняя скорость; ответ считаем симуляцией."""
+    capacity = rng.choice([5, 8, 10, 12, 20])
+    rate = rng.choice([1, 2, 4, 5])
+    bursts: list[tuple[int, int]] = []
+    moment = 0
+    for index in range(4):
+        if index:
+            moment += rng.randint(1, 4)
+        bursts.append((moment, rng.randint(capacity // 2, capacity + rate * 3)))
+    tokens, last, rejected, accepted = float(capacity), 0, 0, 0
+    for at, count in bursts:
+        tokens = min(capacity, tokens + (at - last) * rate)
+        last = at
+        allowed = min(count, int(tokens))
+        tokens -= allowed
+        accepted += allowed
+        rejected += count - allowed
+    ask_rejected = rng.random() < 0.5
+    listing = "; ".join(f"t = {at} с — запросов: {count}" for at, count in bursts)
+    question = (
+        "Сколько запросов получат 429 Too Many Requests?"
+        if ask_rejected
+        else "Сколько запросов будет пропущено?"
+    )
+    stem = (
+        f"Лимит API реализован как token bucket: ёмкость {capacity} токенов, скорость пополнения — {rate} "
+        "в секунду (равномерно), в момент 0 корзина полная. Каждый запрос забирает 1 токен, при отсутствии "
+        "целого токена — "
+        f"429. Запросы одного клиента приходят пачками (внутри пачки — мгновенно): {listing}. {question}"
+    )
+    return Generated(stem=stem, number=float(rejected if ask_rejected else accepted), tolerance=0)
+
+
+def _fixture_run(
+    tests: list[tuple[str, list[str]]],
+    scopes: dict[str, str],
+    deps: dict[str, list[str]],
+    autouse: str | None,
+    fifo: bool = False,
+) -> list[str]:
+    """Порядок setup/teardown в pytest для одного модуля: сначала более широкий scope, затем autouse,
+    затем запрошенные фикстуры с зависимостями; teardown — в обратном порядке."""
+    out: list[str] = []
+    active_module: list[str] = []
+    for test, args in tests:
+        order: list[str] = []
+
+        def need(name: str, order: list[str] = order) -> None:
+            for dep in deps.get(name, []):
+                need(dep, order)
+            if name not in order:
+                order.append(name)
+
+        for name in ([autouse] if autouse else []) + args:
+            need(name)
+        module_first = [n for n in order if scopes[n] == "module"] + [
+            n for n in order if scopes[n] == "function"
+        ]
+        function_active: list[str] = []
+        for name in module_first:
+            if scopes[name] == "module":
+                if name not in active_module:
+                    active_module.append(name)
+                    out.append(f"{name}+")
+            else:
+                function_active.append(name)
+                out.append(f"{name}+")
+        out.append(test)
+        out += [f"{name}-" for name in (function_active if fifo else reversed(function_active))]
+    out += [f"{name}-" for name in (active_module if fifo else reversed(active_module))]
+    return out
+
+
+@generator("qa.pytest_fixture_order")
+def pytest_fixture_order(rng: random.Random) -> Generated:
+    """Широкий scope создаётся раньше, autouse — раньше запрошенных в своём scope, teardown — в обратном
+    порядке."""
+    db, user = rng.choice([("db", "user"), ("conn", "account"), ("server", "client"), ("browser", "page")])
+    db_scope = rng.choice(["module", "function"])
+    with_autouse = rng.random() < 0.6
+    log = rng.choice(["log", "trace", "clock"])
+    scopes = {db: db_scope, user: "function", log: "function"}
+    deps = {user: [db]}
+    names = rng.sample(["a", "b", "c", "d", "e"], 3)
+    patterns = rng.choice(
+        [[[user], [db], [user]], [[db], [user], []], [[user], [], [db, user]], [[], [user], [db]]]
+    )
+    tests = [(f"t_{name}", args) for name, args in zip(names, patterns, strict=True)]
+    correct = _fixture_run(tests, scopes, deps, log if with_autouse else None)
+    lines = ["import pytest", ""]
+    if with_autouse:
+        lines += [
+            "@pytest.fixture(autouse=True)",
+            f"def {log}():",
+            f'    print("{log}+", end=" ")',
+            "    yield",
+            f'    print("{log}-", end=" ")',
+            "",
+        ]
+    scope_arg = '(scope="module")' if db_scope == "module" else ""
+    lines += [
+        f"@pytest.fixture{scope_arg}",
+        f"def {db}():",
+        f'    print("{db}+", end=" ")',
+        "    yield",
+        f'    print("{db}-", end=" ")',
+        "",
+        "@pytest.fixture",
+        f"def {user}({db}):",
+        f'    print("{user}+", end=" ")',
+        "    yield",
+        f'    print("{user}-", end=" ")',
+        "",
+    ]
+    for test, args in tests:
+        lines.append(f'def test_{test[2:]}({", ".join(args)}): print("{test}", end=" ")')
+    other_scope = "function" if db_scope == "module" else "module"
+    auto = log if with_autouse else None
+    wrong_runs = [
+        _fixture_run(tests, {**scopes, db: other_scope}, deps, auto),
+        _fixture_run(tests, dict.fromkeys(scopes, "module"), deps, auto),
+        _fixture_run(tests, scopes, deps, auto, fifo=True),
+    ]
+    if with_autouse:
+        wrong_runs.append(_fixture_run(tests, scopes, deps, None))
+    wrong = [" ".join(run) for run in wrong_runs]
+    joined = " ".join(correct)
+    wrong.append(joined.replace(f"{db}+ {user}+", f"{user}+ {db}+"))
+    wrong.append(" ".join(correct[:-1]) if correct[-1].endswith("-") else joined + f" {db}-")
+    answer = " ".join(correct)
+    return Generated(
+        stem="Запуск: pytest -s, все тесты проходят. Что выведут print (без вывода pytest)?",
+        code="\n".join(lines),
+        code_language="python",
+        correct=(answer,),
+        wrong=_distinct_wrong(answer, wrong),
+    )
+
+
+@generator("qa.junit_instance_lifecycle")
+def junit_instance_lifecycle(rng: random.Random) -> Generated:
+    """JUnit 5: по умолчанию новый экземпляр класса на каждый тест (PER_METHOD); PER_CLASS — один на класс."""
+    cls = rng.choice(["CartTest", "OrderServiceTest", "LoginTest", "PaymentTest"])
+    per_class = rng.random() < 0.5
+    tests = rng.randint(2, 4)
+    repeated = rng.random() < 0.4
+    step = rng.randint(1, 3)
+    runs = tests - 1 + (2 if repeated else 1)
+    names = rng.sample(["add", "remove", "total", "clear", "apply", "checkout"], tests)
+    lines = ["import org.junit.jupiter.api.*;", ""]
+    if per_class:
+        lines.append("@TestInstance(TestInstance.Lifecycle.PER_CLASS)")
+    lines += [
+        f"class {cls} {{",
+        "    static int created = 0;",
+        "    int calls = 0;",
+        "",
+        f"    {cls}() {{ created++; }}",
+        "",
+        f"    @BeforeEach void setUp() {{ calls += {step}; }}",
+        "",
+    ]
+    for index, name in enumerate(names):
+        annotation = "@RepeatedTest(2)" if repeated and index == 0 else "@Test"
+        lines.append(f'    {annotation} void {name}() {{ System.out.print(calls + " "); }}')
+    lines += ["", '    @AfterAll static void done() { System.out.print("| " + created); }', "}"]
+    if per_class:
+        values, created = [step * (i + 1) for i in range(runs)], 1
+    else:
+        values, created = [step] * runs, runs
+    correct = " ".join(map(str, values)) + f" | {created}"
+    alt_values = [step] * runs if per_class else [step * (i + 1) for i in range(runs)]
+    wrong = [
+        " ".join(map(str, alt_values)) + f" | {runs if per_class else 1}",
+        " ".join(map(str, values)) + f" | {runs if per_class else 1}",
+        " ".join(map(str, alt_values)) + f" | {created}",
+        " ".join(map(str, values[:tests])) + f" | {tests if not per_class else 1}",
+        " ".join(["0"] * runs) + f" | {created}",
+    ]
+    return Generated(
+        stem="Что выведет запуск всех тестов класса (JUnit 5, все тесты проходят)?",
+        code="\n".join(lines),
+        code_language="java",
+        correct=(correct,),
+        wrong=_distinct_wrong(correct, wrong),
+    )
+
+
+@generator("qa.sql_join_fanout")
+def sql_join_fanout(rng: random.Random) -> Generated:
+    """JOIN один-ко-многим размножает строки родителя: SUM по его полю после JOIN завышается."""
+    order_ids = rng.sample(range(10, 60), rng.randint(4, 5))
+    amounts = {oid: rng.randrange(100, 1000, 50) for oid in order_ids}
+    items: list[tuple[int, str]] = []
+    skus = ["pen", "cup", "bag", "hat", "map", "box", "tea"]
+    for oid in order_ids:
+        for _ in range(rng.choice([0, 1, 2, 3])):
+            items.append((oid, rng.choice(skus)))
+    if not any(sum(1 for o, _ in items if o == oid) >= 2 for oid in order_ids):
+        items += [(order_ids[0], "pen"), (order_ids[0], "cup")]
+    rng.shuffle(items)
+    join = rng.choice(["JOIN", "LEFT JOIN"])
+    total = 0
+    for oid in order_ids:
+        count = sum(1 for o, _ in items if o == oid)
+        total += amounts[oid] * (count if join == "JOIN" else max(count, 1))
+    orders_rows = ", ".join(f"({oid}, {amounts[oid]})" for oid in order_ids)
+    items_rows = ", ".join(f"({oid}, '{sku}')" for oid, sku in items)
+    code = (
+        f"-- orders(id, amount): {orders_rows}\n"
+        f"-- order_items(order_id, sku): {items_rows}\n\n"
+        f"SELECT SUM(o.amount)\nFROM orders o\n{join} order_items i ON i.order_id = o.id;"
+    )
+    return Generated(
+        stem="Какое число вернёт запрос?", code=code, code_language="sql", number=float(total), tolerance=0
+    )
+
+
+NAMES_QA = ["anna", "boris", "vera", "gleb", "dina", "egor", "zoya", "ivan", "lena", "maks", "olga", "petr"]
+
+
+@generator("qa.sql_rank_top_n")
+def sql_rank_top_n(rng: random.Random) -> Generated:
+    """ROW_NUMBER режет ничьи, RANK оставляет ничьи и пропускает места, DENSE_RANK не пропускает места."""
+    while True:
+        depts = rng.sample(["sales", "it", "hr", "ops", "legal"], 2)
+        people = iter(rng.sample(NAMES_QA, 12))
+        rows = []
+        for dept in depts:
+            for _ in range(rng.randint(4, 6)):
+                rows.append((next(people), dept, rng.choice([90, 100, 110, 120, 130])))
+        top = rng.choice([2, 3])
+        function = rng.choice(["ROW_NUMBER", "RANK", "DENSE_RANK"])
+        results = {f: _rank_count(rows, depts, top, f) for f in ("ROW_NUMBER", "RANK", "DENSE_RANK")}
+        if len(set(results.values())) == 3:
+            break
+    literals = [f"('{name}', '{dept}', {salary})" for name, dept, salary in rows]
+    values = "\n".join("--   " + ", ".join(literals[i : i + 4]) for i in range(0, len(literals), 4))
+    code = (
+        f"-- employees(name, dept, salary):\n{values}\n\n"
+        f"SELECT * FROM (\n  SELECT name, dept, salary,\n         {function}() OVER (PARTITION BY dept "
+        "ORDER BY "
+        f"salary DESC) AS r\n  FROM employees\n) t\nWHERE r <= {top};"
+    )
+    return Generated(
+        stem="Сколько строк вернёт запрос?",
+        code=code,
+        code_language="sql",
+        number=float(results[function]),
+        tolerance=0,
+    )
+
+
+def _rank_count(rows: list[tuple[str, str, int]], depts: list[str], top: int, function: str) -> int:
+    total = 0
+    for dept in depts:
+        salaries = sorted((s for _, d, s in rows if d == dept), reverse=True)
+        if function == "ROW_NUMBER":
+            total += min(top, len(salaries))
+        elif function == "RANK":
+            total += sum(1 for s in salaries if 1 + sum(1 for x in salaries if x > s) <= top)
+        else:
+            total += sum(1 for s in salaries if 1 + len({x for x in salaries if x > s}) <= top)
+    return total

@@ -115,3 +115,15 @@
       - "@BeforeEach выполняется один раз на класс, поэтому драйвер в нём общий для всех тестов"
       - "Метод с @BeforeAll может быть нестатическим только при параллельном запуске"
       - "Параллельный запуск в JUnit 5 включается аннотацией @RepeatedTest"
+
+# --- Senior ---
+
+- id: qa.java.instance_lifecycle
+  specializations: [qa]
+  topic: stack
+  stack_module: qa_automation_java
+  skills: [junit, java]
+  kind: code_output
+  irt: {a: 1.4, b: 1.5}
+  time_limit_sec: 150
+  generator: qa.junit_instance_lifecycle

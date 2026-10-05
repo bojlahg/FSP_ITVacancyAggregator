@@ -95,3 +95,23 @@
   kind: numeric
   irt: {a: 1.0, b: -2.1}
   generator: qa.sql_severity_count
+
+# --- Senior ---
+
+- id: qa.sql.join_fanout
+  specializations: [qa]
+  topic: sql
+  skills: [sql]
+  kind: numeric
+  irt: {a: 1.4, b: 1.5}
+  time_limit_sec: 180
+  generator: qa.sql_join_fanout
+
+- id: qa.sql.rank_top_n
+  specializations: [qa]
+  topic: sql
+  skills: [sql]
+  kind: numeric
+  irt: {a: 1.3, b: 1.4}
+  time_limit_sec: 180
+  generator: qa.sql_rank_top_n

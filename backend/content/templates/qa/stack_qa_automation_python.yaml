@@ -114,3 +114,15 @@
   irt: {a: 1.2, b: 1.2}
   time_limit_sec: 120
   generator: qa.pytest_fixture_override
+
+# --- Senior ---
+
+- id: qa.py.fixture_lifecycle
+  specializations: [qa]
+  topic: stack
+  stack_module: qa_automation_python
+  skills: [pytest, python]
+  kind: code_output
+  irt: {a: 1.4, b: 1.5}
+  time_limit_sec: 180
+  generator: qa.pytest_fixture_order
