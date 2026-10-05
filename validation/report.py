@@ -902,6 +902,192 @@ def _matching(r: dict) -> list[str]:
         ),
         "",
     ]
+    return lines + _matching_research(r)
+
+
+def _interval(value) -> str:
+    return f"[{num(value[0])}; {num(value[1])}]" if value else "—"
+
+
+def _p_value(value) -> str:
+    if value is None:
+        return "—"
+    return "< 0,001" if value < 0.001 else num(value, 3)
+
+
+def _matching_research(r: dict) -> list[str]:
+    """Подразделы 10.1–10.4: вероятность принятия, близкие навыки, интервалы, цель экспертной разметки."""
+    match = r["matching"]
+    accept, similar, intervals, expert = (
+        match["acceptance"],
+        match["similarity"],
+        match["intervals"],
+        match["expert_sim"],
+    )
+    acfg, ecfg = r["config"]["acceptance"], r["config"]["expert_sim"]
+    names = {
+        "match_grouped": "ITScout: по категориям, вероятность только показана (по умолчанию)",
+        "test_category": RANKER_NAMES["test_category"],
+        "keywords": RANKER_NAMES["keywords"],
+    }
+    for weight in acfg["rank_weights"]:
+        names[f"match_grouped_w{weight:g}"] = (
+            f"ITScout: score × ((1 − {num(weight, 1)}) + {num(weight, 1)}·p)"
+        )
+    base = accept["summary"]["match_grouped"]
+    weighted = [(w, accept["summary"][f"match_grouped_w{w:g}"]) for w in acfg["rank_weights"]]
+    effect = "; ".join(
+        f"w = {num(w, 1)} — accept@5 {pct(row['accept@5'], 0)}, P@5 {num(row['p@5'])}, точных и принявших "
+        f"{num(row['hires@5'])}"
+        for w, row in weighted
+    )
+    lines = [
+        "### 10.1. Вероятность принятия приглашения (accept@5)",
+        "",
+        "Продукт оценивает p — вероятность, что кандидат примет приглашение, — прозрачной логистической "
+        "моделью из `content/matching.yaml` (вилка против ожиданий, формат, город, статус поиска, активные "
+        "приглашения, причины прошлых отказов; §8.3.1). Обучающих данных нет, поэтому проверка — на "
+        "синтетике: у каждого кандидата есть скрытая «истинная» склонность принять (середина вилки против "
+        "зарплатной планки с шумом, скрытая чувствительность к зарплате или формату, скрытое «не ищу», личный "
+        "сдвиг; `validation/config.yaml`, `acceptance.truth`). Продукт видит только наблюдаемое: статус "
+        "поиска, число активных приглашений и причины прошлых отказов. **accept@5** — ожидаемая доля "
+        "принявших приглашение среди первых пяти (аналог InMail Accept у LinkedIn Recruiter); «точных и "
+        "принявших» — ожидаемое число кандидатов с релевантностью 3, которые примут приглашение.",
+        "",
+    ]
+    lines += table(
+        ["Выдача", "accept@5", "P@5", "Точных и принявших в топ-5"],
+        [
+            [names.get(name, name), pct(row["accept@5"], 0), num(row["p@5"]), num(row["hires@5"])]
+            for name, row in accept["summary"].items()
+        ],
+    )
+    lines += [
+        f"Оценка продукта согласуется с «истиной»: корреляция Спирмена {num(accept['spearman'])} по "
+        f"{accept['pairs']} парам «потребность — кандидат» из выдачи (средняя истинная вероятность "
+        f"{pct(accept['mean_true'], 0)}). Без влияния на порядок: accept@5 {pct(base['accept@5'], 0)}, P@5 "
+        f"{num(base['p@5'])}, точных и принявших {num(base['hires@5'])}; с множителем: {effect}. Выдача ITScout "
+        "и без множителя приглашает охотнее, чем «категория по тесту + ключевые слова»: score уже учитывает "
+        "вилку и формат (`conditions`). Множитель ещё поднимает долю принявших, но выигрыш — оценка сверху: "
+        "«истина» построена из тех же по природе факторов, что и модель продукта, поэтому проверяется "
+        "устойчивость к другой форме связи и скрытым величинам, а не поведение реальных кандидатов. По "
+        f"умолчанию (`acceptance.rank_weight` = {num(accept['rank_weight'], 1)}) вероятность только "
+        "показывается работодателю отдельной строкой; включать множитель стоит после проверки на живых данных — "
+        "доли принятых приглашений по уровням вероятности.",
+        "",
+        "### 10.2. Частичный зачёт близких навыков",
+        "",
+        "Требуемого навыка нет, но есть близкий из `content/skill_similarity.yaml` (PostgreSQL ↔ MySQL 0,7, "
+        "Kafka ↔ RabbitMQ 0,5 …) — засчитывается близость × ценность статуса близкого навыка, не больше "
+        "`skill_similarity.max_credit`. Выключатель — `skill_similarity.enabled`.",
+        "",
+    ]
+    lines += table(
+        ["Выдача по категориям", "P@5", "nDCG@10"],
+        [
+            [
+                "с зачётом близких навыков (по умолчанию)",
+                num(similar["on"]["p@5"]),
+                num(similar["on"]["ndcg@10"]),
+            ],
+            ["без зачёта", num(similar["off"]["p@5"]), num(similar["off"]["ndcg@10"])],
+        ],
+    )
+    lines += [
+        "Синтетическая истина считает покрытие стека только точными навыками (близкий навык для неё — "
+        "отсутствие), поэтому бенчмарк не может показать пользу зачёта — только его цену: P@5 "
+        f"{num(similar['on']['p@5'])} против {num(similar['off']['p@5'])} без зачёта (погрешность "
+        f"±{num(_p5_margin(match), 2)}). Потолок `skill_similarity.max_credit` выбран так, чтобы цена "
+        "оставалась в пределах шума. Полезен ли кандидат с MySQL на позицию с PostgreSQL, решает экспертная "
+        "разметка.",
+        "",
+        "### 10.3. Доверительные интервалы и парное сравнение",
+        "",
+        f"95% интервалы — перцентильный bootstrap по {r['config']['matching']['needs']} потребностям "
+        f"({ecfg['resamples']} повторов, функции `backend/app/modules/expert/stats.py` — те же, что на экране "
+        "эксперта). Сравнение парное: обе выдачи на одних и тех же потребностях.",
+        "",
+    ]
+    lines += table(
+        ["Способ ранжирования", "P@5 [95% ДИ]", "nDCG@10 [95% ДИ]"],
+        [
+            [
+                RANKER_NAMES.get(ranker, ranker),
+                f"{num(match['summary'][ranker]['p@5'])} {_interval(intervals['intervals'][f'{ranker}_p@5'])}",
+                f"{num(match['summary'][ranker]['ndcg@10'])} {_interval(intervals['intervals'][f'{ranker}_ndcg@10'])}",
+            ]
+            for ranker in match["summary"]
+        ],
+    )
+    comparison_names = {"test_category": "категория по тесту + ключевые слова", "keywords": "ключевые слова"}
+    rows = []
+    for key, item in intervals["comparisons"].items():
+        baseline, metric = key.rsplit("_", 1)
+        rows.append(
+            [
+                f"против «{comparison_names[baseline]}», {metric.replace('p@', 'P@').replace('ndcg@', 'nDCG@')}",
+                f"{num(item['difference'])} {_interval(item['ci'])}",
+                _p_value(item["p_value"]),
+                f"{item['wins']} / {item['losses']} / {item['ties']}",
+                _p_value(item["sign_p"]),
+                str(item["needs_for_power"] or "—"),
+            ]
+        )
+    lines += table(
+        [
+            "Выдача ITScout",
+            "Разница [95% ДИ]",
+            "p (парный bootstrap)",
+            "Лучше / хуже / равно",
+            "p (знаковый тест)",
+            f"Потребностей для разницы {num(ecfg['detect_difference'], 1)}",
+        ],
+        rows,
+    )
+    lines += [
+        "Последний столбец — сколько потребностей нужно парному тесту, чтобы заметить разницу "
+        f"{num(ecfg['detect_difference'], 1)} с мощностью 0,8 при наблюдаемом разбросе разниц (Sakai, topic set "
+        "size design). Для nDCG это до "
+        + str(
+            max(
+                (item["needs_for_power"] or 0)
+                for key, item in intervals["comparisons"].items()
+                if key.endswith("ndcg@10")
+            )
+        )
+        + " потребностей — отсюда цель экспертной разметки в 20 потребностей. P@5 по пяти позициям шумнее, "
+        "ему этого объёма мало: на экране эксперта у P@5 интервал будет шире, чем у nDCG.",
+        "",
+        "### 10.4. Экспертная разметка: что ждать на цели «20 потребностей / 200 меток»",
+        "",
+        f"Симуляция: {expert['needs']} потребностей, по каждой — объединение топ-{ecfg['top_k']} выдачи ITScout "
+        "и ключевых слов (как набор пар на экране эксперта); эксперт видит истинную релевантность с ошибкой "
+        f"σ = {num(ecfg['rater_sd'], 1)} и округляет оценку в 0–3, {pct(ecfg['double_share'], 0)} пар размечают "
+        f"двое. Всего {expert['labels']} оценок. Те же функции считают «Итоги» на экране эксперта "
+        "(`GET /expert/summary`).",
+        "",
+    ]
+    lines += table(
+        ["Выдача", f"P@5 (релевантна от {ecfg['relevant_from']}) [95% ДИ]", "nDCG@5 [95% ДИ]"],
+        [
+            [
+                label,
+                f"{num(expert['precision'][key])} {_interval(expert['precision_ci'][key])}",
+                f"{num(expert['ndcg'][key])} {_interval(expert['ndcg_ci'][key])}",
+            ]
+            for key, label in (("ours", "ITScout"), ("keyword", "ключевые слова"))
+        ],
+    )
+    paired = expert["ndcg_paired"]
+    lines += [
+        f"Разница nDCG@5 ITScout − ключевые слова: {num(paired[0]) if paired else '—'} "
+        f"{_interval(paired[1:3] if paired else None)}, p {_p_value(paired[3] if paired else None)}. "
+        f"Согласие экспертов на {expert['double_pairs']} двойных оценках: взвешенная κ "
+        f"{num(expert['kappa'])} ({expert['kappa_level'] or '—'} по Landis & Koch), α Криппендорфа "
+        f"{num(expert['alpha'])}. На живой разметке шум экспертов неизвестен заранее — интервалы на экране "
+        "эксперта покажут, хватает ли размеченного объёма.",
+        "",
+    ]
     return lines
 
 

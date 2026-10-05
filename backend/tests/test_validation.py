@@ -76,11 +76,24 @@ def test_deterministic_by_seed(results: dict) -> None:
     assert snapshot(again) == snapshot(results)
 
 
+def test_matching_research_metrics(results: dict) -> None:
+    """C1–C3: accept@5 по вариантам выдачи, абляция близких навыков, интервалы и симуляция разметки."""
+    match = results["matching"]
+    assert {"match_grouped", "match_grouped_w0.3", "keywords"} <= set(match["acceptance"]["summary"])
+    for row in match["acceptance"]["summary"].values():
+        assert 0.0 <= row["accept@5"] <= 1.0
+    assert set(match["similarity"]) == {"on", "off"}
+    low, high = match["intervals"]["intervals"]["match_grouped_p@5"]
+    assert low <= match["summary"]["match_grouped"]["p@5"] <= high
+    assert match["expert_sim"]["needs"] == 5 and match["expert_sim"]["labels"] > 0
+
+
 def test_report_written(results: dict, tmp_path) -> None:
     report = write_report(results, tmp_path)
     text = report.read_text(encoding="utf-8")
     assert "## 13. Ограничения" in text
     assert "### 3.1. Оценка по Руднеру" in text
+    assert "### 10.1. Вероятность принятия приглашения (accept@5)" in text
     assert (tmp_path / "metrics.json").exists()
     assert (tmp_path / "category_confusion.png").exists()
 
