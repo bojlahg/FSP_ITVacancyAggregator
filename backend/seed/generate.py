@@ -108,6 +108,54 @@ def weighted(rng: random.Random, pairs: list[tuple]) -> object:
 PRESERVED_TABLES = {"expert_pairs", "expert_labels", "angoff_ratings"}
 
 
+_CYRILLIC = dict(
+    zip(
+        "абвгдеёжзийклмнопрстуфхцчшщъыьэюя",
+        [
+            "a",
+            "b",
+            "v",
+            "g",
+            "d",
+            "e",
+            "e",
+            "zh",
+            "z",
+            "i",
+            "y",
+            "k",
+            "l",
+            "m",
+            "n",
+            "o",
+            "p",
+            "r",
+            "s",
+            "t",
+            "u",
+            "f",
+            "kh",
+            "ts",
+            "ch",
+            "sh",
+            "sch",
+            "",
+            "y",
+            "",
+            "e",
+            "yu",
+            "ya",
+        ],
+        strict=True,
+    )
+)
+
+
+def _latin(name: str) -> str:
+    """Telegram-ник только латиницей: имена в демо-данных русские."""
+    return "".join(_CYRILLIC.get(char, char) for char in name.lower())
+
+
 class Seeder:
     def __init__(self, db: AsyncSession, seed: int = SEED):
         self.db = db
@@ -546,7 +594,7 @@ class Seeder:
             first_name=first,
             last_name=last,
             phone=f"+7 9{rng.randint(10, 99)} {rng.randint(100, 999)}-{rng.randint(10, 99)}-{rng.randint(10, 99)}",
-            telegram=f"@{first.lower()[:3]}{index}",
+            telegram=f"@{_latin(first).lower()[:6]}_{index}",
             contact_email=user.email,
             city=city or weighted(rng, data.CITIES),
             relocation=rng.random() < 0.25,
