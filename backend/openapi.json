@@ -851,6 +851,165 @@
         ]
       }
     },
+    "/api/v1/candidates/me/search-status": {
+      "put": {
+        "tags": [
+          "candidate: profile"
+        ],
+        "summary": "Статус поиска: активно ищу, открыт к предложениям, не ищу (профиль скрыт)",
+        "operationId": "update_search_status_api_v1_candidates_me_search_status_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchStatusUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidateProfileOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Требуется вход",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Недостаточно прав",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Ошибка валидации данных",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/candidates/me/companies": {
+      "get": {
+        "tags": [
+          "candidate: profile"
+        ],
+        "summary": "Найти компании по названию (для списка скрытых) или получить названия по id",
+        "operationId": "find_companies_api_v1_candidates_me_companies_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "name": "ids",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              },
+              "default": [],
+              "title": "Ids"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CompanyRef"
+                  },
+                  "title": "Response Find Companies Api V1 Candidates Me Companies Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Требуется вход",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Недостаточно прав",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Ошибка валидации данных",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/candidates/me/consents": {
       "get": {
         "tags": [
@@ -904,7 +1063,7 @@
         "tags": [
           "candidate: profile"
         ],
-        "summary": "Дать или отозвать согласие (152-ФЗ)",
+        "summary": "Дать или отозвать согласие (152-ФЗ); согласие на обработку ПДн отзывается удалением аккаунта",
         "operationId": "update_consent_api_v1_candidates_me_consents_put",
         "requestBody": {
           "content": {
@@ -943,6 +1102,16 @@
           },
           "403": {
             "description": "Недостаточно прав",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт состояния",
             "content": {
               "application/json": {
                 "schema": {
@@ -5729,7 +5898,7 @@
         "tags": [
           "service"
         ],
-        "summary": "Вернуть демо-данные к исходному состоянию (только DEMO_MODE)",
+        "summary": "Вернуть демо-данные к исходному состоянию (только DEMO_MODE и роль admin)",
         "operationId": "reseed_api_v1_admin_reseed_post",
         "responses": {
           "200": {
@@ -5752,8 +5921,28 @@
               }
             }
           },
+          "403": {
+            "description": "Недостаточно прав",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "404": {
             "description": "Не найдено",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт состояния",
             "content": {
               "application/json": {
                 "schema": {
@@ -7480,6 +7669,24 @@
           "reputation"
         ],
         "title": "CompanyPublic"
+      },
+      "CompanyRef": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "company_name": {
+            "type": "string",
+            "title": "Company Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "company_name"
+        ],
+        "title": "CompanyRef"
       },
       "CompetencyOut": {
         "properties": {
@@ -10486,6 +10693,19 @@
           "hidden"
         ],
         "title": "SearchStatus"
+      },
+      "SearchStatusUpdate": {
+        "properties": {
+          "search_status": {
+            "$ref": "#/components/schemas/SearchStatus",
+            "description": "hidden — профиль скрыт из поиска"
+          }
+        },
+        "type": "object",
+        "required": [
+          "search_status"
+        ],
+        "title": "SearchStatusUpdate"
       },
       "ShortlistNote": {
         "properties": {

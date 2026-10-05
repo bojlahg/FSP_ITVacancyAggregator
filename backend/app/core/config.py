@@ -32,6 +32,9 @@ class Settings(BaseSettings):
 
     demo_candidate_email: str = "demo-candidate@itscout.ru"
     demo_employer_email: str = "demo-employer@itscout.ru"
+    # Демо-админ (сброс демо-данных) создаётся генератором, только если пароль задан в .env
+    demo_admin_email: str = "admin@itscout.ru"
+    demo_admin_password: str | None = None
 
     email_backend: Literal["console", "smtp", "unisender"] = "console"
     email_verification_required: bool = False

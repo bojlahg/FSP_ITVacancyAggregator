@@ -197,6 +197,11 @@ async def _revoke_all(db: AsyncSession, user_id: int) -> None:
     )
 
 
+async def revoke_sessions(db: AsyncSession, user_id: int) -> None:
+    """Закрыть все сессии пользователя (удаление аккаунта). Коммитит вызывающий."""
+    await _revoke_all(db, user_id)
+
+
 async def logout(db: AsyncSession, refresh_token: str | None) -> None:
     if not refresh_token:
         return

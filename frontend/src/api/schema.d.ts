@@ -295,6 +295,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/candidates/me/search-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Статус поиска: активно ищу, открыт к предложениям, не ищу (профиль скрыт) */
+        put: operations["update_search_status_api_v1_candidates_me_search_status_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/candidates/me/companies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Найти компании по названию (для списка скрытых) или получить названия по id */
+        get: operations["find_companies_api_v1_candidates_me_companies_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/candidates/me/consents": {
         parameters: {
             query?: never;
@@ -304,7 +338,7 @@ export interface paths {
         };
         /** Состояние согласий */
         get: operations["list_consents_api_v1_candidates_me_consents_get"];
-        /** Дать или отозвать согласие (152-ФЗ) */
+        /** Дать или отозвать согласие (152-ФЗ); согласие на обработку ПДн отзывается удалением аккаунта */
         put: operations["update_consent_api_v1_candidates_me_consents_put"];
         post?: never;
         delete?: never;
@@ -1221,7 +1255,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Вернуть демо-данные к исходному состоянию (только DEMO_MODE) */
+        /** Вернуть демо-данные к исходному состоянию (только DEMO_MODE и роль admin) */
         post: operations["reseed_api_v1_admin_reseed_post"];
         delete?: never;
         options?: never;
@@ -1789,6 +1823,13 @@ export interface components {
             /** Description */
             description: string | null;
             reputation: components["schemas"]["EmployerReputation"];
+        };
+        /** CompanyRef */
+        CompanyRef: {
+            /** Id */
+            id: number;
+            /** Company Name */
+            company_name: string;
         };
         /** CompetencyOut */
         CompetencyOut: {
@@ -2841,6 +2882,11 @@ export interface components {
          * @enum {string}
          */
         SearchStatus: "active" | "open" | "hidden";
+        /** SearchStatusUpdate */
+        SearchStatusUpdate: {
+            /** @description hidden — профиль скрыт из поиска */
+            search_status: components["schemas"]["SearchStatus"];
+        };
         /** ShortlistNote */
         ShortlistNote: {
             /** Note */
@@ -3915,6 +3961,107 @@ export interface operations {
             };
         };
     };
+    update_search_status_api_v1_candidates_me_search_status_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SearchStatusUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidateProfileOut"];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ошибка валидации данных */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    find_companies_api_v1_candidates_me_companies_get: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                ids?: number[];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyRef"][];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ошибка валидации данных */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     list_consents_api_v1_candidates_me_consents_get: {
         parameters: {
             query?: never;
@@ -3986,6 +4133,15 @@ export interface operations {
             };
             /** @description Недостаточно прав */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Конфликт состояния */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7290,8 +7446,26 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Не найдено */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Конфликт состояния */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -113,6 +113,12 @@ class Seeder:
         self.db.add(user)
         return user
 
+    def build_admin(self) -> None:
+        settings = get_settings()
+        if settings.demo_admin_password:
+            admin = self.user(settings.demo_admin_email, Role.admin, self.now)
+            admin.password_hash = hash_password(settings.demo_admin_password)
+
     def consents(self, user: User, kinds: list[ConsentKind], at: datetime) -> None:
         for kind in kinds:
             self.db.add(
@@ -1073,6 +1079,7 @@ class Seeder:
         self.build_competitions()
         await self.build_candidates()
         await self.build_employers()
+        self.build_admin()
         await self.build_needs()
         await self.build_interactions()
         await self.finalize()

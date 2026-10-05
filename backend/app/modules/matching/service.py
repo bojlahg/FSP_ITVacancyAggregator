@@ -120,6 +120,11 @@ async def refresh_candidate(db: AsyncSession, candidate_id: int) -> None:
     db.add(row)
 
 
+async def drop_candidate(db: AsyncSession, candidate_id: int) -> None:
+    """Убрать кандидата из выдачи совсем — после удаления аккаунта."""
+    await db.execute(delete(CandidateSearchIndex).where(CandidateSearchIndex.candidate_id == candidate_id))
+
+
 async def refresh_category(db: AsyncSession, specialization: str, grade) -> None:
     """Перцентили соседей по категории изменились — обновляем их строки индекса."""
     rows = await db.scalars(

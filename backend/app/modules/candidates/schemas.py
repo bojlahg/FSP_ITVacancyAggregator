@@ -81,6 +81,15 @@ class CandidateProfileOut(CandidateProfileBase):
     updated_at: datetime
 
 
+class SearchStatusUpdate(ApiModel):
+    search_status: SearchStatus = Field(description="hidden — профиль скрыт из поиска")
+
+
+class CompanyRef(ApiModel):
+    id: int
+    company_name: str
+
+
 class ConsentOut(ApiModel):
     kind: ConsentKind
     granted: bool
