@@ -74,3 +74,17 @@ def test_report_written(results: dict, tmp_path) -> None:
     assert "## 12. Ограничения" in text
     assert (tmp_path / "metrics.json").exists()
     assert (tmp_path / "category_confusion.png").exists()
+
+
+def test_integrity_check_separates_groups() -> None:
+    """§10.9: на малой популяции быстрое угадывание помечается чаще честных; отчёт строится."""
+    from validation.integrity_check import build_markdown, run
+
+    config = load_config(seed=5)
+    results = run(config, size=40)
+    groups = results["groups"]
+    assert set(groups) == {"honest", "preknowledge", "rapid"}
+    assert groups["rapid"]["flagged"] > groups["honest"]["flagged"]
+    assert groups["preknowledge"]["theta_bias"] > groups["honest"]["theta_bias"]
+    assert run(config, size=40) == results
+    assert "Ложные срабатывания" in "\n".join(build_markdown(results, config))
