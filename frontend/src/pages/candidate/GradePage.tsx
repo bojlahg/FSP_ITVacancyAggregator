@@ -2,6 +2,7 @@ import { ArrowDown, ArrowRight, ArrowUp, Award, CalendarClock, ClipboardList, Hi
 import type { LucideIcon } from "lucide-react";
 import { Link } from "react-router";
 import { CategoryBadge } from "@/components/CategoryBadge";
+import { GradeExplanationCard } from "@/components/candidate/GradeExplanationCard";
 import { StartAttemptButton } from "@/components/candidate/StartAttemptButton";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
@@ -209,6 +210,8 @@ function GradeView({ status, specialization }: { status: GradeStatus; specializa
           )}
         </CardContent>
       </Card>
+
+      <GradeExplanationCard />
 
       <Card className="lg:col-span-2">
         <CardHeader>

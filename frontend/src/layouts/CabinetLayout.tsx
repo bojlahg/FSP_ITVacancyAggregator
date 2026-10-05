@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router";
 import { EmailVerificationBanner } from "@/components/EmailVerificationBanner";
+import { LegalLinks } from "@/components/LegalLinks";
 import { ProductMark } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { authStore, useAuth } from "@/lib/auth";
@@ -142,6 +143,9 @@ export function CabinetLayout({ homePath, roleLabel, nav: baseNav, debugLink = t
           <EmailVerificationBanner />
           <Outlet />
         </main>
+        <footer className="mx-auto w-full max-w-7xl px-4 pb-6 font-mono text-xs text-muted-foreground sm:px-6 lg:px-10">
+          <LegalLinks />
+        </footer>
       </div>
     </div>
   );

@@ -13,6 +13,7 @@ import type { UserRole } from "@/lib/auth";
 import { useRegister } from "@/lib/auth-queries";
 import { cn } from "@/lib/utils";
 import { AuthCard } from "./AuthCard";
+import { DocLink } from "./DocLink";
 
 // docs/implementation.md §6.1: согласие на ПДн обязательно всем; на публикацию профиля — кандидату.
 const registerSchema = z
@@ -152,7 +153,10 @@ export default function RegisterPage() {
             <label className="flex items-start gap-3 text-sm leading-snug">
               <Checkbox className="mt-0.5" aria-invalid={!!errors.consentPersonalData} {...register("consentPersonalData")} />
               <span>
-                Согласен на обработку персональных данных <span className="text-muted-foreground">(152-ФЗ)</span>
+                Согласен на <DocLink slug="consent-pd">обработку персональных данных</DocLink>{" "}
+                <span className="text-muted-foreground">
+                  (152-ФЗ, см. <DocLink slug="privacy">политику</DocLink>)
+                </span>
               </span>
             </label>
             {errors.consentPersonalData && (
@@ -170,7 +174,7 @@ export default function RegisterPage() {
                   {...register("consentPublishProfile")}
                 />
                 <span>
-                  Согласен на публикацию профиля работодателям{" "}
+                  Согласен на <DocLink slug="consent-publication">публикацию профиля работодателям</DocLink>{" "}
                   <span className="text-muted-foreground">(можно отозвать в настройках)</span>
                 </span>
               </label>
@@ -182,6 +186,11 @@ export default function RegisterPage() {
             </div>
           )}
         </fieldset>
+
+        <p className="text-xs text-muted-foreground">
+          Подбор работает по <DocLink slug="recommendations">правилам рекомендательных технологий</DocLink>: грейд
+          определяет только тест.
+        </p>
 
         <FormAlert message={errors.root?.server?.message ?? (errors.role ? errors.role.message : null)} />
 

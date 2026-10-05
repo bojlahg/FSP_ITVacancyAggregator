@@ -12,6 +12,7 @@ import { apiError, applyValidationErrors } from "@/lib/api-error";
 import { useRegisterExpert } from "@/lib/expert-queries";
 import { GuestOnly } from "@/app/guards";
 import { AuthCard } from "./AuthCard";
+import { DocLink } from "./DocLink";
 
 const joinSchema = z.object({
   code: z.string().trim().min(1, "Введите код-приглашение"),
@@ -109,7 +110,8 @@ function ExpertJoinForm() {
           <label className="flex items-start gap-3 text-sm leading-snug">
             <Checkbox className="mt-0.5" aria-invalid={!!errors.consentPersonalData} {...register("consentPersonalData")} />
             <span>
-              Согласен на обработку персональных данных <span className="text-muted-foreground">(152-ФЗ)</span>
+              Согласен на <DocLink slug="consent-pd">обработку персональных данных</DocLink>{" "}
+              <span className="text-muted-foreground">(152-ФЗ)</span>
             </span>
           </label>
           {errors.consentPersonalData && (

@@ -40,6 +40,7 @@ export const router = createBrowserRouter([
           { path: "verify-email", lazy: lazyPage(() => import("@/pages/public/VerifyEmailPage")) },
           { path: "expert/join", lazy: lazyPage(() => import("@/pages/public/ExpertJoinPage")) },
           { path: "how-it-works", lazy: lazyPage(() => import("@/pages/public/HowItWorksPage")) },
+          { path: "legal/:slug", lazy: lazyPage(() => import("@/pages/public/LegalPage")) },
         ],
       },
       {
@@ -111,6 +112,7 @@ export const router = createBrowserRouter([
             lazy: lazyPage(() => import("@/layouts/AdminLayout")),
             children: [
               { index: true, lazy: lazyPage(() => import("@/pages/admin/AdminReportsPage")) },
+              { path: "appeals", lazy: lazyPage(() => import("@/pages/admin/AppealsPage")) },
               { path: "debug", lazy: lazyPage(() => import("@/pages/debug/DebugPage")) },
             ],
           },

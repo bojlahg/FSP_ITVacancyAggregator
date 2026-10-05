@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { ShieldCheck, Trash2, X } from "lucide-react";
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { FspLinkCard } from "@/components/candidate/FspLinkCard";
 import { EmailNotificationsCard } from "@/components/EmailNotificationsCard";
 import { ErrorState } from "@/components/ErrorState";
@@ -24,6 +24,7 @@ import { Separator } from "@/components/ui/separator";
 import { apiError } from "@/lib/api-error";
 import { authStore } from "@/lib/auth";
 import { formatDate } from "@/lib/format";
+import { legalPath, type LegalSlug } from "@/lib/legal-queries";
 import {
   type ConsentKind,
   type PrivacySettings,
@@ -54,6 +55,24 @@ const consentLabels: Record<ConsentKind, string> = {
   profile_publication: "Публикация профиля работодателям",
   fsp_import: "Импорт данных из реестра ФСП",
 };
+
+// Тексты согласий — отдельные документы (152-ФЗ ст. 9, 10.1)
+const consentDocs: Partial<Record<ConsentKind, LegalSlug>> = {
+  pd_processing: "consent-pd",
+  profile_publication: "consent-publication",
+};
+
+function ConsentDocLink({ slug }: { slug: LegalSlug | undefined }) {
+  if (!slug) return null;
+  return (
+    <>
+      {" · "}
+      <Link to={legalPath(slug)} className="text-primary underline-offset-4 hover:underline">
+        текст
+      </Link>
+    </>
+  );
+}
 
 export default function SettingsPage() {
   const me = useCandidateMe();
@@ -218,7 +237,10 @@ function ConsentsCard() {
         ) : (
           consents.data.map((consent) => (
             <div key={consent.kind} className="flex flex-wrap items-center justify-between gap-2 text-sm">
-              <span>{consentLabels[consent.kind]}</span>
+              <span>
+                {consentLabels[consent.kind]}
+                <ConsentDocLink slug={consentDocs[consent.kind]} />
+              </span>
               <div className="flex items-center gap-2">
                 {consent.granted && consent.granted_at ? (
                   <Badge variant="muted">с {formatDate(consent.granted_at)}</Badge>

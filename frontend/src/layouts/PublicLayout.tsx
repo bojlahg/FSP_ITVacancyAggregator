@@ -1,4 +1,5 @@
 import { Link, Outlet, useLocation } from "react-router";
+import { LegalLinks } from "@/components/LegalLinks";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { homePathFor, useAuth } from "@/lib/auth";
@@ -50,6 +51,7 @@ export default function PublicLayout() {
 
       <footer className="relative z-10 flex flex-wrap justify-between gap-4 pt-8 font-mono text-xs text-muted-foreground">
         <span>itscout.ru</span>
+        <LegalLinks />
         <span>© 2026 · Федерация спортивного программирования России</span>
       </footer>
     </div>
