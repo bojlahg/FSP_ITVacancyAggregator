@@ -17,12 +17,12 @@ test:
 	cd backend && uv run pytest
 
 lint:
-	cd backend && uv run ruff check . && uv run ruff format --check .
+	cd backend && uv run ruff check . ../validation && uv run ruff format --check . ../validation
 	cd fsp-mock && uv run ruff check . && uv run ruff format --check .
 	cd frontend && npm run lint && npm run typecheck
 
 format:
-	cd backend && uv run ruff check --fix . && uv run ruff format .
+	cd backend && uv run ruff check --fix . ../validation && uv run ruff format . ../validation
 	cd fsp-mock && uv run ruff check --fix . && uv run ruff format .
 
 openapi:       ## выгрузить backend/openapi.json и перегенерировать клиент фронта
@@ -35,8 +35,8 @@ migration:     ## make migration m="описание"
 reseed:        ## демо-данные заново (на сервере: в контейнере backend)
 	$(DC) exec -T backend python -m seed.generate
 
-validate:
-	@echo "TODO(T19): процедура валидации"
+validate:      ## симуляционная валидация (§12) → docs/validation/report.md, metrics.json, PNG
+	cd backend && uv run python ../validation/run.py
 
 e2e:
 	@echo "TODO(T14): Playwright"

@@ -80,13 +80,13 @@ infra/                       compose, Caddyfile, keycloak realm, заглушк�
 |---|---|
 | Поднять всё локально | `make up` (`docker compose -f infra/docker-compose.yml -f infra/docker-compose.dev.yml up -d`) |
 | Тесты backend | `make test` (`cd backend && uv run pytest`) |
-| Линт и формат backend | `make lint` (`uv run ruff check . && uv run ruff format --check .`) |
+| Линт и формат backend | `make lint` (`cd backend && uv run ruff check . ../validation && uv run ruff format --check . ../validation`) |
 | Фронт: проверка и сборка | `cd frontend && npm run lint && npm run typecheck && npm run build` |
 | Обновить OpenAPI и клиент | `make openapi` (выгрузить `openapi.json` → `npm run gen:api`) |
 | Миграция | `cd backend && uv run alembic revision --autogenerate -m "..."` |
 | Проверка миграции | `uv run alembic upgrade head && uv run alembic check` (нужен Postgres, см. ниже) |
 | Демо-данные | `make reseed` |
-| Валидация | `make validate` |
+| Валидация (отчёт в `docs/validation/`, ~3–4 мин) | `make validate` (`cd backend && uv run python ../validation/run.py`; размер и seed — `--size`, `--seed`) |
 | e2e | `make e2e` |
 
 ## Правила кода

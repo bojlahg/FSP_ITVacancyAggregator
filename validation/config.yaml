@@ -1,0 +1,96 @@
+# Параметры процедуры валидации — docs/implementation.md §12.
+# Все числа отчёта считаются из этих параметров, seed и content/*.yaml движка; отчёт пишет код.
+
+seed: 2026
+
+population:                 # §12.1
+  size: 2000
+  # Доли специализаций и грейдов — как в демо-синтетике (§17)
+  spec_share: {backend: 200, frontend: 140, qa: 90, devops: 80, data: 90}
+  grade_share: {below: 5, intern: 10, junior: 30, middle: 33, senior: 22}
+  # θ_true — смесь нормальных распределений по грейдам (логиты шкалы специализации)
+  theta_mean: {below: -2.4, intern: -1.3, junior: -0.3, middle: 0.7, senior: 1.75}
+  theta_sd: 0.35
+  topic_sd: 0.3             # индивидуальные отклонения способности по темам от θ
+  declared_over: 0.20       # завышают грейд на 1
+  declared_under: 0.10      # занижают грейд на 1
+  resume_padding: 0.30      # в резюме 1–2 навыка, которых нет в истинном стеке
+  resume_omission: 0.20     # в резюме пропущен 1 навык истинного стека
+  stack_size: [4, 8]
+  fsp:
+    share: 0.35             # у 35% есть история ФСП, вероятность растёт с θ
+    theta_weight: 1.0
+    score_base: 0.45
+    score_slope: 0.2
+    score_sd: 0.12
+  fresh_days: [0, 180]
+  fresh_half_life_days: 90  # §8.3
+  relocation: 0.25
+  work_formats:
+    - [remote]
+    - [hybrid]
+    - [office]
+    - [remote, hybrid]
+    - [hybrid, office]
+    - [remote, hybrid, office]
+
+response:
+  instance_sd: 0.15         # σ_b — отклонение сложности экземпляра от b шаблона (§12.1)
+  mode: full
+  upgrade_accept: 1.0       # доля кандидатов, принимающих предложение теста на грейд выше
+
+retest:
+  near_cut: 0.5             # «далеко от порога»: |θ_true − cut| > 0.5
+
+theta_bins: {start: -3.0, stop: 3.0, step: 0.5}
+
+discrimination:
+  min_responses: 30
+  weak_r: 0.1
+
+sensitivity:                # устойчивость решения к σ_b и к ошибкам экспертных b
+  subset: 1000
+  instance_sd: [0.0, 0.15, 0.3, 0.5]
+  bank_b_error: [0.25, 0.5]
+
+forms:                      # сопоставимость форм: один θ_true, разные стек-модули и варианты
+  thetas: [-0.3, 0.7]
+  attempts: 120
+
+whatif:                     # альтернативы правилу «пройден уверенно» и длине теста (движок не меняется)
+  subset: 1200
+  rules:
+    - {name: current, low_k: 1.0, high_k: 1.0}
+    - {name: high_0.5se, low_k: 1.0, high_k: 0.5}
+    - {name: high_0se, low_k: 1.0, high_k: 0.0}
+    - {name: high_1.5se, low_k: 1.0, high_k: 1.5}
+    - {name: extra_8, low_k: 1.0, high_k: 1.0, mode: {extra_items_max: 8}}
+    - {name: stage2_13, low_k: 1.0, high_k: 1.0, mode: {stage2_items: 13}}
+
+leak:                       # §12.2 «слили 30% ключей»
+  share: 0.30
+  target_grade: middle
+  cheaters: 400
+  leaked_instances: 50      # сколько экземпляров каждого слитого шаблона есть в утечке
+  variant_renders: 200      # рендеров на шаблон для оценки разнообразия экземпляров
+  pair_samples: 2000
+
+calibration:
+  min_responses: 50
+  a_bounds: [0.3, 3.0]
+  b_bounds: [-4.0, 4.0]
+
+matching:                   # §12.2 «Подбор»
+  needs: 15
+  relevant_from: 3          # для P@k релевантен только точный кандидат (3 из 3); nDCG учитывает 0–3
+  top_k: [5, 10]
+  required: [3, 4]
+  optional: [1, 2]
+  need_grades: [junior, middle, middle, senior]
+  coverage_threshold: 0.5   # покрыто меньше половины обязательного стека — релевантность −1
+
+survey:                     # §12.2 «Категоризация»: синтетические ответы на опрос
+  atypical: 0.10            # основной вид работы — не типичный для специализации (backend настраивает CI)
+  extra_daily: 0.30         # отмечен ещё один вид работы
+  extra_favorite: 0.40
+  other_language: 0.15

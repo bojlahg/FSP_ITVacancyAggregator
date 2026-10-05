@@ -1,0 +1,7 @@
+# Линт validation/ теми же правилами, что backend (validation импортирует app.* из backend)
+extend = "../backend/pyproject.toml"
+src = ["..", "../backend"]
+
+[lint.extend-per-file-ignores]
+# Генератор отчёта: абзацы русского текста читаются лучше длинными строками
+"report.py" = ["E501"]

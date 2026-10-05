@@ -44,7 +44,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0
       - run: uv sync --frozen
       - name: Lint
-        run: uv run ruff check . && uv run ruff format --check .
+        run: uv run ruff check . ../validation && uv run ruff format --check . ../validation
       - name: Migrations apply from scratch and match models
         run: uv run alembic upgrade head && uv run alembic check
       - name: Tests
