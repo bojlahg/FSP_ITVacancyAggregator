@@ -6,8 +6,6 @@ from dataclasses import dataclass
 from email.message import EmailMessage
 from typing import Protocol
 
-import httpx
-
 from app.core.config import Settings, get_settings
 
 log = logging.getLogger("itscout.mail")
@@ -26,7 +24,7 @@ class EmailSender(Protocol):
 
 
 class ConsoleSender:
-    """Письма в лог — пока домен в Unisender не подтверждён."""
+    """Письма в лог — локальная разработка и стенды без почты."""
 
     async def send(self, mail: Mail) -> None:
         log.warning("EMAIL to=%s subject=%s\n%s", mail.to, mail.subject, mail.text)
@@ -62,38 +60,10 @@ class SmtpSender:
         await asyncio.to_thread(self._send_sync, mail)
 
 
-class UnisenderSender:
-    """Unisender Go transactional API (HTTPS) — §20."""
-
-    def __init__(self, settings: Settings):
-        self._settings = settings
-
-    async def send(self, mail: Mail) -> None:
-        payload = {
-            "message": {
-                "recipients": [{"email": mail.to}],
-                "subject": mail.subject,
-                "from_email": self._settings.email_from,
-                "from_name": self._settings.email_from_name,
-                "body": {"html": mail.html, "plaintext": mail.text},
-                "track_links": 0,
-                "track_read": 0,
-            }
-        }
-        url = self._settings.unisender_api_url.rstrip("/") + "/email/send.json"
-        async with httpx.AsyncClient(timeout=10) as client:
-            response = await client.post(
-                url, json=payload, headers={"X-API-KEY": self._settings.unisender_api_key}
-            )
-            response.raise_for_status()
-
-
 def get_email_sender() -> EmailSender:
     settings = get_settings()
     if settings.email_backend == "smtp":
         return SmtpSender(settings)
-    if settings.email_backend == "unisender":
-        return UnisenderSender(settings)
     return ConsoleSender()
 
 

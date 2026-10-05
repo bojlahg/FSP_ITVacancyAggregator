@@ -56,7 +56,7 @@
 | Frontend | React 19, Vite, TypeScript, React Router, TanStack Query, react-hook-form + zod, Tailwind и shadcn/ui, Recharts |
 | Контракт API | OpenAPI из FastAPI → `openapi-typescript` и `openapi-fetch` на фронте |
 | LLM | Yandex AI Studio (OpenAI-совместимый endpoint, ключ как в DealDojo); откат на словарь |
-| Почта | Собственный send-only Postfix (контейнер `mail`, DKIM) от `noreply@itscout.ru`; VDSina открыла порт 25 по запросу. В dev — Mailpit. Интерфейс `EmailSender`: `smtp` (с SSL/STARTTLS и логином), `unisender` (запасной), `console` |
+| Почта | Собственный send-only Postfix (контейнер `mail`, DKIM) от `noreply@itscout.ru`; VDSina открыла порт 25 по запросу. В dev — Mailpit. Интерфейс `EmailSender`: `smtp` (с SSL/STARTTLS и логином), `console` |
 | Инфраструктура | Docker Compose, Caddy (HTTPS), GitHub Actions → деплой по SSH |
 | Тесты | pytest, Playwright (e2e) |
 | Лицензия | MIT |
@@ -88,7 +88,7 @@
         └───────┬───────────────────────┬────────────────────┘        │  результаты,     │
                 │                       │                             │  разряды)        │
           PostgreSQL 16          Yandex AI Studio (LLM)               └──────────────────┘
-                                 Unisender Go (HTTPS)                  keycloak realm "fsp" (P1)
+                                 Postfix (контейнер mail, SMTP)        keycloak realm "fsp" (P1)
 ```
 
 - **Модульный монолит.** Каждый модуль — папка с `router.py`, `service.py`, `models.py`, `schemas.py`. Модули вызывают чужие `service`, но не трогают чужие модели напрямую.
@@ -136,7 +136,7 @@
 1. Email и пароль, две отметки:
    - согласие на обработку ПДн (обязательно);
    - согласие на публикацию профиля работодателям (обязательно, чтобы попасть в поиск; можно отозвать в настройках).
-2. Письмо со ссылкой подтверждения: токен одноразовый, живёт 24 часа. Пока домен в Unisender не подтверждён, `EMAIL_VERIFICATION_REQUIRED=false`: сессия выдаётся сразу, в кабинете — баннер «Подтвердите почту». С флагом `true` без подтверждения доступен только экран «Подтвердите почту».
+2. Письмо со ссылкой подтверждения: токен одноразовый, живёт 24 часа. Пока доставляемость писем с собственного Postfix не проверена, `EMAIL_VERIFICATION_REQUIRED=false`: сессия выдаётся сразу, в кабинете — баннер «Подтвердите почту». С флагом `true` без подтверждения доступен только экран «Подтвердите почту».
    Сессия: access JWT 15 минут в ответе; refresh — httpOnly cookie на `/api/v1/auth`, ротация при каждом обновлении, повторное использование отозванного токена отзывает все сессии пользователя.
 3. Демо-аккаунты из seed подтверждены заранее.
 
@@ -861,7 +861,7 @@ POST /admin/reseed (роль admin) ; POST /admin/demo/reset-cooldowns     то�
 |---|---|---|---|---|
 | T01 | Каркас репо, Dockerfile'ы, compose (prod и dev), Caddy, CI/CD на сервер, `/health` | — | 1 | push в master разворачивает сборку на сервере |
 | T02 | Схема БД (раздел 14), модели, миграции, Pydantic-схемы и заглушки роутеров всего API (раздел 15) | — | 3 | `openapi.json` покрывает все эндпоинты; миграции применяются с нуля |
-| T03 | Auth: регистрация с согласиями, подтверждение почты, JWT и refresh, роли, ограничение частоты, `EmailSender` (Unisender Go API, SMTP для Mailpit, console) | T02 | 2 | тесты на неподтверждённый email, refresh, роли |
+| T03 | Auth: регистрация с согласиями, подтверждение почты, JWT и refresh, роли, ограничение частоты, `EmailSender` (SMTP: Postfix в проде, Mailpit в dev; console) | T02 | 2 | тесты на неподтверждённый email, refresh, роли |
 | T04 | `testing/engine`: загрузка шаблонов, генераторы, blueprint, MST, экспозиция, EAP, решение о грейде, подсчёты по темам и навыкам + API попыток | T02 | 3 | unit-тесты; в симуляции точность грейда ≥ 80% на синтетике |
 | T05 | Справочники YAML: специализации, грейды, онтология (~150), отрасли, софт-скиллы, компетенции ФСП | — | 1 | ревью человеком |
 | T06 | Опрос → специализация; правила грейда и интервалы (6.3); категории и перцентили; `candidate_search_index` | T04 | 2 | тесты на все переходы из таблицы 6.3 |

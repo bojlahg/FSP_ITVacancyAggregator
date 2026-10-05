@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     demo_admin_email: str = "admin@itscout.ru"
     demo_admin_password: str | None = None
 
-    email_backend: Literal["console", "smtp", "unisender"] = "console"
+    email_backend: Literal["console", "smtp"] = "console"
     email_verification_required: bool = False
     email_from: str = "noreply@itscout.ru"
     email_from_name: str = "ITScout"
@@ -46,8 +46,6 @@ class Settings(BaseSettings):
     smtp_security: Literal["none", "ssl", "starttls"] = "none"
     smtp_user: str = ""
     smtp_password: str = ""
-    unisender_api_url: str = ""
-    unisender_api_key: str = ""
 
     llm_provider: Literal["none", "yandex"] = "none"
     yandex_api_key: str = ""
