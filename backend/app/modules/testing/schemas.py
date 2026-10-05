@@ -77,6 +77,18 @@ class TopicScore(ApiModel):
     items: int
 
 
+class ApproachCriterion(ApiModel):
+    text: str
+    met: bool | None = Field(description="Отметка LLM по чек-листу; null — ответ ещё не оценён")
+
+
+class ApproachAnswer(ApiModel):
+    question: str
+    answer: str = Field(description="До раскрытия контактов email, телефоны и ссылки вычищены")
+    criteria: list[ApproachCriterion]
+    score: float | None = Field(description="Доля отмеченных критериев; в θ̂ и категорию не входит (§10.5)")
+
+
 class NextAction(ApiModel):
     action: str = Field(description="retake_lower | try_higher | none")
     grade: Grade | None = None

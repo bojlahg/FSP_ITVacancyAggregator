@@ -7,7 +7,7 @@ from app.core.enums import InvitationStatus, WorkFormat
 from app.core.schemas import ApiModel, CategoryRef, Explanation, FspBadge
 from app.modules.candidates.schemas import Contacts, ExperienceItem, SkillState
 from app.modules.fsp.schemas import FspProfileOut
-from app.modules.testing.schemas import TopicScore
+from app.modules.testing.schemas import ApproachAnswer, TopicScore
 
 
 class CandidateBrief(ApiModel):
@@ -110,7 +110,9 @@ class CandidateCard(ApiModel):
     experience: list[ExperienceItem] = Field(description="Без названий компаний до раскрытия контактов")
     skills: list[SkillState]
     topic_scores: list[TopicScore]
-    approach_answers: list[str] = Field(default_factory=list)
+    approach_answers: list[ApproachAnswer] = Field(
+        default_factory=list, description="Ответы на открытый вопрос о подходе из теста текущей категории"
+    )
     fsp: FspProfileOut | None = Field(description="null, если кандидат скрыл ФСП")
     contacts_unlocked: bool
     contacts: Contacts | None = Field(description="Только после принятого приглашения или отклика")

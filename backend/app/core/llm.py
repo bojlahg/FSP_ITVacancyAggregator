@@ -258,3 +258,27 @@ async def complete_json(
     if parsed is None:
         log.warning("LLM answer is not a JSON object: %.200s", answer)
     return parsed
+
+
+RUBRIC_SYSTEM = (
+    "Ты проверяешь ответ кандидата на вопрос о подходе по чек-листу. Для каждого критерия по порядку "
+    "ответь true, только если ответ явно ему соответствует. Оценку не выставляй."
+)
+
+
+async def rubric_hits(
+    question: str, rubric: list[str], answer: str, user_id: int | None
+) -> list[bool] | None:
+    """Отметки по чек-листу (§10.5, §11) или None: LLM выключен, ошибка, ответ не по форме.
+
+    LLM только отмечает критерии; долю отмеченных (оценку подхода) считает вызывающий код.
+    """
+    if not rubric or not answer.strip() or not is_enabled():
+        return None
+    criteria = "\n".join(f"{index + 1}. {item}" for index, item in enumerate(rubric))
+    user_text = f"Задача: {question}\n\nКритерии:\n{criteria}\n\nОтвет кандидата:\n{answer}"
+    data = await complete_json(RUBRIC_SYSTEM, user_text, '{"hits": [bool, ...]}', user_id=user_id)
+    hits = data.get("hits") if isinstance(data, dict) else None
+    if not isinstance(hits, list) or len(hits) != len(rubric) or not all(isinstance(h, bool) for h in hits):
+        return None
+    return hits

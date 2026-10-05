@@ -1,6 +1,7 @@
 import {
   ArrowLeft,
   CheckCircle2,
+  Circle,
   Clock,
   Lock,
   Mail,
@@ -189,6 +190,8 @@ export default function CandidateCardPage() {
               )}
             </CardContent>
           </Card>
+
+          {data.approach_answers?.length ? <ApproachCard answers={data.approach_answers} /> : null}
 
           <FspCard fsp={data.fsp} />
 
@@ -466,6 +469,48 @@ function FspCard({ fsp }: { fsp: CandidateCard["fsp"] }) {
             )}
           </div>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ApproachCard({ answers }: { answers: NonNullable<CandidateCard["approach_answers"]> }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Открытый вопрос о подходе</CardTitle>
+        <CardDescription>
+          Ответ из теста. Отметки по чек-листу ставит модель, долю отмеченных считает код; в грейд и категорию не
+          входит.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {answers.map((answer, index) => (
+          <div key={index} className="space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-sm font-medium">{answer.question}</p>
+              {answer.score != null && (
+                <span className="shrink-0 font-mono text-sm font-bold tabular-nums">{toPercent(answer.score)}%</span>
+              )}
+            </div>
+            <p className="rounded-md bg-muted p-3 text-sm whitespace-pre-line">{answer.answer}</p>
+            <ul className="space-y-1.5 text-sm">
+              {answer.criteria.map((criterion) => (
+                <li key={criterion.text} className="flex items-start gap-2">
+                  {criterion.met ? (
+                    <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" />
+                  ) : (
+                    <Circle className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                  )}
+                  <span className={criterion.met ? "" : "text-muted-foreground"}>{criterion.text}</span>
+                </li>
+              ))}
+            </ul>
+            {answer.score == null && (
+              <p className="text-xs text-muted-foreground">Ответ ещё не оценён по чек-листу.</p>
+            )}
+          </div>
+        ))}
       </CardContent>
     </Card>
   );

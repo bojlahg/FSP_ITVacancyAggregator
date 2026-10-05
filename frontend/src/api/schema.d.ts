@@ -1442,6 +1442,33 @@ export interface components {
             /** Cover Note */
             cover_note?: string | null;
         };
+        /** ApproachAnswer */
+        ApproachAnswer: {
+            /** Question */
+            question: string;
+            /**
+             * Answer
+             * @description До раскрытия контактов email, телефоны и ссылки вычищены
+             */
+            answer: string;
+            /** Criteria */
+            criteria: components["schemas"]["ApproachCriterion"][];
+            /**
+             * Score
+             * @description Доля отмеченных критериев; в θ̂ и категорию не входит (§10.5)
+             */
+            score: number | null;
+        };
+        /** ApproachCriterion */
+        ApproachCriterion: {
+            /** Text */
+            text: string;
+            /**
+             * Met
+             * @description Отметка LLM по чек-листу; null — ответ ещё не оценён
+             */
+            met: boolean | null;
+        };
         /**
          * AssignmentStatus
          * @enum {string}
@@ -1645,8 +1672,11 @@ export interface components {
             skills: components["schemas"]["SkillState"][];
             /** Topic Scores */
             topic_scores: components["schemas"]["TopicScore"][];
-            /** Approach Answers */
-            approach_answers?: string[];
+            /**
+             * Approach Answers
+             * @description Ответы на открытый вопрос о подходе из теста текущей категории
+             */
+            approach_answers?: components["schemas"]["ApproachAnswer"][];
             /** @description null, если кандидат скрыл ФСП */
             fsp: components["schemas"]["FspProfileOut"] | null;
             /** Contacts Unlocked */

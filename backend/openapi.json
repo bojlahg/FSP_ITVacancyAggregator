@@ -6530,6 +6530,72 @@
         "type": "object",
         "title": "ApplyRequest"
       },
+      "ApproachAnswer": {
+        "properties": {
+          "question": {
+            "type": "string",
+            "title": "Question"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer",
+            "description": "До раскрытия контактов email, телефоны и ссылки вычищены"
+          },
+          "criteria": {
+            "items": {
+              "$ref": "#/components/schemas/ApproachCriterion"
+            },
+            "type": "array",
+            "title": "Criteria"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score",
+            "description": "Доля отмеченных критериев; в θ̂ и категорию не входит (§10.5)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "question",
+          "answer",
+          "criteria",
+          "score"
+        ],
+        "title": "ApproachAnswer"
+      },
+      "ApproachCriterion": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "met": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Met",
+            "description": "Отметка LLM по чек-листу; null — ответ ещё не оценён"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "met"
+        ],
+        "title": "ApproachCriterion"
+      },
       "AssignmentStatus": {
         "type": "string",
         "enum": [
@@ -7060,10 +7126,11 @@
           },
           "approach_answers": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/ApproachAnswer"
             },
             "type": "array",
-            "title": "Approach Answers"
+            "title": "Approach Answers",
+            "description": "Ответы на открытый вопрос о подходе из теста текущей категории"
           },
           "fsp": {
             "anyOf": [

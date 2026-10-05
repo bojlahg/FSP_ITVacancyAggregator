@@ -38,6 +38,7 @@ from app.modules.matching.schemas import (
     TalentSearchOut,
 )
 from app.modules.needs.models import HiringNeed
+from app.modules.resume.pdf import redact_contacts
 from app.modules.tasks import service as tasks_service
 from app.modules.testing.engine.bank import GRADE_ORDER, get_blueprints
 from app.modules.testing.models import TestAttempt
@@ -723,10 +724,20 @@ async def candidate_card(
     statuses = await invitation_statuses(db, employer_id, [candidate_id])
     if match is not None:
         match.invitation_status = statuses.get(candidate_id)
+    current = await categories_service.get_current(db, candidate_id)
+    approach_answers = []
+    if current is not None and current.attempt_id is not None:
+        from app.modules.testing import service as testing_service
+
+        approach_answers = await testing_service.open_answers(db, current.attempt_id)
+    # До раскрытия контактов свободный текст не должен их выдавать (инвариант contact_unlocks)
+    hide = (lambda text: text) if unlocked else redact_contacts
+    for answer in approach_answers:
+        answer.answer = hide(answer.answer) or ""
 
     return CandidateCard(
         brief=_brief(row, candidate, counts.get(candidate_id, 0)),
-        about=candidate.about,
+        about=hide(candidate.about),
         experience_years=float(candidate.experience_years)
         if candidate.experience_years is not None
         else None,
@@ -739,7 +750,7 @@ async def candidate_card(
                 position=item.position,
                 started_on=item.started_on,
                 ended_on=item.ended_on,
-                description=item.description,
+                description=hide(item.description),
             )
             for item in experience
         ],
@@ -748,7 +759,7 @@ async def candidate_card(
             TopicScore(topic=topic, name=topic_names.get(topic, topic), score=s["score"], items=s["items"])
             for topic, s in sorted((row.topic_scores or {}).items())
         ],
-        approach_answers=[],
+        approach_answers=approach_answers,
         fsp=await fsp_service.profile(db, candidate) if privacy.show_fsp and row.has_fsp else None,
         contacts_unlocked=unlocked,
         contacts=await contacts_of(db, candidate) if unlocked else None,

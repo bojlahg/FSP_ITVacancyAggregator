@@ -7,6 +7,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import llm
 from app.core.config import get_settings
 from app.core.enums import AttemptPurpose, AttemptResult, AttemptStatus, Grade, SkillSource, TemplateStatus
 from app.core.errors import AppError, ConflictError, NotFoundError
@@ -23,6 +24,8 @@ from app.modules.testing.models import TemplateStat, TestAttempt, TestAttemptIte
 from app.modules.testing.schemas import (
     AnswerAck,
     AnswerRequest,
+    ApproachAnswer,
+    ApproachCriterion,
     AttemptCreate,
     AttemptOut,
     AttemptResultOut,
@@ -261,6 +264,8 @@ async def answer(db: AsyncSession, candidate: Candidate, attempt_id: int, body: 
     now = _now()
     late = _is_late(pending, now)
     _mark_answered(pending, body.response.model_dump(exclude_none=True), now, late)
+    if pending.stage == STAGE_OPEN and not late:
+        await _grade_open_answer(attempt, pending, candidate.user_id)
     if pending.score:
         await _record_stat(db, pending.template_id, correct=pending.score)
     if body.focus_lost_count:
@@ -274,6 +279,17 @@ async def answer(db: AsyncSession, candidate: Candidate, attempt_id: int, body: 
         await _finalize(db, attempt, planner, items)
     await db.commit()
     return AnswerAck(accepted=True, late=late, finished=finished)
+
+
+async def _grade_open_answer(attempt: TestAttempt, item: TestAttemptItem, user_id: int) -> None:
+    """§10.5: LLM отмечает критерии чек-листа, approach = доля отмеченных; в θ̂ не входит."""
+    text = str((item.response or {}).get("text") or "")
+    rubric = list((item.answer_key or {}).get("rubric") or [])
+    hits = await llm.rubric_hits(item.payload.get("stem", ""), rubric, text, user_id)
+    if hits is None:
+        return
+    item.response = {**(item.response or {}), "rubric_hits": hits}
+    attempt.approach_score = round(sum(hits) / len(hits), 4)
 
 
 async def _finalize(
@@ -314,6 +330,36 @@ async def _finalize(
     await db.flush()
     await matching_service.refresh_candidate(db, attempt.candidate_id)
     await matching_service.refresh_category(db, category.specialization, category.grade)
+
+
+async def open_answers(db: AsyncSession, attempt_id: int) -> list[ApproachAnswer]:
+    """Ответы на открытый вопрос о подходе с отметками по чек-листу (§10.5) — для карточки кандидата."""
+    items = await db.scalars(
+        select(TestAttemptItem)
+        .where(
+            TestAttemptItem.attempt_id == attempt_id,
+            TestAttemptItem.stage == STAGE_OPEN,
+            TestAttemptItem.answered_at.is_not(None),
+        )
+        .order_by(TestAttemptItem.position)
+    )
+    answers = []
+    for item in items:
+        text = str((item.response or {}).get("text") or "").strip()
+        if not text:
+            continue
+        rubric = list((item.answer_key or {}).get("rubric") or [])
+        hits = (item.response or {}).get("rubric_hits")
+        marks = hits if isinstance(hits, list) and len(hits) == len(rubric) else [None] * len(rubric)
+        answers.append(
+            ApproachAnswer(
+                question=item.payload.get("stem", ""),
+                answer=text,
+                criteria=[ApproachCriterion(text=c, met=m) for c, m in zip(rubric, marks, strict=True)],
+                score=round(sum(marks) / len(marks), 4) if marks and None not in marks else None,
+            )
+        )
+    return answers
 
 
 async def result(db: AsyncSession, candidate: Candidate, attempt_id: int) -> AttemptResultOut:

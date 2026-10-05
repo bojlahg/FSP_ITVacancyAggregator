@@ -192,3 +192,71 @@ async def test_late_answer_scores_zero(client, session):
     session.expire_all()
     stored = await session.scalar(select(AttemptItem).where(AttemptItem.id == current["item_id"]))
     assert stored.score == 0.0
+
+
+async def test_open_answer_checklist_scored_by_code_and_shown_to_employer(client, session, monkeypatch):
+    """§10.5: LLM только отмечает критерии, approach = доля отмеченных; работодатель видит ответ и отметки."""
+    from app.core import llm
+    from app.modules.testing.engine.model import Template
+    from tests.test_needs import candidate_id
+    from tests.test_needs import signup as signup_employer
+
+    bank = synthetic_bank()
+    rubric = ["Ограничение по ключу клиента", "Хранилище счётчиков", "Ответ 429", "Заголовок Retry-After"]
+    bank.templates["o.approach"] = Template.model_validate(
+        {
+            "id": "o.approach",
+            "specializations": ["backend"],
+            "topic": "architecture",
+            "skills": ["rest"],
+            "kind": "open_approach",
+            "irt": {"a": 1.0, "b": 0.2},
+            "stem": "Как бы вы сделали rate limiting для публичного API?",
+            "rubric": rubric,
+            "time_limit_sec": 600,
+        }
+    )
+    monkeypatch.setattr(testing_service, "get_bank", lambda: bank)
+    monkeypatch.setattr(llm, "is_enabled", lambda: True)
+    prompts = []
+
+    async def fake_complete(system, user, hint, user_id=None):
+        prompts.append(user)
+        return {"hits": [True, True, False, True], "score": 1.0}  # score от LLM игнорируется
+
+    monkeypatch.setattr(llm, "complete_json", fake_complete)
+
+    headers = await signup(client, "open@example.com")
+    await onboard(client, headers)
+    started = await client.post(
+        f"{API}/tests/attempts", json={"specialization": "backend", "grade_target": "middle"}, headers=headers
+    )
+    attempt_id = started.json()["id"]
+    await answer_all(client, session, headers, attempt_id, correct=True)
+
+    assert len(prompts) == 1 and "Retry-After" in prompts[0] and "rate limiting" in prompts[0]
+    result = (await client.get(f"{API}/tests/attempts/{attempt_id}/result", headers=headers)).json()
+    assert result["approach_score"] == 0.75
+
+    employer = await signup_employer(client, "hr@open.ru")
+    cid = await candidate_id(session, "open@example.com")
+    card = (await client.get(f"{API}/talent/candidates/{cid}", headers=employer)).json()
+    [answer] = card["approach_answers"]
+    assert answer["question"].startswith("Как бы вы сделали rate limiting")
+    assert answer["score"] == 0.75
+    assert [c["met"] for c in answer["criteria"]] == [True, True, False, True]
+    assert [c["text"] for c in answer["criteria"]] == rubric
+
+
+async def test_open_answer_without_llm_is_kept_unscored(client, session, monkeypatch):
+    from app.core import llm
+
+    monkeypatch.setattr(llm, "is_enabled", lambda: False)
+    headers = await signup(client, "nollm@example.com")
+    await onboard(client, headers)
+    started = await client.post(
+        f"{API}/tests/attempts", json={"specialization": "backend", "grade_target": "middle"}, headers=headers
+    )
+    await answer_all(client, session, headers, started.json()["id"], correct=True)
+    result = (await client.get(f"{API}/tests/attempts/{started.json()['id']}/result", headers=headers)).json()
+    assert result["approach_score"] is None

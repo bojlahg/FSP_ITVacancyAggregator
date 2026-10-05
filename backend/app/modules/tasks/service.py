@@ -42,11 +42,6 @@ from app.modules.testing.engine.render import render
 from app.modules.testing.engine.scoring import score as score_response
 from app.modules.testing.schemas import AnswerPayload, CurrentItem, ItemOption
 
-LLM_SYSTEM = (
-    "Ты проверяешь ответ кандидата на вопрос о подходе по чек-листу. Для каждого критерия по порядку "
-    "ответь true, только если ответ явно ему соответствует. Оценку не выставляй."
-)
-
 
 class TaskConfig(BaseModel):
     offer_interval_days: int
@@ -459,16 +454,7 @@ def _check_open(assignment: TaskAssignment, now: datetime) -> None:
 
 async def _rubric_hits(task: EmployerTask, text: str, user_id: int) -> list[bool] | None:
     """Отметки LLM по чек-листу или None (LLM выключен, ошибка, ответ не по форме)."""
-    rubric = list(task.rubric or [])
-    if not rubric or not llm.is_enabled():
-        return None
-    criteria = "\n".join(f"{index + 1}. {item}" for index, item in enumerate(rubric))
-    user_text = f"Задача: {task.prompt}\n\nКритерии:\n{criteria}\n\nОтвет кандидата:\n{text}"
-    data = await llm.complete_json(LLM_SYSTEM, user_text, '{"hits": [bool, ...]}', user_id=user_id)
-    hits = data.get("hits") if isinstance(data, dict) else None
-    if not isinstance(hits, list) or len(hits) != len(rubric) or not all(isinstance(h, bool) for h in hits):
-        return None
-    return hits
+    return await llm.rubric_hits(task.prompt or "", list(task.rubric or []), text, user_id)
 
 
 async def _confirm_skills(

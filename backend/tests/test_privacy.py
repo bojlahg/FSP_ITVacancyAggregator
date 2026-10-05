@@ -138,3 +138,22 @@ async def test_search_status_and_company_lookup(client, session):
         f"{API}/candidates/me/companies", params={"ids": [found[0]["id"]]}, headers=candidate
     )
     assert by_id.json() == found
+
+
+async def test_free_text_hides_contacts_until_unlock(client, session):
+    """Инвариант contact_unlocks: контакты не утекают через «О себе» и описания опыта."""
+    from app.modules.candidates.models import CandidateExperience
+
+    employer = await signup(client, "hr@bank.ru")
+    about = "Пишите на anna.k@mail.ru или в t.me/anna_k, +7 912 345-67-89"
+    _, cid = await make_candidate(client, session, "anna@example.com", about=about)
+    session.add(
+        CandidateExperience(candidate_id=cid, company="Банк", position="Backend", description="tg @anna_k")
+    )
+    await session.commit()
+
+    card = (await client.get(f"{API}/talent/candidates/{cid}", headers=employer)).json()
+    text = card["about"] + " ".join(item["description"] or "" for item in card["experience"])
+    for secret in ("anna.k@mail.ru", "t.me/anna_k", "345-67-89", "@anna_k"):
+        assert secret not in text
+    assert "Пишите на" in card["about"]
