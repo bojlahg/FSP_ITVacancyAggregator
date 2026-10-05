@@ -343,7 +343,7 @@ function ProfileForm({ profile }: { profile: CandidateProfile }) {
             />
             <ChipsField control={control} name="softSkills" label={<>Софт-скиллы{mark("softSkills")}</>} options={softSkills.data} />
           </CardContent>
-          <CardFooter className="flex flex-wrap items-center gap-3 border-t">
+          <CardFooter className="flex flex-wrap items-center gap-3 border-t border-border-subtle pt-5">
             <Button type="submit" disabled={update.isPending || !isDirty}>
               {update.isPending ? <Loader2 className="animate-spin" /> : <Save />} Сохранить профиль
             </Button>
