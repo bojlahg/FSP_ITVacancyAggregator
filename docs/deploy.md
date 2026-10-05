@@ -147,6 +147,7 @@ gh workflow run server-ops.yml -f action=logs -f service=backend -f lines=200
 gh workflow run server-ops.yml -f action=reseed                     # демо-данные заново
 gh workflow run server-ops.yml -f action=restart -f service=backend
 gh workflow run server-ops.yml -f action=swap                       # своп 2 ГБ (идемпотентно)
+gh workflow run server-ops.yml -f action=llm-check                  # все сценарии LLM на настоящем провайдере
 gh run watch <id> && gh run view <id> --log
 ```
 

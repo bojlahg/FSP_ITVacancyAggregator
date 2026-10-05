@@ -6,10 +6,10 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: "status | logs | reseed | restart | swap"
+        description: "status | logs | reseed | restart | swap | llm-check"
         required: true
         type: choice
-        options: [status, logs, reseed, restart, swap]
+        options: [status, logs, reseed, restart, swap, llm-check]
       service:
         description: "Сервис для logs/restart"
         required: false
@@ -66,4 +66,8 @@ jobs:
             swap)
               # Скрипт из checkout, не из /opt/itscout/app: не зависит от того, прошёл ли деплой
               ssh -i ~/.ssh/deploy "root@${DEPLOY_HOST}" "sh -s" < infra/scripts/setup-swap.sh ;;
+            llm-check)
+              # Все сценарии LLM на настоящем провайдере; LLM_PROVIDER=yandex только для этой команды
+              ssh -i ~/.ssh/deploy "root@${DEPLOY_HOST}" \
+                "${DC} exec -T -e LLM_PROVIDER=yandex backend python -m app.scripts.llm_check" ;;
           esac
