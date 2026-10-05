@@ -89,6 +89,7 @@ infra/                       compose, Caddyfile, keycloak realm, заглушк�
 | Демо-данные | `make reseed` |
 | Валидация (отчёт в `docs/validation/`, ~7–8 мин) | `make validate` (`cd backend && uv run python ../validation/run.py`; размер и seed — `--size`, `--seed`) |
 | Документация в PDF (`docs/ITScout-docs.pdf`; версии и эндпоинты генерируются) | `make docs-pdf` (`cd docs/pdf && npm ci && npm run build`; Chromium — `CHROMIUM_PATH`) |
+| Ревью банка заданий (HTML с ключами и полем замечаний → `bank-review/`, в git не попадает) | `make bank-review` (`cd backend && uv run python -m app.scripts.bank_review`; `--spec backend`, `--samples 5`) |
 | Нагрузочный тест (10/30/50 пользователей по 60 с, только чтение, нужен `DEMO_MODE=true`) | `make loadtest LOADTEST_URL=<адрес>` (`cd loadtest && uv run python run.py --base-url <адрес>`; уровни и длительность — `--users`, `--duration`) |
 | e2e (демо-сценарий против прода) | `make e2e` (`cd e2e && npm ci && npx playwright install chromium && npx playwright test`; другой стенд — `E2E_BASE_URL=<адрес>`) |
 

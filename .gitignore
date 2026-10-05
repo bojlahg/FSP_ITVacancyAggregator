@@ -36,3 +36,6 @@ Thumbs.db
 .idea/
 .vscode/
 .claude/worktrees/
+
+# Отчёт ревью банка заданий содержит ключи ответов — только локально
+bank-review/

@@ -2,7 +2,7 @@
 DC     = docker compose --env-file .env -f infra/docker-compose.yml
 DC_DEV = $(DC) -f infra/docker-compose.dev.yml
 
-.PHONY: up down logs test lint format openapi migration reseed validate loadtest e2e docs-pdf prod-up
+.PHONY: up down logs test lint format openapi migration reseed validate loadtest bank-review e2e docs-pdf prod-up
 
 up:            ## локально: БД, backend (reload), fsp-mock, mailpit
 	$(DC_DEV) up -d --build db backend fsp-mock mailpit
@@ -37,6 +37,9 @@ reseed:        ## демо-данные заново (на сервере: в к
 
 validate:      ## симуляционная валидация (§12) → docs/validation/report.md, metrics.json, PNG
 	cd backend && uv run python ../validation/run.py
+
+bank-review:   ## HTML-отчёт для ревью банка заданий с ключами → bank-review/<спец>.html (в git не попадает)
+	cd backend && uv run python -m app.scripts.bank_review $(ARGS)
 
 LOADTEST_URL ?= http://localhost:8000
 
