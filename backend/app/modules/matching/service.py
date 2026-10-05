@@ -43,7 +43,6 @@ from app.modules.testing.engine.bank import GRADE_ORDER, get_blueprints
 from app.modules.testing.models import TestAttempt
 from app.modules.testing.schemas import TopicScore
 
-FRESH_HALF_LIFE_DAYS = 90
 SKILL_STATUS_PRIORITY = {
     SkillSource.test: "verified",
     SkillSource.fsp: "fsp_confirmed",
@@ -61,16 +60,9 @@ SALARY_BUCKET = 50_000
 
 
 def freshness(last_activity: datetime | None, now: datetime) -> float:
-    """fresh = 0.5^(дней с последнего проверенного действия / 90) — §8.3."""
     if last_activity is None:
         return 0.0
-    days = max((now - last_activity).total_seconds() / 86400, 0.0)
-    return 0.5 ** (days / FRESH_HALF_LIFE_DAYS)
-
-
-def vps(percentile: float | None, fsp: float, fresh: float, approach: float | None) -> float:
-    """Сила подтверждённого профиля внутри категории — §8.3."""
-    return round(0.60 * (percentile or 0.0) + 0.15 * fsp + 0.15 * fresh + 0.10 * (approach or 0.0), 4)
+    return scoring.freshness_from_days((now - last_activity).total_seconds() / 86400)
 
 
 # ---------- индекс ----------
@@ -113,7 +105,7 @@ async def refresh_candidate(db: AsyncSession, candidate_id: int) -> None:
     )
     row.fresh = fresh
     row.approach = approach
-    row.vps = vps(current.percentile, row.fsp_score, fresh, approach)
+    row.vps = scoring.vps(current.percentile, row.fsp_score, fresh, approach)
     row.skills_status = skills
     row.topic_scores = (attempt.topic_scores or {}) if attempt else {}
     row.skill_scores = (attempt.skill_scores or {}) if attempt else {}

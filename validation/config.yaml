@@ -24,7 +24,6 @@ population:                 # §12.1
     score_slope: 0.2
     score_sd: 0.12
   fresh_days: [0, 180]
-  fresh_half_life_days: 90  # §8.3
   relocation: 0.25
   work_formats:
     - [remote]

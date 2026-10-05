@@ -1,6 +1,5 @@
 """Симулированная популяция кандидатов (§12.1): истинные θ, стек, заявленный грейд, ФСП и условия."""
 
-import math
 import random
 from dataclasses import dataclass, field
 
@@ -119,7 +118,3 @@ def _assign_fsp(people: list[Person], cfg: dict, rng: random.Random) -> None:
             score = cfg["score_base"] + cfg["score_slope"] * person.theta + rng.gauss(0.0, cfg["score_sd"])
             person.has_fsp = True
             person.fsp_score = round(min(1.0, max(0.05, score)), 3)
-
-
-def freshness(days: int, half_life: float) -> float:
-    return math.pow(0.5, days / half_life)

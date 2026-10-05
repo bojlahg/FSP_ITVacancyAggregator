@@ -7,11 +7,11 @@ import random
 from dataclasses import dataclass
 
 from app.modules.catalog.service import get_catalog
-from app.modules.matching.scoring import CandidateFacts, NeedSpec, evaluate, get_rules
+from app.modules.matching.scoring import CandidateFacts, NeedSpec, evaluate, freshness_from_days, get_rules
 from app.modules.testing.engine.bank import GRADE_ORDER
 from seed import data
 from validation.engine_sim import Attempt, Path
-from validation.population import Person, freshness
+from validation.population import Person
 from validation.stats import mean, ndcg_at_k, precision_at_k
 
 # match_grouped — выдача по умолчанию (группы категорий, внутри по score); match — «общий топ» по score;
@@ -71,7 +71,6 @@ def category_attempt(path: Path) -> Attempt | None:
 
 
 def build_facts(people: list[Person], paths: dict[int, Path], config: dict) -> dict[int, CandidateFacts]:
-    half_life = config["population"]["fresh_half_life_days"]
     facts: dict[int, CandidateFacts] = {}
     for person in people:
         path = paths[person.pid]
@@ -90,7 +89,7 @@ def build_facts(people: list[Person], paths: dict[int, Path], config: dict) -> d
             skills_status=status,
             fsp_score=person.fsp_score,
             has_fsp=person.has_fsp,
-            fresh=freshness(person.fresh_days, half_life),
+            fresh=freshness_from_days(person.fresh_days),
             fresh_days=person.fresh_days,
             salary_min=person.salary_min,
             work_formats=list(person.work_formats),

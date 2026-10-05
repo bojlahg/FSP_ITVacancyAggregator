@@ -22,6 +22,8 @@ class MatchingRules(BaseModel):
     optional_weight: float
     strength: dict[str, float]
     conditions: dict[str, float]
+    freshness: dict[str, float]
+    vps_weights: dict[str, float]
     recommendations: dict[str, int]
 
 
@@ -29,6 +31,23 @@ class MatchingRules(BaseModel):
 def get_rules() -> MatchingRules:
     with (CONTENT_DIR / "matching.yaml").open(encoding="utf-8") as file:
         return MatchingRules.model_validate(yaml.safe_load(file))
+
+
+def freshness_from_days(days: float) -> float:
+    """fresh = 0.5^(дней с последнего проверенного действия / полураспад) — §8.3."""
+    return 0.5 ** (max(days, 0.0) / get_rules().freshness["half_life_days"])
+
+
+def vps(percentile: float | None, fsp: float, fresh: float, approach: float | None) -> float:
+    """Сила подтверждённого профиля внутри категории — §8.3."""
+    w = get_rules().vps_weights
+    value = (
+        w["percentile"] * (percentile or 0.0)
+        + w["fsp"] * fsp
+        + w["fresh"] * fresh
+        + w["approach"] * (approach or 0.0)
+    )
+    return round(value, 4)
 
 
 @dataclass(frozen=True)

@@ -27,6 +27,18 @@ strength:
   ability_share: 0.7     # 0.7·Φ((θ − cut_грейда)/scale) + 0.3·topic_fit
   scale: 0.6
 
+# Свежесть: fresh = 0.5^(дней с последнего проверенного действия / half_life_days)
+freshness:
+  half_life_days: 90
+
+# Сила подтверждённого профиля внутри категории (каталог, поиск без потребности):
+# VPS = Σ weight·component, percentile — перцентиль θ̂ в категории, approach — оценка подхода
+vps_weights:
+  percentile: 0.60
+  fsp: 0.15
+  fresh: 0.15
+  approach: 0.10
+
 conditions:
   salary_share: 0.6
   format_share: 0.4

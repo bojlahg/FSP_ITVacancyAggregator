@@ -1,6 +1,16 @@
 """Golden-кейсы ранжирования (§8.3–8.4): осмысленный порядок, а не только отсутствие падений."""
 
-from app.modules.matching.scoring import CandidateFacts, NeedSpec, category_fit, evaluate, get_rules
+import pytest
+
+from app.modules.matching.scoring import (
+    CandidateFacts,
+    NeedSpec,
+    category_fit,
+    evaluate,
+    freshness_from_days,
+    get_rules,
+    vps,
+)
 
 NEED = NeedSpec(
     specialization="backend",
@@ -113,3 +123,18 @@ def test_score_is_deterministic_and_bounded():
     second = evaluate(facts(1), NEED, LABELS)
     assert first.score == second.score
     assert 0 <= first.score <= 100
+
+
+def test_freshness_half_life_golden():
+    # §8.3: полураспад 90 дней (content/matching.yaml → freshness.half_life_days)
+    assert freshness_from_days(0) == 1.0
+    assert freshness_from_days(90) == pytest.approx(0.5)
+    assert freshness_from_days(180) == pytest.approx(0.25)
+    assert freshness_from_days(-5) == 1.0
+
+
+def test_vps_golden():
+    # §8.3: VPS = 0.60·перцентиль + 0.15·fsp + 0.15·fresh + 0.10·approach
+    assert sum(get_rules().vps_weights.values()) == pytest.approx(1.0)
+    assert vps(0.8, 0.5, 1.0, 0.4) == pytest.approx(0.48 + 0.075 + 0.15 + 0.04)
+    assert vps(None, 0.0, 0.0, None) == 0.0
