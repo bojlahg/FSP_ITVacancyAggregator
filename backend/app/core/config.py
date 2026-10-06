@@ -53,6 +53,9 @@ class Settings(BaseSettings):
     demo_candidate_email: str = "demo-candidate@itscout.ru"
     demo_employer_email: str = "demo-employer@itscout.ru"
     # Демо-админ (сброс демо-данных) создаётся генератором, только если пароль задан в .env
+    # Каталог запросов к сервису backup: reseed ждёт свежий бэкап (docs/deploy.md §5.4); пусто — без бэкапа
+    backup_requests_dir: str | None = None
+    backup_request_timeout_seconds: int = 300
     demo_admin_email: str = "admin@itscout.ru"
     demo_admin_password: str | None = None
     # Пароль сид-аккаунтов; пусто — случайный при каждом reseed (вход в них — только демо-кнопками)

@@ -8,6 +8,8 @@ DIR="${BACKUP_DIR:-/backups}"
 UPLOADS="${BACKUP_UPLOADS_DIR:-/uploads}"
 KEEP_DAYS="${BACKUP_KEEP_DAYS:-7}"
 INTERVAL=$(( ${BACKUP_INTERVAL_HOURS:-24} * 3600 ))
+# Запросы внеочередного бэкапа от backend (reseed из кабинета): файл <id>.request → <id>.ok | <id>.failed
+REQUESTS="${BACKUP_REQUESTS_DIR:-/requests}"
 export PGPASSWORD="${POSTGRES_PASSWORD}"
 
 # Внутри `backup || ...` set -e не действует, поэтому каждый шаг проверяется явно: при любой ошибке
@@ -43,9 +45,23 @@ case "${1:-loop}" in
   once) backup ;;
   list) ls -lh "${DIR}" ;;
   loop)
+    next=0
     while true; do
-      backup || echo "backup failed" >&2
-      sleep "${INTERVAL}"
+      if [ "$(date +%s)" -ge "${next}" ]; then
+        backup || echo "backup failed" >&2
+        next=$(( $(date +%s) + INTERVAL ))
+      fi
+      if [ -d "${REQUESTS}" ]; then
+        for request in "${REQUESTS}"/*.request; do
+          [ -e "${request}" ] || continue
+          if backup; then
+            mv "${request}" "${request%.request}.ok"
+          else
+            mv "${request}" "${request%.request}.failed"
+          fi
+        done
+      fi
+      sleep 5
     done ;;
   *) echo "usage: backup.sh [loop|once|list]" >&2; exit 2 ;;
 esac
