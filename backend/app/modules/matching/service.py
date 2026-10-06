@@ -21,7 +21,7 @@ from app.core.enums import (
     SkillStatus,
     WorkFormat,
 )
-from app.core.errors import NotFoundError
+from app.core.errors import AppError, NotFoundError
 from app.core.schemas import CategoryRef, Explanation, ExplanationLine, FspBadge
 from app.modules.auth import service as auth_service
 from app.modules.auth.models import User
@@ -970,6 +970,8 @@ def _search_conditions(filters: SearchFilters, now: datetime) -> list:
         )
     if filters.fsp_min_rank:
         rank_order = get_catalog().rules.fsp.rank_order
+        if filters.fsp_min_rank not in rank_order:
+            raise AppError(f"Неизвестный разряд: допустимы {', '.join(rank_order)}", code="unknown_rank")
         conditions.append(index.max_rank.in_(rank_order[rank_order.index(filters.fsp_min_rank) :]))
     if filters.salary_max:
         conditions.append(or_(index.salary_min.is_(None), index.salary_min <= filters.salary_max))

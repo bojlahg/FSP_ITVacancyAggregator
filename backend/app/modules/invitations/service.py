@@ -231,6 +231,8 @@ async def create(
     need = None
     if body.need_id is not None:
         need = await needs_service.get_own_need(db, user_id, body.need_id)
+        # Приглашение со старой версии считается по новейшей — иначе лимит видел бы только часть цепочки
+        need = await needs_service.latest_version(db, need)
         # Лимит считается по всей цепочке версий: уточнение потребности не обнуляет счётчик (§8.6 п.3)
         chain = await needs_service.version_chain_ids(db, need)
         used = await db.scalar(

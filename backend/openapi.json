@@ -5042,7 +5042,9 @@
             "schema": {
               "anyOf": [
                 {
-                  "type": "integer"
+                  "type": "integer",
+                  "maximum": 2147483647,
+                  "exclusiveMinimum": 0
                 },
                 {
                   "type": "null"
@@ -5451,7 +5453,9 @@
             "schema": {
               "anyOf": [
                 {
-                  "type": "integer"
+                  "type": "integer",
+                  "maximum": 2147483647,
+                  "exclusiveMinimum": 0
                 },
                 {
                   "type": "null"
@@ -12519,6 +12523,7 @@
             "anyOf": [
               {
                 "type": "integer",
+                "maximum": 2147483647.0,
                 "exclusiveMinimum": 0.0
               },
               {
@@ -12532,6 +12537,7 @@
             "anyOf": [
               {
                 "type": "integer",
+                "maximum": 2147483647.0,
                 "exclusiveMinimum": 0.0
               },
               {
@@ -12796,6 +12802,7 @@
             "anyOf": [
               {
                 "type": "integer",
+                "maximum": 2147483647.0,
                 "exclusiveMinimum": 0.0
               },
               {
@@ -12809,6 +12816,7 @@
             "anyOf": [
               {
                 "type": "integer",
+                "maximum": 2147483647.0,
                 "exclusiveMinimum": 0.0
               },
               {
@@ -16625,12 +16633,14 @@
         "properties": {
           "salary_from": {
             "type": "integer",
+            "maximum": 2147483647.0,
             "exclusiveMinimum": 0.0,
             "title": "Salary From",
             "description": "Нижняя граница, ₽"
           },
           "salary_to": {
             "type": "integer",
+            "maximum": 2147483647.0,
             "exclusiveMinimum": 0.0,
             "title": "Salary To",
             "description": "Верхняя граница, ₽"
@@ -17828,12 +17838,14 @@
         "properties": {
           "salary_from": {
             "type": "integer",
+            "maximum": 2147483647.0,
             "exclusiveMinimum": 0.0,
             "title": "Salary From",
             "description": "Нижняя граница, ₽"
           },
           "salary_to": {
             "type": "integer",
+            "maximum": 2147483647.0,
             "exclusiveMinimum": 0.0,
             "title": "Salary To",
             "description": "Верхняя граница, ₽"
@@ -18028,7 +18040,9 @@
           "salary_from": {
             "anyOf": [
               {
-                "type": "integer"
+                "type": "integer",
+                "maximum": 2147483647.0,
+                "exclusiveMinimum": 0.0
               },
               {
                 "type": "null"
@@ -18039,7 +18053,9 @@
           "salary_to": {
             "anyOf": [
               {
-                "type": "integer"
+                "type": "integer",
+                "maximum": 2147483647.0,
+                "exclusiveMinimum": 0.0
               },
               {
                 "type": "null"
@@ -18055,12 +18071,14 @@
         "properties": {
           "salary_from": {
             "type": "integer",
+            "maximum": 2147483647.0,
             "exclusiveMinimum": 0.0,
             "title": "Salary From",
             "description": "Нижняя граница, ₽"
           },
           "salary_to": {
             "type": "integer",
+            "maximum": 2147483647.0,
             "exclusiveMinimum": 0.0,
             "title": "Salary To",
             "description": "Верхняя граница, ₽"
@@ -18362,12 +18380,14 @@
         "properties": {
           "salary_from": {
             "type": "integer",
+            "maximum": 2147483647.0,
             "exclusiveMinimum": 0.0,
             "title": "Salary From",
             "description": "Нижняя граница, ₽"
           },
           "salary_to": {
             "type": "integer",
+            "maximum": 2147483647.0,
             "exclusiveMinimum": 0.0,
             "title": "Salary To",
             "description": "Верхняя граница, ₽"

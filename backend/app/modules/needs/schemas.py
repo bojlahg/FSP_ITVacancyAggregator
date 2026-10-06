@@ -4,7 +4,7 @@ from typing import Literal
 from pydantic import Field
 
 from app.core.enums import Grade, NeedStatus, ParserKind, WorkFormat
-from app.core.schemas import ApiModel, CategoryRef, SalaryRange
+from app.core.schemas import MAX_RUBLES, ApiModel, CategoryRef, SalaryRange
 
 
 class NeedFields(SalaryRange):
@@ -44,8 +44,8 @@ class NeedDraft(ApiModel):
     team_description: str | None = None
     work_format: WorkFormat | None = None
     city: str | None = None
-    salary_from: int | None = None
-    salary_to: int | None = None
+    salary_from: int | None = Field(default=None, gt=0, le=MAX_RUBLES)
+    salary_to: int | None = Field(default=None, gt=0, le=MAX_RUBLES)
 
 
 class NeedTextIssue(ApiModel):

@@ -13,11 +13,15 @@ class MessageResponse(ApiModel):
     message: str
 
 
+# Суммы хранятся в колонках Integer: большее значение БД не примет (500 вместо понятной ошибки)
+MAX_RUBLES = 2_147_483_647
+
+
 class SalaryRange(ApiModel):
     """Вилка в рублях «от–до» — обязательна в потребности, вакансии и приглашении (ТЗ §2.2)."""
 
-    salary_from: int = Field(gt=0, description="Нижняя граница, ₽")
-    salary_to: int = Field(gt=0, description="Верхняя граница, ₽")
+    salary_from: int = Field(gt=0, le=MAX_RUBLES, description="Нижняя граница, ₽")
+    salary_to: int = Field(gt=0, le=MAX_RUBLES, description="Верхняя граница, ₽")
 
     @model_validator(mode="after")
     def check_range(self) -> Self:

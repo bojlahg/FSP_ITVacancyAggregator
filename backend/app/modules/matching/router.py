@@ -6,6 +6,7 @@ from fastapi.responses import Response
 from app.core.deps import CurrentCandidate, CurrentEmployer, DbSession
 from app.core.enums import Grade, WorkFormat
 from app.core.errors import error_responses
+from app.core.schemas import MAX_RUBLES
 from app.modules.matching import service
 from app.modules.matching.schemas import (
     CandidateCard,
@@ -47,7 +48,7 @@ async def search_talent(
     has_fsp: bool | None = Query(default=None),
     fsp_discipline: str | None = Query(default=None),
     fsp_min_rank: str | None = Query(default=None),
-    salary_max: int | None = Query(default=None),
+    salary_max: int | None = Query(default=None, gt=0, le=MAX_RUBLES),
     work_format: WorkFormat | None = Query(default=None),
     city: str | None = Query(default=None),
     fresh_days: int | None = Query(default=None),
@@ -145,7 +146,7 @@ async def get_recommendations(
     grade: Grade | None = Query(default=None, description="Ограничить грейдом"),
     has_fsp: bool | None = Query(default=None),
     verified_only: bool = Query(default=False, description="Только навыки, проверенные тестом"),
-    salary_max: int | None = Query(default=None),
+    salary_max: int | None = Query(default=None, gt=0, le=MAX_RUBLES),
     work_format: WorkFormat | None = Query(default=None),
     city: str | None = Query(default=None),
     fresh_days: int | None = Query(default=None),

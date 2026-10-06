@@ -3,7 +3,7 @@ from datetime import date, datetime
 from pydantic import EmailStr, Field
 
 from app.core.enums import ConsentKind, FspLinkMethod, SearchStatus, SkillSource, SkillStatus, WorkFormat
-from app.core.schemas import ApiModel, CategoryRef
+from app.core.schemas import MAX_RUBLES, ApiModel, CategoryRef
 
 
 class ExperienceItem(ApiModel):
@@ -51,8 +51,8 @@ class CandidateProfileBase(ApiModel):
     city: str | None = Field(default=None, max_length=100)
     relocation: bool = False
     work_formats: list[WorkFormat] = Field(default_factory=list)
-    salary_min: int | None = Field(default=None, gt=0, description="Минимальные ожидания, ₽")
-    salary_max: int | None = Field(default=None, gt=0)
+    salary_min: int | None = Field(default=None, gt=0, le=MAX_RUBLES, description="Минимальные ожидания, ₽")
+    salary_max: int | None = Field(default=None, gt=0, le=MAX_RUBLES)
     experience_years: float | None = Field(default=None, ge=0, le=60)
     roles: list[str] = Field(default_factory=list)
     industries_exp: list[str] = Field(default_factory=list)

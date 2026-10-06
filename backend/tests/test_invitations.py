@@ -177,6 +177,8 @@ async def test_limit_counts_whole_need_version_chain(client, session, monkeypatc
         f"{API}/invitations", json=invite(ids[2], need_id=newer["id"]), headers=employer
     )
     assert blocked.status_code == 409 and blocked.json()["error"]["code"] == "invitation_limit"
+    stale = await client.post(f"{API}/invitations", json=invite(ids[3], need_id=need["id"]), headers=employer)
+    assert stale.status_code == 409, "старый id версии не обходит лимит"
 
     # Ответ кандидата или истечение срока освобождают слот
     await session.execute(
@@ -333,3 +335,15 @@ async def test_parallel_invites_accept_withdraw_and_apply_stay_consistent(client
     url = f"{API}/vacancies/{vacancy['id']}/apply"
     applied = await asyncio.gather(*(client.post(url, json={}, headers=candidate) for _ in range(2)))
     assert sorted(r.status_code for r in applied) == [201, 409]
+
+
+async def test_bad_search_and_salary_values_are_client_errors(client, session):
+    employer = await signup(client, "hr@bank.ru")
+    _, cid = await make_candidate(client, session, "anna@example.com")
+
+    rank = await client.get(f"{API}/talent/search", params={"fsp_min_rank": "гроссмейстер"}, headers=employer)
+    assert rank.status_code == 400 and rank.json()["error"]["code"] == "unknown_rank"
+    huge = await client.post(f"{API}/invitations", json=invite(cid, salary_to=2**31), headers=employer)
+    assert huge.status_code == 422
+    query = await client.get(f"{API}/talent/search", params={"salary_max": 2**40}, headers=employer)
+    assert query.status_code == 422

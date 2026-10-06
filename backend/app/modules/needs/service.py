@@ -116,6 +116,15 @@ async def _get_latest_own(db: AsyncSession, user_id: int, need_id: int) -> Hirin
     return need
 
 
+async def latest_version(db: AsyncSession, need: HiringNeed) -> HiringNeed:
+    """Самая новая версия потребности: по старому id цепочка версий видна не целиком."""
+    while True:
+        child = await db.scalar(select(HiringNeed).where(HiringNeed.parent_id == need.id).limit(1))
+        if child is None:
+            return need
+        need = child
+
+
 async def version_chain_ids(db: AsyncSession, need: HiringNeed) -> list[int]:
     """id этой версии и всех предыдущих: приглашения и отклики могут ссылаться на старые версии."""
     ids = [need.id]
