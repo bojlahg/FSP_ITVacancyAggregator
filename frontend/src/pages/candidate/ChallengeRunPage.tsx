@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useState } from "react";
 import { Link, Navigate, useParams } from "react-router";
+import { ItemScreen } from "@/components/candidate/ItemScreen";
 import { ErrorState } from "@/components/ErrorState";
 import { PageHeader } from "@/components/PageHeader";
 import { SkeletonCards } from "@/components/SkeletonCards";
@@ -18,7 +19,6 @@ import {
 import { toPercent } from "@/lib/format";
 import type { AnswerPayload } from "@/lib/testing-queries";
 import { useFocusLossCounter } from "@/lib/use-focus-loss";
-import { ItemScreen } from "@/pages/candidate/TestPage";
 
 export default function ChallengeRunPage() {
   const params = useParams();
