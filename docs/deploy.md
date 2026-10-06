@@ -249,4 +249,5 @@ DEBUG_TOOLS=true            # отладочный раздел; перед по
 | `DEBUG_TOOLS` | `false` | отладочный раздел в кабинетах |
 | `BACKUP_KEEP_DAYS`, `BACKUP_INTERVAL_HOURS` | 7, 24 | хранение и частота бэкапов (раздел 5.4) |
 | `RECOMMENDATIONS_CACHE_SECONDS` | 60 | TTL кэша оценок подборки в памяти процесса; 0 — выключен |
+| `SHOW_UNCONFIRMED_CANDIDATES` | `true` | кандидаты без подтверждённого тестом грейда видны в поиске и подборке по своей специализации — после всех с категорией, с пометкой «Грейд не подтверждён» ([implementation.md §8.2](implementation.md)); `false` — не видны нигде |
 | `GRADE_CHANGE_COOLDOWN_DAYS`, `FAILED_GRADE_RETRY_DAYS`, `MAX_ACTIVE_INVITES_PER_NEED` | 90, 30, 15 | правила продукта |
