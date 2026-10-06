@@ -3,6 +3,7 @@ import { AlertTriangle, Info } from "lucide-react";
 import { useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router";
 import { CategoryBadge } from "@/components/CategoryBadge";
+import { Badge } from "@/components/ui/badge";
 import { ItemScreen } from "@/components/candidate/ItemScreen";
 import { ErrorState } from "@/components/ErrorState";
 import { SkeletonCards } from "@/components/SkeletonCards";
@@ -91,7 +92,10 @@ export default function TestPage() {
       <h1 className="sr-only">Прохождение теста</h1>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         {attempt.data ? (
-          <CategoryBadge specialization={attempt.data.specialization} grade={attempt.data.grade_target} />
+          <span className="flex flex-wrap items-center gap-2">
+            <CategoryBadge specialization={attempt.data.specialization} grade={attempt.data.grade_target} />
+            {attempt.data.purpose === "express" && <Badge variant="soft">экспресс-тест</Badge>}
+          </span>
         ) : (
           <span />
         )}

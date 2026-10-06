@@ -39,6 +39,22 @@ const resultCopy: Record<AttemptResultOut["result"], { title: string; descriptio
   },
 };
 
+// Экспресс-тест (§10.3.1) категорию не присваивает — тексты о результате другие
+const expressCopy: Record<AttemptResultOut["result"], { title: string; description: string }> = {
+  confident_pass: {
+    title: "Экспресс-тест: порог пройден уверенно",
+    description: "Короткая оценка выше порога грейда с запасом. Категорию присваивает только полный тест.",
+  },
+  pass: {
+    title: "Экспресс-тест: порог пройден",
+    description: "Короткая оценка не ниже порога грейда. Категорию присваивает только полный тест.",
+  },
+  fail: {
+    title: "Экспресс-тест: ниже порога",
+    description: "Короткая оценка ниже порога грейда. Категория и попытки смены грейда не затронуты.",
+  },
+};
+
 export default function TestResultPage() {
   const params = useParams();
   const attemptId = Number(params.attemptId);
@@ -74,7 +90,8 @@ export default function TestResultPage() {
 }
 
 function ResultView({ data }: { data: AttemptResultOut }) {
-  const copy = resultCopy[data.result];
+  const express = data.purpose === "express";
+  const copy = (express ? expressCopy : resultCopy)[data.result];
   const failed = data.result === "fail";
   const percentile = data.percentile === null ? null : toPercent(data.percentile);
 
@@ -92,9 +109,14 @@ function ResultView({ data }: { data: AttemptResultOut }) {
               ) : (
                 <PartyPopper className="size-4 text-primary" aria-hidden />
               )}
-              Тест на {specializationLabel(data.specialization)} · {gradeLabel(data.grade_target)}
+              {express ? "Экспресс-тест" : "Тест"} на {specializationLabel(data.specialization)} ·{" "}
+              {gradeLabel(data.grade_target)}
             </CardDescription>
-            {failed ? (
+            {express ? (
+              <span className="inline-flex w-fit items-center rounded-md border border-border bg-muted px-4 py-2 font-mono text-lg font-bold">
+                {failed ? "Ниже порога" : "Порог пройден"}: {gradeLabel(data.grade_target)}
+              </span>
+            ) : failed ? (
               <span className="inline-flex w-fit items-center rounded-md border border-border bg-muted px-4 py-2 font-mono text-lg font-bold">
                 Грейд не подтверждён
               </span>
@@ -231,7 +253,13 @@ function NextActions({ data }: { data: AttemptResultOut }) {
         const availableAt = statusAction && !statusAction.allowed ? statusAction.available_at : next.available_at;
         // available_at приходит, только когда действие сейчас недоступно.
         const locked = statusAction ? !statusAction.allowed : Boolean(next.available_at);
-        const Icon = next.action === "try_higher" ? ArrowUpRight : ArrowDownRight;
+        const Icon = next.action === "retake_lower" ? ArrowDownRight : ArrowUpRight;
+        const label =
+          next.action === "full_test"
+            ? "Полный тест"
+            : next.action === "try_higher"
+              ? "Тест на грейд выше"
+              : "Тест на грейд ниже";
         return (
           <div key={index} className="space-y-2">
             <p>{next.message}</p>
@@ -245,7 +273,7 @@ function NextActions({ data }: { data: AttemptResultOut }) {
               </p>
             ) : (
               <StartAttemptButton
-                variant={next.action === "try_higher" ? "default" : "outline"}
+                variant={next.action === "retake_lower" ? "outline" : "default"}
                 disabled={gradeStatus.isPending}
                 params={{
                   specialization: data.specialization,
@@ -254,7 +282,7 @@ function NextActions({ data }: { data: AttemptResultOut }) {
                 }}
                 className="justify-items-start"
               >
-                {next.action === "try_higher" ? "Тест на грейд выше" : "Тест на грейд ниже"}: {gradeLabel(grade)}{" "}
+                {label}: {gradeLabel(grade)}{" "}
                 <Icon />
               </StartAttemptButton>
             )}

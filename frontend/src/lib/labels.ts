@@ -51,6 +51,7 @@ export const ATTEMPT_PURPOSE_LABELS: Record<string, string> = {
   upgrade: "Повышение",
   downgrade: "Понижение",
   vacancy_preview: "Проверка под вакансию",
+  express: "Экспресс-тест",
 };
 
 export const ATTEMPT_STATUS_LABELS: Record<string, string> = {

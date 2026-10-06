@@ -3,6 +3,7 @@ import type { LucideIcon } from "lucide-react";
 import { Link } from "react-router";
 import { CategoryBadge } from "@/components/CategoryBadge";
 import { GradeExplanationCard } from "@/components/candidate/GradeExplanationCard";
+import { ExpressTestCard } from "@/components/candidate/ExpressTestCard";
 import { StartAttemptButton } from "@/components/candidate/StartAttemptButton";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
@@ -177,6 +178,15 @@ function GradeView({ status, specialization }: { status: GradeStatus; specializa
       </Card>
 
       {current?.evidence && <GradeEvidenceCard evidence={current.evidence} audience="candidate" />}
+
+      {status.express && specialization && (
+        <ExpressTestCard
+          express={status.express}
+          specialization={specialization}
+          defaultGrade={current?.category.grade ?? "junior"}
+          disabled={Boolean(inProgress)}
+        />
+      )}
 
       <Card>
         <CardHeader>
