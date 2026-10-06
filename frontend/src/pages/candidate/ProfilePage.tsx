@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CheckCircle2, Download, Eye, FileText, Loader2, Plus, Save, Trash2, X } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useState, type BaseSyntheticEvent, type ReactNode } from "react";
 import { Controller, useFieldArray, useForm, type Control, type FieldPath } from "react-hook-form";
 import { Link } from "react-router";
 import { ResumeUploadCard } from "@/components/candidate/ResumeUploadCard";
@@ -17,6 +17,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { apiError, applyValidationErrors } from "@/lib/api-error";
+import { INVALID_FORM_MESSAGE, revealFirstInvalid } from "@/lib/form-errors";
 import { useIndustries } from "@/lib/employer-queries";
 import { gradeLabel, SKILL_STATUS_LABELS, WORK_FORMAT_LABELS } from "@/lib/labels";
 import {
@@ -103,7 +104,12 @@ function ProfileForm({ profile }: { profile: CandidateProfile }) {
   } = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: formFromProfile(profile),
+    shouldFocusError: false,
   });
+  const invalid = (_errors: unknown, event?: BaseSyntheticEvent) => {
+    setFormError(INVALID_FORM_MESSAGE);
+    revealFirstInvalid(event);
+  };
   const jobs = useFieldArray({ control, name: "experience" });
 
   const skillNames = {
@@ -129,7 +135,7 @@ function ProfileForm({ profile }: { profile: CandidateProfile }) {
     reset(formFromPrefill(result.prefill), { keepDefaultValues: true });
   };
 
-  const submit = async (values: ProfileFormValues) => {
+  const submit = async (values: ProfileFormValues, event?: BaseSyntheticEvent) => {
     setFormError(null);
     setSaved(false);
     try {
@@ -138,14 +144,15 @@ function ProfileForm({ profile }: { profile: CandidateProfile }) {
       setSaved(true);
       setResume(null);
     } catch (err) {
-      if (!applyValidationErrors(err, setError, profileFieldMap)) setFormError(apiError(err).message);
+      if (applyValidationErrors(err, setError, profileFieldMap)) invalid(null, event);
+      else setFormError(apiError(err).message);
     }
   };
 
   const verified = profile.skills.filter((skill) => skill.status !== "declared");
 
   return (
-    <form onSubmit={handleSubmit(submit)} noValidate className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+    <form onSubmit={handleSubmit(submit, invalid)} noValidate className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
       <div className="grid content-start gap-4">
         {resume && (
           <ResumeSummary
@@ -292,7 +299,7 @@ function ProfileForm({ profile }: { profile: CandidateProfile }) {
                     <Input id={`job-${index}-company`} aria-invalid={!!jobErrors?.company} {...register(`experience.${index}.company`)} />
                   </FormField>
                   <FormField id={`job-${index}-start`} label="Начало" error={jobErrors?.startedOn?.message}>
-                    <Input id={`job-${index}-start`} type="month" {...register(`experience.${index}.startedOn`)} />
+                    <Input id={`job-${index}-start`} type="month" aria-invalid={!!jobErrors?.startedOn} {...register(`experience.${index}.startedOn`)} />
                   </FormField>
                   <FormField id={`job-${index}-end`} label="Окончание" hint="Пусто — по настоящее время" error={jobErrors?.endedOn?.message}>
                     <Input id={`job-${index}-end`} type="month" aria-invalid={!!jobErrors?.endedOn} {...register(`experience.${index}.endedOn`)} />

@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useState, type BaseSyntheticEvent, type ReactNode } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { SkillsMultiSelect } from "@/components/candidate/SkillsMultiSelect";
 import { FormAlert } from "@/components/FormAlert";
@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { apiError, applyValidationErrors } from "@/lib/api-error";
+import { INVALID_FORM_MESSAGE, revealFirstInvalid } from "@/lib/form-errors";
 import { type NeedCreate, useIndustries } from "@/lib/employer-queries";
 import { EMPTY_NEED_FORM, needFieldMap, type NeedFormValues, needSchema } from "@/lib/need-form";
 import { GRADE_LABELS, SPECIALIZATION_FULL_LABELS, WORK_FORMAT_LABELS } from "@/lib/labels";
@@ -51,9 +52,15 @@ export function NeedForm({ initial, rawText, submitLabel, footerNote, pending, o
   } = useForm<NeedFormValues>({
     resolver: zodResolver(needSchema),
     defaultValues: { ...EMPTY_NEED_FORM, ...initial },
+    shouldFocusError: false,
   });
 
-  const submit = async (values: NeedFormValues) => {
+  const invalid = (_errors: unknown, event?: BaseSyntheticEvent) => {
+    setFormError(INVALID_FORM_MESSAGE);
+    revealFirstInvalid(event);
+  };
+
+  const submit = async (values: NeedFormValues, event?: BaseSyntheticEvent) => {
     setFormError(null);
     try {
       await onSubmit({
@@ -71,7 +78,8 @@ export function NeedForm({ initial, rawText, submitLabel, footerNote, pending, o
         salary_to: values.salaryTo,
       });
     } catch (err) {
-      if (!applyValidationErrors(err, setError, needFieldMap)) setFormError(apiError(err).message);
+      if (applyValidationErrors(err, setError, needFieldMap)) invalid(null, event);
+      else setFormError(apiError(err).message);
     }
   };
 
@@ -84,9 +92,8 @@ export function NeedForm({ initial, rawText, submitLabel, footerNote, pending, o
   const knownIndustry = (value: string) => industries.data?.some((item) => item.slug === value) ?? true;
 
   return (
-    <form onSubmit={handleSubmit(submit)} noValidate>
+    <form onSubmit={handleSubmit(submit, invalid)} noValidate>
       <CardContent className="grid gap-4 sm:grid-cols-2">
-        <FormAlert message={formError} className="sm:col-span-2" />
         <FormField id="need-title" label="Название *" error={errors.title?.message} className="sm:col-span-2">
           <Input
             id="need-title"
@@ -246,6 +253,7 @@ export function NeedForm({ initial, rawText, submitLabel, footerNote, pending, o
           {pending && <Loader2 className="animate-spin" />}
           {submitLabel}
         </Button>
+        <FormAlert message={formError} className="w-full" />
       </CardFooter>
     </form>
   );
