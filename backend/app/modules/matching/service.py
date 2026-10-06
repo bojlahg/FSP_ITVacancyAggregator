@@ -68,7 +68,13 @@ from app.modules.testing.models import TestAttempt
 from app.modules.testing.schemas import TopicScore
 
 STATUS_RANK = {status: rank for rank, status in enumerate(candidates_service.STATUS_ORDER)}
-FIT_ORDER = {"exact": 0, "adjacent_grade": 1, "adjacent_specialization": 2, "adjacent_both": 3}
+FIT_ORDER = {
+    "exact": 0,
+    "adjacent_grade": 1,
+    "adjacent_specialization": 2,
+    "adjacent_both": 3,
+    "unconfirmed": 4,
+}
 LEVEL_NAMES = {
     "international": "международные",
     "national": "всероссийские",
@@ -87,22 +93,35 @@ def freshness(last_activity: datetime | None, now: datetime) -> float:
 # ---------- индекс ----------
 
 
+async def _indexable_without_category(db: AsyncSession, candidate: Candidate) -> bool:
+    """Без действующей категории в индекс попадает кандидат с выбранной специализацией (§8.2):
+    строка «грейд не подтверждён». Показ в выдаче — за настройкой SHOW_UNCONFIRMED_CANDIDATES."""
+    if not candidate.specialization:
+        return False
+    user = await db.get(User, candidate.user_id)
+    return user is not None and user.deleted_at is None
+
+
 async def refresh_candidate(db: AsyncSession, candidate_id: int) -> None:
     candidate = await db.get(Candidate, candidate_id)
     current = await categories_service.get_current(db, candidate_id) if candidate else None
-    if candidate is None or current is None:
+    if candidate is None or (current is None and not await _indexable_without_category(db, candidate)):
         await db.execute(
             delete(CandidateSearchIndex).where(CandidateSearchIndex.candidate_id == candidate_id)
         )
         return
 
     now = datetime.now(UTC)
-    attempt = await db.get(TestAttempt, current.attempt_id) if current.attempt_id else None
+    specialization = current.specialization if current else candidate.specialization
+    attempt = await db.get(TestAttempt, current.attempt_id) if current and current.attempt_id else None
     skills: dict[str, str] = {}
     fsp_counts = fsp_service.counts_in_score(candidate)
     fsp_skills = candidates_service.fsp_skills_count(candidate, for_employer=True)
     for skill in await db.scalars(select(CandidateSkill).where(CandidateSkill.candidate_id == candidate_id)):
         if skill.source == SkillSource.fsp and not fsp_skills:
+            continue
+        # Без действующей категории «проверено тестом» не показываем: грейд и тест не подтверждены
+        if skill.source == SkillSource.test and current is None:
             continue
         # Сильнейший источник навыка — по тому же порядку, что в профиле (skill_states, §8.3)
         status = candidates_service.STATUS_BY_SOURCE.get(skill.source, SkillStatus.declared)
@@ -112,7 +131,9 @@ async def refresh_candidate(db: AsyncSession, candidate_id: int) -> None:
     published = await auth_service.has_active_consent(db, candidate.user_id, ConsentKind.profile_publication)
     # Проверенные решения регулярных заданий тоже освежают профиль и дают approach (§11)
     tasks = await tasks_service.signals(db, candidate_id)
-    last_activity = max(filter(None, [current.assigned_at, tasks.last_graded_at]))
+    last_activity = max(
+        filter(None, [current.assigned_at if current else None, tasks.last_graded_at]), default=None
+    )
     fresh = freshness(last_activity, now)
     approach_scores = [
         s for s in [attempt.approach_score if attempt else None, *tasks.approach_scores] if s is not None
@@ -121,12 +142,12 @@ async def refresh_candidate(db: AsyncSession, candidate_id: int) -> None:
 
     row = await db.get(CandidateSearchIndex, candidate_id) or CandidateSearchIndex(candidate_id=candidate_id)
     row.visible = published and candidate.search_status != SearchStatus.hidden
-    row.specialization = current.specialization
-    row.grade = current.grade
-    row.theta = current.theta
-    row.percentile = current.percentile
+    row.specialization = specialization
+    row.grade = current.grade if current else None
+    row.theta = current.theta if current else None
+    row.percentile = current.percentile if current else None
     row.fsp_score, row.has_fsp, row.max_rank = await fsp_service.candidate_fsp_score(
-        db, candidate_id, current.specialization
+        db, candidate_id, specialization
     )
     if not fsp_counts:
         row.fsp_score = 0.0
@@ -136,7 +157,7 @@ async def refresh_candidate(db: AsyncSession, candidate_id: int) -> None:
         row.fsp_score, row.has_fsp, row.max_rank = 0.0, False, None
     row.fresh = fresh
     row.approach = approach
-    row.vps = scoring.vps(current.percentile, row.fsp_score, fresh, approach)
+    row.vps = scoring.vps(row.percentile, row.fsp_score, fresh, approach)
     row.skills_status = skills
     row.topic_scores = (attempt.topic_scores or {}) if attempt else {}
     row.skill_scores = (attempt.skill_scores or {}) if attempt else {}
@@ -228,14 +249,32 @@ def _skill_names() -> dict[str, str]:
     return names
 
 
+def _grade(row: CandidateSearchIndex) -> str | None:
+    """None — грейд не подтверждён тестом (§8.2)."""
+    return row.grade.value if row.grade is not None else None
+
+
+def unconfirmed_label(specialization: str) -> str:
+    names = {spec.slug: spec.short_name for spec in get_catalog().specializations}
+    return f"{names.get(specialization, specialization)} · грейд не подтверждён"
+
+
+def brief_label(brief: CandidateBrief) -> str:
+    """Подпись категории в экспорте: «Backend · Middle» или «Backend · грейд не подтверждён»."""
+    return brief.category.label if brief.category is not None else unconfirmed_label(brief.specialization)
+
+
 def _labels(row: CandidateSearchIndex) -> dict[str, str]:
     blueprints = get_blueprints()
-    key = (id(get_catalog()), id(blueprints), row.specialization, row.grade.value)
+    grade = _grade(row)
+    key = (id(get_catalog()), id(blueprints), row.specialization, grade or "")
     labels = _labels_cache.get(key)
     if labels is None:
         labels = {
             **_skill_names(),
-            "category": categories_service.category_label(row.specialization, row.grade.value),
+            "category": categories_service.category_label(row.specialization, grade)
+            if grade
+            else unconfirmed_label(row.specialization),
         }
         labels.update({f"topic:{topic}": name for topic, name in blueprints.topic_names.items()})
         _labels_cache[key] = labels
@@ -333,7 +372,7 @@ def _facts(
         declines=dict(history.declines) if history else {},
         candidate_id=row.candidate_id,
         specialization=row.specialization,
-        grade=row.grade.value,
+        grade=_grade(row),
         theta=row.theta,
         percentile=row.percentile,
         topic_scores=row.topic_scores or {},
@@ -360,7 +399,11 @@ def _brief(row: CandidateSearchIndex, candidate: Candidate, fsp_count: int) -> C
     return CandidateBrief(
         id=candidate.id,
         display_name=f"{candidate.first_name or 'Кандидат'} {shown_last}".strip(),
-        category=categories_service.category_ref(row.specialization, row.grade.value),
+        category=categories_service.category_ref(row.specialization, row.grade.value)
+        if row.grade is not None
+        else None,
+        specialization=row.specialization,
+        grade_confirmed=row.grade is not None,
         percentile=row.percentile,
         # Свежесть — на сейчас; у запасной строки без текущей категории (briefs) fsp_score не заполнен
         vps=scoring.vps(
@@ -384,23 +427,36 @@ def _brief(row: CandidateSearchIndex, candidate: Candidate, fsp_count: int) -> C
     )
 
 
+def _unconfirmed_shown(requested: bool = True) -> bool:
+    return requested and get_settings().show_unconfirmed_candidates
+
+
 async def _visible_rows(
     db: AsyncSession,
     employer_id: int,
     specs: set[str] | None = None,
     grades: set[str] | None = None,
     ids: list[int] | None = None,
+    unconfirmed: bool = False,
 ) -> list[tuple[CandidateSearchIndex, Candidate]]:
+    """unconfirmed — добавить строки «грейд не подтверждён» (§8.2), если они включены настройкой.
+
+    Каталог категорий и экспертная разметка их не просят: там только категории по тесту.
+    """
+    shown = _unconfirmed_shown(unconfirmed)
     query = (
         select(CandidateSearchIndex, Candidate)
         .join(Candidate, Candidate.id == CandidateSearchIndex.candidate_id)
         .where(CandidateSearchIndex.visible.is_(True))
         .where(~(any_(CandidateSearchIndex.hidden_employer_ids) == employer_id))
     )
+    if not shown:
+        query = query.where(CandidateSearchIndex.grade.is_not(None))
     if specs:
         query = query.where(CandidateSearchIndex.specialization.in_(specs))
     if grades:
-        query = query.where(CandidateSearchIndex.grade.in_([Grade(g) for g in grades]))
+        in_grades = CandidateSearchIndex.grade.in_([Grade(g) for g in grades])
+        query = query.where(or_(in_grades, CandidateSearchIndex.grade.is_(None)) if shown else in_grades)
     if ids is not None:
         query = query.where(CandidateSearchIndex.candidate_id.in_(ids))
     return [(row, candidate) for row, candidate in (await db.execute(query)).all()]
@@ -418,7 +474,7 @@ def _neighbourhood(need: scoring.NeedSpec) -> tuple[set[str], set[str]]:
 def _passes(
     row: CandidateSearchIndex, facts: scoring.CandidateFacts, filters: Filters, need: scoring.NeedSpec
 ) -> bool:
-    if filters.grade and row.grade.value != filters.grade:
+    if filters.grade and _grade(row) != filters.grade:
         return False
     if filters.has_fsp is not None and row.has_fsp != filters.has_fsp:
         return False
@@ -459,8 +515,14 @@ def _acceptance(value: scoring.Acceptance | None) -> AcceptanceOut | None:
 
 
 def _sort_key(match: CandidateMatch) -> tuple:
-    # При равенстве score — ФСП, затем свежесть (§8.3)
-    return (-match.score, -match.components.fsp, -match.components.fresh, match.candidate.id)
+    # Грейд не подтверждён — после всех подтверждённых (§8.2); при равном score — ФСП, затем свежесть (§8.3)
+    return (
+        not match.candidate.grade_confirmed,
+        -match.score,
+        -match.components.fsp,
+        -match.components.fresh,
+        match.candidate.id,
+    )
 
 
 def _coverage(salaries: list[int | None], salary_to: int) -> float | None:
@@ -509,7 +571,7 @@ async def _scored_pool(
     if cached is not None and time.monotonic() - cached[0] < ttl:
         return cached[1]
     specs, grades = _neighbourhood(spec)
-    rows = await _visible_rows(db, employer_id, specs, grades)
+    rows = await _visible_rows(db, employer_id, specs, grades, unconfirmed=True)
     ids = [row.candidate_id for row, _ in rows]
     best = await _best_fsp(db, ids)
     counts = await _fsp_counts(db, ids)
@@ -546,46 +608,59 @@ async def recommendations(
     ids = [item.row.candidate_id for item in scored]
 
     matched: list[CandidateMatch] = []
+    unconfirmed: list[CandidateMatch] = []
     outside: list[CandidateMatch] = []
     shortlist: list[CandidateMatch] = []
     by_category: dict[tuple[str, str], list[CandidateSearchIndex]] = defaultdict(list)
     fit_of: dict[int, str] = {}
     for item in scored:
         row, facts, result = item.row, item.facts, item.result
-        by_category[(row.specialization, row.grade.value)].append(row)
+        if row.grade is not None:
+            by_category[(row.specialization, row.grade.value)].append(row)
         fit_of[row.candidate_id] = result.fit
         match = _match(result, item.brief.model_copy(), row.candidate_id in shortlist_ids)
         if match.shortlisted:
             shortlist.append(match)
         if not _passes(row, facts, filters, spec):
             continue
-        (outside if filters.apply_hard_filters and result.out_of_filter else matched).append(match)
+        if filters.apply_hard_filters and result.out_of_filter:
+            outside.append(match)
+        else:
+            # §8.2: без подтверждённого грейда — отдельный блок после всех подтверждённых, score не смешиваем
+            (matched if row.grade is not None else unconfirmed).append(match)
 
     if filters.group_by == "category":
         matched.sort(key=lambda m: (FIT_ORDER[fit_of[m.candidate.id]], *_sort_key(m)))
     else:
         matched.sort(key=_sort_key)
+    unconfirmed.sort(key=_sort_key)
     outside.sort(key=_sort_key)
     shortlist.sort(key=_sort_key)
     # §8.1 п.4: закреплённый остаётся в шорт-листе при любой правке. Кто после правки вне категорий
     # потребности, для того score не определён — показываем карточкой, с теми же проверками видимости
     in_pool = set(ids)
     dropped = [cid for cid in pinned if cid not in in_pool]
-    visible = {row.candidate_id: (row, c) for row, c in await _visible_rows(db, employer_id, ids=dropped)}
+    visible = {
+        row.candidate_id: (row, c)
+        for row, c in await _visible_rows(db, employer_id, ids=dropped, unconfirmed=True)
+    }
     counts = await _fsp_counts(db, list(visible))
     shortlist_outside = [_brief(*visible[cid], counts.get(cid, 0)) for cid in dropped if cid in visible]
     statuses = await invitation_statuses(db, employer_id, ids)
-    for match in (*matched, *outside, *shortlist):
+    for match in (*matched, *unconfirmed, *outside, *shortlist):
         match.invitation_status = statuses.get(match.candidate.id)
+    limit = filters.limit or scoring.get_rules().recommendations["default_limit"]
     return RecommendationsOut(
         need_id=need.id,
         need_version=need.version,
         categories=_category_cards(by_category, spec),
-        candidates=matched[: filters.limit or scoring.get_rules().recommendations["default_limit"]],
+        candidates=matched[:limit],
+        unconfirmed=unconfirmed[:limit],
         out_of_filter=outside[:20],
         shortlist=shortlist,
         shortlist_outside=shortlist_outside,
         total=len(matched),
+        unconfirmed_total=len(unconfirmed),
     )
 
 
@@ -681,7 +756,7 @@ async def salary_market_for_candidate(
 ) -> SalaryMarketCheck | None:
     """Вилка приглашения против ожиданий категории кандидата — пометка в приглашении."""
     row = await db.get(CandidateSearchIndex, candidate_id)
-    if row is None:
+    if row is None or row.grade is None:
         return None
     expectations = await category_expectations(db, row.specialization, row.grade)
     return market_check(expectations, salary_from, salary_to, "candidate")
@@ -712,7 +787,7 @@ async def market_for_candidate(db: AsyncSession, user_id: int) -> CandidateMarke
 
     candidate = await candidates_service.get_by_user(db, user_id)
     row = await db.get(CandidateSearchIndex, candidate.id)
-    if row is None:
+    if row is None or row.grade is None:
         return CandidateMarketOut(
             category=None,
             groups=[],
@@ -739,10 +814,13 @@ async def market_for_candidate(db: AsyncSession, user_id: int) -> CandidateMarke
 
 
 async def match_for(
-    db: AsyncSession, employer_id: int, candidate_id: int, need: HiringNeed
+    db: AsyncSession, employer_id: int, candidate_id: int, need: HiringNeed, *, unconfirmed: bool = True
 ) -> CandidateMatch | None:
-    """Совпадение одного кандидата с потребностью — для карточки и снимка в приглашении."""
-    return await _match_one(db, employer_id, candidate_id, lambda row: need_spec(need))
+    """Совпадение одного кандидата с потребностью — для карточки и снимка в приглашении.
+
+    unconfirmed=False — без подтверждённого грейда совпадения нет (вакансии в кабинете кандидата, §8.7).
+    """
+    return await _match_one(db, employer_id, candidate_id, lambda row: need_spec(need), unconfirmed)
 
 
 async def matches_for_needs(
@@ -751,7 +829,8 @@ async def matches_for_needs(
     """match_for для одного кандидата и многих потребностей: данные кандидата читаются один раз."""
     row = await db.get(CandidateSearchIndex, candidate_id)
     candidate = await db.get(Candidate, candidate_id)
-    if row is None or candidate is None:
+    # Кабинет кандидата: без подтверждённого грейда совпадения с вакансиями не считаем (§8.7)
+    if row is None or row.grade is None or candidate is None:
         return dict.fromkeys((need.id for need in needs), None)
     best = await _best_fsp(db, [candidate_id])
     counts = await _fsp_counts(db, [candidate_id])
@@ -769,7 +848,10 @@ async def matches_for_needs(
 async def snapshot_for(
     db: AsyncSession, employer_id: int, candidate_id: int, need: HiringNeed | None
 ) -> CandidateMatch | None:
-    """Снимок «почему вы» для приглашения: по потребности, а без неё (или вне её категорий) — по категории."""
+    """Снимок «почему вы» для приглашения: по потребности, а без неё (или вне её категорий) — по категории.
+
+    Без подтверждённого грейда — по специализации: первая строка объяснения говорит, что грейд не подтверждён.
+    """
     if need is not None:
         match = await match_for(db, employer_id, candidate_id, need)
         if match is not None:
@@ -778,7 +860,7 @@ async def snapshot_for(
         db,
         employer_id,
         candidate_id,
-        lambda row: scoring.NeedSpec(specialization=row.specialization, grade=row.grade.value),
+        lambda row: scoring.NeedSpec(specialization=row.specialization, grade=_grade(row) or ""),
     )
 
 
@@ -787,10 +869,11 @@ async def _match_one(
     employer_id: int,
     candidate_id: int,
     spec_of: Callable[[CandidateSearchIndex], scoring.NeedSpec],
+    unconfirmed: bool = True,
 ) -> CandidateMatch | None:
     row = await db.get(CandidateSearchIndex, candidate_id)
     candidate = await db.get(Candidate, candidate_id)
-    if row is None or candidate is None:
+    if row is None or candidate is None or (row.grade is None and not unconfirmed):
         return None
     best = await _best_fsp(db, [candidate_id])
     history = (await _invitation_history(db, [candidate_id])).get(candidate_id)
@@ -805,7 +888,8 @@ async def _match_one(
 async def briefs(db: AsyncSession, candidate_ids: list[int]) -> dict[int, CandidateBrief]:
     """Обезличенные карточки для списков приглашений и откликов.
 
-    Кандидат мог с тех пор потерять текущую категорию (строки индекса нет) — тогда берём последнюю известную.
+    Кандидат мог с тех пор потерять текущую категорию (строки индекса нет) — тогда берём последнюю известную,
+    а если категории не было — специализацию с пометкой «грейд не подтверждён».
     """
     ids = list(set(candidate_ids))
     if not ids:
@@ -833,13 +917,14 @@ async def _detached_row(db: AsyncSession, candidate: Candidate) -> CandidateSear
         .order_by(CandidateCategory.assigned_at.desc())
         .limit(1)
     )
-    if last is None:
+    specialization = last.specialization if last is not None else candidate.specialization
+    if specialization is None:
         return None
     # В сессию не добавляется: только источник полей для _brief
     return CandidateSearchIndex(
         candidate_id=candidate.id,
-        specialization=last.specialization,
-        grade=last.grade,
+        specialization=specialization,
+        grade=last.grade if last is not None else None,
         percentile=None,
         vps=0.0,
         city=candidate.city,
@@ -849,14 +934,19 @@ async def _detached_row(db: AsyncSession, candidate: Candidate) -> CandidateSear
         has_fsp=False,
         max_rank=None,
         skills_status={},
-        last_activity_at=last.assigned_at,
+        last_activity_at=last.assigned_at if last is not None else None,
     )
 
 
 async def reachable(db: AsyncSession, employer_id: int, candidate_id: int) -> bool:
     """Работодатель может обратиться к кандидату: тот виден компании в поиске или контакты уже открыты."""
     row = await db.get(CandidateSearchIndex, candidate_id)
-    visible = row is not None and row.visible and employer_id not in (row.hidden_employer_ids or [])
+    visible = (
+        row is not None
+        and row.visible
+        and (row.grade is not None or _unconfirmed_shown())
+        and employer_id not in (row.hidden_employer_ids or [])
+    )
     return visible or await contacts_unlocked(db, employer_id, candidate_id)
 
 
@@ -947,11 +1037,12 @@ async def categories_catalog(db: AsyncSession, user_id: int) -> list[CategoryCat
 
 
 def _visible_query(employer_id: int):
-    return (
+    query = (
         select(CandidateSearchIndex)
         .where(CandidateSearchIndex.visible.is_(True))
         .where(~(any_(CandidateSearchIndex.hidden_employer_ids) == employer_id))
     )
+    return query if _unconfirmed_shown() else query.where(CandidateSearchIndex.grade.is_not(None))
 
 
 def _search_conditions(filters: SearchFilters, now: datetime) -> list:
@@ -1036,7 +1127,8 @@ async def search(db: AsyncSession, user_id: int, filters: SearchFilters) -> Tale
         .where(
             CandidateSearchIndex.candidate_id.in_(query.with_only_columns(CandidateSearchIndex.candidate_id))
         )
-        .order_by(*order, CandidateSearchIndex.candidate_id)
+        # Грейд не подтверждён — после всех подтверждённых при любой сортировке (§8.2)
+        .order_by(CandidateSearchIndex.grade.is_(None), *order, CandidateSearchIndex.candidate_id)
         .offset(filters.offset)
         .limit(filters.limit)
     )
@@ -1105,7 +1197,7 @@ async def json_resume(db: AsyncSession, user_id: int, candidate_id: int, need_id
     return JsonResume(
         basics=JsonResumeBasics(
             name=contacts.full_name if contacts else brief.display_name,
-            label=brief.category.label,
+            label=brief_label(brief),
             email=contacts.email if contacts else None,
             phone=contacts.phone if contacts else None,
             summary=card.about,
@@ -1141,6 +1233,7 @@ async def json_resume(db: AsyncSession, user_id: int, candidate_id: int, need_id
             "x-itscout": ItscoutExtension(
                 candidate_id=brief.id,
                 category=brief.category,
+                grade_confirmed=brief.grade_confirmed,
                 percentile=brief.percentile,
                 topic_scores=card.topic_scores,
                 fsp_ranks=[f"{rank.rank} · {rank.discipline}" for rank in (fsp.ranks if fsp else [])],

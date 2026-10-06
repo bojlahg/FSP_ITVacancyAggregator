@@ -18,6 +18,8 @@ category_fit:     # насколько категория кандидата п�
   adjacent_grade: 0.3
   adjacent_specialization: 0.6
   adjacent_both: 0.15
+  # Грейд не подтверждён тестом (§8.2): только та же специализация, отдельным блоком после подтверждённых
+  unconfirmed: 0.0
 
 skill_value:      # ценность навыка кандидата для требования
   verified: 1.0

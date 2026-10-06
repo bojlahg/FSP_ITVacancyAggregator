@@ -73,6 +73,9 @@ class Settings(BaseSettings):
     # Кэш оценок подборки в памяти процесса (docs/performance.md); 0 — выключен
     recommendations_cache_seconds: int = 60
     recommendations_cache_size: int = 64
+    # Кандидаты без подтверждённого тестом грейда (§8.2): показываются в поиске и подборке по специализации
+    # отдельным блоком после всех подтверждённых, с пометкой «Грейд не подтверждён»; false — не показываются
+    show_unconfirmed_candidates: bool = True
     # Интеграция с ATS: API-ключи работодателя и исходящие webhook'и (docs/anti-fraud-ats.md §2)
     api_keys_per_employer: int = 5
     api_key_touch_seconds: int = 60

@@ -161,7 +161,8 @@ async def get_vacancy(db: AsyncSession, user_id: int, vacancy_id: int) -> Vacanc
     candidate = await candidates_service.get_by_user(db, user_id)
     need = await _get_published(db, vacancy_id)
     chain = await needs_service.version_chain_ids(db, need)
-    match = await matching_service.match_for(db, need.employer_id, candidate.id, need)
+    # Без подтверждённого грейда совпадение с вакансией кандидату не считаем — как в списке вакансий
+    match = await matching_service.match_for(db, need.employer_id, candidate.id, need, unconfirmed=False)
     return await _vacancy(db, need, match, bool(await _applied_chains(db, candidate.id) & set(chain)))
 
 

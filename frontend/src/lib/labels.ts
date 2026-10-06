@@ -46,6 +46,14 @@ export function gradeLabel(slug: string): string {
   return GRADE_LABELS[slug] ?? slug;
 }
 
+/** Подпись категории кандидата в выдаче: «Backend · Middle» или «Backend · грейд не подтверждён» (§8.2). */
+export function candidateCategoryLabel(candidate: {
+  category: { label: string } | null;
+  specialization: string;
+}): string {
+  return candidate.category?.label ?? `${specializationLabel(candidate.specialization)} · грейд не подтверждён`;
+}
+
 export const ATTEMPT_PURPOSE_LABELS: Record<string, string> = {
   calibration: "Калибровка",
   upgrade: "Повышение",

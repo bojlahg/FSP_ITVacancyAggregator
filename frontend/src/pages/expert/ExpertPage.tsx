@@ -1,6 +1,6 @@
 import { CheckCircle2, ClipboardCheck, Loader2, ShieldCheck, Trophy } from "lucide-react";
 import { type ReactNode, useEffect } from "react";
-import { CategoryBadge } from "@/components/CategoryBadge";
+import { CandidateCategoryBadge } from "@/components/CategoryBadge";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { FormAlert } from "@/components/FormAlert";
@@ -190,7 +190,7 @@ function BlindCandidate({ card }: { card: NonNullable<ExpertTask["candidate"]> }
         <CardDescription className="font-mono text-xs uppercase">Кандидат · обезличенно</CardDescription>
         <CardTitle className="flex flex-wrap items-center gap-2">
           {brief.display_name}
-          <CategoryBadge specialization={brief.category.specialization} grade={brief.category.grade} variant="solid" />
+          <CandidateCategoryBadge candidate={brief} variant="solid" />
         </CardTitle>
         <CardDescription>
           {brief.percentile != null && `${toPercent(brief.percentile)}-й перцентиль в категории · `}

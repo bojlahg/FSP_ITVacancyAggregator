@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from app.modules.catalog.service import CONTENT_DIR, get_catalog
 from app.modules.testing.engine.bank import GRADE_ORDER, get_bank, get_blueprints
 
-Fit = Literal["exact", "adjacent_grade", "adjacent_specialization", "adjacent_both"]
+Fit = Literal["exact", "adjacent_grade", "adjacent_specialization", "adjacent_both", "unconfirmed"]
 
 
 class MatchingRules(BaseModel):
@@ -110,8 +110,9 @@ class NeedSpec:
 class CandidateFacts:
     candidate_id: int
     specialization: str
-    grade: str
-    theta: float
+    # None — грейд не подтверждён тестом (§8.2): нет категории, θ̂ и перцентиля
+    grade: str | None
+    theta: float | None
     percentile: float | None
     topic_scores: dict[str, dict]
     skills_status: dict[str, str]
@@ -156,8 +157,13 @@ def normal_cdf(value: float) -> float:
     return 0.5 * (1.0 + math.erf(value / math.sqrt(2.0)))
 
 
-def category_fit(candidate_spec: str, candidate_grade: str, need: NeedSpec) -> Fit | None:
-    """Точная категория, соседний грейд, смежная специализация или и то и другое (§8.3)."""
+def category_fit(candidate_spec: str, candidate_grade: str | None, need: NeedSpec) -> Fit | None:
+    """Точная категория, соседний грейд, смежная специализация или и то и другое (§8.3).
+
+    Без подтверждённого грейда — только та же специализация (§8.2): грейд неизвестен, соседства нет.
+    """
+    if candidate_grade is None:
+        return "unconfirmed" if candidate_spec == need.specialization else None
     adjacent_specs = next(
         (set(spec.adjacent) for spec in get_catalog().specializations if spec.slug == need.specialization),
         set(),
@@ -260,6 +266,8 @@ def topic_fit(facts: CandidateFacts, need: NeedSpec) -> float:
 
 def overqualification(facts: CandidateFacts, need: NeedSpec) -> float:
     """Насколько θ за порогом следующего грейда: max(0, 2·Φ((θ − cut_{G+1})/scale) − 1); 0 для верхнего."""
+    if facts.theta is None:
+        return 0.0
     blueprints = get_blueprints()
     higher = blueprints.next_grade(need.grade)
     if higher is None:
@@ -275,6 +283,9 @@ def strength_component(facts: CandidateFacts, need: NeedSpec) -> float:
     Внутри грейда более сильный выше (требование ТЗ), а кандидат, по тесту уже переросший нужный грейд,
     получает штраф λ: работодатель ищет этот грейд, а не следующий.
     """
+    if facts.theta is None:
+        # Теста нет — силы по тесту нет (§8.2): компонент 0, а не догадка по резюме
+        return 0.0
     rules = get_rules().strength
     cut = get_blueprints().cut(need.grade)
     ability = normal_cdf((facts.theta - cut) / rules["scale"])
@@ -426,7 +437,10 @@ def explain(
     lines: list[dict] = []
     percentile = f" ({round(facts.percentile * 100)}-й перцентиль)" if facts.percentile is not None else ""
     category = labels.get("category", "")
-    if fit == "exact":
+    if fit == "unconfirmed":
+        text = "Грейд не подтверждён тестом: категория и результат теста в оценке не учтены"
+        lines.append(_line("warning", "category", text))
+    elif fit == "exact":
         lines.append(
             _line("positive", "category", f"Категория совпадает: {category}, подтверждено тестом{percentile}")
         )

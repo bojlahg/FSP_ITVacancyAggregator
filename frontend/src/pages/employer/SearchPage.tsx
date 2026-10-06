@@ -1,5 +1,5 @@
-import { ChevronLeft, ChevronRight, FilterX, Loader2, Search, SlidersHorizontal } from "lucide-react";
-import { useState } from "react";
+import { ChevronLeft, ChevronRight, FilterX, Loader2, Search, ShieldQuestion, SlidersHorizontal } from "lucide-react";
+import { Fragment, useState } from "react";
 import { SkillsMultiSelect } from "@/components/candidate/SkillsMultiSelect";
 import { CandidateRow } from "@/components/employer/CandidateRow";
 import { CommitInput } from "@/components/employer/CommitInput";
@@ -256,8 +256,14 @@ export default function SearchPage() {
           ) : (
             <>
               <div className={cn("grid gap-3 transition-opacity", search.isPlaceholderData && "opacity-60")}>
-                {search.data.items.map((candidate) => (
-                  <CandidateRow key={candidate.id} candidate={candidate} href={`/employer/candidates/${candidate.id}`} />
+                {search.data.items.map((candidate, index, items) => (
+                  <Fragment key={candidate.id}>
+                    {/* Backend отдаёт кандидатов без подтверждённого грейда после всех с категорией (§8.2) */}
+                    {!candidate.grade_confirmed && (items[index - 1]?.grade_confirmed ?? true) && (
+                      <UnconfirmedDivider />
+                    )}
+                    <CandidateRow candidate={candidate} href={`/employer/candidates/${candidate.id}`} />
+                  </Fragment>
                 ))}
               </div>
               {pages > 1 && (
@@ -288,5 +294,18 @@ export default function SearchPage() {
         </section>
       </div>
     </>
+  );
+}
+
+function UnconfirmedDivider() {
+  return (
+    <div className="space-y-1 border-t border-dashed pt-4" role="separator" aria-label="Без подтверждённого грейда">
+      <p className="flex items-center gap-2 font-mono text-sm font-bold">
+        <ShieldQuestion className="size-4 text-muted-foreground" aria-hidden /> Без подтверждённого грейда
+      </p>
+      <p className="text-xs text-muted-foreground">
+        Тест ещё не подтвердил грейд: категории, перцентиля и навыков по тесту нет. Фильтр по грейду их не находит.
+      </p>
+    </div>
   );
 }

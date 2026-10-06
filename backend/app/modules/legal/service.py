@@ -35,6 +35,7 @@ def placeholders() -> dict[str, str]:
         "fit_adj_spec": _num(fit["adjacent_specialization"]),
         "fit_adj_grade": _num(fit["adjacent_grade"]),
         "fit_adj_both": _num(fit["adjacent_both"]),
+        "fit_unconfirmed": _num(fit["unconfirmed"]),
         "sv_verified": _num(value["verified"], 1),
         "sv_fsp": _num(value["fsp_confirmed"], 1),
         "sv_declared": _num(value["declared"], 1),

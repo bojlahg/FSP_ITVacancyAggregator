@@ -184,6 +184,7 @@ async def submit(db: AsyncSession, candidate: Candidate, answers: dict[str, Any]
     db.add(response)
     _apply_to_profile(candidate, answers)
     await _replace_declared_skills(db, candidate.id, answers.get("stack") or [])
+    await _refresh_index(db, candidate)
     await db.commit()
     return result_of(response)
 
@@ -232,4 +233,13 @@ async def confirm_specialization(db: AsyncSession, candidate: Candidate, special
     ):
         raise ConflictError("Сначала завершите начатый тест", code="attempt_in_progress")
     candidate.specialization = specialization
+    await _refresh_index(db, candidate)
     await db.commit()
+
+
+async def _refresh_index(db: AsyncSession, candidate: Candidate) -> None:
+    """Без категории кандидат виден в выдаче по специализации с пометкой «грейд не подтверждён» (§8.2)."""
+    from app.modules.matching import service as matching_service
+
+    await db.flush()
+    await matching_service.refresh_candidate(db, candidate.id)

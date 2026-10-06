@@ -17,7 +17,14 @@ class CandidateBrief(ApiModel):
     display_name: str = Field(
         description="Имя и первая буква фамилии (или полностью, если кандидат разрешил)"
     )
-    category: CategoryRef
+    category: CategoryRef | None = Field(
+        description="Категория по тесту; null — грейд не подтверждён тестом (см. grade_confirmed)"
+    )
+    specialization: str = Field(description="slug специализации: из категории, а без неё — из опроса")
+    grade_confirmed: bool = Field(
+        description="false — действующей категории нет: кандидат показан по специализации с пометкой "
+        "«Грейд не подтверждён», после всех подтверждённых; грейда, перцентиля и навыков по тесту нет"
+    )
     percentile: float | None
     vps: float = Field(description="Сила подтверждённого профиля внутри категории, 0..1 (§8.3)")
     city: str | None
@@ -87,6 +94,11 @@ class RecommendationsOut(ApiModel):
         description="Закреплены, но после правки не подходят под категорию потребности: score не считается",
     )
     total: int
+    unconfirmed: list[CandidateMatch] = Field(
+        description="Специализация потребности, но грейд не подтверждён тестом (§8.2): отдельный блок после "
+        "всех кандидатов с категорией; пусто, если показ выключен (SHOW_UNCONFIRMED_CANDIDATES=false)"
+    )
+    unconfirmed_total: int
 
 
 class SalaryBucket(ApiModel):
@@ -207,7 +219,8 @@ class JsonResumeAward(ApiModel):
 
 class ItscoutExtension(ApiModel):
     candidate_id: int
-    category: CategoryRef
+    category: CategoryRef | None = Field(description="null — грейд не подтверждён тестом")
+    grade_confirmed: bool
     percentile: float | None = Field(description="Перцентиль в категории по тесту")
     topic_scores: list[TopicScore]
     fsp_ranks: list[str]

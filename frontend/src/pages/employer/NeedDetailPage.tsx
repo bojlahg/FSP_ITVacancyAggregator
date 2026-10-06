@@ -15,13 +15,14 @@ import {
   Pin,
   SearchX,
   Send,
+  ShieldQuestion,
   SlidersHorizontal,
   Users,
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
-import { CategoryBadge } from "@/components/CategoryBadge";
+import { CandidateCategoryBadge, CategoryBadge } from "@/components/CategoryBadge";
 import { CandidateRow } from "@/components/employer/CandidateRow";
 import { CommitInput } from "@/components/employer/CommitInput";
 import { InviteDialog } from "@/components/employer/InviteDialog";
@@ -59,7 +60,7 @@ import {
   useToggleShortlist,
 } from "@/lib/employer-queries";
 import { formatNumber, plural, toPercent } from "@/lib/format";
-import { CATEGORY_FIT_LABELS, NEED_STATUS_LABELS, WORK_FORMAT_LABELS } from "@/lib/labels";
+import { CATEGORY_FIT_LABELS, candidateCategoryLabel, NEED_STATUS_LABELS, WORK_FORMAT_LABELS } from "@/lib/labels";
 import { type Grade, useGrades, useSkillCatalog } from "@/lib/testing-queries";
 import { enumParam, intParam, useUrlFilters } from "@/lib/url-filters";
 import { cn } from "@/lib/utils";
@@ -327,7 +328,7 @@ function NeedView({ need }: { need: Need }) {
                       >
                         {match.candidate.display_name}
                         <span className="block truncate font-mono text-[11px] text-muted-foreground">
-                          {match.candidate.category.label}
+                          {candidateCategoryLabel(match.candidate)}
                         </span>
                       </Link>
                       {!invited.has(match.candidate.id) && !openInvitation(match.invitation_status) && (
@@ -362,7 +363,7 @@ function NeedView({ need }: { need: Need }) {
                       >
                         {brief.display_name}
                         <span className="block truncate font-mono text-[11px] text-muted-foreground">
-                          {brief.category.label} · не подходит под новые требования
+                          {candidateCategoryLabel(brief)} · не подходит под новые требования
                         </span>
                       </Link>
                       <Button
@@ -563,9 +564,11 @@ function NeedView({ need }: { need: Need }) {
               icon={SearchX}
               title={hasActiveFilters ? "Под фильтры никто не подошёл" : "Подходящих кандидатов пока нет"}
               description={
-                hasActiveFilters
-                  ? "Ослабьте условия — шорт-лист при этом сохранится."
-                  : "Загляните в блок «Вне фильтров» или расширьте вилку и стек."
+                data.unconfirmed.length > 0
+                  ? "Ниже — кандидаты этой специализации, у которых тест ещё не подтвердил грейд."
+                  : hasActiveFilters
+                    ? "Ослабьте условия — шорт-лист при этом сохранится."
+                    : "Загляните в блок «Вне фильтров» или расширьте вилку и стек."
               }
               action={
                 hasActiveFilters && (
@@ -596,6 +599,28 @@ function NeedView({ need }: { need: Need }) {
                 </div>
               )}
             </div>
+          )}
+
+          {data && data.unconfirmed.length > 0 && (
+            <section aria-labelledby="unconfirmed-title" className="space-y-3 border-t border-dashed pt-6">
+              <div className="space-y-1">
+                <h3 id="unconfirmed-title" className="flex flex-wrap items-center gap-2 font-mono text-base font-bold">
+                  <ShieldQuestion className="size-4 text-muted-foreground" aria-hidden />
+                  Без подтверждённого грейда
+                  <span className="font-medium text-muted-foreground">
+                    {data.unconfirmed.length}
+                    {data.unconfirmed_total > data.unconfirmed.length && ` из ${data.unconfirmed_total}`}
+                  </span>
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Специализация совпадает, но тест грейд не подтвердил. Показываем после всех кандидатов с категорией:
+                  категория и результат теста в score не учтены.
+                </p>
+              </div>
+              <div className={cn("grid gap-3 transition-opacity", recs.isPlaceholderData && "opacity-60")}>
+                {data.unconfirmed.map(renderRow)}
+              </div>
+            </section>
           )}
 
           {data && data.out_of_filter.length > 0 && (
@@ -630,10 +655,7 @@ function NeedView({ need }: { need: Need }) {
                           >
                             {match.candidate.display_name}
                           </Link>
-                          <CategoryBadge
-                            specialization={match.candidate.category.specialization}
-                            grade={match.candidate.category.grade}
-                          />
+                          <CandidateCategoryBadge candidate={match.candidate} />
                         </div>
                         <ul className="space-y-0.5">
                           {(match.out_of_filter_reasons ?? []).map((reason) => (
@@ -679,7 +701,7 @@ function NeedView({ need }: { need: Need }) {
 
 interface CandidateGroup {
   key: string;
-  category: CandidateBrief["category"];
+  category: NonNullable<CandidateBrief["category"]>;
   items: CandidateMatch[];
 }
 
@@ -688,8 +710,11 @@ function groupCandidates(candidates: CandidateMatch[], categories: CategoryRecom
   const order = categories.map((item) => groupKey(item.category));
   const byKey = new Map<string, CandidateGroup>();
   for (const match of candidates) {
-    const key = groupKey(match.candidate.category);
-    const group = byKey.get(key) ?? { key, category: match.candidate.category, items: [] };
+    // В основном списке только кандидаты с категорией; без подтверждённого грейда — отдельный блок
+    const category = match.candidate.category;
+    if (!category) continue;
+    const key = groupKey(category);
+    const group = byKey.get(key) ?? { key, category, items: [] };
     group.items.push(match);
     byKey.set(key, group);
   }

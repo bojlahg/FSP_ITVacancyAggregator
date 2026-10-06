@@ -1,7 +1,7 @@
 import { Clock, Loader2, MapPin, Pin, PinOff, ShieldCheck, Trophy } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
-import { CategoryBadge } from "@/components/CategoryBadge";
+import { CandidateCategoryBadge } from "@/components/CategoryBadge";
 import { AcceptanceLine } from "@/components/employer/AcceptanceLine";
 import { ExplanationList, type ExplanationLine } from "@/components/ExplanationList";
 import { ScoreBadge } from "@/components/ScoreBadge";
@@ -89,7 +89,7 @@ export function CandidateRow({
                   {candidate.display_name}
                 </Link>
                 <div className="flex flex-wrap items-center gap-2">
-                  <CategoryBadge specialization={candidate.category.specialization} grade={candidate.category.grade} />
+                  <CandidateCategoryBadge candidate={candidate} />
                   {candidate.percentile != null && (
                     <span className="font-mono text-xs text-muted-foreground">
                       {toPercent(candidate.percentile)}-й перцентиль в категории

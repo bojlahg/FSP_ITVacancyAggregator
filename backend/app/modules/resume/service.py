@@ -276,7 +276,7 @@ async def employer_document(db: AsyncSession, user_id: int, candidate_id: int) -
         variant=variant,
         candidate_id=brief.id,
         name=card.contacts.full_name if card.contacts and not public else brief.display_name,
-        category_label=brief.category.label,
+        category_label=matching_service.brief_label(brief),
         percentile=brief.percentile,
         city=brief.city,
         relocation=brief.relocation,

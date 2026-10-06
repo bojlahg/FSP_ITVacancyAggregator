@@ -3086,7 +3086,18 @@ export interface components {
              * @description Имя и первая буква фамилии (или полностью, если кандидат разрешил)
              */
             display_name: string;
-            category: components["schemas"]["CategoryRef"];
+            /** @description Категория по тесту; null — грейд не подтверждён тестом (см. grade_confirmed) */
+            category: components["schemas"]["CategoryRef"] | null;
+            /**
+             * Specialization
+             * @description slug специализации: из категории, а без неё — из опроса
+             */
+            specialization: string;
+            /**
+             * Grade Confirmed
+             * @description false — действующей категории нет: кандидат показан по специализации с пометкой «Грейд не подтверждён», после всех подтверждённых; грейда, перцентиля и навыков по тесту нет
+             */
+            grade_confirmed: boolean;
             /** Percentile */
             percentile: number | null;
             /**
@@ -4983,7 +4994,10 @@ export interface components {
         ItscoutExtension: {
             /** Candidate Id */
             candidate_id: number;
-            category: components["schemas"]["CategoryRef"];
+            /** @description null — грейд не подтверждён тестом */
+            category: components["schemas"]["CategoryRef"] | null;
+            /** Grade Confirmed */
+            grade_confirmed: boolean;
             /**
              * Percentile
              * @description Перцентиль в категории по тесту
@@ -5729,6 +5743,13 @@ export interface components {
             shortlist_outside: components["schemas"]["CandidateBrief"][];
             /** Total */
             total: number;
+            /**
+             * Unconfirmed
+             * @description Специализация потребности, но грейд не подтверждён тестом (§8.2): отдельный блок после всех кандидатов с категорией; пусто, если показ выключен (SHOW_UNCONFIRMED_CANDIDATES=false)
+             */
+            unconfirmed: components["schemas"]["CandidateMatch"][];
+            /** Unconfirmed Total */
+            unconfirmed_total: number;
         };
         /** RegisterExpertRequest */
         RegisterExpertRequest: {

@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { Link } from "react-router";
-import { CategoryBadge } from "@/components/CategoryBadge";
+import { CandidateCategoryBadge, CategoryBadge } from "@/components/CategoryBadge";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { ExplanationList } from "@/components/ExplanationList";
@@ -264,7 +264,7 @@ function ApplicationRow({ needId, application, open, onToggle, deciding, onDecid
         <span className="min-w-[11rem] flex-1 space-y-1">
           <span className="flex flex-wrap items-center gap-2">
             <span className="font-medium">{candidate.display_name}</span>
-            <CategoryBadge specialization={candidate.category.specialization} grade={candidate.category.grade} />
+            <CandidateCategoryBadge candidate={candidate} />
             {application.status === "sent" && <span className="font-mono text-xs font-bold text-primary">новый</span>}
           </span>
           <span className="block text-xs text-muted-foreground">

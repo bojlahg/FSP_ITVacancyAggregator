@@ -11993,7 +11993,25 @@
             "description": "Имя и первая буква фамилии (или полностью, если кандидат разрешил)"
           },
           "category": {
-            "$ref": "#/components/schemas/CategoryRef"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CategoryRef"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Категория по тесту; null — грейд не подтверждён тестом (см. grade_confirmed)"
+          },
+          "specialization": {
+            "type": "string",
+            "title": "Specialization",
+            "description": "slug специализации: из категории, а без неё — из опроса"
+          },
+          "grade_confirmed": {
+            "type": "boolean",
+            "title": "Grade Confirmed",
+            "description": "false — действующей категории нет: кандидат показан по специализации с пометкой «Грейд не подтверждён», после всех подтверждённых; грейда, перцентиля и навыков по тесту нет"
           },
           "percentile": {
             "anyOf": [
@@ -12080,6 +12098,8 @@
           "id",
           "display_name",
           "category",
+          "specialization",
+          "grade_confirmed",
           "percentile",
           "vps",
           "city",
@@ -17101,7 +17121,19 @@
             "title": "Candidate Id"
           },
           "category": {
-            "$ref": "#/components/schemas/CategoryRef"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CategoryRef"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "null — грейд не подтверждён тестом"
+          },
+          "grade_confirmed": {
+            "type": "boolean",
+            "title": "Grade Confirmed"
           },
           "percentile": {
             "anyOf": [
@@ -17154,6 +17186,7 @@
         "required": [
           "candidate_id",
           "category",
+          "grade_confirmed",
           "percentile",
           "topic_scores",
           "fsp_ranks",
@@ -18965,6 +18998,18 @@
           "total": {
             "type": "integer",
             "title": "Total"
+          },
+          "unconfirmed": {
+            "items": {
+              "$ref": "#/components/schemas/CandidateMatch"
+            },
+            "type": "array",
+            "title": "Unconfirmed",
+            "description": "Специализация потребности, но грейд не подтверждён тестом (§8.2): отдельный блок после всех кандидатов с категорией; пусто, если показ выключен (SHOW_UNCONFIRMED_CANDIDATES=false)"
+          },
+          "unconfirmed_total": {
+            "type": "integer",
+            "title": "Unconfirmed Total"
           }
         },
         "type": "object",
@@ -18976,7 +19021,9 @@
           "out_of_filter",
           "shortlist",
           "shortlist_outside",
-          "total"
+          "total",
+          "unconfirmed",
+          "unconfirmed_total"
         ],
         "title": "RecommendationsOut"
       },

@@ -1,6 +1,6 @@
 import { Loader2, Mail, MessageCircle, Phone, Undo2, Unlock, X } from "lucide-react";
 import { Link } from "react-router";
-import { CategoryBadge } from "@/components/CategoryBadge";
+import { CandidateCategoryBadge } from "@/components/CategoryBadge";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { FormAlert } from "@/components/FormAlert";
@@ -158,7 +158,7 @@ function InvitationRow({ invitation, needTitle, withdrawing, onWithdraw }: Invit
             >
               {contacts?.full_name ?? candidate.display_name}
             </Link>
-            <CategoryBadge specialization={candidate.category.specialization} grade={candidate.category.grade} />
+            <CandidateCategoryBadge candidate={candidate} />
             <StatusBadge status={invitation.status} />
           </div>
           <div className="text-sm">

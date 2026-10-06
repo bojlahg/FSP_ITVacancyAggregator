@@ -40,3 +40,41 @@ export function CategoryBadge({ specialization, grade, variant = "soft", size = 
     </span>
   );
 }
+
+interface CandidateCategoryBadgeProps extends Omit<CategoryBadgeProps, "specialization" | "grade"> {
+  candidate: { category: { specialization: string; grade: string } | null; specialization: string };
+}
+
+/**
+ * Категория кандидата в выдаче работодателя. Без действующей категории грейд не подтверждён тестом (§8.2):
+ * приглушённая пометка вместо грейда — грейд не выдумываем.
+ */
+export function CandidateCategoryBadge({ candidate, size = "sm", className, ...props }: CandidateCategoryBadgeProps) {
+  if (candidate.category) {
+    return (
+      <CategoryBadge
+        specialization={candidate.category.specialization}
+        grade={candidate.category.grade}
+        size={size}
+        className={className}
+        {...props}
+      />
+    );
+  }
+  return (
+    <span
+      title="Тест ещё не подтвердил грейд: категории и результатов теста нет"
+      className={cn(
+        "inline-flex w-fit items-center rounded-md border border-dashed border-border bg-muted font-mono font-bold whitespace-nowrap text-muted-foreground",
+        sizes[size],
+        className,
+      )}
+    >
+      {specializationLabel(candidate.specialization)}
+      <span className="mx-1.5 opacity-60" aria-hidden>
+        ·
+      </span>
+      Грейд не подтверждён
+    </span>
+  );
+}

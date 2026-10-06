@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
-import { CategoryBadge } from "@/components/CategoryBadge";
+import { CandidateCategoryBadge } from "@/components/CategoryBadge";
 import { AcceptanceLine } from "@/components/employer/AcceptanceLine";
 import { CandidatePdfButton } from "@/components/employer/CandidatePdfButton";
 import { InviteDialog } from "@/components/employer/InviteDialog";
@@ -115,13 +115,18 @@ export default function CandidateCardPage() {
         title={
           <span className="flex flex-wrap items-center gap-3">
             {data.contacts?.full_name ?? brief.display_name}
-            <CategoryBadge specialization={brief.category.specialization} grade={brief.category.grade} variant="solid" size="md" />
+            <CandidateCategoryBadge candidate={brief} variant="solid" size="md" />
           </span>
         }
         description={
           <>
             {brief.percentile != null && (
               <b className="font-mono text-foreground">{toPercent(brief.percentile)}-й перцентиль в категории. </b>
+            )}
+            {!brief.grade_confirmed && (
+              <b className="font-mono text-foreground">
+                Грейд не подтверждён тестом — навыки тестом не проверены.{" "}
+              </b>
             )}
             Слепой первый просмотр: без фото, возраста и пола, фамилия скрыта до принятия приглашения.
           </>
@@ -166,9 +171,11 @@ export default function CandidateCardPage() {
             <CardHeader>
               <CardTitle>Результаты теста по темам</CardTitle>
               <CardDescription>
-                {brief.last_activity_at
-                  ? `Последний тест или задание — ${formatDaysAgo(daysSince(brief.last_activity_at))}`
-                  : "Категория подтверждена тестом"}
+                {!brief.grade_confirmed
+                  ? "Грейд не подтверждён: тест не пройден или ещё не сдан, категории нет"
+                  : brief.last_activity_at
+                    ? `Последний тест или задание — ${formatDaysAgo(daysSince(brief.last_activity_at))}`
+                    : "Категория подтверждена тестом"}
               </CardDescription>
             </CardHeader>
             <CardContent>
