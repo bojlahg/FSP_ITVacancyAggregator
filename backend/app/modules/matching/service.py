@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from statistics import median
 
-from sqlalchemy import any_, delete, func, or_, select
+from sqlalchemy import any_, case, delete, func, or_, select
 from sqlalchemy.dialects.postgresql import array
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -362,7 +362,9 @@ def _brief(row: CandidateSearchIndex, candidate: Candidate, fsp_count: int) -> C
         display_name=f"{candidate.first_name or 'Кандидат'} {shown_last}".strip(),
         category=categories_service.category_ref(row.specialization, row.grade.value),
         percentile=row.percentile,
-        vps=row.vps,
+        vps=scoring.vps(
+            row.percentile, row.fsp_score, freshness(row.last_activity_at, datetime.now(UTC)), row.approach
+        ),
         city=row.city,
         relocation=row.relocation,
         work_formats=[WorkFormat(value) for value in row.work_formats or []],
@@ -991,8 +993,29 @@ def _search_conditions(filters: SearchFilters, now: datetime) -> list:
     return conditions
 
 
+def _live_vps():
+    """VPS для сортировки поиска со свежестью на момент запроса: в индексе она застыла на момент пересчёта.
+
+    Та же формула, что scoring.vps (§8.3).
+    """
+    index = CandidateSearchIndex
+    rules = scoring.get_rules()
+    w = rules.vps_weights
+    days = func.extract("epoch", func.now() - index.last_activity_at) / 86400
+    fresh = case(
+        (index.last_activity_at.is_(None), 0.0),
+        else_=func.power(0.5, days / rules.freshness["half_life_days"]),
+    )
+    percentile = func.coalesce(index.percentile, 0.0)
+    base = w["percentile"] * percentile + w["fsp"] * index.fsp_score + w["fresh"] * fresh
+    return case(
+        (index.approach.is_(None), base / (1 - w["approach"])),
+        else_=base + w["approach"] * index.approach,
+    )
+
+
 SEARCH_ORDER = {
-    "vps": (CandidateSearchIndex.vps.desc(),),
+    "vps": (_live_vps().desc(),),
     "percentile": (func.coalesce(CandidateSearchIndex.percentile, 0.0).desc(),),
     "fresh": (CandidateSearchIndex.last_activity_at.desc().nulls_last(),),
 }

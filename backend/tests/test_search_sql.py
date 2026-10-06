@@ -11,6 +11,7 @@ from app.modules.catalog.service import get_catalog
 from app.modules.fsp.models import FspAchievement
 from app.modules.matching import service as matching_service
 from app.modules.matching.models import CandidateSearchIndex
+from app.modules.matching.scoring import get_rules
 from app.modules.matching.service import SearchFilters
 from tests.test_invitations import invite, make_candidate
 from tests.test_needs import API, NEED, signup
@@ -54,7 +55,8 @@ def reference(
             continue
         selected.append(row)
     keys = {
-        "vps": lambda r: (-r.vps, r.candidate_id),
+        # Свежесть — на момент запроса, как в SQL (_live_vps), а не застывшая в индексе
+        "vps": lambda r: (-round(_live_vps(r, now), 6), r.candidate_id),
         "percentile": lambda r: (-(r.percentile or 0.0), r.candidate_id),
         "fresh": lambda r: (
             r.last_activity_at is None,
@@ -64,6 +66,13 @@ def reference(
     }
     selected.sort(key=keys[filters.sort])
     return [row.candidate_id for row in selected]
+
+
+def _live_vps(row: CandidateSearchIndex, now: datetime) -> float:
+    w = get_rules().vps_weights
+    fresh = matching_service.freshness(row.last_activity_at, now)
+    base = w["percentile"] * (row.percentile or 0.0) + w["fsp"] * row.fsp_score + w["fresh"] * fresh
+    return base / (1 - w["approach"]) if row.approach is None else base + w["approach"] * row.approach
 
 
 async def test_sql_search_matches_python_reference(client, session):

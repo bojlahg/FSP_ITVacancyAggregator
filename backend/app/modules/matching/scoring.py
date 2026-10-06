@@ -56,15 +56,16 @@ def freshness_from_days(days: float) -> float:
 
 
 def vps(percentile: float | None, fsp: float, fresh: float, approach: float | None) -> float:
-    """Сила подтверждённого профиля внутри категории — §8.3."""
+    """Сила подтверждённого профиля внутри категории — §8.3.
+
+    Нет оценки подхода (LLM выключен или открытых ответов не было) — это «нет данных», а не ноль:
+    остальные веса нормируются на свою сумму.
+    """
     w = get_rules().vps_weights
-    value = (
-        w["percentile"] * (percentile or 0.0)
-        + w["fsp"] * fsp
-        + w["fresh"] * fresh
-        + w["approach"] * (approach or 0.0)
-    )
-    return round(value, 4)
+    value = w["percentile"] * (percentile or 0.0) + w["fsp"] * fsp + w["fresh"] * fresh
+    if approach is None:
+        return round(value / (1 - w["approach"]), 4)
+    return round(value + w["approach"] * approach, 4)
 
 
 MarketVerdict = Literal["ok", "below_market", "suspicious_high", "unknown"]
