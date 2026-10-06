@@ -263,3 +263,22 @@ async def test_salary_market_check_for_employer_and_candidate(client, session):
     inbox = (await client.get(f"{API}/candidates/me/invitations", headers=candidate)).json()
     assert inbox[0]["salary_market"]["verdict"] == "below_market"
     assert "вашей категории" in inbox[0]["salary_market"]["message"]
+
+
+async def test_decline_comment_hides_contacts_without_unlock(client, session):
+    employer = await signup(client, "hr@bank.ru")
+    candidate, cid = await make_candidate(client, session, "anna@example.com")
+    sent = (await client.post(f"{API}/invitations", json=invite(cid), headers=employer)).json()
+
+    comment = "Сейчас не ищу, пишите на anna.k@mail.ru или в @anna_dev"
+    declined = await client.post(
+        f"{API}/invitations/{sent['id']}/decline",
+        json={"reason": "other", "comment": comment},
+        headers=candidate,
+    )
+
+    assert declined.status_code == 200, declined.text
+    listed = (await client.get(f"{API}/employers/me/invitations", headers=employer)).json()
+    shown = listed[0]["decline_comment"]
+    assert "Сейчас не ищу" in shown and "anna.k@mail.ru" not in shown and "@anna_dev" not in shown
+    assert listed[0]["contacts"] is None

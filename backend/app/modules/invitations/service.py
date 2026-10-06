@@ -36,6 +36,7 @@ from app.modules.invitations.schemas import (
 )
 from app.modules.matching import service as matching_service
 from app.modules.needs import service as needs_service
+from app.modules.resume.pdf import redact_contacts
 
 ACTIVE = (InvitationStatus.sent, InvitationStatus.viewed)
 DECLINE_NAMES = {
@@ -128,7 +129,8 @@ async def _for_employer(db: AsyncSession, items: list[Invitation]) -> list[Invit
         if brief is None:
             continue
         contacts = None
-        if await matching_service.contacts_unlocked(db, item.employer_id, item.candidate_id):
+        unlocked = await matching_service.contacts_unlocked(db, item.employer_id, item.candidate_id)
+        if unlocked:
             candidate = await db.get(Candidate, item.candidate_id)
             contacts = await matching_service.contacts_of(db, candidate) if candidate else None
         result.append(
@@ -144,7 +146,8 @@ async def _for_employer(db: AsyncSession, items: list[Invitation]) -> list[Invit
                 match_snapshot=_explanation(item.match_snapshot),
                 status=item.status,
                 decline_reason=item.decline_reason,
-                decline_comment=item.decline_comment,
+                # Отказ контакты не раскрывает, а в комментарий их могут вписать (§8.9)
+                decline_comment=item.decline_comment if unlocked else redact_contacts(item.decline_comment),
                 contacts=contacts,
                 created_at=item.created_at,
                 viewed_at=item.viewed_at,
