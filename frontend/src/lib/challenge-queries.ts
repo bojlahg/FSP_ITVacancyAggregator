@@ -11,6 +11,24 @@ export type ChallengeCreate = Schemas["ChallengeCreate"];
 export type ChallengeCard = Schemas["ChallengeCard"];
 export type ChallengeSolver = Schemas["ChallengeSolver"];
 export type ChallengeAttempt = Schemas["ChallengeAttemptResult"];
+export type ChallengeTextIssue = Schemas["NeedTextIssue"];
+
+/** Лимиты конструктора — копия backend/content/challenges.yaml и схем челленджа (сервер проверяет их же). */
+export const CHALLENGE_LIMITS = {
+  titleMax: 200,
+  descriptionMax: 4000,
+  questionTextMax: 2000,
+  questionsMin: 3,
+  questionsMax: 20,
+  optionsMin: 2,
+  optionsMax: 8,
+  optionTextMax: 300,
+  rubricMax: 6,
+  rubricItemMax: 200,
+  timePerQuestionMinSec: 20,
+  timePerQuestionMaxSec: 600,
+  timePerQuestionDefaultSec: 90,
+} as const;
 
 export const challengeKeys = {
   employer: ["employer", "challenges"] as const,
@@ -38,6 +56,22 @@ export function useCreateChallenge() {
   return useMutation({
     mutationFn: async (body: ChallengeCreate) => {
       const { data, error, response } = await api.POST("/api/v1/employer-challenges", { body });
+      if (!data) throw toApiError(response, error);
+      return data;
+    },
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: challengeKeys.employer }),
+  });
+}
+
+/** Правка черновика; опубликованный челлендж сервер не меняет (409 challenge_not_draft). */
+export function useUpdateChallenge() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, body }: { id: number; body: ChallengeCreate }) => {
+      const { data, error, response } = await api.PUT("/api/v1/employer-challenges/{challenge_id}", {
+        params: { path: { challenge_id: id } },
+        body,
+      });
       if (!data) throw toApiError(response, error);
       return data;
     },
