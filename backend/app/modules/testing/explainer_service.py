@@ -7,6 +7,7 @@
 import itertools
 import random
 from collections import Counter
+from collections.abc import Callable
 from dataclasses import dataclass
 from functools import lru_cache
 from statistics import mean
@@ -145,8 +146,18 @@ def overview() -> ExplainerOverview:
 
 
 def templates(specialization: str) -> list[ExplainerTemplate]:
+    """Публичная витрина (§10.6)."""
+    return _templates_where(specialization, _showcase)
+
+
+def working_templates(specialization: str) -> list[ExplainerTemplate]:
+    """Рабочий банк специализации — только для экспертов Angoff, не для публичной страницы."""
+    return _templates_where(specialization, _scorable)
+
+
+def _templates_where(specialization: str, keep: Callable[[Template], bool]) -> list[ExplainerTemplate]:
     _require_specialization(specialization)
-    found = [t for t in get_bank().for_spec(specialization) if _showcase(t)]
+    found = [t for t in get_bank().for_spec(specialization) if keep(t)]
     return [_template_out(t) for t in sorted(found, key=lambda t: (t.topic, t.irt.b, t.id))]
 
 
@@ -162,7 +173,10 @@ def _instance_out(seed: int, instance: Instance) -> ExplainerInstance:
 
 
 def instances(template_id: str, seeds: list[int]) -> ExplainerInstances:
-    template = _require_template(template_id)
+    return instances_of(_require_template(template_id), seeds)
+
+
+def instances_of(template: Template, seeds: list[int]) -> ExplainerInstances:
     icc = probability(GRID, template.irt.a, template.irt.b, template.guessing)
     return ExplainerInstances(
         template=_template_out(template),

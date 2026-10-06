@@ -109,7 +109,7 @@ def _hash(*parts: str) -> str:
 def template_set(specialization: str, grade: str) -> tuple[ExplainerTemplate, ...]:
     """Детерминированный набор шаблонов у порога грейда, равномерно по сложности (content/angoff.yaml)."""
     cfg = get_config()
-    pool = explainer_service.templates(specialization)  # 404 specialization_not_found
+    pool = explainer_service.working_templates(specialization)  # 404 specialization_not_found
     cut = get_blueprints().cut(grade)
     window = cfg.window
     while True:
@@ -242,7 +242,7 @@ async def tasks(
     items = []
     for template in templates:
         # Тот же рендер без ключа, что и на странице «Как работает тест»
-        instance = explainer_service.instances(template.id, [seed]).instances[0]
+        instance = explainer_service.instances_of(get_bank().templates[template.id], [seed]).instances[0]
         items.append(
             AngoffTask(
                 template_id=template.id,
@@ -494,7 +494,7 @@ def hofstee_check(
 
 async def summary(db: AsyncSession, expert_id: int | None, specialization: str) -> AngoffSummary:
     """expert_id — для пометки «это вы»; у администратора None."""
-    explainer_service.templates(specialization)  # 404, если теста нет
+    explainer_service.working_templates(specialization)  # 404, если теста нет
     me = await _rater_email(db, expert_id) if expert_id is not None else None
     blueprints, names, cfg = get_blueprints(), _grade_names(), get_config()
     thetas, source = await population(db, specialization)
