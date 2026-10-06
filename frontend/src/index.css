@@ -99,6 +99,8 @@
   --destructive-tint: color-mix(in oklab, var(--brand-red) 18%, var(--surface-0));
   /* 6.2:1 на карточке */
   --destructive-strong: var(--brand-red-light);
+  /* Заливка опасной кнопки — как в светлой теме: белый текст на ней ≈6:1 (AA) */
+  --destructive-solid: color-mix(in oklab, var(--brand-red) 78%, var(--brand-ink));
   --border: var(--surface-line);
   --border-subtle: var(--surface-line-subtle);
   --input: var(--surface-line);
