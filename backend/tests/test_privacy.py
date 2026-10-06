@@ -248,3 +248,53 @@ async def test_free_text_hides_contacts_until_unlock(client, session):
     for secret in ("anna.k@mail.ru", "t.me/anna_k", "345-67-89", "@anna_k"):
         assert secret not in text
     assert "Пишите на" in card["about"]
+
+
+async def test_hidden_salary_and_fsp_do_not_leak_through_explanation_or_filters(client, session):
+    from datetime import UTC, datetime
+
+    from app.modules.fsp.models import FspAchievement
+    from app.modules.matching import service as matching_service
+
+    employer = await signup(client, "hr@bank.ru")
+    candidate, cid = await make_candidate(client, session, "anna@example.com", salary_min=500000)
+    session.add(
+        FspAchievement(
+            candidate_id=cid,
+            competition_id="cup-2026",
+            competition_name="Кубок России",
+            discipline="продуктовое",
+            level="national",
+            format="team",
+            held_on=datetime.now(UTC).date(),
+            place=1,
+            participants=120,
+            percentile=0.99,
+            strength=0.9,
+        )
+    )
+    await session.flush()
+    await matching_service.refresh_candidate(session, cid)
+    await session.commit()
+    need = (await client.post(f"{API}/needs", json=NEED, headers=employer)).json()
+
+    async def visible() -> tuple[str, bool, bool]:
+        card = (await client.get(f"{API}/talent/candidates/{cid}?need_id={need['id']}", headers=employer)).json()
+        found = (await client.get(f"{API}/talent/search?salary_max=300000", headers=employer)).json()
+        with_fsp = (await client.get(f"{API}/talent/search?has_fsp=true", headers=employer)).json()
+        return (
+            str(card),
+            cid in [i["id"] for i in found["items"]],
+            cid in [i["id"] for i in with_fsp["items"]],
+        )
+
+    text, by_salary, by_fsp = await visible()
+    assert "500 000" in text and "Кубок России" in text
+    assert not by_salary and by_fsp
+
+    hidden = {"show_last_name": False, "show_fsp": False, "show_salary": False, "hidden_employer_ids": []}
+    assert (await client.put(f"{API}/candidates/me/privacy", json=hidden, headers=candidate)).status_code == 200
+    text, by_salary, by_fsp = await visible()
+    assert "500 000" not in text and "Кубок России" not in text
+    # Скрытая зарплата — неизвестна, скрытый ФСП — отсутствует: фильтры не позволяют их вычислить
+    assert by_salary and not by_fsp

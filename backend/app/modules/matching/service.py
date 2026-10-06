@@ -130,13 +130,17 @@ async def refresh_candidate(db: AsyncSession, candidate_id: int) -> None:
     )
     if not fsp_counts:
         row.fsp_score = 0.0
+    # Скрытое в настройках приватности в индекс не попадает: иначе его выдадут объяснение и фильтры поиска
+    privacy = candidates_service.privacy_of(candidate)
+    if not privacy.show_fsp:
+        row.fsp_score, row.has_fsp, row.max_rank = 0.0, False, None
     row.fresh = fresh
     row.approach = approach
     row.vps = scoring.vps(current.percentile, row.fsp_score, fresh, approach)
     row.skills_status = skills
     row.topic_scores = (attempt.topic_scores or {}) if attempt else {}
     row.skill_scores = (attempt.skill_scores or {}) if attempt else {}
-    row.salary_min = candidate.salary_min
+    row.salary_min = candidate.salary_min if privacy.show_salary else None
     row.work_formats = list(candidate.work_formats or [])
     row.city = candidate.city
     row.relocation = candidate.relocation
@@ -246,11 +250,12 @@ async def _best_fsp(db: AsyncSession, candidate_ids: list[int]) -> dict[int, str
         .where(FspAchievement.candidate_id.in_(candidate_ids))
         .order_by(FspAchievement.candidate_id, FspAchievement.strength.desc())
     )
-    candidates = await db.scalars(select(Candidate).where(Candidate.id.in_(candidate_ids)))
+    candidates = list(await db.scalars(select(Candidate).where(Candidate.id.in_(candidate_ids))))
     unverified = {c.id for c in candidates if not fsp_service.counts_in_score(c)}
+    hidden = {c.id for c in candidates if not candidates_service.privacy_of(c).show_fsp}
     best: dict[int, str] = {}
     for row in rows:
-        if row.candidate_id in best:
+        if row.candidate_id in best or row.candidate_id in hidden:
             continue
         role = f", роль {row.team_role}" if row.team_role else ""
         note = " — владение не подтверждено, в score не учтено" if row.candidate_id in unverified else ""
@@ -833,7 +838,7 @@ async def _detached_row(db: AsyncSession, candidate: Candidate) -> CandidateSear
         city=candidate.city,
         relocation=candidate.relocation,
         work_formats=list(candidate.work_formats or []),
-        salary_min=candidate.salary_min,
+        salary_min=candidate.salary_min if candidates_service.privacy_of(candidate).show_salary else None,
         has_fsp=False,
         max_rank=None,
         skills_status={},

@@ -290,7 +290,8 @@ def conditions_component(facts: CandidateFacts, need: NeedSpec) -> tuple[float, 
         over = (facts.salary_min - need.salary_to) / need.salary_to
         salary_fit = max(0.0, 1.0 - over / rules["salary_tolerance"])
         if over > rules["salary_tolerance"]:
-            hard.append(f"Ожидания от {facts.salary_min:,} ₽ выше вилки более чем на 30%".replace(",", " "))
+            pct = round(rules["salary_tolerance"] * 100)
+            hard.append(f"Ожидания от {facts.salary_min:,} ₽ выше вилки более чем на {pct}%".replace(",", " "))
     format_fit = 1.0
     if need.work_format:
         if facts.work_formats and need.work_format not in facts.work_formats:
