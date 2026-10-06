@@ -118,7 +118,12 @@ function ActiveTask({ task }: { task: TaskAssignment }) {
                     {item.code_language}
                   </div>
                 )}
-                <pre className="overflow-x-auto p-4 font-mono text-sm leading-relaxed">
+                <pre
+                  tabIndex={0}
+                  role="region"
+                  aria-label="Код к заданию"
+                  className="overflow-x-auto p-4 font-mono text-sm leading-relaxed focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                >
                   <code>{item.code}</code>
                 </pre>
               </div>

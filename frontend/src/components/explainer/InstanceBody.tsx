@@ -14,7 +14,12 @@ export function InstanceBody({ instance, kind }: { instance: Instance; kind: str
               {instance.code_language}
             </div>
           )}
-          <pre className="overflow-x-auto p-3 font-mono text-xs leading-relaxed">
+          <pre
+            tabIndex={0}
+            role="region"
+            aria-label="Код к заданию"
+            className="overflow-x-auto p-3 font-mono text-xs leading-relaxed focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          >
             <code>{instance.code}</code>
           </pre>
         </div>
