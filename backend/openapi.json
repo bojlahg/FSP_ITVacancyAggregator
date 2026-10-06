@@ -5130,12 +5130,20 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
-              "maximum": 200,
-              "minimum": 1,
-              "default": 50,
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 200,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "По умолчанию — из matching.yaml",
               "title": "Limit"
-            }
+            },
+            "description": "По умолчанию — из matching.yaml"
           }
         ],
         "responses": {

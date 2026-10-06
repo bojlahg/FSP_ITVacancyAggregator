@@ -438,7 +438,9 @@ def explain(
         lines.append(_line("neutral", "category", f"{category} — {reason}{percentile}"))
 
     # Та же величина, что штрафует ability в strength_component: объяснение совпадает со score
-    if get_rules().strength["overqualified_penalty"] > 0 and overqualification(facts, need) >= 0.3:
+    strength = get_rules().strength
+    overqualified = overqualification(facts, need) >= strength["overqualified_note"]
+    if strength["overqualified_penalty"] > 0 and overqualified:
         higher = get_blueprints().next_grade(need.grade) or ""
         name = next((g.name for g in get_catalog().grades if g.slug.value == higher), higher)
         text = f"По тесту уже ближе к уровню {name} — задачи и ожидания могут быть выше"
@@ -467,7 +469,7 @@ def explain(
     if facts.best_fsp:
         # Без вклада в score (ФСП не по профилю или владение не подтверждено) — нейтральная строка
         lines.append(_line("positive" if facts.fsp_score > 0 else "neutral", "fsp", f"ФСП: {facts.best_fsp}"))
-    if facts.fresh_days is not None and facts.fresh_days <= 30:
+    if facts.fresh_days is not None and facts.fresh_days <= get_rules().freshness["note_days"]:
         lines.append(_line("neutral", "freshness", f"Свежий результат: {facts.fresh_days} дн. назад"))
     if salary_fit < 1.0 and facts.salary_min:
         lines.append(

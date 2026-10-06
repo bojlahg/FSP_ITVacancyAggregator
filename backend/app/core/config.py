@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     # «Проверка под вакансию» показывает настоящие задания банка — не больше стольких предпросмотров
     # в сутки на работодателя (§10.6)
     vacancy_preview_per_day: int = 30
+    vacancy_draft_templates: int = 3  # черновиков шаблонов от LLM из одной вакансии (статус pilot)
 
     demo_candidate_email: str = "demo-candidate@itscout.ru"
     demo_employer_email: str = "demo-employer@itscout.ru"

@@ -42,10 +42,12 @@ strength:
   scale: 0.6
   # Штраф за «перерос грейд»: λ·max(0, 2·Φ((θ − cut_следующего_грейда)/scale) − 1) вычитается из ability
   overqualified_penalty: 1.5
+  overqualified_note: 0.3  # с этой доли «перерос грейд» в объяснении появляется предупреждение
 
 # Свежесть: fresh = 0.5^(дней с последнего проверенного действия / half_life_days)
 freshness:
   half_life_days: 90
+  note_days: 30          # «Свежий результат» в объяснении — не старше стольких дней
 
 # Сила подтверждённого профиля внутри категории (каталог, поиск без потребности):
 # VPS = Σ weight·component, percentile — перцентиль θ̂ в категории, approach — оценка подхода
@@ -124,4 +126,5 @@ insights:
 
 recommendations:
   default_limit: 50
+  salary_bucket: 50000   # шаг гистограммы покрытия вилки, ₽
   max_explanation_lines: 6

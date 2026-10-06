@@ -10119,7 +10119,8 @@ export interface operations {
                 fresh_days?: number | null;
                 apply_hard_filters?: boolean;
                 group_by?: "category" | "none";
-                limit?: number;
+                /** @description По умолчанию — из matching.yaml */
+                limit?: number | null;
             };
             header?: never;
             path: {

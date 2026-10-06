@@ -152,7 +152,7 @@ async def get_recommendations(
     fresh_days: int | None = Query(default=None),
     apply_hard_filters: bool = Query(default=True),
     group_by: Literal["category", "none"] = Query(default="category"),
-    limit: int = Query(default=50, ge=1, le=200),
+    limit: int | None = Query(default=None, ge=1, le=200, description="По умолчанию — из matching.yaml"),
 ) -> RecommendationsOut:
     filters = Filters(
         grade=grade.value if grade else None,

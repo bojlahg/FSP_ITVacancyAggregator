@@ -76,7 +76,6 @@ LEVEL_NAMES = {
     "regional": "региональные",
     "municipal": "муниципальные",
 }
-SALARY_BUCKET = 50_000
 
 
 def freshness(last_activity: datetime | None, now: datetime) -> float:
@@ -181,7 +180,7 @@ class Filters:
     fresh_days: int | None = None
     apply_hard_filters: bool = True
     group_by: str = "category"
-    limit: int = 50
+    limit: int | None = None  # None — recommendations.default_limit из matching.yaml
 
 
 @dataclass
@@ -576,7 +575,7 @@ async def recommendations(
         need_id=need.id,
         need_version=need.version,
         categories=_category_cards(by_category, spec),
-        candidates=matched[: filters.limit],
+        candidates=matched[: filters.limit or scoring.get_rules().recommendations["default_limit"]],
         out_of_filter=outside[:20],
         shortlist=shortlist,
         shortlist_outside=shortlist_outside,
@@ -687,13 +686,14 @@ async def salary_coverage(db: AsyncSession, user_id: int, need_id: int) -> Salar
 
     need = await needs_service.get_own_need(db, user_id, need_id)
     salaries = await category_expectations(db, need.specialization, need.grade)
-    buckets = Counter((salary // SALARY_BUCKET) * SALARY_BUCKET for salary in salaries)
+    step = scoring.get_rules().recommendations["salary_bucket"]
+    buckets = Counter((salary // step) * step for salary in salaries)
     return SalaryCoverage(
         category=categories_service.category_ref(need.specialization, need.grade.value),
         coverage=_coverage(salaries, need.salary_to) or 0.0,
         median_expectation=int(median(salaries)) if salaries else None,
         histogram=[
-            SalaryBucket(salary_from=bucket, salary_to=bucket + SALARY_BUCKET, count=count)
+            SalaryBucket(salary_from=bucket, salary_to=bucket + step, count=count)
             for bucket, count in sorted(buckets.items())
         ],
         market=market_check(salaries, need.salary_from, need.salary_to, "employer"),

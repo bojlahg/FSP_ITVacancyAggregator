@@ -37,7 +37,6 @@ from app.modules.testing.schemas import (
 
 DEFAULT_SEED = 1
 DEFAULT_GRADE = Grade.middle
-MAX_DRAFTS = 3
 
 LLM_SYSTEM = (
     "Ты помогаешь пополнять банк заданий технического теста. Для каждого навыка из списка предложи "
@@ -203,7 +202,7 @@ def _drafts_from_llm(
                 status=TemplateStatus.pilot,
             )
         )
-        if len(drafts) == MAX_DRAFTS:
+        if len(drafts) == get_settings().vacancy_draft_templates:
             break
     return drafts
 
