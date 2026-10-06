@@ -92,7 +92,7 @@ function Pills<T extends string>({
             aria-checked={selected}
             onClick={() => onChange(option.value)}
             className={cn(
-              "h-9 rounded-full border-[1.5px] px-3.5 font-mono text-sm font-medium transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40",
+              "h-10 rounded-full border-[1.5px] px-4 font-mono text-base font-medium transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40",
               selected
                 ? "border-primary bg-primary text-primary-foreground"
                 : "border-border bg-background text-foreground hover:border-primary hover:text-primary",
@@ -110,8 +110,8 @@ function Stat({ value, label, hint }: { value: ReactNode; label: string; hint?: 
   return (
     <div className="rounded-xl border bg-card p-4 sm:p-5">
       <div className="font-mono text-3xl font-extrabold text-primary tabular-nums sm:text-4xl">{value}</div>
-      <div className="mt-2 text-sm font-semibold">{label}</div>
-      {hint && <div className="mt-1 text-xs leading-relaxed text-muted-foreground">{hint}</div>}
+      <div className="mt-2 text-base font-semibold">{label}</div>
+      {hint && <div className="mt-1 text-sm leading-relaxed text-muted-foreground">{hint}</div>}
     </div>
   );
 }
@@ -121,10 +121,7 @@ function Stat({ value, label, hint }: { value: ReactNode; label: string; hint?: 
 function InstanceCard({ instance, index, kind }: { instance: Instance; index: number; kind: string }) {
   return (
     <article className="flex flex-col rounded-xl border bg-card p-4 shadow-xs">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <span className="font-mono text-xs font-bold text-primary">Кандидат {index + 1}</span>
-        <span className="font-mono text-[11px] text-muted-foreground">seed {instance.seed}</span>
-      </div>
+      <div className="mb-3 font-mono text-sm font-bold text-primary">Кандидат {index + 1}</div>
       <InstanceBody instance={instance} kind={kind} />
     </article>
   );
@@ -230,19 +227,19 @@ function TemplatesSection({
         <>
           <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
             <label className="min-w-0 flex-1 space-y-1.5 lg:max-w-xl">
-              <span className="font-mono text-xs font-medium tracking-[0.06em] text-muted-foreground uppercase">
+              <span className="font-mono text-sm font-medium tracking-[0.06em] text-muted-foreground uppercase">
                 Шаблон · {templates.length} в банке
               </span>
-              <Select value={template.id} onChange={(event) => onTemplate(event.target.value)} className="font-mono">
-                {[...byTopic.entries()].map(([topic, items]) => (
-                  <optgroup key={topic} label={topic}>
-                    {items.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.id} · b={num(item.b, 1)}
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
+              <Select value={template.id} onChange={(event) => onTemplate(event.target.value)}>
+                {[...byTopic.entries()].flatMap(([topic, items]) =>
+                  items.map((item, index) => (
+                    <option key={item.id} value={item.id}>
+                      {topic}
+                      {items.length > 1 ? ` ${index + 1}` : ""}
+                      {item.skills.length > 0 && ` — ${item.skills.slice(0, 3).join(", ")}`}
+                    </option>
+                  )),
+                )}
               </Select>
             </label>
             <div className="flex flex-wrap gap-2">
@@ -358,15 +355,15 @@ function AdaptiveSection({ specialization, overview }: { specialization: string;
   const steps = [
     {
       title: `Этап 1 · ${overview.stage1_items} заданий`,
-      text: `Сложность около порога грейда, на который идёт тест, темы — по квотам blueprint специализации.`,
+      text: "Задания примерно уровня выбранного грейда. Темы — по программе специализации, чтобы проверить всё понемногу.",
     },
     {
       title: `Этап 2 · ${overview.stage2_items} заданий`,
-      text: `θ̂ выше порога на ${split} и больше — блок у следующего порога; ниже на ${split} — блок ниже; иначе — снова у порога.`,
+      text: `Если первые ответы заметно сильнее уровня грейда — задания сложнее, если заметно слабее — проще, иначе — снова того же уровня (порог «заметно» — ${split} по шкале теста).`,
     },
     {
       title: `Уточнение · до ${overview.extra_items_max}`,
-      text: "Пока порог внутри погрешности (|θ̂ − порог| < SE), добавляются задания у порога. Решение — по EAP-оценке θ̂.",
+      text: "Если результат на самой границе и ещё нельзя уверенно сказать, пройден ли грейд, даём ещё несколько заданий того же уровня. Итог считается по всем ответам.",
     },
   ];
 
@@ -386,7 +383,7 @@ function AdaptiveSection({ specialization, overview }: { specialization: string;
               {index + 1}
             </span>
             <div className="space-y-1">
-              <h3 className="text-sm font-bold">{step.title}</h3>
+              <h3 className="text-base font-bold">{step.title}</h3>
               <p className="text-sm leading-relaxed text-muted-foreground">{step.text}</p>
             </div>
           </li>
@@ -510,7 +507,7 @@ function LeakSection({
               label="разных экземпляров"
               hint={
                 <>
-                  Шаблон <span className="font-mono break-all">{diversity.data.template_id}</span> отрендерен{" "}
+                  Один шаблон темы «{template?.topic_name ?? diversity.data.template_id}» сгенерирован{" "}
                   {diversity.data.sample} раз.
                 </>
               }
@@ -600,17 +597,17 @@ export default function HowItWorksPage() {
               { label: "Грейдов на шкале", value: overview.data.grades.length },
             ].map((fact) => (
               <div key={fact.label} className="pt-4 pr-4 pb-2">
-                <dt className="font-mono text-[11px] font-medium tracking-[0.06em] text-muted-foreground uppercase">
+                <dt className="font-mono text-sm font-medium tracking-[0.06em] text-muted-foreground uppercase">
                   {fact.label}
                 </dt>
-                <dd className="mt-1 font-mono text-2xl font-bold tabular-nums">{fact.value}</dd>
+                <dd className="mt-1 font-mono text-3xl font-bold tabular-nums">{fact.value}</dd>
               </div>
             ))}
           </dl>
 
           <div className="sticky top-0 z-20 -mx-4 mt-8 border-b border-border-subtle bg-background/95 px-4 py-3 backdrop-blur sm:-mx-8 sm:px-8 lg:-mx-16 lg:px-16">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
-              <span className="font-mono text-xs font-medium tracking-[0.06em] text-muted-foreground uppercase">
+              <span className="font-mono text-sm font-medium tracking-[0.06em] text-muted-foreground uppercase">
                 Специализация
               </span>
               <Pills

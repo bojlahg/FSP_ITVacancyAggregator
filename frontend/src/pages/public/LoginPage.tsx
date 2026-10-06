@@ -107,6 +107,9 @@ export default function LoginPage() {
         <Separator className="flex-1" />
       </div>
 
+      <p className="-mt-3 mb-3 text-center text-xs text-muted-foreground">
+        Готовые аккаунты с данными — входят сразу, без регистрации и пароля
+      </p>
       <div className="grid gap-2 sm:grid-cols-2">
         <Button type="button" variant="outline" disabled={busy} onClick={() => onDemo("candidate")}>
           {demoLogin.isPending && demoLogin.variables === "candidate" ? (

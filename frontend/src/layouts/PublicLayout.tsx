@@ -17,7 +17,7 @@ export default function PublicLayout() {
           <Logo className="h-8 sm:h-9" />
         </Link>
         <div className="ml-auto flex items-center gap-4">
-          <span className="hidden font-mono text-xs tracking-wide text-muted-foreground md:inline">
+          <span className="mr-4 hidden font-mono text-sm tracking-wide text-muted-foreground lg:inline">
             Лидеры цифровой трансформации 2026 · спецтрек ФСП
           </span>
           {pathname !== "/how-it-works" && (
