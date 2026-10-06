@@ -40,7 +40,7 @@ test("публичные страницы доступны", async ({ page }) =>
 
 test("кабинет кандидата доступен", async ({ page }) => {
   await demoLogin(page, "Кандидат");
-  for (const section of ["", "/profile", "/grade", "/invitations", "/vacancies", "/applications", "/tasks", "/settings"]) {
+  for (const section of ["", "/profile", "/grade", "/invitations", "/vacancies", "/applications", "/tasks", "/challenges", "/settings"]) {
     await go(page, `/candidate${section}`);
     await audit(page, `/candidate${section}`);
   }
@@ -48,7 +48,7 @@ test("кабинет кандидата доступен", async ({ page }) => {
 
 test("кабинет работодателя доступен", async ({ page }) => {
   await demoLogin(page, "Работодатель");
-  for (const section of ["", "/company", "/needs", "/needs/new", "/search", "/categories", "/invitations", "/vacancies", "/vacancy-test", "/tasks"]) {
+  for (const section of ["", "/company", "/needs", "/needs/new", "/search", "/categories", "/invitations", "/vacancies", "/vacancy-test", "/tasks", "/challenges"]) {
     await go(page, `/employer${section}`);
     await audit(page, `/employer${section}`);
   }

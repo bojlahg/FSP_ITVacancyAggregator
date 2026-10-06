@@ -197,7 +197,7 @@ export interface CurrentItemWithClock {
   localDeadlineMs: number | null;
 }
 
-function localDeadline(item: CurrentItem, response: Response, receivedAt: number): number | null {
+export function localDeadline(item: CurrentItem, response: Response, receivedAt: number): number | null {
   if (!item.deadline_at) return null;
   const serverDeadline = Date.parse(item.deadline_at);
   if (Number.isNaN(serverDeadline)) return null;

@@ -5,6 +5,7 @@ import {
   Grid3x3,
   LayoutDashboard,
   ListChecks,
+  Trophy,
   Mail,
   Search,
   Target,
@@ -20,6 +21,7 @@ const nav: CabinetNavItem[] = [
   { to: "/employer/vacancies", label: "Вакансии и отклики", icon: Briefcase },
   { to: "/employer/vacancy-test", label: "Проверка под вакансию", icon: FlaskConical },
   { to: "/employer/tasks", label: "Задания", icon: ListChecks },
+  { to: "/employer/challenges", label: "Челленджи", icon: Trophy },
   { to: "/employer/company", label: "Профиль компании", icon: Building2 },
 ];
 

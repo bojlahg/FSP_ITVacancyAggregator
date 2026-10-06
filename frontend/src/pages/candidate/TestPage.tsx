@@ -22,6 +22,7 @@ import {
   useCurrentItem,
   useSubmitAnswer,
 } from "@/lib/testing-queries";
+import { useFocusLossCounter } from "@/lib/use-focus-loss";
 import { cn } from "@/lib/utils";
 
 // Автоотправка срабатывает на секунду раньше серверного дедлайна, чтобы ответ успел дойти и не стал «поздним».
@@ -29,37 +30,6 @@ const AUTO_SUBMIT_LEAD_MS = 1000;
 const TICK_MS = 250;
 // Последние секунды таймер подсвечивается.
 const WARN_SECONDS = 15;
-
-/**
- * Считает уходы со вкладки (visibilitychange → hidden и blur окна). Одно переключение вкладки
- * вызывает оба события — считаем его один раз, пока пользователь не вернётся.
- */
-function useFocusLossCounter() {
-  const [count, setCount] = useState(0);
-  const awayRef = useRef(false);
-
-  useEffect(() => {
-    const leave = () => {
-      if (awayRef.current) return;
-      awayRef.current = true;
-      setCount((current) => current + 1);
-    };
-    const back = () => {
-      awayRef.current = false;
-    };
-    const onVisibility = () => (document.visibilityState === "hidden" ? leave() : back());
-    document.addEventListener("visibilitychange", onVisibility);
-    window.addEventListener("blur", leave);
-    window.addEventListener("focus", back);
-    return () => {
-      document.removeEventListener("visibilitychange", onVisibility);
-      window.removeEventListener("blur", leave);
-      window.removeEventListener("focus", back);
-    };
-  }, []);
-
-  return { count, reset: () => setCount(0) };
-}
 
 export default function TestPage() {
   const params = useParams();
@@ -197,7 +167,7 @@ interface ItemScreenProps {
 
 const blockCopy = (event: ClipboardEvent | MouseEvent) => event.preventDefault();
 
-function ItemScreen({ item, localDeadlineMs, busy, loadingNext, error, focusLost, onSubmit }: ItemScreenProps) {
+export function ItemScreen({ item, localDeadlineMs, busy, loadingNext, error, focusLost, onSubmit }: ItemScreenProps) {
   const kind = item.kind ?? "single_choice";
   const [draft, setDraft] = useState<AnswerDraft>(() => emptyDraft(item));
   const [now, setNow] = useState(() => Date.now());

@@ -37,7 +37,7 @@ test("публичные страницы помещаются в ширину �
 
 test("кабинет кандидата помещается в ширину телефона", async ({ page }) => {
   await demoLogin(page, "Кандидат");
-  for (const section of ["", "/profile", "/grade", "/invitations", "/vacancies", "/applications", "/tasks", "/settings"]) {
+  for (const section of ["", "/profile", "/grade", "/invitations", "/vacancies", "/applications", "/tasks", "/challenges", "/settings"]) {
     const path = `/candidate${section}`;
     await go(page, path);
     await expectNoHorizontalScroll(page, path);
@@ -46,7 +46,7 @@ test("кабинет кандидата помещается в ширину т�
 
 test("кабинет работодателя помещается в ширину телефона", async ({ page }) => {
   await demoLogin(page, "Работодатель");
-  for (const section of ["", "/company", "/needs", "/needs/new", "/search", "/categories", "/invitations", "/vacancies", "/vacancy-test", "/tasks"]) {
+  for (const section of ["", "/company", "/needs", "/needs/new", "/search", "/categories", "/invitations", "/vacancies", "/vacancy-test", "/tasks", "/challenges"]) {
     const path = `/employer${section}`;
     await go(page, path);
     await expectNoHorizontalScroll(page, path);

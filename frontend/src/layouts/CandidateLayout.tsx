@@ -4,6 +4,7 @@ import {
   ClipboardList,
   LayoutDashboard,
   ListChecks,
+  Trophy,
   Mail,
   Send,
   Settings,
@@ -19,6 +20,7 @@ const nav: CabinetNavItem[] = [
   { to: "/candidate/vacancies", label: "Вакансии", icon: Briefcase },
   { to: "/candidate/applications", label: "Отклики", icon: Send },
   { to: "/candidate/tasks", label: "Задания", icon: ListChecks },
+  { to: "/candidate/challenges", label: "Челленджи", icon: Trophy },
   { to: "/candidate/onboarding", label: "Онбординг", icon: ClipboardList },
   { to: "/candidate/settings", label: "Настройки", icon: Settings },
 ];
