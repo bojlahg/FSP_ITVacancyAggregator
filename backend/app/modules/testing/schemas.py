@@ -210,13 +210,12 @@ class BlueprintPreview(ApiModel):
 
 
 class PreviewItem(ApiModel):
-    """Пример задания. Ключ ответа не передаётся даже работодателю (инвариант §13)."""
+    """Пример задания. Ключ ответа не передаётся даже работодателю (инвариант §13), id и точная сложность
+    шаблона — тоже: по ним банк можно перебрать (§10.6)."""
 
-    template_id: str
     topic: str
     topic_name: str
     skills: list[str] = Field(description="Названия навыков, которые проверяет шаблон")
-    difficulty_b: float = Field(description="Сложность шаблона на IRT-шкале специализации")
     difficulty: str = Field(description="Сложность словами относительно порогов грейдов")
     kind: ItemKind
     stem: str

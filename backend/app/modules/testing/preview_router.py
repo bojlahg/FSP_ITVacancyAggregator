@@ -26,9 +26,10 @@ async def vacancy_examples(user: CurrentEmployer) -> list[VacancyExample]:
         "Источник — текст вакансии (raw_text) или своя потребность (need_id). Повтор с другим "
         "regenerate_seed даёт другие экземпляры тех же шаблонов той же сложности. Ключи ответов "
         "не передаются. 422 specialization_not_detected / no_test_for_specialization — "
-        "по тексту нельзя собрать тест."
+        "по тексту нельзя собрать тест. 429 — превышен суточный лимит предпросмотров "
+        "(VACANCY_PREVIEW_PER_DAY)."
     ),
-    responses=error_responses(401, 403, 404, 422),
+    responses=error_responses(401, 403, 404, 422, 429),
 )
 async def preview_vacancy_test(
     body: VacancyTestPreviewRequest, user: CurrentEmployer, db: DbSession

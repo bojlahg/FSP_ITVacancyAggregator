@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     # Ограничение частоты на /auth/*: запросов в окне на один IP
     auth_rate_limit: int = 20
     auth_rate_window_seconds: int = 60
+    # «Проверка под вакансию» показывает настоящие задания банка — не больше стольких предпросмотров
+    # в сутки на работодателя (§10.6)
+    vacancy_preview_per_day: int = 30
 
     demo_candidate_email: str = "demo-candidate@itscout.ru"
     demo_employer_email: str = "demo-employer@itscout.ru"

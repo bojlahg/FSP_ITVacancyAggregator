@@ -4,6 +4,7 @@ import json
 
 import pytest
 
+from app.core.config import get_settings
 from app.core.enums import Role
 from app.modules.testing import preview_service
 from app.modules.testing.engine import vacancy
@@ -102,9 +103,10 @@ async def test_preview_is_deterministic_and_seed_changes_only_instances(client, 
 
     assert first == again
     assert other["seed"] == 2
-    assert [(i["template_id"], i["difficulty_b"]) for i in first["sample_items"]] == [
-        (i["template_id"], i["difficulty_b"]) for i in other["sample_items"]
+    assert [(i["topic"], i["difficulty"], i["skills"]) for i in first["sample_items"]] == [
+        (i["topic"], i["difficulty"], i["skills"]) for i in other["sample_items"]
     ]
+    assert "template_id" not in json.dumps(first) and "difficulty_b" not in json.dumps(first)
     assert json.dumps(first["sample_items"]) != json.dumps(other["sample_items"])
 
 
@@ -188,3 +190,17 @@ async def test_llm_drafts_are_validated_and_pilot(client, db, monkeypatch):
     assert body["llm_available"] is True
     assert [d["title"] for d in body["llm_drafts"]] == ["gRPC-стримы"]
     assert body["llm_drafts"][0]["status"] == "pilot"
+
+
+async def test_preview_has_daily_limit(client, db, monkeypatch):
+    """Примеры — настоящие задания банка: суточный лимит не даёт перебрать банк (§10.6)."""
+    monkeypatch.setattr(get_settings(), "vacancy_preview_per_day", 2)
+    headers = await signup(client, "hr@bank.ru")
+    url = f"{API}/vacancy-tests/preview"
+    codes = [
+        (await client.post(url, json={"raw_text": BACKEND_TEXT}, headers=headers)).status_code
+        for _ in range(3)
+    ]
+    assert codes == [200, 200, 429]
+    other = await signup(client, "hr@shop.ru")
+    assert (await client.post(url, json={"raw_text": BACKEND_TEXT}, headers=other)).status_code == 200

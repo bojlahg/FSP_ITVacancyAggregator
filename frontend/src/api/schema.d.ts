@@ -1343,7 +1343,7 @@ export interface paths {
         put?: never;
         /**
          * Как система соберёт тест под вакансию: blueprint, примеры заданий, черновики LLM
-         * @description Источник — текст вакансии (raw_text) или своя потребность (need_id). Повтор с другим regenerate_seed даёт другие экземпляры тех же шаблонов той же сложности. Ключи ответов не передаются. 422 specialization_not_detected / no_test_for_specialization — по тексту нельзя собрать тест.
+         * @description Источник — текст вакансии (raw_text) или своя потребность (need_id). Повтор с другим regenerate_seed даёт другие экземпляры тех же шаблонов той же сложности. Ключи ответов не передаются. 422 specialization_not_detected / no_test_for_specialization — по тексту нельзя собрать тест. 429 — превышен суточный лимит предпросмотров (VACANCY_PREVIEW_PER_DAY).
          */
         post: operations["preview_vacancy_test_api_v1_vacancy_tests_preview_post"];
         delete?: never;
@@ -5121,11 +5121,10 @@ export interface components {
         ParserKind: "dict" | "llm";
         /**
          * PreviewItem
-         * @description Пример задания. Ключ ответа не передаётся даже работодателю (инвариант §13).
+         * @description Пример задания. Ключ ответа не передаётся даже работодателю (инвариант §13), id и точная сложность
+         *     шаблона — тоже: по ним банк можно перебрать (§10.6).
          */
         PreviewItem: {
-            /** Template Id */
-            template_id: string;
             /** Topic */
             topic: string;
             /** Topic Name */
@@ -5135,11 +5134,6 @@ export interface components {
              * @description Названия навыков, которые проверяет шаблон
              */
             skills: string[];
-            /**
-             * Difficulty B
-             * @description Сложность шаблона на IRT-шкале специализации
-             */
-            difficulty_b: number;
             /**
              * Difficulty
              * @description Сложность словами относительно порогов грейдов
@@ -10380,6 +10374,15 @@ export interface operations {
             };
             /** @description Ошибка валидации данных */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Слишком много запросов */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

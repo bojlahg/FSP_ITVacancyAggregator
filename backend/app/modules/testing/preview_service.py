@@ -11,7 +11,8 @@ from typing import Any
 import yaml
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core import llm
+from app.core import llm, ratelimit
+from app.core.config import get_settings
 from app.core.enums import Grade, ItemKind, TemplateStatus
 from app.core.errors import AppError
 from app.modules.catalog.service import get_catalog
@@ -162,11 +163,9 @@ def _sample_items(
         instance = render(template, seed)  # ключ instance.key остаётся на сервере
         items.append(
             PreviewItem(
-                template_id=template.id,
                 topic=template.topic,
                 topic_name=topic_names.get(template.topic, template.topic),
                 skills=[skill_names.get(skill, skill) for skill in template.skills],
-                difficulty_b=template.irt.b,
                 difficulty=_difficulty(template.irt.b, grade_names),
                 kind=ItemKind(instance.kind),
                 stem=instance.stem,
@@ -242,6 +241,10 @@ async def _llm_block(
 
 
 async def preview(db: AsyncSession, user_id: int, body: VacancyTestPreviewRequest) -> VacancyTestPreview:
+    # Примеры — настоящие задания банка: лимит не даёт перебирать банк запросами (§10.6)
+    per_day = get_settings().vacancy_preview_per_day
+    if not await ratelimit.hit(db, f"vacancy-preview:{user_id}", per_day, 86400):
+        raise ratelimit.TooManyRequestsError(f"Предпросмотр теста — не больше {per_day} раз в сутки")
     draft = await _requirements(db, user_id, body)
     specialization = _check_specialization(draft)
     grade = draft.grade or DEFAULT_GRADE

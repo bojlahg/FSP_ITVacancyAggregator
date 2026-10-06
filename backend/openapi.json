@@ -6251,7 +6251,7 @@
           "employer: vacancy test preview"
         ],
         "summary": "Как система соберёт тест под вакансию: blueprint, примеры заданий, черновики LLM",
-        "description": "Источник — текст вакансии (raw_text) или своя потребность (need_id). Повтор с другим regenerate_seed даёт другие экземпляры тех же шаблонов той же сложности. Ключи ответов не передаются. 422 specialization_not_detected / no_test_for_specialization — по тексту нельзя собрать тест.",
+        "description": "Источник — текст вакансии (raw_text) или своя потребность (need_id). Повтор с другим regenerate_seed даёт другие экземпляры тех же шаблонов той же сложности. Ключи ответов не передаются. 422 specialization_not_detected / no_test_for_specialization — по тексту нельзя собрать тест. 429 — превышен суточный лимит предпросмотров (VACANCY_PREVIEW_PER_DAY).",
         "operationId": "preview_vacancy_test_api_v1_vacancy_tests_preview_post",
         "requestBody": {
           "content": {
@@ -6306,6 +6306,16 @@
           },
           "422": {
             "description": "Ошибка валидации данных",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Слишком много запросов",
             "content": {
               "application/json": {
                 "schema": {
@@ -16995,10 +17005,6 @@
       },
       "PreviewItem": {
         "properties": {
-          "template_id": {
-            "type": "string",
-            "title": "Template Id"
-          },
           "topic": {
             "type": "string",
             "title": "Topic"
@@ -17014,11 +17020,6 @@
             "type": "array",
             "title": "Skills",
             "description": "Названия навыков, которые проверяет шаблон"
-          },
-          "difficulty_b": {
-            "type": "number",
-            "title": "Difficulty B",
-            "description": "Сложность шаблона на IRT-шкале специализации"
           },
           "difficulty": {
             "type": "string",
@@ -17064,18 +17065,16 @@
         },
         "type": "object",
         "required": [
-          "template_id",
           "topic",
           "topic_name",
           "skills",
-          "difficulty_b",
           "difficulty",
           "kind",
           "stem",
           "options"
         ],
         "title": "PreviewItem",
-        "description": "Пример задания. Ключ ответа не передаётся даже работодателю (инвариант §13)."
+        "description": "Пример задания. Ключ ответа не передаётся даже работодателю (инвариант §13), id и точная сложность\nшаблона — тоже: по ним банк можно перебрать (§10.6)."
       },
       "PrivacySettings": {
         "properties": {

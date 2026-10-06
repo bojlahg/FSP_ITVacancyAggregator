@@ -255,7 +255,7 @@ function PreviewResult({
           ) : (
             <ol className="grid gap-3">
               {data.sample_items.map((item, index) => (
-                <SampleItem key={item.template_id} item={item} index={index} />
+                <SampleItem key={`${data.seed}:${index}`} item={item} index={index} />
               ))}
             </ol>
           )}
@@ -305,9 +305,7 @@ function SampleItem({ item, index }: { item: PreviewItem; index: number }) {
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <span className="font-mono text-xs font-bold text-muted-foreground">#{index + 1}</span>
         <Badge variant="soft">{item.topic_name}</Badge>
-        <Badge variant="muted">
-          {item.difficulty} · b={item.difficulty_b.toFixed(2)}
-        </Badge>
+        <Badge variant="muted">{item.difficulty}</Badge>
         <Badge variant="muted">{ITEM_KIND_LABELS[item.kind] ?? item.kind}</Badge>
       </div>
       <p className="text-sm whitespace-pre-line">{item.stem}</p>
@@ -334,7 +332,7 @@ function SampleItem({ item, index }: { item: PreviewItem; index: number }) {
         </ul>
       )}
       <div className="mt-2 font-mono text-xs text-muted-foreground">
-        шаблон {item.template_id} · навыки: {item.skills.join(", ") || "—"}
+        навыки: {item.skills.join(", ") || "—"}
       </div>
     </li>
   );
