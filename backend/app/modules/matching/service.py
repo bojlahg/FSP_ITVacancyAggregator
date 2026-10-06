@@ -362,8 +362,12 @@ def _brief(row: CandidateSearchIndex, candidate: Candidate, fsp_count: int) -> C
         display_name=f"{candidate.first_name or 'Кандидат'} {shown_last}".strip(),
         category=categories_service.category_ref(row.specialization, row.grade.value),
         percentile=row.percentile,
+        # Свежесть — на сейчас; у запасной строки без текущей категории (briefs) fsp_score не заполнен
         vps=scoring.vps(
-            row.percentile, row.fsp_score, freshness(row.last_activity_at, datetime.now(UTC)), row.approach
+            row.percentile,
+            row.fsp_score or 0.0,
+            freshness(row.last_activity_at, datetime.now(UTC)),
+            row.approach,
         ),
         city=row.city,
         relocation=row.relocation,
