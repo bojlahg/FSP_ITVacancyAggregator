@@ -246,3 +246,52 @@ async def test_account_deletion_erases_open_answers(client, session):
     attempt = await session.scalar(select(ChallengeAttempt).where(ChallengeAttempt.candidate_id == cid))
     assert all("text" not in (item.get("response") or {}) for item in attempt.items)
     assert attempt.score == 1.0
+
+
+async def test_double_start_returns_one_attempt(client, session):
+    import asyncio
+
+    employer = await signup(client, "hr@bank.ru")
+    challenge = await published(client, employer)
+    candidate, _ = await make_candidate(client, session, "anna@example.com")
+
+    url = f"{API}/challenges/{challenge['id']}/start"
+    first, second = await asyncio.gather(
+        client.post(url, headers=candidate), client.post(url, headers=candidate)
+    )
+
+    assert first.status_code < 300 and second.status_code < 300, (first.text, second.text)
+    assert first.json()["attempt_id"] == second.json()["attempt_id"]
+
+
+async def test_candidate_without_category_cannot_take_challenge(client, session):
+    employer = await signup(client, "hr@bank.ru")
+    challenge = await published(client, employer)
+    headers = await signup(client, "new@example.com", role="candidate")
+    await session.execute(
+        update(Candidate).where(Candidate.user_id.is_not(None)).values(specialization="backend")
+    )
+    await session.commit()
+
+    assert (await client.get(f"{API}/challenges", headers=headers)).json() == []
+    assert (
+        await client.post(f"{API}/challenges/{challenge['id']}/start", headers=headers)
+    ).status_code == 404
+
+
+async def test_result_closes_attempt_whose_time_ran_out(client, session):
+    employer = await signup(client, "hr@bank.ru")
+    challenge = await published(client, employer)
+    candidate, _ = await make_candidate(client, session, "anna@example.com")
+    attempt_id = (await client.post(f"{API}/challenges/{challenge['id']}/start", headers=candidate)).json()[
+        "attempt_id"
+    ]
+    attempt = await session.get(ChallengeAttempt, attempt_id)
+    old = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
+    attempt.items = [dict(item, shown_at=old) for item in attempt.items]
+    await session.commit()
+
+    result = (await client.get(f"{API}/challenge-attempts/{attempt_id}", headers=candidate)).json()
+
+    assert result["status"] == "completed" and result["answered"] == result["total"]
+    assert result["score"] == 0.0

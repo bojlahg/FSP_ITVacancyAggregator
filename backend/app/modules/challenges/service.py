@@ -11,7 +11,7 @@ from typing import Any
 
 import yaml
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import any_, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -304,6 +304,15 @@ async def solvers(db: AsyncSession, user_id: int, challenge_id: int) -> list[Cha
             )
         )
     )
+    hidden = set(
+        await db.scalars(
+            select(Candidate.id).where(
+                Candidate.id.in_([a.candidate_id for a in attempts]),
+                any_(Candidate.hidden_employer_ids) == challenge.employer_id,
+            )
+        )
+    )
+    attempts = [a for a in attempts if a.candidate_id not in hidden]
     briefs = await matching_service.briefs(db, [a.candidate_id for a in attempts])
     questions = {q["id"]: q for q in challenge.questions}
     result = []
@@ -346,11 +355,11 @@ async def _eligible(db: AsyncSession, candidate: Candidate, challenge: Challenge
         return False
     if challenge.employer_id in set(candidate.hidden_employer_ids or []):
         return False
+    # Нужна действующая категория: без неё кандидата нет в выдаче, и компания не увидела бы его результат
     current = await categories_service.get_current(db, candidate.id)
-    specialization = current.specialization if current else candidate.specialization
-    if challenge.specialization != specialization:
+    if current is None or challenge.specialization != current.specialization:
         return False
-    return challenge.grade is None or (current is not None and current.grade == challenge.grade)
+    return challenge.grade is None or current.grade == challenge.grade
 
 
 async def _company_names(db: AsyncSession, employer_ids: set[int]) -> dict[int, str]:
@@ -426,10 +435,13 @@ def _new_items(challenge: Challenge) -> list[dict[str, Any]]:
 
 
 async def start(db: AsyncSession, candidate: Candidate, challenge_id: int) -> ChallengeAttemptResult:
+    candidate_id = candidate.id  # после rollback атрибуты истекают, а ленивая загрузка в async недоступна
+    # Двойной клик «Начать»: старты одного кандидата идут последовательно
+    await db.execute(select(Candidate.id).where(Candidate.id == candidate_id).with_for_update())
     challenge = await db.get(Challenge, challenge_id)
     existing = await db.scalar(
         select(ChallengeAttempt).where(
-            ChallengeAttempt.challenge_id == challenge_id, ChallengeAttempt.candidate_id == candidate.id
+            ChallengeAttempt.challenge_id == challenge_id, ChallengeAttempt.candidate_id == candidate_id
         )
     )
     if existing is not None:
@@ -438,7 +450,7 @@ async def start(db: AsyncSession, candidate: Candidate, challenge_id: int) -> Ch
         raise NotFoundError("Челлендж не найден")
     attempt = ChallengeAttempt(
         challenge_id=challenge.id,
-        candidate_id=candidate.id,
+        candidate_id=candidate_id,
         status=ChallengeAttemptStatus.in_progress,
         items=_new_items(challenge),
     )
@@ -450,7 +462,7 @@ async def start(db: AsyncSession, candidate: Candidate, challenge_id: int) -> Ch
         await db.rollback()
         attempt = await db.scalar(
             select(ChallengeAttempt).where(
-                ChallengeAttempt.challenge_id == challenge_id, ChallengeAttempt.candidate_id == candidate.id
+                ChallengeAttempt.challenge_id == challenge_id, ChallengeAttempt.candidate_id == candidate_id
             )
         )
     await db.refresh(attempt)
@@ -509,25 +521,35 @@ def _item_out(
     )
 
 
+def _close_overdue(
+    attempt: ChallengeAttempt, challenge: Challenge, now: datetime
+) -> tuple[list[dict[str, Any]], int | None]:
+    """Закрыть вопросы, время которых вышло без ответа. Возвращает копию items и индекс текущего вопроса."""
+    items = [dict(item) for item in attempt.items]
+    kinds = {q["id"]: q["kind"] for q in challenge.questions}
+    for index, item in enumerate(items):
+        if item["answered_at"] is not None:
+            continue
+        if item["shown_at"] is not None and _is_late(item, challenge, now):
+            # Время вышло без ответа — засчитывается как неверный, открытый — как пустой
+            open_kind = kinds[item["question_id"]] == "open_approach"
+            item.update(answered_at=now.isoformat(), late=True, score=None if open_kind else 0.0)
+            continue
+        return items, index
+    return items, None
+
+
 async def current(db: AsyncSession, candidate: Candidate, attempt_id: int) -> CurrentItem:
     attempt, challenge = await _own_attempt(db, candidate, attempt_id, lock=True)
     if attempt.status == ChallengeAttemptStatus.completed:
         return CurrentItem(finished=True, topics=0)
     now = _now()
-    items = [dict(item) for item in attempt.items]
+    items, index = _close_overdue(attempt, challenge, now)
     questions = {q["id"]: q for q in challenge.questions}
-    for index, item in enumerate(items):
-        if item["answered_at"] is not None:
-            continue
+    if index is not None:
+        item = items[index]
         if item["shown_at"] is None:
             item["shown_at"] = now.isoformat()
-        elif _is_late(item, challenge, now):
-            # Время вышло без ответа — засчитывается как неверный, открытый — как пустой
-            kind = questions[item["question_id"]]["kind"]
-            item.update(
-                answered_at=now.isoformat(), late=True, score=None if kind == "open_approach" else 0.0
-            )
-            continue
         attempt.items = items
         await db.commit()
         return _item_out(index, item, questions[item["question_id"]], challenge, len(items))
@@ -552,7 +574,8 @@ async def answer(db: AsyncSession, candidate: Candidate, attempt_id: int, body: 
     response = body.response.model_dump(exclude_none=True)
     if question["kind"] == "open_approach":
         text = (response.get("text") or "").strip()
-        item.update(response={"text": text} if text else None, score=None)
+        # Опоздавший открытый ответ не сохраняется: иначе время на единственный читаемый текст не ограничено
+        item.update(response={"text": text} if text and not late else None, score=None)
     else:
         if "choice_ids" in response:
             response["choice_ids"] = sorted(
@@ -591,7 +614,16 @@ async def _result(db: AsyncSession, attempt: ChallengeAttempt) -> ChallengeAttem
 
 
 async def result(db: AsyncSession, candidate: Candidate, attempt_id: int) -> ChallengeAttemptResult:
-    attempt, _ = await _own_attempt(db, candidate, attempt_id)
+    attempt, challenge = await _own_attempt(db, candidate, attempt_id, lock=True)
+    if attempt.status != ChallengeAttemptStatus.completed:
+        # Время последнего вопроса вышло, а /current не вызывался — результат не должен остаться «в процессе»
+        now = _now()
+        items, index = _close_overdue(attempt, challenge, now)
+        if index is None:
+            attempt.items = items
+            finalize(attempt, challenge, items, now)
+            await db.commit()
+            await db.refresh(attempt)
     return await _result(db, attempt)
 
 

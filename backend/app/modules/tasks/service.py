@@ -13,7 +13,7 @@ from functools import lru_cache
 
 import yaml
 from pydantic import BaseModel
-from sqlalchemy import func, select, update
+from sqlalchemy import any_, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import llm
@@ -262,6 +262,16 @@ async def submissions(db: AsyncSession, user_id: int, task_id: int) -> list[Task
             .order_by(TaskAssignment.submitted_at.desc(), TaskAssignment.id.desc())
         )
     )
+    # Кандидат, скрывший компанию, ей не виден — и его решения тоже
+    hidden = set(
+        await db.scalars(
+            select(Candidate.id).where(
+                Candidate.id.in_([row.candidate_id for row in rows]),
+                any_(Candidate.hidden_employer_ids) == employer.id,
+            )
+        )
+    )
+    rows = [row for row in rows if row.candidate_id not in hidden]
     briefs = await matching_service.briefs(db, [row.candidate_id for row in rows])
     return [
         _submission_out(
