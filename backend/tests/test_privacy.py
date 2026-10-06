@@ -279,7 +279,8 @@ async def test_hidden_salary_and_fsp_do_not_leak_through_explanation_or_filters(
     need = (await client.post(f"{API}/needs", json=NEED, headers=employer)).json()
 
     async def visible() -> tuple[str, bool, bool]:
-        card = (await client.get(f"{API}/talent/candidates/{cid}?need_id={need['id']}", headers=employer)).json()
+        card_url = f"{API}/talent/candidates/{cid}?need_id={need['id']}"
+        card = (await client.get(card_url, headers=employer)).json()
         found = (await client.get(f"{API}/talent/search?salary_max=300000", headers=employer)).json()
         with_fsp = (await client.get(f"{API}/talent/search?has_fsp=true", headers=employer)).json()
         return (
@@ -293,7 +294,8 @@ async def test_hidden_salary_and_fsp_do_not_leak_through_explanation_or_filters(
     assert not by_salary and by_fsp
 
     hidden = {"show_last_name": False, "show_fsp": False, "show_salary": False, "hidden_employer_ids": []}
-    assert (await client.put(f"{API}/candidates/me/privacy", json=hidden, headers=candidate)).status_code == 200
+    saved = await client.put(f"{API}/candidates/me/privacy", json=hidden, headers=candidate)
+    assert saved.status_code == 200
     text, by_salary, by_fsp = await visible()
     assert "500 000" not in text and "Кубок России" not in text
     # Скрытая зарплата — неизвестна, скрытый ФСП — отсутствует: фильтры не позволяют их вычислить
