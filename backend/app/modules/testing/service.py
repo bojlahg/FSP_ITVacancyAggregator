@@ -369,7 +369,8 @@ async def _finalize(
         return
     if category is None:
         if left is not None and await categories_service.get_current(db, attempt.candidate_id) is None:
-            # Перепроверка опустила θ̂ ниже порога стажёра: категория снята — убираем из выдачи (§6.3)
+            # Перепроверка опустила θ̂ ниже порога стажёра: категория снята — строка индекса пересчитывается
+            # (при SHOW_UNCONFIRMED_CANDIDATES кандидат остаётся в выдаче как «грейд не подтверждён»)
             await matching_service.refresh_candidate(db, attempt.candidate_id)
             await matching_service.refresh_category(db, *left)
         return
