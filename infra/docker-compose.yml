@@ -1,9 +1,17 @@
 name: itscout
 
+# Ротация логов контейнеров: без неё json-file растёт без предела и забивает диск сервера
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   db:
     image: postgres:16-alpine
     restart: unless-stopped
+    logging: *logging
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-itscout}
       POSTGRES_USER: ${POSTGRES_USER:-itscout}
@@ -19,6 +27,7 @@ services:
   backend:
     build: ../backend
     restart: unless-stopped
+    logging: *logging
     env_file:
       - path: ../.env
         required: false
@@ -38,6 +47,7 @@ services:
   fsp-mock:
     build: ../fsp-mock
     restart: unless-stopped
+    logging: *logging
     environment:
       FSP_API_KEY: ${FSP_API_KEY:-dev-fsp-key}
       FSP_DATA_PATH: /data/fsp/fsp.json
@@ -49,6 +59,7 @@ services:
   keycloak:
     build: ./keycloak
     restart: unless-stopped
+    logging: *logging
     environment:
       KC_HOSTNAME: ${PUBLIC_BASE_URL:-http://localhost}/fsp-id
       KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
@@ -67,8 +78,10 @@ services:
 
   # Только отправка почты от noreply@itscout.ru с подписью DKIM (порт 25 у VDSina открыт по запросу)
   mail:
-    image: boky/postfix:latest
+    # Версия закреплена: на 06.10.2026 тег latest указывает на тот же образ 5.1.0
+    image: boky/postfix:5.1.0
     restart: unless-stopped
+    logging: *logging
     environment:
       HOSTNAME: itscout.ru
       ALLOWED_SENDER_DOMAINS: itscout.ru
@@ -81,6 +94,7 @@ services:
   backup:
     image: postgres:16-alpine
     restart: unless-stopped
+    logging: *logging
     entrypoint: ["/bin/sh", "/usr/local/bin/backup.sh"]
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-itscout}
@@ -101,6 +115,7 @@ services:
       context: ..
       dockerfile: frontend/Dockerfile
     restart: unless-stopped
+    logging: *logging
     ports:
       - "80:80"
       - "443:443"
