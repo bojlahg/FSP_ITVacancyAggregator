@@ -4,12 +4,15 @@
 # competency = max(competency, rank_floor[разряд])
 
 fsp:
+  # Все уровни равны: организаторы советуют не ранжировать соревнования («чемпионат России выше хакатона»),
+  # а учитывать результативность — она уже в percentile (место среди участников). Веса настраиваемые:
+  # платформа может снова различать уровни, поменяв числа здесь.
   level_weight:
     international: 1.0
-    national: 0.9
-    interregional: 0.75
-    regional: 0.6
-    municipal: 0.4
+    national: 1.0
+    interregional: 1.0
+    regional: 1.0
+    municipal: 1.0
   recency_half_life_years: 3
   role_link_factor: 0.7
   rank_floor:

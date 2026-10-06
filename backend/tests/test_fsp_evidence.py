@@ -9,6 +9,8 @@ from app.modules.fsp.evidence import RankRecord, ResultRecord, evaluate, fsp_sco
 
 TODAY = date(2026, 10, 6)
 CATALOG = get_catalog()
+# Веса уровней настраиваются (content/rules.yaml) — ожидания считаются от них, проверяется формула
+LEVEL = CATALOG.rules.fsp.level_weight
 
 
 def result(discipline="algorithmic", level="national", place=1, participants=101, years_ago=0.0, role=None):
@@ -34,12 +36,13 @@ def test_percentile_bounds():
 
 
 def test_strength_combines_percentile_level_and_recency():
-    assert strength(result(level="national", place=1), TODAY, CATALOG) == pytest.approx(0.9)
+    assert strength(result(level="national", place=1), TODAY, CATALOG) == pytest.approx(LEVEL["national"])
     # Полураспад 3 года: через 3 года сила вдвое меньше
     assert strength(result(level="international", years_ago=3), TODAY, CATALOG) == pytest.approx(
-        0.5, abs=0.01
+        0.5 * LEVEL["international"], abs=0.01
     )
-    assert strength(result(level="regional", place=51), TODAY, CATALOG) == pytest.approx(0.3)
+    regional = strength(result(level="regional", place=51), TODAY, CATALOG)
+    assert regional == pytest.approx(0.5 * LEVEL["regional"])
 
 
 def test_noisy_or_accumulates_but_stays_below_one():
@@ -47,14 +50,16 @@ def test_noisy_or_accumulates_but_stays_below_one():
         [result(level="regional", place=51), result(level="regional", place=51)], [], TODAY, CATALOG
     )
     algorithms = two.competencies["algorithms"]
-    assert algorithms.score == pytest.approx(1 - 0.7 * 0.7)
+    single = 0.5 * LEVEL["regional"]
+    assert algorithms.score == pytest.approx(1 - (1 - single) ** 2) and algorithms.score < 1
     assert algorithms.status == "confirmed"
 
 
 def test_role_link_is_weaker_and_only_supported():
     evidence = evaluate([result("product", place=1, role="backend")], [], TODAY, CATALOG)
-    assert evidence.competencies["product_team_dev"].score == pytest.approx(0.9)
-    assert evidence.competencies["backend_dev"].score == pytest.approx(0.9 * 0.7)
+    link = CATALOG.rules.fsp.role_link_factor
+    assert evidence.competencies["product_team_dev"].score == pytest.approx(LEVEL["national"])
+    assert evidence.competencies["backend_dev"].score == pytest.approx(LEVEL["national"] * link)
     assert evidence.competencies["backend_dev"].status == "supported"
     assert evidence.supported_families == {"backend"}
 
@@ -70,7 +75,7 @@ def test_fsp_score_uses_specialization_relevance():
     evidence = evaluate([result("infosec", place=1)], [], TODAY, CATALOG)
     devops = fsp_score(evidence, "devops", CATALOG)
     backend = fsp_score(evidence, "backend", CATALOG)
-    assert devops == pytest.approx(0.9 * CATALOG.competency_relevance["devops"]["infosec_ctf"])
+    assert devops == pytest.approx(LEVEL["national"] * CATALOG.competency_relevance["devops"]["infosec_ctf"])
     assert backend < devops
 
 
