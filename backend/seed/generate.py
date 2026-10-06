@@ -257,6 +257,7 @@ class Seeder:
             role=role,
             email_verified_at=created_at,
             created_at=created_at,
+            seeded=True,
         )
         self.db.add(user)
         return user

@@ -78,8 +78,7 @@ async def _not_demo(db: AsyncSession, user_id: int) -> None:
     """Общий демо-аккаунт открыт любому посетителю: ключ или webhook на нём перехватывали бы чужие отклики."""
     from app.modules.auth import service as auth_service
 
-    user = await auth_service.get_user(db, user_id)
-    if user.email.lower() == get_settings().demo_employer_email.lower():
+    if await auth_service.is_shared_demo_employer(db, user_id):
         raise ForbiddenError(
             "В общем демо-аккаунте интеграция с ATS недоступна — зарегистрируйте свою компанию",
             code="demo_account",

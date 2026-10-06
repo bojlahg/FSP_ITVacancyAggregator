@@ -168,6 +168,9 @@ async def apply(
     chain = await needs_service.version_chain_ids(db, need)
     if await _applied_chains(db, candidate.id) & set(chain):
         raise AlreadyAppliedError()
+    await invitations_service.ensure_demo_scope(
+        db, need.employer_id, candidate.id, "Это вакансия демо-компании: отклик на неё недоступен"
+    )
     match = await matching_service.snapshot_for(db, need.employer_id, candidate.id, need)
     application = Application(
         need_id=need.id,

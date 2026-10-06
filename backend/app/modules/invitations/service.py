@@ -10,7 +10,7 @@ from app.core import mail_templates
 from app.core.audit import audit
 from app.core.config import get_settings
 from app.core.enums import DeclineReason, InvitationStatus, ReportStatus, UnlockSource
-from app.core.errors import ConflictError, NotFoundError
+from app.core.errors import ConflictError, ForbiddenError, NotFoundError
 from app.core.mail import Mail
 from app.core.schemas import Explanation
 from app.core.text_rules import check_texts
@@ -212,6 +212,7 @@ async def create(
         db, employer.id, body.candidate_id
     ):
         raise NotFoundError("Кандидат не найден")
+    await ensure_demo_scope(db, employer.id, body.candidate_id)
     await expire_overdue(db)
 
     active = await db.scalar(
@@ -410,6 +411,21 @@ async def decline(
     return await _for_candidate(db, invitation)
 
 
+async def ensure_demo_scope(
+    db: AsyncSession, employer_id: int, candidate_id: int, message: str | None = None
+) -> None:
+    """В общий демо-работодатель входит любой: реальным кандидатам он не пишет и их контактов не видит."""
+    employer = await db.get(Employer, employer_id)
+    if employer is None or not await auth_service.is_shared_demo_employer(db, employer.user_id):
+        return
+    candidate = await db.get(Candidate, candidate_id)
+    if candidate is None or not await auth_service.is_seeded(db, candidate.user_id):
+        raise ForbiddenError(
+            message or "Демо-компания работает только с демо-кандидатами — зарегистрируйте свою компанию",
+            code="demo_account",
+        )
+
+
 async def unlock_contacts(
     db: AsyncSession,
     actor_user_id: int,
@@ -421,6 +437,7 @@ async def unlock_contacts(
     """Единственная точка записи в contact_unlocks (+ аудит, §13). Коммитит вызывающий."""
     if await db.get(ContactUnlock, (employer_id, candidate_id)) is not None:
         return
+    await ensure_demo_scope(db, employer_id, candidate_id)
     db.add(
         ContactUnlock(employer_id=employer_id, candidate_id=candidate_id, source=source, source_id=source_id)
     )

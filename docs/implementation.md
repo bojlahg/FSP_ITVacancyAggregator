@@ -845,7 +845,8 @@ POST /auth/register            {email, password, role, consents}
 POST /auth/verify-email        {token}
 POST /auth/resend-verification
 POST /auth/login | /auth/refresh | /auth/logout
-POST /auth/demo-login           {persona} — только DEMO_MODE
+POST /auth/demo-login           {persona} — только DEMO_MODE; общий демо-работодатель приглашает, видит контакты
+                                и получает отклики только от аккаунтов seed (users.seeded), иначе 403 demo_account
 POST /auth/register-expert      {email, password, code, consent_pd_processing} — по коду EXPERT_INVITE_CODE
 GET  /me
 PUT  /me/notifications           {email_notifications} — письма о подборе (§8.9)

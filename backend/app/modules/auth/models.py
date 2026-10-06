@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, String, func, true
+from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, String, false, func, true
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -21,6 +21,8 @@ class User(Base):
     email_notifications: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Аккаунт создан seed: общий демо-работодатель работает только с такими кандидатами
+    seeded: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
 
 
 class EmailToken(Base):

@@ -187,6 +187,7 @@ async def demo_login(db: AsyncSession, persona: str) -> Session:
             password_hash=hash_password(secrets.token_urlsafe(24)),
             role=role,
             email_verified_at=_now(),
+            seeded=True,
         )
         db.add(user)
         await db.flush()
@@ -271,6 +272,16 @@ async def get_user(db: AsyncSession, user_id: int) -> User:
     if user is None or user.deleted_at is not None:
         raise UnauthorizedError()
     return user
+
+
+async def is_shared_demo_employer(db: AsyncSession, user_id: int) -> bool:
+    user = await db.get(User, user_id)
+    return user is not None and user.email.lower() == get_settings().demo_employer_email.lower()
+
+
+async def is_seeded(db: AsyncSession, user_id: int) -> bool:
+    user = await db.get(User, user_id)
+    return user is not None and user.seeded
 
 
 async def me(db: AsyncSession, user_id: int) -> UserOut:

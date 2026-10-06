@@ -282,3 +282,24 @@ async def test_decline_comment_hides_contacts_without_unlock(client, session):
     shown = listed[0]["decline_comment"]
     assert "Сейчас не ищу" in shown and "anna.k@mail.ru" not in shown and "@anna_dev" not in shown
     assert listed[0]["contacts"] is None
+
+
+async def test_shared_demo_employer_works_only_with_seeded_candidates(client, session):
+    from app.modules.auth.models import User
+    from tests.test_applications import publish
+
+    login = await client.post(f"{API}/auth/demo-login", json={"persona": "employer"})
+    demo = {"Authorization": f"Bearer {login.json()['access_token']}"}
+    real, real_id = await make_candidate(client, session, "anna@example.com")
+    _, seeded_id = await make_candidate(client, session, "seed@demo.itscout.ru", first_name="Илья")
+    await session.execute(update(User).where(User.email == "seed@demo.itscout.ru").values(seeded=True))
+    await session.commit()
+
+    refused = await client.post(f"{API}/invitations", json=invite(real_id), headers=demo)
+    assert refused.status_code == 403 and refused.json()["error"]["code"] == "demo_account"
+    assert (await client.post(f"{API}/invitations", json=invite(seeded_id), headers=demo)).status_code == 201
+
+    vacancy = await publish(client, demo)
+    applied = await client.post(f"{API}/vacancies/{vacancy['id']}/apply", json={}, headers=real)
+    assert applied.status_code == 403 and applied.json()["error"]["code"] == "demo_account"
+    assert await session.scalar(select(ContactUnlock).where(ContactUnlock.candidate_id == real_id)) is None
