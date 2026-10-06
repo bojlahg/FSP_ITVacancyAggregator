@@ -169,6 +169,8 @@ async def apply(
     db: AsyncSession, user_id: int, vacancy_id: int, body: ApplyRequest, outbox: list[Mail] | None = None
 ) -> ApplicationForCandidate:
     candidate = await candidates_service.get_by_user(db, user_id)
+    # Двойной клик «Откликнуться»: второй запрос ждёт первый и получает already_applied, а не 500
+    await db.execute(select(Candidate.id).where(Candidate.id == candidate.id).with_for_update())
     need = await _get_published(db, vacancy_id)
     if await categories_service.get_current(db, candidate.id) is None:
         raise CategoryRequiredError()

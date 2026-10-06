@@ -1,6 +1,17 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, CheckConstraint, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import (
+    BigInteger,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    func,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -11,7 +22,17 @@ from app.core.types import enum_type
 
 class Invitation(Base):
     __tablename__ = "invitations"
-    __table_args__ = (CheckConstraint("salary_from > 0 AND salary_from <= salary_to", name="salary_range"),)
+    __table_args__ = (
+        CheckConstraint("salary_from > 0 AND salary_from <= salary_to", name="salary_range"),
+        # Одно активное приглашение компании кандидату — и при параллельной отправке (§8.5)
+        Index(
+            "uq_invitations_active",
+            "employer_id",
+            "candidate_id",
+            unique=True,
+            postgresql_where=text("status IN ('sent', 'viewed')"),
+        ),
+    )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     employer_id: Mapped[int] = mapped_column(ForeignKey("employers.id", ondelete="CASCADE"), index=True)

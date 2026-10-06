@@ -303,3 +303,33 @@ async def test_shared_demo_employer_works_only_with_seeded_candidates(client, se
     applied = await client.post(f"{API}/vacancies/{vacancy['id']}/apply", json={}, headers=real)
     assert applied.status_code == 403 and applied.json()["error"]["code"] == "demo_account"
     assert await session.scalar(select(ContactUnlock).where(ContactUnlock.candidate_id == real_id)) is None
+
+
+async def test_parallel_invites_accept_withdraw_and_apply_stay_consistent(client, session):
+    import asyncio
+
+    from tests.test_applications import publish
+
+    employer = await signup(client, "hr@bank.ru")
+    candidate, cid = await make_candidate(client, session, "anna@example.com")
+
+    sent = await asyncio.gather(
+        *(client.post(f"{API}/invitations", json=invite(cid), headers=employer) for _ in range(3))
+    )
+    assert sorted(r.status_code for r in sent) == [201, 409, 409]
+    [created] = [r.json() for r in sent if r.status_code == 201]
+
+    accept, withdraw = await asyncio.gather(
+        client.post(f"{API}/invitations/{created['id']}/accept", headers=candidate),
+        client.post(f"{API}/invitations/{created['id']}/withdraw", headers=employer),
+    )
+    assert sorted([accept.status_code, withdraw.status_code]) == [200, 409]
+    session.expire_all()
+    stored = await session.get(Invitation, created["id"])
+    unlocked = await session.get(ContactUnlock, (stored.employer_id, cid))
+    assert (stored.status.value == "accepted") == (unlocked is not None)
+
+    vacancy = await publish(client, employer)
+    url = f"{API}/vacancies/{vacancy['id']}/apply"
+    applied = await asyncio.gather(*(client.post(url, json={}, headers=candidate) for _ in range(2)))
+    assert sorted(r.status_code for r in applied) == [201, 409]

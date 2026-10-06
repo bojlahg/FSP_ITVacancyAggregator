@@ -4,6 +4,7 @@ from collections import Counter
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import mail_templates
@@ -213,6 +214,8 @@ async def create(
     ):
         raise NotFoundError("Кандидат не найден")
     await ensure_demo_scope(db, employer.id, body.candidate_id)
+    # Отправки одной компании идут последовательно: иначе две параллельные обходят «уже приглашён» и лимит
+    await db.execute(select(Employer.id).where(Employer.id == employer.id).with_for_update())
     await expire_overdue(db)
 
     active = await db.scalar(
@@ -281,7 +284,8 @@ async def withdraw(
 ) -> InvitationForEmployer:
     employer = await employers_service.get_by_user(db, user_id)
     await expire_overdue(db)
-    invitation = await db.get(Invitation, invitation_id)
+    # Отзыв и принятие одного приглашения не должны пройти оба
+    invitation = await db.get(Invitation, invitation_id, with_for_update=True, populate_existing=True)
     if invitation is None or invitation.employer_id != employer.id:
         raise NotFoundError("Приглашение не найдено")
     if invitation.status not in ACTIVE:
@@ -343,7 +347,7 @@ async def list_mine(
 async def _own(db: AsyncSession, user_id: int, invitation_id: int) -> tuple[Candidate, Invitation]:
     candidate = await candidates_service.get_by_user(db, user_id)
     await expire_overdue(db)
-    invitation = await db.get(Invitation, invitation_id)
+    invitation = await db.get(Invitation, invitation_id, with_for_update=True, populate_existing=True)
     # Чужое приглашение неотличимо от несуществующего
     if invitation is None or invitation.candidate_id != candidate.id:
         raise NotFoundError("Приглашение не найдено")
@@ -438,9 +442,15 @@ async def unlock_contacts(
     if await db.get(ContactUnlock, (employer_id, candidate_id)) is not None:
         return
     await ensure_demo_scope(db, employer_id, candidate_id)
-    db.add(
-        ContactUnlock(employer_id=employer_id, candidate_id=candidate_id, source=source, source_id=source_id)
+    # Параллельное раскрытие (отклик и принятие разом): вторая запись тихо пропускается, а не даёт 500
+    inserted = await db.scalar(
+        pg_insert(ContactUnlock)
+        .values(employer_id=employer_id, candidate_id=candidate_id, source=source, source_id=source_id)
+        .on_conflict_do_nothing()
+        .returning(ContactUnlock.candidate_id)
     )
+    if inserted is None:
+        return
     audit(
         db,
         actor_user_id=actor_user_id,
