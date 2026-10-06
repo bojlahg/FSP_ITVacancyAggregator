@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, Navigate, useParams } from "react-router";
 import { ItemScreen } from "@/components/candidate/ItemScreen";
 import { ErrorState } from "@/components/ErrorState";
@@ -30,6 +30,16 @@ export default function ChallengeRunPage() {
   const focus = useFocusLossCounter();
   const [lateNotice, setLateNotice] = useState(false);
 
+  // Вопросы кончились, а в кеше попытка ещё in_progress (запрос ушёл раньше, чем сервер её завершил):
+  // перезапрашиваем, иначе экран покажет устаревший результат.
+  const finished = current.data?.item.finished === true;
+  const staleResult = finished && attempt.data !== undefined && attempt.data.status !== "completed";
+  const needsRefetch = staleResult && attempt.dataUpdatedAt < current.dataUpdatedAt;
+  const { refetch: refetchAttempt, isFetching: attemptFetching } = attempt;
+  useEffect(() => {
+    if (needsRefetch && !attemptFetching) void refetchAttempt();
+  }, [needsRefetch, attemptFetching, refetchAttempt]);
+
   if (!Number.isFinite(attemptId)) return <Navigate to="/candidate/challenges" replace />;
 
   const submit = async (itemId: number, payload: AnswerPayload): Promise<boolean> => {
@@ -46,6 +56,9 @@ export default function ChallengeRunPage() {
     } catch (err) {
       if (apiError(err).code === "not_current_item") {
         answer.reset();
+        // Попытка могла завершиться по дедлайну или в другой вкладке: обновляем и результат, и список челленджей
+        void queryClient.invalidateQueries({ queryKey: challengeKeys.attempt(attemptId) });
+        void queryClient.invalidateQueries({ queryKey: challengeKeys.available });
         await queryClient.invalidateQueries({ queryKey: challengeKeys.current(attemptId) });
         return true;
       }
@@ -80,6 +93,21 @@ export default function ChallengeRunPage() {
   }
 
   const { item, localDeadlineMs } = current.data;
+  if (item.finished && staleResult) {
+    return (
+      <div className="mx-auto max-w-3xl space-y-4">
+        {needsRefetch || attempt.isFetching ? (
+          <SkeletonCards count={1} />
+        ) : (
+          <ErrorState
+            title="Результат ещё не готов"
+            description="Сервер пока не завершил попытку. Обновите результат через пару секунд."
+            onRetry={() => void attempt.refetch()}
+          />
+        )}
+      </div>
+    );
+  }
   if (item.finished) {
     const result = attempt.data;
     return (
