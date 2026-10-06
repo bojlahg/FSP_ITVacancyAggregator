@@ -85,8 +85,11 @@ async def create_employer_task(
 @employer_router.get(
     "/templates",
     response_model=list[TaskTemplateOption],
-    summary="Шаблоны банка для автопроверяемого задания",
-    description="С need_id — специализация из потребности, сначала шаблоны с её навыками.",
+    summary="Темы и уровни для автопроверяемого задания",
+    description=(
+        "Группы «тема × стек × уровень»: конкретный шаблон выбирается при выдаче кандидату, тексты и id "
+        "шаблонов не отдаются. С need_id — специализация из потребности, сначала группы с её навыками."
+    ),
     responses=error_responses(401, 403, 404, 422),
 )
 async def list_task_templates(

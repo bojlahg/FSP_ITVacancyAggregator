@@ -52,7 +52,7 @@ const taskSchema = z
   })
   .refine((values) => values.kind !== "auto" || values.templateId !== "", {
     path: ["templateId"],
-    message: "Выберите шаблон из банка",
+    message: "Выберите тему и уровень",
   })
   .refine((values) => values.kind !== "approach" || values.prompt.length > 0, {
     path: ["prompt"],
@@ -64,7 +64,7 @@ type TaskFormValues = z.infer<typeof taskSchema>;
 const fieldMap = {
   title: "title",
   specialization: "specialization",
-  template_id: "templateId",
+  pool: "templateId",
   prompt: "prompt",
   rubric: "rubric",
 } as const;
@@ -78,7 +78,7 @@ export default function EmployerTasksPage() {
       <PageHeader
         eyebrow="Задания"
         title="Задания для кандидатов"
-        description="Короткие задания для кандидатов категории: шаблон из банка с автопроверкой или вопрос о подходе. Каждому кандидату предлагается одно задание в неделю; верные решения подтверждают навыки, ответы видны обезличенно."
+        description="Короткие задания для кандидатов категории: задание из банка с автопроверкой по выбранной теме или вопрос о подходе. Каждому кандидату предлагается одно задание в неделю; верные решения подтверждают навыки, ответы видны обезличенно."
         actions={
           <Button onClick={() => setCreating((value) => !value)} variant={creating ? "outline" : "default"}>
             <Plus /> {creating ? "Скрыть форму" : "Новое задание"}
@@ -93,7 +93,7 @@ export default function EmployerTasksPage() {
           <EmptyState
             icon={ListChecks}
             title="Заданий пока нет"
-            description="Создайте первое задание: выберите шаблон из банка под потребность или задайте вопрос о подходе с чек-листом."
+            description="Создайте первое задание: выберите тему из банка под потребность или задайте вопрос о подходе с чек-листом."
             action={
               <Button onClick={() => setCreating(true)}>
                 <Plus /> Новое задание
@@ -148,7 +148,7 @@ function CreateTaskCard({ onCreated }: { onCreated: () => void }) {
         need_id: needId,
         specialization: need?.specialization ?? values.specialization,
         grade: values.grade ? (values.grade as (typeof GRADES)[number]) : null,
-        template_id: values.kind === "auto" ? values.templateId : null,
+        pool: values.kind === "auto" ? values.templateId : null,
         prompt: values.kind === "approach" ? values.prompt : null,
         rubric:
           values.kind === "approach"
@@ -169,7 +169,7 @@ function CreateTaskCard({ onCreated }: { onCreated: () => void }) {
       <CardHeader>
         <CardTitle>Новое задание</CardTitle>
         <CardDescription>
-          С потребностью задание получают кандидаты её категории, а шаблоны подбираются под её навыки — тот же
+          С потребностью задание получают кандидаты её категории, а темы подбираются под её навыки — тот же
           blueprint, что в «Проверке под вакансию».
         </CardDescription>
       </CardHeader>
@@ -180,7 +180,7 @@ function CreateTaskCard({ onCreated }: { onCreated: () => void }) {
           </FormField>
           <FormField id="task-kind" label="Вид">
             <Select id="task-kind" {...register("kind")}>
-              <option value="auto">{TASK_KIND_LABELS.auto} — шаблон из банка</option>
+              <option value="auto">{TASK_KIND_LABELS.auto} — задание из банка</option>
               <option value="approach">{TASK_KIND_LABELS.approach} — текст и чек-лист</option>
             </Select>
           </FormField>
@@ -221,9 +221,9 @@ function CreateTaskCard({ onCreated }: { onCreated: () => void }) {
           {kind === "auto" ? (
             <FormField
               id="task-template"
-              label="Шаблон"
+              label="Тема и уровень"
               error={errors.templateId?.message}
-              hint="Каждый кандидат получит свой экземпляр: другие числа и порядок вариантов"
+              hint="Каждый кандидат получит своё задание из этой группы банка — с другими числами и вариантами. Тексты заданий заранее не показываются: так банк нельзя выгрузить"
               className="md:col-span-2"
             >
               <Select
@@ -234,15 +234,16 @@ function CreateTaskCard({ onCreated }: { onCreated: () => void }) {
               >
                 <option value="">
                   {templates.isFetching
-                    ? "Загружаем шаблоны…"
+                    ? "Загружаем темы…"
                     : templates.isError
-                      ? "Шаблоны не загрузились"
-                      : "Выберите шаблон"}
+                      ? "Темы не загрузились"
+                      : "Выберите тему и уровень"}
                 </option>
-                {templates.data?.map((template) => (
-                  <option key={template.id} value={template.id}>
-                    {template.matches_need ? "★ " : ""}
-                    {template.topic_name} · {template.difficulty} · {template.example_stem.slice(0, 90)}
+                {templates.data?.map((option) => (
+                  <option key={option.key} value={option.key}>
+                    {option.matches_need ? "★ " : ""}
+                    {option.name}
+                    {option.skills.length > 0 && ` · ${option.skills.slice(0, 4).join(", ")}`}
                   </option>
                 ))}
               </Select>
@@ -292,7 +293,7 @@ function TaskCard({ task }: { task: EmployerTask }) {
           <CardTitle>{task.title}</CardTitle>
           <CardDescription>
             Создано {formatDate(task.created_at)} · предложено {task.assignments_total} · решений {task.submissions}
-            {task.template_id && ` · шаблон ${task.template_id}`}
+            {task.pool_name && ` · ${task.pool_name}`}
           </CardDescription>
         </div>
         <Button variant="outline" size="sm" onClick={() => setOpen((value) => !value)} aria-expanded={open}>

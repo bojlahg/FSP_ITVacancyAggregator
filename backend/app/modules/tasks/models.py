@@ -20,7 +20,10 @@ class EmployerTask(Base):
     specialization: Mapped[str] = mapped_column(String(32))
     grade: Mapped[Grade | None] = mapped_column(enum_type(Grade))
     kind: Mapped[TaskKind] = mapped_column(enum_type(TaskKind))
+    # Старые задания — конкретный шаблон; новые — группа «тема:стек:уровень», шаблон выбирается при выдаче,
+    # чтобы работодатель не видел и не перебирал рабочий банк (§10.6, §11)
     template_id: Mapped[str | None] = mapped_column(String(128))
+    template_pool: Mapped[str | None] = mapped_column(String(128))
     title: Mapped[str] = mapped_column(String(200))
     prompt: Mapped[str | None] = mapped_column(Text)
     rubric: Mapped[list | None] = mapped_column(JSONB)
@@ -40,6 +43,7 @@ class TaskAssignment(Base):
     status: Mapped[AssignmentStatus] = mapped_column(
         enum_type(AssignmentStatus), default=AssignmentStatus.offered
     )
+    template_id: Mapped[str | None] = mapped_column(String(128), comment="Шаблон, выбранный при выдаче")
     payload: Mapped[dict | None] = mapped_column(JSONB)
     answer_key: Mapped[dict | None] = mapped_column(JSONB)
     response: Mapped[dict | None] = mapped_column(JSONB)

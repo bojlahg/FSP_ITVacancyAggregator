@@ -65,6 +65,7 @@ from app.modules.categories import service as categories_service
 from app.modules.fsp import service as fsp_service
 from app.modules.fsp.evidence import RankRecord, ResultRecord
 from app.modules.matching import service as matching_service
+from app.modules.tasks.service import pool_key
 from app.modules.testing.engine.bank import GRADE_ORDER, get_bank, get_blueprints
 from app.modules.testing.engine.irt import probability
 from app.modules.testing.engine.render import render
@@ -1246,7 +1247,7 @@ class Seeder:
             specialization=need.specialization,
             grade=need.grade,
             kind=TaskKind.auto,
-            template_id=DEMO_TASK_TEMPLATE,
+            template_pool=pool_key(self.bank.templates[DEMO_TASK_TEMPLATE]),
             title="Индекс для ленты платежей",
             rubric=[],
             created_at=created,
@@ -1283,6 +1284,7 @@ class Seeder:
             assignment = TaskAssignment(
                 task_id=auto.id,
                 candidate_id=record["candidate"].id,
+                template_id=template.id,
                 offered_at=offered,
                 due_at=offered + timedelta(days=7),
                 status=AssignmentStatus.submitted,

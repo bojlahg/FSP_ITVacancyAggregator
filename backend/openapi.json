@@ -6460,8 +6460,8 @@
         "tags": [
           "employer: tasks"
         ],
-        "summary": "Шаблоны банка для автопроверяемого задания",
-        "description": "С need_id — специализация из потребности, сначала шаблоны с её навыками.",
+        "summary": "Темы и уровни для автопроверяемого задания",
+        "description": "Группы «тема × стек × уровень»: конкретный шаблон выбирается при выдаче кандидату, тексты и id шаблонов не отдаются. С need_id — специализация из потребности, сначала группы с её навыками.",
         "operationId": "list_task_templates_api_v1_employer_tasks_templates_get",
         "security": [
           {
@@ -13091,7 +13091,7 @@
             ],
             "title": "Need Id"
           },
-          "template_id": {
+          "pool": {
             "anyOf": [
               {
                 "type": "string"
@@ -13100,8 +13100,8 @@
                 "type": "null"
               }
             ],
-            "title": "Template Id",
-            "description": "Для kind=auto — шаблон из банка"
+            "title": "Pool",
+            "description": "Для kind=auto — группа заданий из GET /employer-tasks/templates (key)"
           },
           "prompt": {
             "anyOf": [
@@ -13171,7 +13171,7 @@
             ],
             "title": "Need Id"
           },
-          "template_id": {
+          "pool": {
             "anyOf": [
               {
                 "type": "string"
@@ -13180,8 +13180,8 @@
                 "type": "null"
               }
             ],
-            "title": "Template Id",
-            "description": "Для kind=auto — шаблон из банка"
+            "title": "Pool",
+            "description": "Для kind=auto — группа заданий из GET /employer-tasks/templates (key)"
           },
           "prompt": {
             "anyOf": [
@@ -13207,6 +13207,18 @@
           "id": {
             "type": "integer",
             "title": "Id"
+          },
+          "pool_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pool Name",
+            "description": "Тема и уровень автопроверяемого задания"
           },
           "assignments_total": {
             "type": "integer",
@@ -13235,6 +13247,7 @@
           "kind",
           "specialization",
           "id",
+          "pool_name",
           "assignments_total",
           "submissions",
           "awaiting_rating",
@@ -18399,17 +18412,24 @@
       },
       "TaskTemplateOption": {
         "properties": {
-          "id": {
+          "key": {
             "type": "string",
-            "title": "Id"
+            "title": "Key",
+            "description": "Передаётся в pool при создании задания"
           },
-          "topic": {
+          "name": {
             "type": "string",
-            "title": "Topic"
+            "title": "Name",
+            "description": "Тема, стек и уровень словами"
           },
           "topic_name": {
             "type": "string",
             "title": "Topic Name"
+          },
+          "level": {
+            "type": "string",
+            "title": "Level",
+            "description": "Уровень словами: «уровень Middle»"
           },
           "skills": {
             "items": {
@@ -18417,43 +18437,25 @@
             },
             "type": "array",
             "title": "Skills",
-            "description": "Названия навыков, которые подтвердит верное решение"
-          },
-          "kind": {
-            "$ref": "#/components/schemas/ItemKind"
-          },
-          "difficulty_b": {
-            "type": "number",
-            "title": "Difficulty B"
-          },
-          "difficulty": {
-            "type": "string",
-            "title": "Difficulty"
-          },
-          "example_stem": {
-            "type": "string",
-            "title": "Example Stem"
+            "description": "Навыки, которые может подтвердить верное решение"
           },
           "matches_need": {
             "type": "boolean",
             "title": "Matches Need",
-            "description": "Шаблон проверяет навык потребности"
+            "description": "В группе есть задания на навыки потребности"
           }
         },
         "type": "object",
         "required": [
-          "id",
-          "topic",
+          "key",
+          "name",
           "topic_name",
+          "level",
           "skills",
-          "kind",
-          "difficulty_b",
-          "difficulty",
-          "example_stem",
           "matches_need"
         ],
         "title": "TaskTemplateOption",
-        "description": "Шаблон банка для автопроверяемого задания: пример экземпляра без ключа ответа."
+        "description": "Группа заданий банка «тема × стек × уровень»: тексты, id и сложность шаблонов скрыты (§10.6)."
       },
       "TeamRoleOut": {
         "properties": {

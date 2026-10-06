@@ -17,7 +17,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import llm
-from app.core.enums import AssignmentStatus, GradedBy, ItemKind, SkillSource, TaskKind
+from app.core.enums import AssignmentStatus, GradedBy, SkillSource, TaskKind
 from app.core.errors import AppError, ConflictError, NotFoundError
 from app.modules.candidates.models import Candidate, CandidateSkill
 from app.modules.catalog.service import get_catalog
@@ -70,25 +70,43 @@ def _skill_names() -> dict[str, str]:
     return {skill.id: skill.name for skill in get_catalog().skills}
 
 
-def _difficulty(b: float) -> str:
+def _level(b: float) -> str:
+    """Самый высокий грейд, порог которого не выше b; ниже порога стажёра — below."""
     blueprints = get_blueprints()
+    return next((g for g in reversed(GRADE_ORDER) if b >= blueprints.cut(g)), "below")
+
+
+def _level_name(level: str) -> str:
     names = {item.slug.value: item.name for item in get_catalog().grades}
-    level = next((g for g in reversed(GRADE_ORDER) if b >= blueprints.cut(g)), None)
-    return f"уровень {names.get(level, level)}" if level else "ниже уровня стажёра"
+    return f"уровень {names[level]}" if level in names else "ниже уровня стажёра"
 
 
-def _task_template(template_id: str, specialization: str) -> Template:
-    template = get_bank().templates.get(template_id)
-    if (
-        template is None
-        or template.status != "active"
-        or template.kind == "open_approach"
-        or specialization not in template.specializations
-    ):
-        raise TaskValidationError(
-            "Шаблон не найден среди активных шаблонов этой специализации", code="unknown_template"
-        )
-    return template
+def pool_key(template: Template) -> str:
+    """Группа «тема:стек:уровень» — работодатель выбирает её, а не конкретный шаблон (§10.6)."""
+    return f"{template.topic}:{template.stack_module or '-'}:{_level(template.irt.b)}"
+
+
+def _pool_templates(specialization: str, key: str) -> list[Template]:
+    return sorted(
+        (
+            t
+            for t in get_bank().for_spec(specialization)
+            if t.status == "active" and t.kind != "open_approach" and pool_key(t) == key
+        ),
+        key=lambda t: t.id,
+    )
+
+
+def _pick(pool: list[Template]) -> Template:
+    return secrets.choice(pool)
+
+
+def _pool_name(key: str | None) -> str | None:
+    if not key:
+        return None
+    topic, module, level = key.split(":")
+    topic_name = get_blueprints().topic_names.get(topic, topic)
+    return " · ".join(filter(None, [topic_name, None if module == "-" else module, _level_name(level)]))
 
 
 # ---------- работодатель ----------
@@ -122,7 +140,8 @@ async def _task_out(db: AsyncSession, task: EmployerTask) -> EmployerTaskOut:
         specialization=task.specialization,
         grade=task.grade,
         need_id=task.need_id,
-        template_id=task.template_id,
+        pool=task.template_pool,
+        pool_name=_pool_name(task.template_pool),
         prompt=task.prompt,
         rubric=list(task.rubric or []),
         assignments_total=total,
@@ -155,16 +174,18 @@ async def create_task(db: AsyncSession, user_id: int, body: EmployerTaskCreate) 
     if len(body.rubric) > get_config().rubric_max:
         raise TaskValidationError(f"В чек-листе не больше {get_config().rubric_max} критериев")
 
-    template_id = None
+    pool = None
     if body.kind == TaskKind.auto:
-        template_id = _task_template(body.template_id or "", specialization).id
+        if not _pool_templates(specialization, body.pool or ""):
+            raise TaskValidationError("Нет заданий для этой темы и уровня", code="unknown_pool")
+        pool = body.pool
     task = EmployerTask(
         employer_id=employer.id,
         need_id=body.need_id,
         specialization=specialization,
         grade=grade,
         kind=body.kind,
-        template_id=template_id,
+        template_pool=pool,
         title=body.title.strip(),
         prompt=body.prompt.strip() if body.kind == TaskKind.approach and body.prompt else None,
         rubric=[item.strip() for item in body.rubric] if body.kind == TaskKind.approach else [],
@@ -178,7 +199,10 @@ async def create_task(db: AsyncSession, user_id: int, body: EmployerTaskCreate) 
 async def template_options(
     db: AsyncSession, user_id: int, specialization: str | None, need_id: int | None
 ) -> list[TaskTemplateOption]:
-    """Шаблоны для автопроверяемого задания; с need_id — сначала с навыками потребности (§10.7 п.5)."""
+    """Группы заданий «тема × стек × уровень»; с need_id — сначала с навыками потребности (§10.7 п.5).
+
+    Тексты, id и сложность шаблонов не отдаются: иначе любой работодатель выгрузит банк (§10.6).
+    """
     wanted: set[str] = set()
     modules: set[str] | None = None
     grade = "middle"
@@ -198,22 +222,26 @@ async def template_options(
         and t.kind != "open_approach"
         and (modules is None or t.stack_module is None or t.stack_module in modules)
     ]
-    cut = blueprints.cut(grade)
-    templates.sort(key=lambda t: (not wanted & set(t.skills), t.topic, round(abs(t.irt.b - cut), 2), t.id))
-    return [
-        TaskTemplateOption(
-            id=t.id,
-            topic=t.topic,
-            topic_name=blueprints.topic_names.get(t.topic, t.topic),
-            skills=[names.get(s, s) for s in t.skills],
-            kind=ItemKind(t.kind),
-            difficulty_b=t.irt.b,
-            difficulty=_difficulty(t.irt.b),
-            example_stem=render(t, 0).stem,
-            matches_need=bool(wanted & set(t.skills)),
+    groups: dict[str, list[Template]] = {}
+    for template in templates:
+        groups.setdefault(pool_key(template), []).append(template)
+    levels = [*GRADE_ORDER, "below"]
+    options = []
+    for key, members in groups.items():
+        topic, _, level = key.split(":")
+        skills = sorted({s for t in members for s in t.skills})
+        options.append(
+            TaskTemplateOption(
+                key=key,
+                name=_pool_name(key) or key,
+                topic_name=blueprints.topic_names.get(topic, topic),
+                level=_level_name(level),
+                skills=[names.get(s, s) for s in skills],
+                matches_need=bool(wanted & set(skills)),
+            )
         )
-        for t in templates
-    ]
+    distance = {key: abs(levels.index(key.split(":")[2]) - levels.index(grade)) for key in groups}
+    return sorted(options, key=lambda o: (not o.matches_need, distance[o.key], o.name))
 
 
 def _payload_of(assignment: TaskAssignment) -> AnswerPayload | None:
@@ -341,10 +369,19 @@ async def _offer(db: AsyncSession, candidate: Candidate, now: datetime) -> None:
 async def offer_task(
     db: AsyncSession, task: EmployerTask, candidate_id: int, now: datetime
 ) -> TaskAssignment:
-    """Предложить задание кандидату: для auto — новый экземпляр шаблона, ключ остаётся в БД."""
-    payload = answer_key = None
-    if task.kind == TaskKind.auto and task.template_id:
-        instance = render(get_bank().templates[task.template_id], secrets.randbits(31))
+    """Предложить задание кандидату: для auto — новый экземпляр шаблона, ключ остаётся в БД.
+
+    Для задания-группы шаблон выбирается здесь, свой для каждого кандидата.
+    """
+    payload = answer_key = template_id = None
+    if task.kind == TaskKind.auto:
+        if task.template_pool:
+            pool = _pool_templates(task.specialization, task.template_pool)
+            template_id = _pick(pool).id if pool else None
+        else:
+            template_id = task.template_id
+    if template_id:
+        instance = render(get_bank().templates[template_id], secrets.randbits(31))
         payload, answer_key = instance.public_payload(), instance.key
     assignment = TaskAssignment(
         task_id=task.id,
@@ -352,6 +389,7 @@ async def offer_task(
         offered_at=now,
         due_at=now + timedelta(days=get_config().due_days),
         status=AssignmentStatus.offered,
+        template_id=template_id,
         payload=payload,
         answer_key=answer_key,
     )
@@ -510,7 +548,7 @@ async def submit(
             raise ConflictError("Задание повреждено", code="assignment_broken")
         assignment.score = score_response(assignment.payload["kind"], assignment.answer_key, response)
         assignment.graded_by = GradedBy.auto
-        template = get_bank().templates.get(task.template_id or "")
+        template = get_bank().templates.get(assignment.template_id or task.template_id or "")
         if template is not None and (assignment.score or 0.0) >= get_config().confirm_min_score:
             await _confirm_skills(db, candidate.id, assignment, template, now)
     else:

@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import Field, model_validator
 
-from app.core.enums import AssignmentStatus, Grade, GradedBy, ItemKind, TaskKind
+from app.core.enums import AssignmentStatus, Grade, GradedBy, TaskKind
 from app.core.schemas import ApiModel
 from app.modules.matching.schemas import CandidateBrief
 from app.modules.testing.schemas import AnswerPayload, CurrentItem
@@ -14,7 +14,9 @@ class EmployerTaskCreate(ApiModel):
     specialization: str = Field(description="При need_id берётся из потребности")
     grade: Grade | None = Field(default=None, description="null — для всех грейдов специализации")
     need_id: int | None = None
-    template_id: str | None = Field(default=None, description="Для kind=auto — шаблон из банка")
+    pool: str | None = Field(
+        default=None, description="Для kind=auto — группа заданий из GET /employer-tasks/templates (key)"
+    )
     prompt: str | None = Field(default=None, max_length=4000, description="Для kind=approach — текст задачи")
     rubric: list[str] = Field(
         default_factory=list, description="Бинарные критерии оценки подхода (лимит — content/tasks.yaml)"
@@ -22,8 +24,8 @@ class EmployerTaskCreate(ApiModel):
 
     @model_validator(mode="after")
     def check_kind(self) -> "EmployerTaskCreate":
-        if self.kind == TaskKind.auto and not self.template_id:
-            raise ValueError("Для автопроверяемого задания нужен template_id")
+        if self.kind == TaskKind.auto and not self.pool:
+            raise ValueError("Для автопроверяемого задания выберите тему и уровень")
         if self.kind == TaskKind.approach and not (self.prompt or "").strip():
             raise ValueError("Для задания на подход нужен prompt")
         if any(not item.strip() or len(item) > 200 for item in self.rubric):
@@ -33,6 +35,7 @@ class EmployerTaskCreate(ApiModel):
 
 class EmployerTaskOut(EmployerTaskCreate):
     id: int
+    pool_name: str | None = Field(description="Тема и уровень автопроверяемого задания")
     assignments_total: int = Field(description="Скольким кандидатам задание предложено")
     submissions: int = Field(description="Сколько решений прислано")
     awaiting_rating: int = Field(description="Решения на подход без оценки — ждут работодателя")
@@ -40,17 +43,14 @@ class EmployerTaskOut(EmployerTaskCreate):
 
 
 class TaskTemplateOption(ApiModel):
-    """Шаблон банка для автопроверяемого задания: пример экземпляра без ключа ответа."""
+    """Группа заданий банка «тема × стек × уровень»: тексты, id и сложность шаблонов скрыты (§10.6)."""
 
-    id: str
-    topic: str
+    key: str = Field(description="Передаётся в pool при создании задания")
+    name: str = Field(description="Тема, стек и уровень словами")
     topic_name: str
-    skills: list[str] = Field(description="Названия навыков, которые подтвердит верное решение")
-    kind: ItemKind
-    difficulty_b: float
-    difficulty: str
-    example_stem: str
-    matches_need: bool = Field(description="Шаблон проверяет навык потребности")
+    level: str = Field(description="Уровень словами: «уровень Middle»")
+    skills: list[str] = Field(description="Навыки, которые может подтвердить верное решение")
+    matches_need: bool = Field(description="В группе есть задания на навыки потребности")
 
 
 class TaskAssignmentForCandidate(ApiModel):

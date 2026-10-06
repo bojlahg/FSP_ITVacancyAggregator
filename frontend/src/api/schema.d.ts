@@ -1378,8 +1378,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Шаблоны банка для автопроверяемого задания
-         * @description С need_id — специализация из потребности, сначала шаблоны с её навыками.
+         * Темы и уровни для автопроверяемого задания
+         * @description Группы «тема × стек × уровень»: конкретный шаблон выбирается при выдаче кандидату, тексты и id шаблонов не отдаются. С need_id — специализация из потребности, сначала группы с её навыками.
          */
         get: operations["list_task_templates_api_v1_employer_tasks_templates_get"];
         put?: never;
@@ -3514,10 +3514,10 @@ export interface components {
             /** Need Id */
             need_id?: number | null;
             /**
-             * Template Id
-             * @description Для kind=auto — шаблон из банка
+             * Pool
+             * @description Для kind=auto — группа заданий из GET /employer-tasks/templates (key)
              */
-            template_id?: string | null;
+            pool?: string | null;
             /**
              * Prompt
              * @description Для kind=approach — текст задачи
@@ -3544,10 +3544,10 @@ export interface components {
             /** Need Id */
             need_id?: number | null;
             /**
-             * Template Id
-             * @description Для kind=auto — шаблон из банка
+             * Pool
+             * @description Для kind=auto — группа заданий из GET /employer-tasks/templates (key)
              */
-            template_id?: string | null;
+            pool?: string | null;
             /**
              * Prompt
              * @description Для kind=approach — текст задачи
@@ -3560,6 +3560,11 @@ export interface components {
             rubric?: string[];
             /** Id */
             id: number;
+            /**
+             * Pool Name
+             * @description Тема и уровень автопроверяемого задания
+             */
+            pool_name: string | null;
             /**
              * Assignments Total
              * @description Скольким кандидатам задание предложено
@@ -5674,30 +5679,34 @@ export interface components {
         };
         /**
          * TaskTemplateOption
-         * @description Шаблон банка для автопроверяемого задания: пример экземпляра без ключа ответа.
+         * @description Группа заданий банка «тема × стек × уровень»: тексты, id и сложность шаблонов скрыты (§10.6).
          */
         TaskTemplateOption: {
-            /** Id */
-            id: string;
-            /** Topic */
-            topic: string;
+            /**
+             * Key
+             * @description Передаётся в pool при создании задания
+             */
+            key: string;
+            /**
+             * Name
+             * @description Тема, стек и уровень словами
+             */
+            name: string;
             /** Topic Name */
             topic_name: string;
             /**
+             * Level
+             * @description Уровень словами: «уровень Middle»
+             */
+            level: string;
+            /**
              * Skills
-             * @description Названия навыков, которые подтвердит верное решение
+             * @description Навыки, которые может подтвердить верное решение
              */
             skills: string[];
-            kind: components["schemas"]["ItemKind"];
-            /** Difficulty B */
-            difficulty_b: number;
-            /** Difficulty */
-            difficulty: string;
-            /** Example Stem */
-            example_stem: string;
             /**
              * Matches Need
-             * @description Шаблон проверяет навык потребности
+             * @description В группе есть задания на навыки потребности
              */
             matches_need: boolean;
         };

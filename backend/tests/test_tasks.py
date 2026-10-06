@@ -13,16 +13,18 @@ from app.modules.matching import service as matching_service
 from app.modules.matching.models import CandidateSearchIndex
 from app.modules.tasks import service as tasks_service
 from app.modules.tasks.models import TaskAssignment
+from app.modules.testing.engine.bank import get_bank
 from tests.conftest import bearer_for
 from tests.test_needs import NEED, candidate_id, employer_of, signup
 
 API = "/api/v1"
 TEMPLATE = "be.db.composite_index"
+POOL = tasks_service.pool_key(get_bank().templates[TEMPLATE])
 AUTO = {
     "title": "Индекс для ленты платежей",
     "kind": "auto",
     "specialization": "backend",
-    "template_id": TEMPLATE,
+    "pool": POOL,
 }
 APPROACH = {
     "title": "Идемпотентные платежи",
@@ -42,6 +44,15 @@ APPROACH = {
 @pytest.fixture(autouse=True)
 def no_llm(monkeypatch):
     monkeypatch.setattr(tasks_service.llm, "is_enabled", lambda: False)
+
+
+@pytest.fixture(autouse=True)
+def known_template(monkeypatch):
+    """Из группы выдаётся известный шаблон — проверки ниже отвечают по его ключу."""
+    real = tasks_service._pick
+    monkeypatch.setattr(
+        tasks_service, "_pick", lambda pool: next((t for t in pool if t.id == TEMPLATE), None) or real(pool)
+    )
 
 
 async def candidate_with_category(client, session, email: str, grade: str = "middle") -> tuple[dict, int]:
@@ -324,7 +335,9 @@ async def test_create_validation(client, db):
     stranger = await signup(client, "hr@retail.ru")
     need = (await client.post(f"{API}/needs", json=NEED, headers=owner)).json()
 
-    unknown = await client.post(f"{API}/employer-tasks", json={**AUTO, "template_id": "nope"}, headers=owner)
+    unknown = await client.post(
+        f"{API}/employer-tasks", json={**AUTO, "pool": "nope:-:middle"}, headers=owner
+    )
     wrong_spec = await client.post(
         f"{API}/employer-tasks", json={**AUTO, "specialization": "devops"}, headers=owner
     )
@@ -340,7 +353,7 @@ async def test_create_validation(client, db):
         f"{API}/employer-tasks", json={**AUTO, "specialization": "qa", "need_id": need["id"]}, headers=owner
     )
 
-    assert unknown.status_code == 422 and unknown.json()["error"]["code"] == "unknown_template"
+    assert unknown.status_code == 422 and unknown.json()["error"]["code"] == "unknown_pool"
     assert wrong_spec.status_code == 422
     assert too_long.status_code == 422
     assert foreign_need.status_code == 404
@@ -359,8 +372,12 @@ async def test_template_options_prefer_need_skills(client, db):
     assert options.status_code == 200, options.text
     items = options.json()
     assert items[0]["matches_need"] is True
-    assert not any(item["id"].startswith("be.java.") for item in items)  # стек потребности — Python
+    assert not any(":java:" in item["key"] for item in items)  # стек потребности — Python
     assert "choice_ids" not in options.text
+    # Работодатель видит группы, а не банк: ни id, ни текстов, ни чисел сложности (§10.6)
+    bank = get_bank()
+    assert not any(template_id in options.text for template_id in bank.templates)
+    assert "example_stem" not in options.text and "difficulty_b" not in options.text
     missing = await client.get(f"{API}/employer-tasks/templates", headers=owner)
     assert missing.status_code == 422
 
@@ -392,3 +409,24 @@ async def test_index_keeps_strongest_skill_source(client, session):
     params = {"skills": "python", "verified_only": "true"}
     found = (await client.get(f"{API}/talent/search", params=params, headers=employer)).json()
     assert cid in [item["id"] for item in found["items"]]
+
+
+async def test_pool_gives_each_candidate_a_template_from_the_group(client, session, monkeypatch):
+    """Задание-группа: шаблон выбирается при выдаче, у кандидатов — разные шаблоны одной группы."""
+    monkeypatch.setattr(tasks_service, "_pick", lambda pool: pool[len(picked) % len(pool)])
+    picked: list[str] = []
+    employer = await signup(client, "hr@bank.ru")
+    created = (await client.post(f"{API}/employer-tasks", json=AUTO, headers=employer)).json()
+    assert created["pool"] == POOL and created["pool_name"].startswith("Базы данных")
+    assert "template_id" not in created
+    group = {
+        t.id
+        for t in get_bank().templates.values()
+        if t.status == "active" and tasks_service.pool_key(t) == POOL
+    }
+    for email in ("anna@example.com", "boris@example.com"):
+        headers, cid = await candidate_with_category(client, session, email)
+        await client.get(f"{API}/candidates/me/tasks", headers=headers)
+        stored = await session.scalar(select(TaskAssignment).where(TaskAssignment.candidate_id == cid))
+        picked.append(stored.template_id)
+    assert set(picked) <= group and len(set(picked)) == min(2, len(group))

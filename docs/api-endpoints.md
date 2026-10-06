@@ -192,7 +192,7 @@ ITScout API 0.1.0: 127 операций. Префикс `/api/v1`; схемы з
 |---|---|---|---|---|---|
 | `GET` | `/employer-tasks` | Мои задания | JWT | 200 | 401, 403 |
 | `POST` | `/employer-tasks` | Создать короткое задание для кандидатов категории | JWT | 201 | 401, 403, 404, 422 |
-| `GET` | `/employer-tasks/templates` | Шаблоны банка для автопроверяемого задания | JWT | 200 | 401, 403, 404, 422 |
+| `GET` | `/employer-tasks/templates` | Темы и уровни для автопроверяемого задания | JWT | 200 | 401, 403, 404, 422 |
 | `GET` | `/employer-tasks/{task_id}/submissions` | Ответы кандидатов (обезличенно) | JWT | 200 | 401, 403, 404, 422 |
 | `POST` | `/employer-tasks/{task_id}/submissions/{assignment_id}/rate` | Оценить ответ 1–5 | JWT | 200 | 401, 403, 404, 409, 422 |
 
@@ -216,7 +216,7 @@ ITScout API 0.1.0: 127 операций. Префикс `/api/v1`; схемы з
 | Метод | Путь | Назначение | Доступ | Успех | Ошибки |
 |---|---|---|---|---|---|
 | `GET` | `/explainer/overview` | Шкала грейдов, специализации с тестом и параметры MST | — | 200 |  |
-| `GET` | `/explainer/specializations/{specialization}/templates` | Активные шаблоны специализации с параметрами IRT (без ключей ответов) | — | 200 | 404, 422 |
+| `GET` | `/explainer/specializations/{specialization}/templates` | Показательные шаблоны специализации с параметрами IRT (без ключей; в тесты они не входят) | — | 200 | 404, 422 |
 | `GET` | `/explainer/templates/{template_id}/instances` | Экземпляры шаблона для заданных seed: одна идея и сложность, разные числа и код | — | 200 | 404, 422 |
 | `GET` | `/explainer/templates/{template_id}/diversity` | Разнообразие экземпляров шаблона и польза от утечки | — | 200 | 404, 422 |
 | `GET` | `/explainer/specializations/{specialization}/information` | Информационная функция MST-теста на грейд по симуляции движка | — | 200 | 404, 422 |
