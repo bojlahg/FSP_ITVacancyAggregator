@@ -13,7 +13,7 @@
 | Node.js 22 | сборка frontend, e2e, PDF документации |
 | PostgreSQL 16 | основная БД |
 | `postgres:16-alpine` | compose |
-| `boky/postfix:latest` | compose |
+| `boky/postfix:5.1.0` | compose |
 | `postgres:16-alpine` | compose |
 | `axllent/mailpit:latest` | compose (dev) |
 | `python:3.12-slim` | backend |
