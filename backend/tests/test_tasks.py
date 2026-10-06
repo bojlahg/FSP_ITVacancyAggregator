@@ -430,3 +430,27 @@ async def test_pool_gives_each_candidate_a_template_from_the_group(client, sessi
         stored = await session.scalar(select(TaskAssignment).where(TaskAssignment.candidate_id == cid))
         picked.append(stored.template_id)
     assert set(picked) <= group and len(set(picked)) == min(2, len(group))
+
+
+async def test_parallel_requests_give_one_task_and_one_graded_answer(client, session):
+    import asyncio
+
+    employer = await signup(client, "hr@bank.ru")
+    for _ in range(2):
+        assert (await client.post(f"{API}/employer-tasks", json=AUTO, headers=employer)).status_code == 201
+    headers, cid = await candidate_with_category(client, session, "anna@example.com")
+
+    url = f"{API}/candidates/me/tasks"
+    await asyncio.gather(*(client.get(url, headers=headers) for _ in range(4)))
+    offered = list(await session.scalars(select(TaskAssignment).where(TaskAssignment.candidate_id == cid)))
+    assert len(offered) == 1, "не больше одного активного задания (§11)"
+
+    [task] = (await client.get(url, headers=headers)).json()
+    submit = f"{API}/tasks/assignments/{task['id']}/submit"
+    answers = await asyncio.gather(
+        *(
+            client.post(submit, json={"response": {"choice_ids": [option["id"]]}}, headers=headers)
+            for option in task["item"]["options"]
+        )
+    )
+    assert sorted(r.status_code for r in answers) == [200] + [409] * (len(answers) - 1)

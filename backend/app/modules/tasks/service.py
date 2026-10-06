@@ -464,6 +464,8 @@ async def _company_names(db: AsyncSession, employer_ids: set[int]) -> dict[int, 
 
 async def my_tasks(db: AsyncSession, candidate: Candidate) -> list[TaskAssignmentForCandidate]:
     now = _now()
+    # Параллельные открытия списка не должны выдать два задания (§11: не больше одного активного)
+    await db.execute(select(Candidate.id).where(Candidate.id == candidate.id).with_for_update())
     await _expire(db, candidate.id, now)
     await _offer(db, candidate, now)
     await db.commit()
@@ -488,7 +490,8 @@ async def my_tasks(db: AsyncSession, candidate: Candidate) -> list[TaskAssignmen
 async def _own_assignment(
     db: AsyncSession, candidate: Candidate, assignment_id: int
 ) -> tuple[TaskAssignment, EmployerTask]:
-    assignment = await db.get(TaskAssignment, assignment_id)
+    # Блокировка строки: параллельные ответы иначе перебирают варианты за одну попытку
+    assignment = await db.get(TaskAssignment, assignment_id, with_for_update=True, populate_existing=True)
     if assignment is None or assignment.candidate_id != candidate.id:
         raise NotFoundError("Задание не найдено")
     task = await db.get(EmployerTask, assignment.task_id)

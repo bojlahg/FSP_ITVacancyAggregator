@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, Float, ForeignKey, Integer, String, Text, func
+from sqlalchemy import BigInteger, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -34,6 +34,7 @@ class TaskAssignment(Base):
     """Задание, предложенное кандидату; payload — экземпляр без ключа, answer_key не уходит на фронт."""
 
     __tablename__ = "task_assignments"
+    __table_args__ = (UniqueConstraint("task_id", "candidate_id"),)
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     task_id: Mapped[int] = mapped_column(ForeignKey("employer_tasks.id", ondelete="CASCADE"), index=True)
