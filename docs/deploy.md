@@ -133,9 +133,18 @@ LLM_PROVIDER=none                      # yandex + YANDEX_API_KEY, YANDEX_FOLDER_
 2. **fsp-mock**: ruff;
 3. **frontend**: eslint, `tsc`, актуальность сгенерированного клиента API, `vite build`;
 4. **deploy** (после зелёных проверок): rsync репозитория на сервер в `/opt/itscout/app` (без `.env`) → `docker compose up -d --build --remove-orphans` → smoke-тест `/api/v1/health`;
-5. **e2e**: Playwright (Chromium) проходит демо-сценарий против `https://itscout.ru`; при падении в артефакт уходят отчёт, трейсы, скриншоты и видео.
+5. **e2e**: Playwright (Chromium) проходит демо-сценарий против `https://itscout.ru`; при падении в артефакт `e2e-screenshots` уходят только скриншоты. Трейсы, видео и HTML-отчёт не пишутся: в них попадают значения `fill()` (пароль) и refresh-cookie, а артефакты станут публичными вместе с репозиторием.
 
-Единственный секрет GitHub — `DEPLOY_SSH_KEY` (отдельный ключ деплоя). Ручные правки на сервере не делаются: следующий деплой их затрёт.
+Секреты GitHub:
+
+| Секрет | Зачем |
+|---|---|
+| `DEPLOY_SSH_KEY` | отдельный ключ деплоя (job `deploy` и workflow «Server ops») |
+| `E2E_CANDIDATE_PASSWORD` | пароль служебного кандидата e2e — тот же, что `E2E_CANDIDATE_PASSWORD` в `.env` сервера (§5.5). Без него job `e2e` падает с сообщением «Задайте E2E_CANDIDATE_PASSWORD». После смены — `reseed`, чтобы аккаунт пересоздался с новым паролем |
+
+Локально `make e2e` читает пароль из `E2E_CANDIDATE_PASSWORD`, а если он пуст — из `DEMO_SEED_PASSWORD`, как и генератор демо-данных; запасного пароля в коде нет.
+
+Ручные правки на сервере не делаются: следующий деплой их затрёт.
 
 ### 5.3. Обслуживание без SSH
 
@@ -152,6 +161,8 @@ gh workflow run server-ops.yml -f action=swap                       # своп 2
 gh workflow run server-ops.yml -f action=llm-check                  # все сценарии LLM на настоящем провайдере
 gh run watch <id> && gh run view <id> --log
 ```
+
+Лог Actions станет публичным вместе с репозиторием, поэтому `logs` отбрасывает access-логи uvicorn (IP клиентов, пути с кодами OIDC) и маскирует email и IPv4 в остальных строках (`<email>`, `<ip>`). Полные логи — только по SSH: `docker compose ... logs backend`.
 
 С SSH: `cd /opt/itscout/app && make reseed` (или `docker compose --env-file .env -f infra/docker-compose.yml exec -T backend python -m seed.generate`). Демо-данные можно сбросить и через API: `POST /api/v1/admin/reseed` от демо-админа. Сброс удаляет всех пользователей, компании, их API-ключи и webhook'и; сохраняется только экспертная разметка пар и оценки Angoff.
 

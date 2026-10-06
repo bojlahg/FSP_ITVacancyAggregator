@@ -149,12 +149,13 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Playwright against production
         run: npx playwright test
-      - name: Upload report, traces and screenshots
+      # Только скриншоты: трейсы, видео и HTML-отчёт содержат значения fill() (пароль) и refresh-cookie,
+      # а артефакты станут публичными вместе с репозиторием (playwright.config.ts их и не пишет)
+      - name: Upload failure screenshots
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: e2e-report
-          path: |
-            e2e/playwright-report/
-            e2e/test-results/
-          retention-days: 14
+          name: e2e-screenshots
+          path: e2e/test-results/**/*.png
+          if-no-files-found: ignore
+          retention-days: 7

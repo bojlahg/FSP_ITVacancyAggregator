@@ -3,11 +3,27 @@ import { expect, type Page } from "@playwright/test";
 /** Пароль одноразовых аккаунтов e2e: домен example.com почту не принимает, аккаунты живут только в этой БД. */
 export const E2E_PASSWORD = "e2e-password-2026";
 
-/** Служебный кандидат из генератора демо-данных (backend/seed/generate.py), пароль — общий для демо-аккаунтов сида. */
+/**
+ * Пароль служебного кандидата: как в генераторе (backend/app/core/config.py) — E2E_CANDIDATE_PASSWORD,
+ * а если он пуст — DEMO_SEED_PASSWORD. Пароля в коде нет: без переменной тест падает с понятной ошибкой.
+ */
+function candidatePassword(): string {
+  const password = process.env.E2E_CANDIDATE_PASSWORD || process.env.DEMO_SEED_PASSWORD;
+  if (!password) {
+    throw new Error(
+      "Задайте E2E_CANDIDATE_PASSWORD (или DEMO_SEED_PASSWORD) — тот же, что в .env стенда (docs/deploy.md §5.5)",
+    );
+  }
+  return password;
+}
+
+/** Служебный кандидат из генератора демо-данных (backend/seed/generate.py). */
 export const E2E_CANDIDATE = {
   email: process.env.E2E_CANDIDATE_EMAIL ?? "e2e-candidate@itscout.ru",
-  // Секрет E2E_CANDIDATE_PASSWORD; запасной пароль — только для стендов, засеянных до 06.10.2026
-  password: process.env.E2E_CANDIDATE_PASSWORD || "demo-password-2026",
+  // Читается при входе, а не при импорте: тесты без кандидата e2e запускаются и без пароля
+  get password(): string {
+    return candidatePassword();
+  },
   displayName: "Тест А.",
   // Полное имя после раскрытия контактов: «Фамилия Имя»
   fullName: /Автотестов Тест|Тест Автотестов/,

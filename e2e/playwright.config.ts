@@ -13,16 +13,18 @@ export default defineConfig({
   workers: 2,
   retries: ci ? 1 : 0,
   forbidOnly: ci,
-  reporter: ci ? [["list"], ["html", { open: "never" }]] : [["list"]],
+  reporter: [["list"]],
   use: {
     baseURL,
     locale: "ru-RU",
     timezoneId: "Europe/Moscow",
     actionTimeout: 20_000,
     navigationTimeout: 30_000,
-    trace: "retain-on-failure",
+    // Без трейсов, видео и HTML-отчёта: в них попадают значения fill() (пароли) и refresh-cookie,
+    // а артефакты CI станут публичными вместе с репозиторием. При падении — только скриншот.
+    trace: "off",
     screenshot: "only-on-failure",
-    video: "retain-on-failure",
+    video: "off",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } }],
 });
