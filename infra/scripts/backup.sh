@@ -10,17 +10,32 @@ KEEP_DAYS="${BACKUP_KEEP_DAYS:-7}"
 INTERVAL=$(( ${BACKUP_INTERVAL_HOURS:-24} * 3600 ))
 export PGPASSWORD="${POSTGRES_PASSWORD}"
 
+# Внутри `backup || ...` set -e не действует, поэтому каждый шаг проверяется явно: при любой ошибке
+# временные файлы удаляются, а ротация старых копий не выполняется
+fail() {
+  echo "backup failed: $1" >&2
+  rm -f "${dump}.tmp" "${archive}.tmp"
+  return 1
+}
+
 backup() {
-  stamp=$(date -u +%Y%m%dT%H%M%SZ)
+  stamp=$(date -u +%Y%m%dT%H%M%SZ) || return 1
   dump="${DIR}/db-${stamp}.dump"
-  pg_dump -h "${PGHOST:-db}" -p "${PGPORT:-5432}" -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -Fc -f "${dump}.tmp"
-  mv "${dump}.tmp" "${dump}"
+  archive="${DIR}/uploads-${stamp}.tar.gz"
+  pg_dump -h "${PGHOST:-db}" -p "${PGPORT:-5432}" -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -Fc -f "${dump}.tmp" \
+    || { fail "pg_dump"; return 1; }
+  # Дамп проверяется до ротации: pg_restore -l читает оглавление архива custom-формата
+  [ -s "${dump}.tmp" ] || { fail "empty dump"; return 1; }
+  pg_restore -l "${dump}.tmp" >/dev/null || { fail "dump is not readable by pg_restore"; return 1; }
+  mv "${dump}.tmp" "${dump}" || { fail "mv dump"; return 1; }
   if [ -d "${UPLOADS}" ]; then
-    tar -czf "${DIR}/uploads-${stamp}.tar.gz.tmp" -C "${UPLOADS}" .
-    mv "${DIR}/uploads-${stamp}.tar.gz.tmp" "${DIR}/uploads-${stamp}.tar.gz"
+    tar -czf "${archive}.tmp" -C "${UPLOADS}" . || { fail "tar uploads"; return 1; }
+    tar -tzf "${archive}.tmp" >/dev/null || { fail "uploads archive is not readable"; return 1; }
+    mv "${archive}.tmp" "${archive}" || { fail "mv uploads archive"; return 1; }
   fi
-  find "${DIR}" -name 'db-*.dump' -mtime +"${KEEP_DAYS}" -delete
-  find "${DIR}" -name 'uploads-*.tar.gz' -mtime +"${KEEP_DAYS}" -delete
+  # Ротация — только после проверенного свежего дампа
+  find "${DIR}" -name 'db-*.dump' -mtime +"${KEEP_DAYS}" -delete || { fail "rotate dumps"; return 1; }
+  find "${DIR}" -name 'uploads-*.tar.gz' -mtime +"${KEEP_DAYS}" -delete || { fail "rotate uploads"; return 1; }
   echo "backup ok: ${dump} ($(du -h "${dump}" | cut -f1))"
 }
 

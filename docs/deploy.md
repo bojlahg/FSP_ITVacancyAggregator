@@ -168,7 +168,7 @@ gh run watch <id> && gh run view <id> --log
 
 ### 5.4. Бэкапы
 
-Сервис `backup` (`infra/docker-compose.yml`, скрипт `infra/scripts/backup.sh`) раз в `BACKUP_INTERVAL_HOURS` (24 ч) снимает `pg_dump` в формате custom и архив загруженных файлов (резюме, состояние LLM) в том `backups`, хранит `BACKUP_KEEP_DAYS` (7) дней. Том отдельный: деплой (`rsync --delete` в `/opt/itscout/app`) и `make reseed` его не трогают. Перед `action=reseed` бэкап снимается автоматически.
+Сервис `backup` (`infra/docker-compose.yml`, скрипт `infra/scripts/backup.sh`) раз в `BACKUP_INTERVAL_HOURS` (24 ч) снимает `pg_dump` в формате custom и архив загруженных файлов (резюме, состояние LLM) в том `backups`, хранит `BACKUP_KEEP_DAYS` (7) дней. Свежий дамп проверяется `pg_restore -l`, архив — `tar -t`; старые копии удаляются только после проверенного бэкапа, при любой ошибке скрипт пишет `backup failed: <шаг>` и ничего не ротирует. Том отдельный: деплой (`rsync --delete` в `/opt/itscout/app`) и `make reseed` его не трогают. Перед `action=reseed` бэкап снимается автоматически.
 
 Бэкап лежит на том же сервере: от ошибок, reseed и порчи данных он защищает, от потери самого сервера — нет. Для этого копию нужно забирать наружу (`scp` с сервера или S3-хранилище провайдера) — в рамках хакатона не настроено.
 
