@@ -14,7 +14,8 @@ interface FormFieldProps {
 /** Подпись + поле + текст ошибки. Поле внутри должно иметь тот же id и aria-invalid. */
 export function FormField({ id, label, error, hint, children, className }: FormFieldProps) {
   return (
-    <div className={cn("grid gap-2", className)}>
+    // content-start: в строке сетки поле без подсказки не растягивается и стоит вровень с соседним
+    <div className={cn("grid content-start gap-2", className)}>
       <Label htmlFor={id}>{label}</Label>
       {children}
       {error ? (

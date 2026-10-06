@@ -299,7 +299,8 @@ function NeedView({ need }: { need: Need }) {
 
       {/* Уровень 2: кандидаты */}
       <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
-        <aside className="grid content-start gap-4 lg:sticky lg:top-6 lg:self-start">
+        {/* Своя прокрутка: фильтры длиннее экрана, а колонка «прилипает» */}
+        <aside className="grid content-start gap-4 lg:sticky lg:top-6 lg:max-h-[calc(100dvh-3rem)] lg:self-start lg:overflow-y-auto lg:overscroll-contain lg:pr-1">
           <Card className="gap-3">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

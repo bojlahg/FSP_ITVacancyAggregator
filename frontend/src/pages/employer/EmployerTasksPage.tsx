@@ -266,7 +266,7 @@ function CreateTaskCard({ onCreated }: { onCreated: () => void }) {
           )}
           <FormAlert message={formError} className="md:col-span-2" />
         </CardContent>
-        <CardFooter>
+        <CardFooter className="mt-5">
           <Button type="submit" disabled={create.isPending}>
             {create.isPending ? <Loader2 className="animate-spin" /> : <Plus />} Создать задание
           </Button>

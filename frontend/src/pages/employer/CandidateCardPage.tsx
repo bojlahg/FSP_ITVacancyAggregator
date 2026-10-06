@@ -468,12 +468,12 @@ function FspCard({ fsp }: { fsp: CandidateCard["fsp"] }) {
             {data.competencies.length > 0 && (
               <div className="space-y-2">
                 <div className="font-mono text-xs font-bold tracking-wider uppercase">Компетенции</div>
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-3">
                   {data.competencies.map((competency) => (
                     <div key={competency.id} className="space-y-1">
-                      <div className="flex justify-between gap-2 text-sm">
-                        <span>{competency.name}</span>
-                        <span className="font-mono text-xs text-muted-foreground">
+                      <div className="flex items-baseline justify-between gap-3 text-sm">
+                        <span className="min-w-0">{competency.name}</span>
+                        <span className="shrink-0 font-mono text-xs whitespace-nowrap text-muted-foreground">
                           {competency.status === "confirmed" ? "подтверждена" : "есть признаки"} ·{" "}
                           {competency.evidence_count}
                         </span>
