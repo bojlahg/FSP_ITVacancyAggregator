@@ -123,10 +123,11 @@ class Planner:
         split = self.blueprints.scale.stage_split
         if theta >= self.cut(grade) + split:
             higher = self.blueprints.next_grade(grade)
-            return self.cut(higher) if higher else self.cut(grade) + 1.0
+            return self.cut(higher) if higher else self.cut(grade) + self.blueprints.selection.edge_offset
         if theta < self.cut(grade) - split:
             lower = self.blueprints.previous_grade(grade)
-            return (self.cut(lower) + self.cut(grade)) / 2 if lower else self.cut(grade) - 1.0
+            edge = self.cut(grade) - self.blueprints.selection.edge_offset
+            return (self.cut(lower) + self.cut(grade)) / 2 if lower else edge
         return self.cut(grade)
 
     def next_item(self, history: list[Answered]) -> NextItem | None:
@@ -178,7 +179,8 @@ class Planner:
                 if t.kind == "open_approach" and t.status == "active" and t.id not in used
             ]
             if open_items:
-                ranked = sorted(open_items, key=lambda t: (abs(t.irt.b - self.cut(grade)), t.id))[:3]
+                ranked = sorted(open_items, key=lambda t: (abs(t.irt.b - self.cut(grade)), t.id))
+                ranked = ranked[: self.blueprints.selection.open_candidates]
                 return NextItem(rng.choice(ranked), STAGE_OPEN, False, instance_seed)
         return None
 
@@ -215,11 +217,13 @@ class Planner:
             window = self.blueprints.selection.window
             near = [t for t in candidates if abs(t.irt.b - target) <= window]
             while not near:
-                window += 0.4
+                window += self.blueprints.selection.window_step
                 near = [t for t in candidates if abs(t.irt.b - target) <= window]
             # Ближе к цели и реже показанные — вероятнее (контроль экспозиции §10.3)
+            strength = self.blueprints.selection.exposure_strength
             weights = [
-                math.exp(-(((t.irt.b - target) / window) ** 2)) / (1.0 + 10.0 * self.exposure.get(t.id, 0.0))
+                math.exp(-(((t.irt.b - target) / window) ** 2))
+                / (1.0 + strength * self.exposure.get(t.id, 0.0))
                 for t in near
             ]
             return rng.choices(near, weights=weights, k=1)[0]

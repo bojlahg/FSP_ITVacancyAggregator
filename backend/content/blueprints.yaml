@@ -23,6 +23,10 @@ modes:
 selection:
   window: 0.6            # стартовое окно сложности |b − цель|, расширяется при нехватке шаблонов
   exposure_cap: 0.25     # шаблоны с долей показов выше — временно исключаются
+  exposure_strength: 10  # вес шаблона ∝ exp(−((b − цель)/окно)²) / (1 + exposure_strength · доля показов)
+  window_step: 0.4       # на сколько расширяется окно, если в нём нет шаблонов
+  edge_offset: 1.0       # цель второго этапа выше Senior / ниже Intern: порог ± edge_offset
+  open_candidates: 3     # открытый вопрос — случайный из стольких, ближайших по b к порогу грейда
 verify_skill: {min_items: 2, min_share: 0.7}
 open_approach_from_grade: middle
 

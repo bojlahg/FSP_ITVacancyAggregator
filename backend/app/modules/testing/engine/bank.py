@@ -30,6 +30,10 @@ class Scale(BaseModel):
 class Selection(BaseModel):
     window: float
     exposure_cap: float
+    exposure_strength: float
+    window_step: float
+    edge_offset: float
+    open_candidates: int
 
 
 class VerifySkill(BaseModel):
