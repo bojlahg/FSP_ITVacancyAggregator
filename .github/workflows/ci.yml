@@ -12,6 +12,10 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# GITHUB_TOKEN нужен только для checkout; кеш npm и артефакты работают на своём токене
+permissions:
+  contents: read
+
 env:
   DEPLOY_HOST: 94.103.87.151
   DEPLOY_PATH: /opt/itscout/app
@@ -98,9 +102,12 @@ jobs:
         with:
           lfs: true
       - name: SSH setup
+        # Секрет — через env, а не подстановкой в текст скрипта
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
         run: |
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
           echo "$DEPLOY_KNOWN_HOST" > ~/.ssh/known_hosts
       - name: Upload sources
         run: |

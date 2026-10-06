@@ -21,6 +21,10 @@ on:
         required: false
         default: "200"
 
+# GITHUB_TOKEN нужен только для checkout
+permissions:
+  contents: read
+
 env:
   DEPLOY_HOST: 94.103.87.151
   DEPLOY_PATH: /opt/itscout/app
@@ -35,9 +39,12 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: SSH setup
+        # Секрет — через env, а не подстановкой в текст скрипта
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
         run: |
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
           echo "$DEPLOY_KNOWN_HOST" > ~/.ssh/known_hosts
       # Только скрипты из infra/scripts (для action=swap), без LFS
       - uses: actions/checkout@v7
