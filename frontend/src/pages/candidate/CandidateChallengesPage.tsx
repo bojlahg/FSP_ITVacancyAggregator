@@ -44,10 +44,11 @@ function ChallengeItem({ challenge }: { challenge: ChallengeCard }) {
   const start = useStartChallenge();
   const navigate = useNavigate();
   const done = challenge.attempt_status === "completed";
-  const begin = async () => {
-    const attempt = await start.mutateAsync(challenge.id);
-    void navigate(`/candidate/challenges/${attempt.attempt_id}`);
-  };
+  // Ошибку показывает FormAlert ниже (start.error), поэтому mutate без проброса исключения
+  const begin = () =>
+    start.mutate(challenge.id, {
+      onSuccess: (attempt) => void navigate(`/candidate/challenges/${attempt.attempt_id}`),
+    });
   const minutes = Math.ceil((challenge.questions * challenge.time_per_question_sec) / 60);
   return (
     <Card>
@@ -74,12 +75,15 @@ function ChallengeItem({ challenge }: { challenge: ChallengeCard }) {
           </span>
         ) : challenge.attempt_id ? (
           <Button asChild>
-            <Link to={`/candidate/challenges/${challenge.attempt_id}`}>
+            <Link
+              to={`/candidate/challenges/${challenge.attempt_id}`}
+              aria-label={`Продолжить челлендж «${challenge.title}»`}
+            >
               <Play /> Продолжить
             </Link>
           </Button>
         ) : (
-          <Button onClick={() => void begin()} disabled={start.isPending}>
+          <Button onClick={begin} disabled={start.isPending} aria-label={`Начать челлендж «${challenge.title}»`}>
             {start.isPending ? <Loader2 className="animate-spin" /> : <Play />} Начать
           </Button>
         )}
