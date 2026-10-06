@@ -20,8 +20,8 @@ MAX_RUBLES = 2_147_483_647
 class SalaryRange(ApiModel):
     """Вилка в рублях «от–до» — обязательна в потребности, вакансии и приглашении (ТЗ §2.2)."""
 
-    salary_from: int = Field(gt=0, le=MAX_RUBLES, description="Нижняя граница, ₽")
-    salary_to: int = Field(gt=0, le=MAX_RUBLES, description="Верхняя граница, ₽")
+    salary_from: int = Field(gt=0, le=MAX_RUBLES, description="Нижняя граница, ₽ на руки (после НДФЛ)")
+    salary_to: int = Field(gt=0, le=MAX_RUBLES, description="Верхняя граница, ₽ на руки (после НДФЛ)")
 
     @model_validator(mode="after")
     def check_range(self) -> Self:

@@ -282,7 +282,7 @@ export default function CandidateCardPage() {
                 <div className="flex justify-between gap-3">
                   <dt className="text-muted-foreground">Ожидания</dt>
                   <dd className="font-mono font-bold">
-                    {brief.salary_min == null ? "скрыты" : `от ${formatNumber(brief.salary_min)} ₽`}
+                    {brief.salary_min == null ? "скрыты" : `от ${formatNumber(brief.salary_min)} ₽ на руки`}
                   </dd>
                 </div>
                 <div className="flex justify-between gap-3">

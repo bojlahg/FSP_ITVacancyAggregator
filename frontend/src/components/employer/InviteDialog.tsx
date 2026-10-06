@@ -218,7 +218,7 @@ function InviteForm({ candidateId, need, company, onDone }: InviteFormProps) {
           <Textarea id="invite-message" rows={4} aria-invalid={!!errors.message} {...register("message")} />
         </FormField>
         <div className="grid gap-4 sm:grid-cols-3">
-          <FormField id="invite-salary-from" label="Вилка от, ₽ *" error={errors.salaryFrom?.message}>
+          <FormField id="invite-salary-from" label="Вилка от, ₽ на руки *" error={errors.salaryFrom?.message}>
             <Input
               id="invite-salary-from"
               type="number"
@@ -229,7 +229,7 @@ function InviteForm({ candidateId, need, company, onDone }: InviteFormProps) {
               {...register("salaryFrom", { valueAsNumber: true })}
             />
           </FormField>
-          <FormField id="invite-salary-to" label="Вилка до, ₽ *" error={errors.salaryTo?.message}>
+          <FormField id="invite-salary-to" label="Вилка до, ₽ на руки *" error={errors.salaryTo?.message}>
             <Input
               id="invite-salary-to"
               type="number"

@@ -25,7 +25,7 @@ def _rubles(value: int) -> str:
 
 
 def salary_range(salary_from: int, salary_to: int) -> str:
-    return f"{_rubles(salary_from)} – {_rubles(salary_to)} ₽"
+    return f"{_rubles(salary_from)} – {_rubles(salary_to)} ₽ на руки"
 
 
 def _compose(

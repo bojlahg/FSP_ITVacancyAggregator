@@ -152,7 +152,7 @@ export default function SearchPage() {
               Есть достижения ФСП
             </label>
             <div className="grid gap-2">
-              <Label htmlFor="search-salary">Ожидания не выше, ₽</Label>
+              <Label htmlFor="search-salary">Ожидания не выше, ₽ на руки</Label>
               <CommitInput
                 id="search-salary"
                 type="number"

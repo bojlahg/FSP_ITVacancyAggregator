@@ -51,7 +51,9 @@ class CandidateProfileBase(ApiModel):
     city: str | None = Field(default=None, max_length=100)
     relocation: bool = False
     work_formats: list[WorkFormat] = Field(default_factory=list)
-    salary_min: int | None = Field(default=None, gt=0, le=MAX_RUBLES, description="Минимальные ожидания, ₽")
+    salary_min: int | None = Field(
+        default=None, gt=0, le=MAX_RUBLES, description="Минимальные ожидания, ₽ на руки"
+    )
     salary_max: int | None = Field(default=None, gt=0, le=MAX_RUBLES)
     experience_years: float | None = Field(default=None, ge=0, le=60)
     roles: list[str] = Field(default_factory=list)

@@ -422,7 +422,7 @@ function QuestionInput({
             min={0}
             step={5000}
             placeholder="от"
-            aria-label="Зарплата от, ₽"
+            aria-label="Зарплата от, ₽ на руки"
             className={cn("w-40 font-mono", invalid && "border-destructive")}
             value={range.from}
             onChange={(event) => onChange({ ...range, from: event.target.value })}
@@ -437,7 +437,7 @@ function QuestionInput({
             min={0}
             step={5000}
             placeholder="до"
-            aria-label="Зарплата до, ₽"
+            aria-label="Зарплата до, ₽ на руки"
             className={cn("w-40 font-mono", invalid && "border-destructive")}
             value={range.to}
             onChange={(event) => onChange({ ...range, to: event.target.value })}

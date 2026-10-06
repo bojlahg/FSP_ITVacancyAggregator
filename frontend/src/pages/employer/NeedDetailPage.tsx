@@ -427,7 +427,7 @@ function NeedView({ need }: { need: Need }) {
                 </Select>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="filter-salary">Ожидания не выше, ₽</Label>
+                <Label htmlFor="filter-salary">Ожидания не выше, ₽ на руки</Label>
                 <CommitInput
                   id="filter-salary"
                   type="number"

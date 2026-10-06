@@ -135,7 +135,7 @@ export function CandidateRow({
             <Badge variant={aboveRange ? "destructive" : "muted"}>
               {candidate.salary_min == null
                 ? "ожидания скрыты"
-                : `от ${formatNumber(candidate.salary_min)} ₽${aboveRange ? " · выше вилки" : ""}`}
+                : `от ${formatNumber(candidate.salary_min)} ₽ на руки${aboveRange ? " · выше вилки" : ""}`}
             </Badge>
           </div>
 

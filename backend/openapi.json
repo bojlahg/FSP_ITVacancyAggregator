@@ -12539,7 +12539,7 @@
               }
             ],
             "title": "Salary Min",
-            "description": "Минимальные ожидания, ₽"
+            "description": "Минимальные ожидания, ₽ на руки"
           },
           "salary_max": {
             "anyOf": [
@@ -12818,7 +12818,7 @@
               }
             ],
             "title": "Salary Min",
-            "description": "Минимальные ожидания, ₽"
+            "description": "Минимальные ожидания, ₽ на руки"
           },
           "salary_max": {
             "anyOf": [
@@ -16644,14 +16644,14 @@
             "maximum": 2147483647.0,
             "exclusiveMinimum": 0.0,
             "title": "Salary From",
-            "description": "Нижняя граница, ₽"
+            "description": "Нижняя граница, ₽ на руки (после НДФЛ)"
           },
           "salary_to": {
             "type": "integer",
             "maximum": 2147483647.0,
             "exclusiveMinimum": 0.0,
             "title": "Salary To",
-            "description": "Верхняя граница, ₽"
+            "description": "Верхняя граница, ₽ на руки (после НДФЛ)"
           },
           "candidate_id": {
             "type": "integer",
@@ -17849,14 +17849,14 @@
             "maximum": 2147483647.0,
             "exclusiveMinimum": 0.0,
             "title": "Salary From",
-            "description": "Нижняя граница, ₽"
+            "description": "Нижняя граница, ₽ на руки (после НДФЛ)"
           },
           "salary_to": {
             "type": "integer",
             "maximum": 2147483647.0,
             "exclusiveMinimum": 0.0,
             "title": "Salary To",
-            "description": "Верхняя граница, ₽"
+            "description": "Верхняя граница, ₽ на руки (после НДФЛ)"
           },
           "title": {
             "type": "string",
@@ -18082,14 +18082,14 @@
             "maximum": 2147483647.0,
             "exclusiveMinimum": 0.0,
             "title": "Salary From",
-            "description": "Нижняя граница, ₽"
+            "description": "Нижняя граница, ₽ на руки (после НДФЛ)"
           },
           "salary_to": {
             "type": "integer",
             "maximum": 2147483647.0,
             "exclusiveMinimum": 0.0,
             "title": "Salary To",
-            "description": "Верхняя граница, ₽"
+            "description": "Верхняя граница, ₽ на руки (после НДФЛ)"
           },
           "title": {
             "type": "string",
@@ -18391,14 +18391,14 @@
             "maximum": 2147483647.0,
             "exclusiveMinimum": 0.0,
             "title": "Salary From",
-            "description": "Нижняя граница, ₽"
+            "description": "Нижняя граница, ₽ на руки (после НДФЛ)"
           },
           "salary_to": {
             "type": "integer",
             "maximum": 2147483647.0,
             "exclusiveMinimum": 0.0,
             "title": "Salary To",
-            "description": "Верхняя граница, ₽"
+            "description": "Верхняя граница, ₽ на руки (после НДФЛ)"
           },
           "title": {
             "type": "string",

@@ -217,7 +217,7 @@ export function NeedForm({ initial, rawText, submitLabel, footerNote, pending, o
             <Input id="need-city" {...register("city")} />
           </FormField>
         </div>
-        <FormField id="need-salary-from" label="Вилка от, ₽ *" error={errors.salaryFrom?.message}>
+        <FormField id="need-salary-from" label="Вилка от, ₽ на руки *" error={errors.salaryFrom?.message}>
           <Input
             id="need-salary-from"
             type="number"
@@ -228,7 +228,7 @@ export function NeedForm({ initial, rawText, submitLabel, footerNote, pending, o
             {...register("salaryFrom", { valueAsNumber: true })}
           />
         </FormField>
-        <FormField id="need-salary-to" label="Вилка до, ₽ *" error={errors.salaryTo?.message}>
+        <FormField id="need-salary-to" label="Вилка до, ₽ на руки *" error={errors.salaryTo?.message}>
           <Input
             id="need-salary-to"
             type="number"

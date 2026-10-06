@@ -5,11 +5,14 @@ export function formatNumber(value: number): string {
   return rubFormatter.format(value);
 }
 
-/** «220 000 – 260 000 ₽», «от 220 000 ₽», «до 260 000 ₽» */
+/** Все суммы на платформе — на руки, после НДФЛ (docs/implementation.md §2). */
+export const NET = "на руки";
+
+/** «220 000 – 260 000 ₽ на руки», «от 220 000 ₽ на руки», «до 260 000 ₽ на руки» */
 export function formatSalaryRange(from?: number | null, to?: number | null): string {
-  if (from != null && to != null) return `${formatNumber(from)} – ${formatNumber(to)} ₽`;
-  if (from != null) return `от ${formatNumber(from)} ₽`;
-  if (to != null) return `до ${formatNumber(to)} ₽`;
+  if (from != null && to != null) return `${formatNumber(from)} – ${formatNumber(to)} ₽ ${NET}`;
+  if (from != null) return `от ${formatNumber(from)} ₽ ${NET}`;
+  if (to != null) return `до ${formatNumber(to)} ₽ ${NET}`;
   return "не указана";
 }
 

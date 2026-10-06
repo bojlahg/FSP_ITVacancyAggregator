@@ -3242,7 +3242,7 @@ export interface components {
             work_formats?: components["schemas"]["WorkFormat"][];
             /**
              * Salary Min
-             * @description Минимальные ожидания, ₽
+             * @description Минимальные ожидания, ₽ на руки
              */
             salary_min?: number | null;
             /** Salary Max */
@@ -3313,7 +3313,7 @@ export interface components {
             work_formats?: components["schemas"]["WorkFormat"][];
             /**
              * Salary Min
-             * @description Минимальные ожидания, ₽
+             * @description Минимальные ожидания, ₽ на руки
              */
             salary_min?: number | null;
             /** Salary Max */
@@ -4817,12 +4817,12 @@ export interface components {
         InvitationCreate: {
             /**
              * Salary From
-             * @description Нижняя граница, ₽
+             * @description Нижняя граница, ₽ на руки (после НДФЛ)
              */
             salary_from: number;
             /**
              * Salary To
-             * @description Верхняя граница, ₽
+             * @description Верхняя граница, ₽ на руки (после НДФЛ)
              */
             salary_to: number;
             /** Candidate Id */
@@ -5299,12 +5299,12 @@ export interface components {
         NeedCreate: {
             /**
              * Salary From
-             * @description Нижняя граница, ₽
+             * @description Нижняя граница, ₽ на руки (после НДФЛ)
              */
             salary_from: number;
             /**
              * Salary To
-             * @description Верхняя граница, ₽
+             * @description Верхняя граница, ₽ на руки (после НДФЛ)
              */
             salary_to: number;
             /** Title */
@@ -5359,12 +5359,12 @@ export interface components {
         NeedOut: {
             /**
              * Salary From
-             * @description Нижняя граница, ₽
+             * @description Нижняя граница, ₽ на руки (после НДФЛ)
              */
             salary_from: number;
             /**
              * Salary To
-             * @description Верхняя граница, ₽
+             * @description Верхняя граница, ₽ на руки (после НДФЛ)
              */
             salary_to: number;
             /** Title */
@@ -5484,12 +5484,12 @@ export interface components {
         NeedUpdate: {
             /**
              * Salary From
-             * @description Нижняя граница, ₽
+             * @description Нижняя граница, ₽ на руки (после НДФЛ)
              */
             salary_from: number;
             /**
              * Salary To
-             * @description Верхняя граница, ₽
+             * @description Верхняя граница, ₽ на руки (после НДФЛ)
              */
             salary_to: number;
             /** Title */

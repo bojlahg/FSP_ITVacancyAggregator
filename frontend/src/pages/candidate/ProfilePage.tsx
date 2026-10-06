@@ -216,10 +216,10 @@ function ProfileForm({ profile }: { profile: CandidateProfile }) {
                 )}
               />
             </fieldset>
-            <FormField id="salary-min" label={<>Ожидания от, ₽{mark("salaryMin")}</>} error={errors.salaryMin?.message}>
+            <FormField id="salary-min" label={<>Ожидания от, ₽ на руки{mark("salaryMin")}</>} error={errors.salaryMin?.message}>
               <Input id="salary-min" inputMode="numeric" aria-invalid={!!errors.salaryMin} {...register("salaryMin")} />
             </FormField>
-            <FormField id="salary-max" label={<>Ожидания до, ₽{mark("salaryMax")}</>} error={errors.salaryMax?.message}>
+            <FormField id="salary-max" label={<>Ожидания до, ₽ на руки{mark("salaryMax")}</>} error={errors.salaryMax?.message}>
               <Input id="salary-max" inputMode="numeric" aria-invalid={!!errors.salaryMax} {...register("salaryMax")} />
             </FormField>
           </CardContent>

@@ -260,7 +260,7 @@ function BlindCandidate({ card }: { card: NonNullable<ExpertTask["candidate"]> }
         <dl className="grid gap-2">
           <Row label="Ожидания">
             <span className="font-mono font-bold">
-              {brief.salary_min == null ? "скрыты" : `от ${formatNumber(brief.salary_min)} ₽`}
+              {brief.salary_min == null ? "скрыты" : `от ${formatNumber(brief.salary_min)} ₽ на руки`}
             </span>
           </Row>
           <Row label="Формат">{workFormatsLabel(brief.work_formats)}</Row>
