@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from fastapi import Request
 from sqlalchemy import DateTime, Integer, String, delete, select
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.config import get_settings
@@ -61,5 +62,14 @@ async def limit_auth_requests(request: Request, db: DbSession) -> None:
     settings = get_settings()
     client = request.client.host if request.client else "unknown"
     key = f"{client}:{request.url.path}"
-    if not await hit(db, key, settings.auth_rate_limit, settings.auth_rate_window_seconds):
+    demo = request.url.path.endswith("/demo-login")
+    limit = settings.demo_login_rate_limit if demo else settings.auth_rate_limit
+    if not await hit(db, key, limit, settings.auth_rate_window_seconds):
+        raise TooManyRequestsError()
+
+
+async def limit_login_email(db: AsyncSession, email: str) -> None:
+    settings = get_settings()
+    key = f"login-email:{email.strip().lower()}"
+    if not await hit(db, key, settings.login_email_rate_limit, settings.auth_rate_window_seconds):
         raise TooManyRequestsError()

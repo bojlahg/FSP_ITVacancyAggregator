@@ -7,7 +7,7 @@ from app.core.config import get_settings
 from app.core.deps import CurrentUser, DbSession, require_demo_mode
 from app.core.errors import AppError, app_error_response, error_responses
 from app.core.mail import send_safely
-from app.core.ratelimit import limit_auth_requests
+from app.core.ratelimit import limit_auth_requests, limit_login_email
 from app.core.schemas import MessageResponse
 from app.modules.auth import service
 from app.modules.auth.schemas import (
@@ -121,6 +121,7 @@ async def resend_verification(
 async def login(
     body: LoginRequest, response: Response, background: BackgroundTasks, db: DbSession
 ) -> TokenResponse:
+    await limit_login_email(db, body.email)
     return _finish(response, background, await service.login(db, body.email, body.password))
 
 

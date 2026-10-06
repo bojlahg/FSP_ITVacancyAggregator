@@ -181,3 +181,17 @@ async def test_login_is_rate_limited(client, db, monkeypatch):
     body = {"email": "nobody@example.com", "password": "whatever-1"}
     statuses = [(await client.post(f"{API}/auth/login", json=body)).status_code for _ in range(4)]
     assert statuses == [401, 401, 401, 429]
+
+
+async def test_login_limited_per_email_and_demo_login_has_own_limit(client, db, monkeypatch):
+    monkeypatch.setattr(get_settings(), "login_email_rate_limit", 2)
+    monkeypatch.setattr(get_settings(), "auth_rate_limit", 100)
+    body = {"email": "Target@example.com", "password": "whatever-1"}
+    statuses = [(await client.post(f"{API}/auth/login", json=body)).status_code for _ in range(2)]
+    other_case = await client.post(f"{API}/auth/login", json=body | {"email": "target@example.com"})
+    assert statuses == [401, 401] and other_case.status_code == 429
+
+    # Жюри за одним NAT: демо-вход не упирается в общий лимит входа
+    monkeypatch.setattr(get_settings(), "auth_rate_limit", 2)
+    demo = [(await client.post(f"{API}/auth/demo-login", json={"persona": "candidate"})) for _ in range(4)]
+    assert [r.status_code for r in demo] == [200] * 4
