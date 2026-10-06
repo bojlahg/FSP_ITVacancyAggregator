@@ -221,6 +221,9 @@ async def _record_stat(db: AsyncSession, template_id: str, *, shown: int = 0, co
 
 
 def _mark_answered(item: TestAttemptItem, response: dict | None, at: datetime, late: bool) -> None:
+    if late and item.payload["kind"] == "open_approach":
+        # Текст после окончания времени не сохраняется: иначе на открытый ответ время не ограничено
+        response = None
     item.response = {**(response or {}), "late": late} if response or late else response
     item.answered_at = at
     item.time_ms = int((at - item.shown_at).total_seconds() * 1000)
@@ -328,6 +331,10 @@ async def _finalize(
         flags["integrity"] = _integrity(items, summary.theta).as_dict()
     attempt.flags = flags
 
+    previous = None
+    if attempt.candidate_id is not None:
+        previous = await categories_service.get_current(db, attempt.candidate_id)
+    left = (previous.specialization, previous.grade) if previous else None
     category = await categories_service.apply_attempt_result(db, attempt)
     if category is None or attempt.candidate_id is None:
         return
@@ -351,6 +358,10 @@ async def _finalize(
     await db.flush()
     await matching_service.refresh_candidate(db, attempt.candidate_id)
     await matching_service.refresh_category(db, category.specialization, category.grade)
+    if left is not None and left != (category.specialization, category.grade):
+        # Кандидат ушёл из прежней категории — перцентили оставшихся там пересчитываются без него
+        await categories_service.recompute_percentiles(db, *left)
+        await matching_service.refresh_category(db, *left)
 
 
 def _integrity(items: list[TestAttemptItem], theta: float) -> integrity.IntegrityResult:

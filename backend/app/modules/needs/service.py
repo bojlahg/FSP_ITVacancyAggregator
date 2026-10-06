@@ -286,8 +286,13 @@ async def set_published(db: AsyncSession, user_id: int, need_id: int, published:
 async def add_to_shortlist(
     db: AsyncSession, user_id: int, need_id: int, candidate_id: int, note: str | None
 ) -> MessageResponse:
+    from app.modules.matching import service as matching_service
+
     need = await _get_latest_own(db, user_id, need_id)
-    if await db.get(Candidate, candidate_id) is None:
+    # Невидимый компании кандидат неотличим от несуществующего: шорт-лист не раскрывает его id
+    if await db.get(Candidate, candidate_id) is None or not await matching_service.reachable(
+        db, need.employer_id, candidate_id
+    ):
         raise NotFoundError("Кандидат не найден")
     row = await db.get(NeedShortlist, (need.id, candidate_id))
     if row is None:

@@ -198,8 +198,11 @@ async def oidc_complete(db: AsyncSession, cookie: str | None, code: str | None, 
     if not code:
         raise oidc.OidcError("Вход через ФСП ID отменён", code="fsp_oidc_denied")
     fsp_id = await oidc.exchange_code(code, flow)
+    from app.modules.auth import service as auth_service
+
     candidate = await db.get(Candidate, flow.candidate_id)
-    if candidate is None:
+    # Флоу мог начаться до удаления аккаунта: удалённому профилю ФСП не привязываем
+    if candidate is None or await auth_service.is_deleted(db, candidate.user_id):
         raise NotFoundError("Профиль кандидата не найден")
     await _link(db, candidate, fsp_id, FspLinkMethod.oidc)
 

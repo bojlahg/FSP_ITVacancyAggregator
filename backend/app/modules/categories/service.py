@@ -220,6 +220,20 @@ async def apply_attempt_result(db: AsyncSession, attempt: TestAttempt) -> Candid
     return category
 
 
+async def retire_current(db: AsyncSession, candidate_id: int) -> tuple[str, Grade] | None:
+    """Снять текущую категорию (удаление аккаунта): перцентили соседей пересчитываются без кандидата.
+
+    Возвращает (специализация, грейд) снятой категории. Коммитит вызывающий.
+    """
+    current = await get_current(db, candidate_id)
+    if current is None:
+        return None
+    current.is_current = False
+    await db.flush()
+    await recompute_percentiles(db, current.specialization, current.grade)
+    return current.specialization, current.grade
+
+
 async def recompute_percentiles(db: AsyncSession, specialization: str, grade: Grade) -> None:
     """Перцентиль θ внутри категории: доля ниже + половина равных (mid-rank)."""
     rows = list(

@@ -133,6 +133,7 @@ async def delete_account(db: AsyncSession, candidate: Candidate) -> None:
     """Мягкое удаление: учётная запись закрыта, ПДн обезличены, профиль исчезает из выдачи (§13)."""
     from app.modules.appeals import service as appeals_service
     from app.modules.applications import service as applications_service
+    from app.modules.categories import service as categories_service
     from app.modules.challenges import service as challenges_service
     from app.modules.expert import service as expert_service
     from app.modules.fsp import service as fsp_service
@@ -210,4 +211,8 @@ async def delete_account(db: AsyncSession, candidate: Candidate) -> None:
     )
     await db.flush()
     await matching_service.drop_candidate(db, candidate.id)
+    # Удалённый не участвует в перцентилях соседей по категории (они входят в VPS и сортировку)
+    retired = await categories_service.retire_current(db, candidate.id)
+    if retired is not None:
+        await matching_service.refresh_category(db, *retired)
     await db.commit()

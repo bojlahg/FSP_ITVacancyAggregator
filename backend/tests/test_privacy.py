@@ -1,6 +1,6 @@
 """Приватность, согласия и удаление аккаунта (§6.4, §8.2, §13)."""
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.core.enums import AttemptPurpose, Grade
 from app.modules.applications.models import Application
@@ -314,3 +314,29 @@ async def test_employer_lists_survive_deleted_candidate_with_unlocked_contacts(c
     assert listed.status_code == 200, listed.text
     for item in listed.json():
         assert item["contacts"] is None or item["contacts"]["email"] is None
+
+
+async def test_deleted_account_leaves_category_percentiles_and_shortlist(client, session):
+    from app.modules.categories import service as categories_service
+    from app.modules.categories.models import CandidateCategory
+
+    employer = await signup(client, "hr@bank.ru")
+    leaving, leaving_id = await make_candidate(client, session, "anna@example.com")
+    _, staying_id = await make_candidate(client, session, "boris@example.com", first_name="Борис")
+    await session.execute(
+        update(CandidateCategory).where(CandidateCategory.candidate_id == leaving_id).values(theta=1.5)
+    )
+    await categories_service.recompute_percentiles(session, "backend", Grade.middle)
+    await session.commit()
+    assert (await categories_service.get_current(session, staying_id)).percentile == 0.25
+
+    assert (await client.delete(f"{API}/candidates/me", headers=leaving)).status_code == 200
+
+    session.expire_all()
+    assert (await categories_service.get_current(session, staying_id)).percentile == 0.5
+    assert await categories_service.get_current(session, leaving_id) is None
+    need = (await client.post(f"{API}/needs", json=NEED, headers=employer)).json()
+    shortlisted = await client.post(
+        f"{API}/needs/{need['id']}/shortlist/{leaving_id}", json={}, headers=employer
+    )
+    assert shortlisted.status_code == 404
