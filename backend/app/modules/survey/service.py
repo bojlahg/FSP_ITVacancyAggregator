@@ -227,5 +227,9 @@ async def confirm_specialization(db: AsyncSession, candidate: Candidate, special
             code="specialization_locked",
             details={"specialization": current.specialization},
         )
+    if specialization != candidate.specialization and await categories_service.has_attempt_in_progress(
+        db, candidate.id
+    ):
+        raise ConflictError("Сначала завершите начатый тест", code="attempt_in_progress")
     candidate.specialization = specialization
     await db.commit()

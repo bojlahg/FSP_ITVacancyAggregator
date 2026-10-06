@@ -13,6 +13,7 @@ class AttemptRecord:
     status: str
     result: str | None
     started_at: datetime
+    specialization: str = ""
 
 
 @dataclass(frozen=True)
@@ -21,6 +22,7 @@ class CurrentCategory:
     assigned_by_attempt_result: str | None
     assigned_at: datetime
     valid_until: datetime | None = None
+    specialization: str = ""
 
 
 @dataclass(frozen=True)
@@ -44,10 +46,19 @@ def decide(
     current: CurrentCategory | None,
     attempts: list[AttemptRecord],
     config: RuleConfig,
+    specialization: str = "",
 ) -> Decision:
-    """Можно ли сейчас начать тест на grade; attempts — уже отфильтрованные по сбросу DEMO_MODE."""
+    """Можно ли сейчас начать тест на grade по specialization.
+
+    attempts — уже отфильтрованные по сбросу DEMO_MODE.
+    """
     if any(a.status == "in_progress" for a in attempts):
         return Decision(False, "calibration", reason="Есть незавершённый тест", code="attempt_in_progress")
+    # Правила считаются внутри специализации: провал Backend · Middle не блокирует Frontend · Middle,
+    # а тест по новой специализации — калибровка, как будто категории ещё нет
+    attempts = [a for a in attempts if a.specialization == specialization]
+    if current is not None and current.specialization != specialization:
+        current = None
 
     failed_retry = timedelta(days=config.failed_retry_days)
     failed_same = [a for a in attempts if a.grade == grade and a.status == "completed" and a.result == "fail"]
@@ -61,7 +72,7 @@ def decide(
                 False,
                 "calibration",
                 retry_at,
-                "Повторная попытка на этот грейд — через 30 дней",
+                f"Повторная попытка на этот грейд — через {config.failed_retry_days} дней",
                 "grade_cooldown",
             )
         return Decision(True, "calibration")
@@ -89,6 +100,10 @@ def decide(
     )
     if blocked_until and blocked_until > now:
         return Decision(
-            False, purpose, blocked_until, "Сменить грейд можно не чаще раза в 90 дней", "grade_cooldown"
+            False,
+            purpose,
+            blocked_until,
+            f"Сменить грейд можно не чаще раза в {config.cooldown_days} дней",
+            "grade_cooldown",
         )
     return Decision(True, purpose)

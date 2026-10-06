@@ -51,6 +51,15 @@ async def _attempts(db: AsyncSession, candidate: Candidate) -> list[TestAttempt]
     return list(await db.scalars(query))
 
 
+async def has_attempt_in_progress(db: AsyncSession, candidate_id: int) -> bool:
+    found = await db.scalar(
+        select(TestAttempt.id)
+        .where(TestAttempt.candidate_id == candidate_id, TestAttempt.status == AttemptStatus.in_progress)
+        .limit(1)
+    )
+    return found is not None
+
+
 def _records(candidate: Candidate, attempts: list[TestAttempt]) -> list[AttemptRecord]:
     reset_at = candidate.grade_rules_reset_at
     return [
@@ -60,6 +69,7 @@ def _records(candidate: Candidate, attempts: list[TestAttempt]) -> list[AttemptR
             status=a.status.value,
             result=a.result.value if a.result else None,
             started_at=a.started_at,
+            specialization=a.specialization,
         )
         for a in attempts
         if reset_at is None or a.started_at >= reset_at or a.status == AttemptStatus.in_progress
@@ -78,6 +88,7 @@ async def _current_view(db: AsyncSession, current: CandidateCategory | None) -> 
         assigned_by_attempt_result=result,
         assigned_at=current.assigned_at,
         valid_until=current.valid_until,
+        specialization=current.specialization,
     )
 
 
@@ -88,9 +99,8 @@ def _config() -> RuleConfig:
 
 async def check_can_start(db: AsyncSession, candidate: Candidate, grade: str) -> Decision:
     current = await _current_view(db, await get_current(db, candidate.id))
-    return decide(
-        grade, datetime.now(UTC), current, _records(candidate, await _attempts(db, candidate)), _config()
-    )
+    records = _records(candidate, await _attempts(db, candidate))
+    return decide(grade, datetime.now(UTC), current, records, _config(), candidate.specialization or "")
 
 
 async def grade_status(db: AsyncSession, candidate: Candidate) -> GradeStatus:
@@ -109,14 +119,16 @@ async def grade_status(db: AsyncSession, candidate: Candidate) -> GradeStatus:
 
     actions = []
     if candidate.specialization:
+        # Категория другой специализации не в счёт: тест по новой — калибровка (§6.3)
+        own = current if current and current.specialization == candidate.specialization else None
         for grade in GRADES:
-            decision = decide(grade, now, current, records, _config())
+            decision = decide(grade, now, current, records, _config(), candidate.specialization)
             if decision.code == "same_grade":
                 continue
-            action = "calibrate" if current is None else decision.purpose
-            if current is not None and grade == current.grade:
+            action = "calibrate" if own is None else decision.purpose
+            if own is not None and grade == own.grade:
                 action = "reconfirm"  # истёкшая категория (§6.3)
-            if decision.code == "grade_cooldown" and current is None:
+            if decision.code == "grade_cooldown" and own is None:
                 action = "retry"
             actions.append(
                 GradeAction(

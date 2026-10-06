@@ -82,3 +82,13 @@ def test_failed_reconfirmation_waits_30_days():
     decision = decide("middle", NOW, expired, [attempt("middle", "fail", 3)], CONFIG)
     assert not decision.allowed and decision.code == "grade_cooldown"
     assert decision.available_at == NOW + timedelta(days=27)
+
+
+def test_rules_are_counted_within_specialization():
+    failed_backend = AttemptRecord("middle", "calibration", "completed", "fail", NOW, "backend")
+    assert decide("middle", NOW, None, [failed_backend], CONFIG, "frontend").allowed
+    blocked = decide("middle", NOW, None, [failed_backend], CONFIG, "backend")
+    assert blocked.code == "grade_cooldown" and "30 дней" in blocked.reason
+    # Незавершённый тест блокирует любой новый — по любой специализации
+    running = AttemptRecord("junior", "calibration", "in_progress", None, NOW, specialization="backend")
+    assert decide("junior", NOW, None, [running], CONFIG, "frontend").code == "attempt_in_progress"
