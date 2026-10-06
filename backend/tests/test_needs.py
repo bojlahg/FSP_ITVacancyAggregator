@@ -88,9 +88,10 @@ async def test_create_list_get_need(client, db):
 
 
 async def test_update_creates_version_and_keeps_shortlist(client, session):
+    from tests.test_invitations import make_candidate  # кандидат в выдаче: невидимого в шорт-лист не добавить
+
     headers = await signup(client, "hr@bank.ru")
-    await signup(client, "anna@example.com", role="candidate")
-    anna = await candidate_id(session, "anna@example.com")
+    _, anna = await make_candidate(client, session, "anna@example.com")
     need = (await client.post(f"{API}/needs", json=NEED, headers=headers)).json()
     pinned = await client.post(
         f"{API}/needs/{need['id']}/shortlist/{anna}", json={"note": "сильный SQL"}, headers=headers
