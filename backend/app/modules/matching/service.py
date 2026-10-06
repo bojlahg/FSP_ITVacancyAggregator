@@ -1032,10 +1032,13 @@ async def contacts_unlocked(db: AsyncSession, employer_id: int, candidate_id: in
 
 async def contacts_of(db: AsyncSession, candidate: Candidate) -> Contacts:
     user = await db.get(User, candidate.user_id)
+    if user is None or user.deleted_at is not None:
+        # У удалённого аккаунта служебный адрес в зоне .invalid: EmailStr его не пропустит, и писать некуда
+        return Contacts(full_name="Аккаунт удалён")
     full_name = " ".join(filter(None, [candidate.last_name, candidate.first_name, candidate.middle_name]))
     return Contacts(
         full_name=full_name or "Кандидат",
-        email=candidate.contact_email or (user.email if user else None),
+        email=candidate.contact_email or user.email,
         phone=candidate.phone,
         telegram=candidate.telegram,
     )

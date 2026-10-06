@@ -300,3 +300,17 @@ async def test_hidden_salary_and_fsp_do_not_leak_through_explanation_or_filters(
     assert "500 000" not in text and "Кубок России" not in text
     # Скрытая зарплата — неизвестна, скрытый ФСП — отсутствует: фильтры не позволяют их вычислить
     assert by_salary and not by_fsp
+
+
+async def test_employer_lists_survive_deleted_candidate_with_unlocked_contacts(client, session):
+    employer = await signup(client, "hr@bank.ru")
+    candidate, cid = await make_candidate(client, session, "anna@example.com")
+    sent = (await client.post(f"{API}/invitations", json=invite(cid), headers=employer)).json()
+    await client.post(f"{API}/invitations/{sent['id']}/accept", headers=candidate)
+
+    assert (await client.delete(f"{API}/candidates/me", headers=candidate)).status_code == 200
+
+    listed = await client.get(f"{API}/employers/me/invitations", headers=employer)
+    assert listed.status_code == 200, listed.text
+    for item in listed.json():
+        assert item["contacts"] is None or item["contacts"]["email"] is None
