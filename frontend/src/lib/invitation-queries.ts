@@ -35,7 +35,7 @@ function useReplaceInCache() {
 }
 
 export function useViewInvitation() {
-  const replace = useReplaceInCache();
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (invitationId: number) => {
       const { data, error, response } = await api.POST("/api/v1/invitations/{invitation_id}/view", {
@@ -44,7 +44,11 @@ export function useViewInvitation() {
       if (!data) throw toApiError(response, error);
       return data;
     },
-    onSuccess: replace,
+    // view меняет только sent → viewed: поздний ответ view не должен затереть уже принятое или отклонённое
+    onSuccess: (updated) =>
+      queryClient.setQueryData<InvitationForCandidate[]>(candidateInvitationKeys.all, (current) =>
+        current?.map((item) => (item.id === updated.id && item.status === "sent" ? updated : item)),
+      ),
   });
 }
 
