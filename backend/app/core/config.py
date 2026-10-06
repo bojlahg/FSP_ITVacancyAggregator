@@ -175,6 +175,10 @@ class Settings(BaseSettings):
     # Правила грейда и подбора — см. docs/implementation.md §6.3, §8.6
     grade_change_cooldown_days: int = 90
     failed_grade_retry_days: int = 30
+    # Настройка платформы (§6.3): повтор теста на свой грейд раз в GRADE_CHANGE_COOLDOWN_DAYS; провал понижает
+    # категорию до грейда, чей порог не выше θ̂ (ниже порога стажёра — категория снимается). Выключено — провал
+    # никогда не понижает
+    grade_retest_can_downgrade: bool = False
     category_valid_days: int = 365
     max_active_invites_per_need: int = 15
     invitation_ttl_days: int = 14

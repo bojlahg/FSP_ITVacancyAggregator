@@ -92,3 +92,13 @@ def test_rules_are_counted_within_specialization():
     # Незавершённый тест блокирует любой новый — по любой специализации
     running = AttemptRecord("junior", "calibration", "in_progress", None, NOW, specialization="backend")
     assert decide("junior", NOW, None, [running], CONFIG, "frontend").code == "attempt_in_progress"
+
+
+def test_retest_of_own_grade_only_with_platform_setting():
+    category = current("middle", days_ago=10)
+    assert decide("middle", NOW, category, [], CONFIG).code == "same_grade"
+    retest = RuleConfig(cooldown_days=90, failed_retry_days=30, retest_can_downgrade=True)
+    early = decide("middle", NOW, category, [], retest)
+    assert not early.allowed and early.code == "grade_cooldown"
+    assert early.available_at == category.assigned_at + timedelta(days=90)
+    assert decide("middle", NOW, current("middle", days_ago=91), [], retest).allowed

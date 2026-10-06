@@ -404,3 +404,33 @@ async def test_express_test_limit_and_switch(client, session, monkeypatch):
     await session.commit()
     second = await client.post(f"{API}/tests/attempts", json=body, headers=headers)
     assert second.status_code == 429
+
+
+async def test_failed_retest_lowers_grade_when_platform_setting_is_on(client, session, monkeypatch):
+    headers = await signup(client, "retest@example.com")
+    await onboard(client, headers)
+    body = {"specialization": "backend", "grade_target": "middle"}
+    first = (await client.post(f"{API}/tests/attempts", json=body, headers=headers)).json()
+    await answer_all(client, session, headers, first["id"], correct=True)
+    status = (await client.get(f"{API}/candidates/me/grade-status", headers=headers)).json()
+    assert not any(a["grade"] == "middle" for a in status["actions"]), (
+        "без настройки свой грейд не перепроверить"
+    )
+
+    monkeypatch.setattr(get_settings(), "grade_retest_can_downgrade", True)
+    await session.execute(
+        update(CandidateCategory).values(assigned_at=datetime.now(UTC) - timedelta(days=200))
+    )
+    await session.execute(update(Attempt).values(started_at=datetime.now(UTC) - timedelta(days=200)))
+    await session.commit()
+    status = (await client.get(f"{API}/candidates/me/grade-status", headers=headers)).json()
+    retest = next(a for a in status["actions"] if a["grade"] == "middle")
+    assert retest["action"] == "retest" and retest["allowed"] and status["retest_can_downgrade"]
+
+    again = (await client.post(f"{API}/tests/attempts", json=body, headers=headers)).json()
+    await answer_all(client, session, headers, again["id"], correct=False)
+    result = (await client.get(f"{API}/tests/attempts/{again['id']}/result", headers=headers)).json()
+    assert result["result"] == "fail"
+    profile = (await client.get(f"{API}/candidates/me", headers=headers)).json()
+    # Грейд — по θ̂ провальной попытки: ниже Middle или категории нет совсем (ниже порога стажёра)
+    assert profile["category"] is None or profile["category"]["grade"] in {"intern", "junior"}

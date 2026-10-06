@@ -4553,7 +4553,7 @@ export interface components {
         GradeAction: {
             /**
              * Action
-             * @description calibrate | upgrade | downgrade | retry | reconfirm
+             * @description calibrate | upgrade | downgrade | retry | reconfirm | retest
              */
             action: string;
             grade: components["schemas"]["Grade"];
@@ -4724,6 +4724,11 @@ export interface components {
         GradeStatus: {
             /** @description Экспресс-тест (§10.3.1): короткая проверка уровня без категории; null — выключен */
             express: components["schemas"]["ExpressTestInfo"] | null;
+            /**
+             * Retest Can Downgrade
+             * @description Настройка платформы: перепроверка своего грейда, провал понижает (§6.3)
+             */
+            retest_can_downgrade: boolean;
             current: components["schemas"]["CategoryRecord"] | null;
             /** History */
             history: components["schemas"]["CategoryRecord"][];

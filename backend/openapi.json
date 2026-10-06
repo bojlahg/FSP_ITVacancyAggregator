@@ -16062,7 +16062,7 @@
           "action": {
             "type": "string",
             "title": "Action",
-            "description": "calibrate | upgrade | downgrade | retry | reconfirm"
+            "description": "calibrate | upgrade | downgrade | retry | reconfirm | retest"
           },
           "grade": {
             "$ref": "#/components/schemas/Grade"
@@ -16432,6 +16432,11 @@
             ],
             "description": "Экспресс-тест (§10.3.1): короткая проверка уровня без категории; null — выключен"
           },
+          "retest_can_downgrade": {
+            "type": "boolean",
+            "title": "Retest Can Downgrade",
+            "description": "Настройка платформы: перепроверка своего грейда, провал понижает (§6.3)"
+          },
           "current": {
             "anyOf": [
               {
@@ -16471,6 +16476,7 @@
         "type": "object",
         "required": [
           "express",
+          "retest_can_downgrade",
           "current",
           "history",
           "attempts",

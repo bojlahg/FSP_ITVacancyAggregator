@@ -96,7 +96,11 @@ async def _current_view(db: AsyncSession, current: CandidateCategory | None) -> 
 
 def _config() -> RuleConfig:
     settings = get_settings()
-    return RuleConfig(settings.grade_change_cooldown_days, settings.failed_grade_retry_days)
+    return RuleConfig(
+        settings.grade_change_cooldown_days,
+        settings.failed_grade_retry_days,
+        settings.grade_retest_can_downgrade,
+    )
 
 
 async def check_can_start(db: AsyncSession, candidate: Candidate, grade: str) -> Decision:
@@ -129,7 +133,8 @@ async def grade_status(db: AsyncSession, candidate: Candidate) -> GradeStatus:
                 continue
             action = "calibrate" if own is None else decision.purpose
             if own is not None and grade == own.grade:
-                action = "reconfirm"  # истёкшая категория (§6.3)
+                # Истёкшая категория (§6.3) — подтверждение; действующая — перепроверка (если включена)
+                action = "reconfirm" if own.valid_until and own.valid_until <= now else "retest"
             if decision.code == "grade_cooldown" and own is None:
                 action = "retry"
             actions.append(
@@ -165,6 +170,7 @@ async def grade_status(db: AsyncSession, candidate: Candidate) -> GradeStatus:
 
     return GradeStatus(
         express=testing_service.express_info(),
+        retest_can_downgrade=get_settings().grade_retest_can_downgrade,
         current=current_record,
         history=[record(row) for row in history_rows],
         attempts=[
@@ -211,10 +217,58 @@ async def grade_explanation(db: AsyncSession, candidate: Candidate) -> GradeExpl
     )
 
 
-async def apply_attempt_result(db: AsyncSession, attempt: TestAttempt) -> CandidateCategory | None:
-    """Пройденный тест присваивает категорию; непройденный не понижает текущую (§6.3). Коммитит вызывающий."""
-    if attempt.result is None or attempt.result.value == "fail" or attempt.candidate_id is None:
+def _grade_by_theta(theta: float) -> Grade | None:
+    """Старший грейд, чей порог не выше θ̂ (§10.4); None — ниже порога стажёра."""
+    blueprints = get_blueprints()
+    passed = [grade for grade in GRADES if blueprints.cut(grade) <= theta]
+    return Grade(passed[-1]) if passed else None
+
+
+async def _downgrade_after_retest(db: AsyncSession, attempt: TestAttempt) -> CandidateCategory | None:
+    """Провал перепроверки своего грейда при GRADE_RETEST_CAN_DOWNGRADE: грейд — по той же θ̂ (§6.3)."""
+    current = await get_current(db, attempt.candidate_id)
+    if (
+        not get_settings().grade_retest_can_downgrade
+        or current is None
+        or current.specialization != attempt.specialization
+        or current.grade != attempt.grade_target
+        or attempt.theta is None
+    ):
         return None
+    lower = _grade_by_theta(attempt.theta)
+    if lower is not None and GRADES.index(lower.value) >= GRADES.index(current.grade.value):
+        return None  # θ̂ не ниже порога текущего грейда — понижать не за что
+    current.is_current = False
+    await db.flush()
+    if lower is None:
+        # Ниже порога стажёра: категория снимается — грейд выставляет только тест
+        await recompute_percentiles(db, current.specialization, current.grade)
+        return None
+    now = datetime.now(UTC)
+    category = CandidateCategory(
+        candidate_id=attempt.candidate_id,
+        specialization=attempt.specialization,
+        grade=lower,
+        theta=attempt.theta,
+        attempt_id=attempt.id,
+        assigned_at=now,
+        valid_until=now + timedelta(days=get_settings().category_valid_days),
+        is_current=True,
+    )
+    db.add(category)
+    await db.flush()
+    await recompute_percentiles(db, current.specialization, current.grade)
+    await recompute_percentiles(db, attempt.specialization, lower)
+    return category
+
+
+async def apply_attempt_result(db: AsyncSession, attempt: TestAttempt) -> CandidateCategory | None:
+    """Пройденный тест присваивает категорию; непройденный не понижает текущую (§6.3), кроме перепроверки
+    своего грейда при GRADE_RETEST_CAN_DOWNGRADE. Коммитит вызывающий."""
+    if attempt.result is None or attempt.candidate_id is None:
+        return None
+    if attempt.result.value == "fail":
+        return await _downgrade_after_retest(db, attempt)
     now = datetime.now(UTC)
     await db.execute(
         update(CandidateCategory)

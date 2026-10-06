@@ -33,6 +33,8 @@ const actionView: Record<string, { label: string; icon: LucideIcon }> = {
   retry: { label: "Повторить тест на", icon: RotateCw },
   // Срок категории истёк (§6.3): тот же грейд — подтверждение
   reconfirm: { label: "Подтвердить", icon: RotateCw },
+  // Настройка платформы GRADE_RETEST_CAN_DOWNGRADE: перепроверка своего грейда, провал понижает
+  retest: { label: "Перепроверить", icon: RotateCw },
 };
 
 export default function GradePage() {
@@ -172,6 +174,13 @@ function GradeView({ status, specialization }: { status: GradeStatus; specializa
               Повысить или понизить грейд можно не чаще раза в {status.cooldown_days}{" "}
               {plural(status.cooldown_days, ["день", "дня", "дней"])}. Повтор теста на тот же грейд после неудачи — тоже
               после паузы: дата видна рядом с кнопкой.
+              {status.retest_can_downgrade && (
+                <>
+                  {" "}
+                  Свой грейд можно перепроверить с той же паузой: при неудаче категория понижается до уровня, который
+                  показал тест.
+                </>
+              )}
             </p>
           </div>
         </CardContent>

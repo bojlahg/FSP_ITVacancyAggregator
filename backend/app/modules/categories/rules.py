@@ -29,6 +29,7 @@ class CurrentCategory:
 class RuleConfig:
     cooldown_days: int
     failed_retry_days: int
+    retest_can_downgrade: bool = False
 
 
 @dataclass(frozen=True)
@@ -78,7 +79,16 @@ def decide(
         return Decision(True, "calibration")
 
     if grade == current.grade:
-        return Decision(False, "calibration", reason="Это ваш текущий грейд", code="same_grade")
+        if not config.retest_can_downgrade:
+            return Decision(False, "calibration", reason="Это ваш текущий грейд", code="same_grade")
+        # Перепроверка своего грейда (настройка платформы): не чаще смены грейда, провал понижает
+        cooldown = timedelta(days=config.cooldown_days)
+        last = max([current.assigned_at, *(a.started_at for a in attempts if a.grade == grade)])
+        available = last + cooldown
+        if available > now:
+            reason = f"Перепроверить грейд можно не чаще раза в {config.cooldown_days} дней"
+            return Decision(False, "calibration", available, reason, "grade_cooldown")
+        return Decision(True, "calibration")
 
     purpose = "upgrade" if GRADES.index(grade) > GRADES.index(current.grade) else "downgrade"
     changes = [a for a in attempts if a.purpose in {"upgrade", "downgrade"}]

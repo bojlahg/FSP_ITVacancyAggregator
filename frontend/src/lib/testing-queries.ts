@@ -292,6 +292,8 @@ const ACTION_PURPOSE: Record<string, AttemptPurpose> = {
   calibrate: "calibration",
   upgrade: "upgrade",
   downgrade: "downgrade",
+  reconfirm: "calibration",
+  retest: "calibration",
 };
 
 /**

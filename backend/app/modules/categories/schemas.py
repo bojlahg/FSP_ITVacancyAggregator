@@ -33,7 +33,7 @@ class AttemptSummary(ApiModel):
 
 
 class GradeAction(ApiModel):
-    action: str = Field(description="calibrate | upgrade | downgrade | retry | reconfirm")
+    action: str = Field(description="calibrate | upgrade | downgrade | retry | reconfirm | retest")
     grade: Grade
     allowed: bool
     available_at: datetime | None = Field(description="Когда станет доступно, если сейчас нельзя")
@@ -48,6 +48,9 @@ class ExpressTestInfo(ApiModel):
 class GradeStatus(ApiModel):
     express: ExpressTestInfo | None = Field(
         description="Экспресс-тест (§10.3.1): короткая проверка уровня без категории; null — выключен"
+    )
+    retest_can_downgrade: bool = Field(
+        description="Настройка платформы: перепроверка своего грейда, провал понижает (§6.3)"
     )
     current: CategoryRecord | None
     history: list[CategoryRecord]

@@ -365,7 +365,13 @@ async def _finalize(
         previous = await categories_service.get_current(db, attempt.candidate_id)
     left = (previous.specialization, previous.grade) if previous else None
     category = await categories_service.apply_attempt_result(db, attempt)
-    if category is None or attempt.candidate_id is None:
+    if attempt.candidate_id is None:
+        return
+    if category is None:
+        if left is not None and await categories_service.get_current(db, attempt.candidate_id) is None:
+            # Перепроверка опустила θ̂ ниже порога стажёра: категория снята — убираем из выдачи (§6.3)
+            await matching_service.refresh_candidate(db, attempt.candidate_id)
+            await matching_service.refresh_category(db, *left)
         return
     await db.execute(
         delete(CandidateSkill).where(
