@@ -176,6 +176,8 @@ class Settings(BaseSettings):
     def check_prod_secrets(self) -> Self:
         if self.app_env == "prod" and (self.jwt_secret == DEV_JWT_SECRET or len(self.jwt_secret) < 32):
             raise ValueError("В prod нужен собственный JWT_SECRET длиной от 32 символов")
+        if self.app_env == "prod" and not self.cookie_secure:
+            raise ValueError("В prod refresh-cookie должна быть Secure: COOKIE_SECURE=true")
         return self
 
 

@@ -195,3 +195,17 @@ async def test_login_limited_per_email_and_demo_login_has_own_limit(client, db, 
     monkeypatch.setattr(get_settings(), "auth_rate_limit", 2)
     demo = [(await client.post(f"{API}/auth/demo-login", json={"persona": "candidate"})) for _ in range(4)]
     assert [r.status_code for r in demo] == [200] * 4
+
+
+def test_prod_settings_require_real_secret_and_secure_cookie():
+    import pytest
+    from pydantic import ValidationError
+
+    from app.core.config import Settings
+
+    strong = "x" * 40
+    with pytest.raises(ValidationError):
+        Settings(app_env="prod", cookie_secure=True)
+    with pytest.raises(ValidationError):
+        Settings(app_env="prod", jwt_secret=strong, cookie_secure=False)
+    assert Settings(app_env="prod", jwt_secret=strong, cookie_secure=True).app_env == "prod"

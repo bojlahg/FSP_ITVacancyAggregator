@@ -32,6 +32,8 @@ services:
       - path: ../.env
         required: false
     environment:
+      # Без APP_ENV в .env сервис стартует как prod: проверка секретов не даст подняться с dev-значениями
+      APP_ENV: ${APP_ENV:-prod}
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-itscout}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-itscout}
       FSP_API_URL: http://fsp-mock:8001/fsp-api/v1
       UPLOAD_DIR: /data/uploads
