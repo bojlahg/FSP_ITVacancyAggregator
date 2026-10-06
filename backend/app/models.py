@@ -8,6 +8,7 @@ from app.modules.applications.models import Application
 from app.modules.auth.models import AuditLog, Consent, EmailToken, RefreshToken, User
 from app.modules.candidates.models import Candidate, CandidateExperience, CandidateSkill
 from app.modules.categories.models import CandidateCategory
+from app.modules.challenges.models import Challenge, ChallengeAttempt
 from app.modules.employers.models import Employer
 from app.modules.expert.models import AngoffHofstee, AngoffRating, ExpertLabel, ExpertPair
 from app.modules.fsp.models import CandidateCompetency, FspAchievement, FspRank
@@ -35,6 +36,8 @@ __all__ = [
     "CandidateSearchIndex",
     "CandidateSkill",
     "Consent",
+    "Challenge",
+    "ChallengeAttempt",
     "ContactUnlock",
     "EmailToken",
     "Employer",

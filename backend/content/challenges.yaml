@@ -1,0 +1,11 @@
+# Челленджи компании (§11.1): лимиты конструктора. Вопросы пишет работодатель, они не откалиброваны,
+# поэтому результат на грейд и статусы навыков не влияет.
+questions_min: 3
+questions_max: 20
+options_min: 2
+options_max: 8
+rubric_max: 6
+time_per_question_min_sec: 20
+time_per_question_max_sec: 600
+time_per_question_default_sec: 90
+skills_max: 10

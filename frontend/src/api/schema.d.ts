@@ -911,6 +911,97 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/challenges": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Челленджи компаний по вашей категории
+         * @description Опубликованные челленджи вашей специализации и грейда и те, что вы уже начинали.
+         */
+        get: operations["list_available_api_v1_challenges_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/challenges/{challenge_id}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Начать челлендж (одна попытка; повторный вызов возвращает её же) */
+        post: operations["start_challenge_api_v1_challenges__challenge_id__start_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/challenge-attempts/{attempt_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Попытка: прогресс и результат */
+        get: operations["get_attempt_api_v1_challenge_attempts__attempt_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/challenge-attempts/{attempt_id}/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Текущий вопрос (без ключа); время считает сервер */
+        get: operations["current_question_api_v1_challenge_attempts__attempt_id__current_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/challenge-attempts/{attempt_id}/answer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ответ на текущий вопрос
+         * @description 409 not_current_item — вопрос уже не текущий; 409 attempt_finished — челлендж пройден.
+         */
+        post: operations["answer_question_api_v1_challenge_attempts__attempt_id__answer_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/candidates/me/market": {
         parameters: {
             query?: never;
@@ -1421,6 +1512,105 @@ export interface paths {
          * @description Для решений без автопроверки и чек-листа оценка становится score: (оценка − 1) / 4.
          */
         post: operations["rate_submission_api_v1_employer_tasks__task_id__submissions__assignment_id__rate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/employer-challenges": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Мои челленджи */
+        get: operations["list_challenges_api_v1_employer_challenges_get"];
+        put?: never;
+        /**
+         * Создать черновик челленджа со своими вопросами
+         * @description Вопросы: single_choice, multi_choice, numeric, open_approach. Лимиты — content/challenges.yaml. Результат не влияет на грейд и статусы навыков кандидата.
+         */
+        post: operations["create_challenge_api_v1_employer_challenges_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/employer-challenges/{challenge_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Челлендж с вопросами и ключами (только автору) */
+        get: operations["get_challenge_api_v1_employer_challenges__challenge_id__get"];
+        /**
+         * Изменить черновик
+         * @description 409 challenge_not_draft — опубликованный челлендж не меняется.
+         */
+        put: operations["update_challenge_api_v1_employer_challenges__challenge_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/employer-challenges/{challenge_id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Опубликовать: челлендж увидят кандидаты подходящей категории
+         * @description Тексты проверяются теми же правилами, что и потребность (content/need_text_rules.yaml): 409 challenge_text_discriminatory — есть запрещённые требования, details.issues — что исправить.
+         */
+        post: operations["publish_challenge_api_v1_employer_challenges__challenge_id__publish_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/employer-challenges/{challenge_id}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Закрыть: новые кандидаты не начнут, начатые попытки можно завершить */
+        post: operations["close_challenge_api_v1_employer_challenges__challenge_id__close_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/employer-challenges/{challenge_id}/solvers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Решившие по убыванию результата
+         * @description Карточки обезличены; контакты в открытых ответах скрыты, пока нет записи в contact_unlocks.
+         */
+        get: operations["list_solvers_api_v1_employer_challenges__challenge_id__solvers_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3220,6 +3410,245 @@ export interface components {
              */
             label: string;
         };
+        /** ChallengeAttemptResult */
+        ChallengeAttemptResult: {
+            /** Attempt Id */
+            attempt_id: number;
+            /** Challenge Id */
+            challenge_id: number;
+            /** Title */
+            title: string;
+            /** Company Name */
+            company_name: string;
+            status: components["schemas"]["ChallengeAttemptStatus"];
+            /** Answered */
+            answered: number;
+            /** Total */
+            total: number;
+            /** Correct */
+            correct: number;
+            /**
+             * Scored Total
+             * @description Вопросов с автопроверкой
+             */
+            scored_total: number;
+            /** Score */
+            score: number | null;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /** Finished At */
+            finished_at: string | null;
+        };
+        /**
+         * ChallengeAttemptStatus
+         * @enum {string}
+         */
+        ChallengeAttemptStatus: "in_progress" | "completed";
+        /**
+         * ChallengeCard
+         * @description Челлендж глазами кандидата — без вопросов и ключей.
+         */
+        ChallengeCard: {
+            /** Id */
+            id: number;
+            /** Company Name */
+            company_name: string;
+            /** Title */
+            title: string;
+            /** Description */
+            description: string;
+            /** Specialization */
+            specialization: string;
+            grade: components["schemas"]["Grade"] | null;
+            /**
+             * Skills
+             * @description Названия навыков
+             */
+            skills: string[];
+            /**
+             * Questions
+             * @description Сколько вопросов будет в попытке
+             */
+            questions: number;
+            /** Time Per Question Sec */
+            time_per_question_sec: number;
+            /** Published At */
+            published_at: string | null;
+            /**
+             * Attempt Id
+             * @description Ваша попытка, если начата
+             */
+            attempt_id: number | null;
+            attempt_status: components["schemas"]["ChallengeAttemptStatus"] | null;
+            /**
+             * Score
+             * @description Ваша доля верных автопроверяемых ответов после завершения
+             */
+            score: number | null;
+        };
+        /** ChallengeCreate */
+        ChallengeCreate: {
+            /** Title */
+            title: string;
+            /**
+             * Description
+             * @description Кого ищете и что проверяет челлендж
+             */
+            description: string;
+            /** Specialization */
+            specialization: string;
+            /** @description null — для всех грейдов специализации */
+            grade?: components["schemas"]["Grade"] | null;
+            /**
+             * Skills
+             * @description Навыки из справочника
+             */
+            skills?: string[];
+            /**
+             * Time Per Question Sec
+             * @description Лимит на вопрос в секундах, считает сервер; null — по умолчанию
+             */
+            time_per_question_sec?: number | null;
+            /**
+             * Questions Per Attempt
+             * @description Сколько вопросов показать кандидату из общего списка; null — все
+             */
+            questions_per_attempt?: number | null;
+            /** Questions */
+            questions: components["schemas"]["ChallengeQuestion"][];
+        };
+        /** ChallengeOption */
+        ChallengeOption: {
+            /** Text */
+            text: string;
+            /**
+             * Correct
+             * @default false
+             */
+            correct: boolean;
+        };
+        /**
+         * ChallengeOut
+         * @description Челлендж глазами автора — с ключами.
+         */
+        ChallengeOut: {
+            /** Title */
+            title: string;
+            /**
+             * Description
+             * @description Кого ищете и что проверяет челлендж
+             */
+            description: string;
+            /** Specialization */
+            specialization: string;
+            /** @description null — для всех грейдов специализации */
+            grade?: components["schemas"]["Grade"] | null;
+            /**
+             * Skills
+             * @description Навыки из справочника
+             */
+            skills?: string[];
+            /**
+             * Time Per Question Sec
+             * @description Лимит на вопрос в секундах, считает сервер; null — по умолчанию
+             */
+            time_per_question_sec?: number | null;
+            /**
+             * Questions Per Attempt
+             * @description Сколько вопросов показать кандидату из общего списка; null — все
+             */
+            questions_per_attempt?: number | null;
+            /** Questions */
+            questions: components["schemas"]["ChallengeQuestion"][];
+            /** Id */
+            id: number;
+            status: components["schemas"]["ChallengeStatus"];
+            stats: components["schemas"]["ChallengeStats"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Published At */
+            published_at: string | null;
+            /** Closed At */
+            closed_at: string | null;
+        };
+        /**
+         * ChallengeQuestion
+         * @description Вопрос работодателя. Ключ (correct, number) виден только автору челленджа.
+         */
+        ChallengeQuestion: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "single_choice" | "multi_choice" | "numeric" | "open_approach";
+            /** Text */
+            text: string;
+            /**
+             * Code
+             * @description Фрагмент кода к вопросу
+             */
+            code?: string | null;
+            /**
+             * Options
+             * @description Для вопросов с выбором
+             */
+            options?: components["schemas"]["ChallengeOption"][];
+            /**
+             * Number
+             * @description Для numeric — верный ответ
+             */
+            number?: number | null;
+            /**
+             * Tolerance
+             * @description Для numeric — допустимое отклонение
+             * @default 0
+             */
+            tolerance: number;
+            /**
+             * Rubric
+             * @description Для open_approach — критерии, по которым вы прочитаете ответ
+             */
+            rubric?: string[];
+        };
+        /** ChallengeSolver */
+        ChallengeSolver: {
+            /** Attempt Id */
+            attempt_id: number;
+            candidate: components["schemas"]["CandidateBrief"];
+            /** Correct */
+            correct: number;
+            /** Scored Total */
+            scored_total: number;
+            /** Score */
+            score: number | null;
+            /** Finished At */
+            finished_at: string | null;
+            /** Open Answers */
+            open_answers: components["schemas"]["OpenAnswer"][];
+        };
+        /** ChallengeStats */
+        ChallengeStats: {
+            /** Started */
+            started: number;
+            /** Completed */
+            completed: number;
+            /**
+             * Average Score
+             * @description Средняя доля верных автопроверяемых ответов
+             */
+            average_score: number | null;
+        };
+        /**
+         * ChallengeStatus
+         * @enum {string}
+         */
+        ChallengeStatus: "draft" | "published" | "closed";
         /** CompanyPublic */
         CompanyPublic: {
             /** Id */
@@ -5113,6 +5542,18 @@ export interface components {
         OidcStartOut: {
             /** Authorization Url */
             authorization_url: string;
+        };
+        /** OpenAnswer */
+        OpenAnswer: {
+            /** Question */
+            question: string;
+            /**
+             * Answer
+             * @description Контакты в тексте скрыты до раскрытия контактов
+             */
+            answer: string | null;
+            /** Rubric */
+            rubric: string[];
         };
         /**
          * ParserKind
@@ -8711,6 +9152,289 @@ export interface operations {
             };
         };
     };
+    list_available_api_v1_challenges_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChallengeCard"][];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    start_challenge_api_v1_challenges__challenge_id__start_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                challenge_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChallengeAttemptResult"];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ошибка валидации данных */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_attempt_api_v1_challenge_attempts__attempt_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                attempt_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChallengeAttemptResult"];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ошибка валидации данных */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    current_question_api_v1_challenge_attempts__attempt_id__current_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                attempt_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentItem"];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ошибка валидации данных */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    answer_question_api_v1_challenge_attempts__attempt_id__answer_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                attempt_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnswerRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnswerAck"];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Конфликт состояния */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ошибка валидации данных */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     get_my_market_api_v1_candidates_me_market_get: {
         parameters: {
             query?: never;
@@ -10661,6 +11385,407 @@ export interface operations {
             };
             /** @description Конфликт состояния */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ошибка валидации данных */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_challenges_api_v1_employer_challenges_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChallengeOut"][];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    create_challenge_api_v1_employer_challenges_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChallengeCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChallengeOut"];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ошибка валидации данных */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_challenge_api_v1_employer_challenges__challenge_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                challenge_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChallengeOut"];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ошибка валидации данных */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    update_challenge_api_v1_employer_challenges__challenge_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                challenge_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChallengeCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChallengeOut"];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Конфликт состояния */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ошибка валидации данных */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    publish_challenge_api_v1_employer_challenges__challenge_id__publish_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                challenge_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChallengeOut"];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Конфликт состояния */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ошибка валидации данных */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    close_challenge_api_v1_employer_challenges__challenge_id__close_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                challenge_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChallengeOut"];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ошибка валидации данных */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_solvers_api_v1_employer_challenges__challenge_id__solvers_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                challenge_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChallengeSolver"][];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Не найдено */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

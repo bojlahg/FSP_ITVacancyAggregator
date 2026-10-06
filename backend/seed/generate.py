@@ -25,6 +25,8 @@ from app.core.enums import (
     AttemptPurpose,
     AttemptResult,
     AttemptStatus,
+    ChallengeAttemptStatus,
+    ChallengeStatus,
     ConsentKind,
     DeclineReason,
     FspLinkMethod,
@@ -62,6 +64,9 @@ from app.models import (
     User,
 )
 from app.modules.categories import service as categories_service
+from app.modules.challenges import service as challenges_service
+from app.modules.challenges.models import Challenge, ChallengeAttempt
+from app.modules.challenges.schemas import ChallengeQuestion
 from app.modules.fsp import service as fsp_service
 from app.modules.fsp.evidence import RankRecord, ResultRecord
 from app.modules.matching import service as matching_service
@@ -81,6 +86,62 @@ DEMO_DOMAIN = "demo.itscout.ru"
 TEAM_INDEX = 9000  # индексы кандидатов команды — вне диапазона демо-кандидатов
 FREE_FSP_ID = "FSP-2026-7781"  # участник реестра без профиля на платформе — для живой демонстрации привязки
 DEMO_TASK_TEMPLATE = "be.db.composite_index"
+DEMO_CHALLENGE_QUESTIONS = [
+    {
+        "kind": "single_choice",
+        "text": "Клиент повторил POST /payments с тем же Idempotency-Key после таймаута. Что должен вернуть сервис?",
+        "options": [
+            {"text": "Тот же ответ, что и на первый запрос, без повторного списания", "correct": True},
+            {"text": "Новый платёж с новым id"},
+            {"text": "500 — повторы запрещены"},
+            {"text": "409 Conflict в любом случае"},
+        ],
+    },
+    {
+        "kind": "multi_choice",
+        "text": "Что защищает от двойного списания при повторе запроса?",
+        "options": [
+            {"text": "Уникальный индекс по ключу идемпотентности", "correct": True},
+            {"text": "Сохранение результата первого запроса и возврат его при повторе", "correct": True},
+            {"text": "Увеличение таймаута на клиенте"},
+            {"text": "Подробное логирование запросов"},
+        ],
+    },
+    {
+        "kind": "numeric",
+        "text": (
+            "Сервис обрабатывает 200 запросов в секунду, среднее время ответа — 50 мс. Сколько запросов "
+            "в среднем находится в обработке одновременно?"
+        ),
+        "number": 10,
+    },
+    {
+        "kind": "single_choice",
+        "text": "Какой уровень изоляции транзакций в PostgreSQL используется по умолчанию?",
+        "options": [
+            {"text": "Read committed", "correct": True},
+            {"text": "Repeatable read"},
+            {"text": "Serializable"},
+            {"text": "Read uncommitted"},
+        ],
+    },
+    {
+        "kind": "open_approach",
+        "text": "Партнёр временно недоступен. Как бы вы организовали повторную доставку webhook-уведомлений?",
+        "rubric": [
+            "Очередь и повторы с экспоненциальной задержкой",
+            "Идемпотентность на стороне получателя",
+            "Ограничение попыток и очередь недоставленных",
+        ],
+    },
+]
+DEMO_CHALLENGE_OPEN_ANSWERS = [
+    "Кладу событие в очередь, повторяю с экспоненциальной задержкой и джиттером, после N попыток — в DLQ "
+    "с алертом. В событии id, чтобы партнёр дедуплицировал повторы.",
+    "Outbox-таблица в той же транзакции, воркер шлёт и ретраит с backoff. Партнёр обрабатывает по event_id "
+    "идемпотентно, после суток недоставки — ручной разбор.",
+    "Повторять каждые пять минут, пока не получится.",
+]
 DEMO_APPROACH_RUBRIC = [
     "Клиент передаёт ключ идемпотентности",
     "Результат первой операции сохраняется вместе с ключом",
@@ -1235,6 +1296,85 @@ class Seeder:
         ][:2]:
             self.db.add(NeedShortlist(need_id=demo_need.id, candidate_id=record["candidate"].id))
 
+    async def build_challenges(self) -> None:
+        """Челлендж «Демо Банка» (§11.1) с тремя решившими; герои его не проходили — им покажут живьём."""
+        rng = self.rng
+        need = self.needs[0]
+        published = self.now - timedelta(days=6)
+        questions = [ChallengeQuestion.model_validate(q) for q in DEMO_CHALLENGE_QUESTIONS]
+        challenge = Challenge(
+            employer_id=self.employers[0].id,
+            title="Платежи без двойных списаний",
+            description=(
+                "Ищем backend-разработчиков в платёжную команду. Пять вопросов про идемпотентность, транзакции "
+                "и надёжную доставку событий — около семи минут."
+            ),
+            specialization=need.specialization,
+            grade=None,
+            skills=["python", "postgresql"],
+            time_per_question_sec=90,
+            questions_per_attempt=None,
+            questions=challenges_service.stored_questions(questions),
+            status=ChallengeStatus.published,
+            created_at=published - timedelta(days=1),
+            published_at=published,
+        )
+        self.db.add(challenge)
+        await self.db.flush()
+
+        heroes = {id(hero["candidate"]) for hero in [*self.heroes.values(), self.e2e_candidate]}
+        pool = [
+            c
+            for c in self.candidates
+            if c["category"] is not None
+            and c["category"].specialization == need.specialization
+            and id(c["candidate"]) not in heroes
+        ]
+        for index, record in enumerate(pool[:3]):
+            started = published + timedelta(days=1 + index, hours=rng.randint(9, 18))
+            items = []
+            for number, question in enumerate(challenge.questions):
+                shown = started + timedelta(seconds=90 * number)
+                answered = shown + timedelta(seconds=rng.randint(25, 80))
+                # Третий решивший ошибается в двух вопросах — список решивших не из одних 100%
+                right = not (index == 2 and number in (1, 3))
+                option_map = {str(i): option["id"] for i, option in enumerate(question["options"], 1)}
+                if question["kind"] == "open_approach":
+                    response = {"text": DEMO_CHALLENGE_OPEN_ANSWERS[index]}
+                elif question["kind"] == "numeric":
+                    response = {"number": question["key"]["number"] + (0 if right else 5)}
+                else:
+                    wrong = [
+                        o["id"] for o in question["options"] if o["id"] not in question["key"]["choice_ids"]
+                    ][:1]
+                    response = {"choice_ids": question["key"]["choice_ids"] if right else wrong}
+                points = (
+                    None
+                    if question["kind"] == "open_approach"
+                    else score(question["kind"], question["key"], response)
+                )
+                items.append(
+                    {
+                        "question_id": question["id"],
+                        "option_map": option_map,
+                        "shown_at": shown.isoformat(),
+                        "answered_at": answered.isoformat(),
+                        "response": response,
+                        "score": points,
+                        "late": False,
+                    }
+                )
+            attempt = ChallengeAttempt(
+                challenge_id=challenge.id,
+                candidate_id=record["candidate"].id,
+                status=ChallengeAttemptStatus.in_progress,
+                items=items,
+                started_at=started,
+            )
+            challenges_service.finalize(attempt, challenge, items, started + timedelta(minutes=8))
+            self.db.add(attempt)
+        await self.db.flush()
+
     async def build_tasks(self) -> None:
         """Регулярные задания «Демо Банка» (§11) с решениями; герои заданий не получают — им предложат живьём."""
         rng = self.rng
@@ -1395,6 +1535,7 @@ class Seeder:
         await self.build_needs()
         await self.build_interactions()
         await self.build_tasks()
+        await self.build_challenges()
         await self.finalize()
         await self.db.flush()
         await self.snapshot_interactions()

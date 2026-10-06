@@ -158,6 +158,17 @@ class TaskKind(StrEnum):
     approach = "approach"
 
 
+class ChallengeStatus(StrEnum):
+    draft = "draft"
+    published = "published"
+    closed = "closed"
+
+
+class ChallengeAttemptStatus(StrEnum):
+    in_progress = "in_progress"
+    completed = "completed"
+
+
 class AssignmentStatus(StrEnum):
     offered = "offered"
     submitted = "submitted"

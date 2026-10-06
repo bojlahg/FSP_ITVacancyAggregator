@@ -19,6 +19,7 @@ from app.modules.candidates.router import router as candidates_router
 from app.modules.catalog.router import router as catalog_router
 from app.modules.catalog.service import get_catalog
 from app.modules.categories.router import router as categories_router
+from app.modules.challenges import router as challenges
 from app.modules.debug.router import router as debug_router
 from app.modules.employers.router import router as employers_router
 from app.modules.expert.router import router as expert_router
@@ -144,6 +145,7 @@ def create_app() -> FastAPI:
         invitations.candidate_router,
         applications.candidate_router,
         tasks.candidate_router,
+        challenges.candidate_router,
         market_router,
         employers_router,
         needs_router,
@@ -153,6 +155,7 @@ def create_app() -> FastAPI:
         applications.employer_router,
         vacancy_test_router,
         tasks.employer_router,
+        challenges.employer_router,
         integrations_router,
         explainer_router,
         legal_router,

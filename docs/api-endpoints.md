@@ -2,7 +2,7 @@
 
 # Справочник эндпоинтов
 
-ITScout API 0.1.0: 127 операций. Префикс `/api/v1`; схемы запросов и ответов — в `backend/openapi.json` и Swagger UI (`/api/docs`). Колонка «Ошибки» — описанные коды ответов, тело ошибки всегда `{error: {code, message, details}}`.
+ITScout API 0.1.0: 139 операций. Префикс `/api/v1`; схемы запросов и ответов — в `backend/openapi.json` и Swagger UI (`/api/docs`). Колонка «Ошибки» — описанные коды ответов, тело ошибки всегда `{error: {code, message, details}}`.
 
 ## service
 
@@ -248,6 +248,28 @@ ITScout API 0.1.0: 127 операций. Префикс `/api/v1`; схемы з
 | `GET` | `/expert/angoff/impact` | Modified Angoff: после раунда 1 — доли кандидатов по грейдам и пороги группы | JWT | 200 | 401, 403, 404, 409, 422 |
 | `PUT` | `/expert/angoff/hofstee` | Проверка Hofstee: допустимые порог (доля верных) и доля не дотягивающих до грейда | JWT | 200 | 401, 403, 404, 422 |
 | `GET` | `/expert/angoff/summary` | Modified Angoff: пороги раундов 1 и 2, проверка Hofstee, рекомендация против действующих | JWT | 200 | 401, 403, 404, 422 |
+
+## candidate: challenges
+
+| Метод | Путь | Назначение | Доступ | Успех | Ошибки |
+|---|---|---|---|---|---|
+| `GET` | `/challenges` | Челленджи компаний по вашей категории | JWT | 200 | 401, 403 |
+| `POST` | `/challenges/{challenge_id}/start` | Начать челлендж (одна попытка; повторный вызов возвращает её же) | JWT | 200 | 401, 403, 404, 422 |
+| `GET` | `/challenge-attempts/{attempt_id}` | Попытка: прогресс и результат | JWT | 200 | 401, 403, 404, 422 |
+| `GET` | `/challenge-attempts/{attempt_id}/current` | Текущий вопрос (без ключа); время считает сервер | JWT | 200 | 401, 403, 404, 422 |
+| `POST` | `/challenge-attempts/{attempt_id}/answer` | Ответ на текущий вопрос | JWT | 200 | 401, 403, 404, 409, 422 |
+
+## employer: challenges
+
+| Метод | Путь | Назначение | Доступ | Успех | Ошибки |
+|---|---|---|---|---|---|
+| `GET` | `/employer-challenges` | Мои челленджи | JWT | 200 | 401, 403 |
+| `POST` | `/employer-challenges` | Создать черновик челленджа со своими вопросами | JWT | 201 | 401, 403, 422 |
+| `GET` | `/employer-challenges/{challenge_id}` | Челлендж с вопросами и ключами (только автору) | JWT | 200 | 401, 403, 404, 422 |
+| `PUT` | `/employer-challenges/{challenge_id}` | Изменить черновик | JWT | 200 | 401, 403, 404, 409, 422 |
+| `POST` | `/employer-challenges/{challenge_id}/publish` | Опубликовать: челлендж увидят кандидаты подходящей категории | JWT | 200 | 401, 403, 404, 409, 422 |
+| `POST` | `/employer-challenges/{challenge_id}/close` | Закрыть: новые кандидаты не начнут, начатые попытки можно завершить | JWT | 200 | 401, 403, 404, 422 |
+| `GET` | `/employer-challenges/{challenge_id}/solvers` | Решившие по убыванию результата | JWT | 200 | 401, 403, 404, 422 |
 
 ## admin: reports
 
