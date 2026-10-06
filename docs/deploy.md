@@ -103,6 +103,7 @@ PDF-профиль требует системных библиотек WeasyPri
 
 1. VDS с Ubuntu, от 2 vCPU и 3 ГБ RAM. Установить Docker Engine и Compose plugin. Если Docker Hub недоступен — зеркало в `/etc/docker/daemon.json` (см. раздел 2). Своп 2 ГБ как подстраховка от OOM — `infra/scripts/setup-swap.sh` (идемпотентный; без SSH — `gh workflow run server-ops.yml -f action=swap`).
 2. DNS: A-записи `itscout.ru` и `www.itscout.ru` → IP сервера. Caddy сам выпустит сертификат Let's Encrypt при первом запросе.
+   По голому HTTP (по IP или другому хосту) отвечают только `/health` и `/api/v1/health` — для проверки деплоя; остальное Caddy редиректит на `https://itscout.ru`, чтобы пароль не шёл открытым текстом.
 3. Для писем: открыть исходящий порт 25 у провайдера, в DNS — SPF `v=spf1 ip4:<IP> -all`, DKIM (`mail._domainkey`, ключ генерирует контейнер `mail` в volume `dkim`), DMARC; PTR IP → домен.
 4. Каталог приложения `/opt/itscout/app`, в нём `.env` с правами 600:
 
