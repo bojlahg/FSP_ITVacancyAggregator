@@ -48,6 +48,7 @@ export const employerKeys = {
   coverage: (id: number) => ["needs", id, "salary-coverage"] as const,
   talentCategories: ["talent", "categories"] as const,
   talentSearch: (query: TalentSearchQuery) => ["talent", "search", query] as const,
+  candidateAll: (id: number) => ["talent", "candidates", id] as const,
   candidate: (id: number, needId: number | null) => ["talent", "candidates", id, needId] as const,
   invitationsAll: ["employer", "invitations"] as const,
   invitations: (query: EmployerInvitationsQuery) => ["employer", "invitations", query] as const,
@@ -326,6 +327,8 @@ export function useCreateInvitation() {
     },
     onSuccess: (invitation) => {
       void queryClient.invalidateQueries({ queryKey: employerKeys.invitationsAll });
+      // Карточка кандидата показывает статус приглашения: без сброса кнопка «Пригласить» вернётся и даст 409
+      void queryClient.invalidateQueries({ queryKey: employerKeys.candidateAll(invitation.candidate.id) });
       void queryClient.invalidateQueries({ queryKey: employerKeys.needs, exact: true });
       if (invitation.need_id !== null) {
         void queryClient.invalidateQueries({ queryKey: employerKeys.need(invitation.need_id), exact: true });
