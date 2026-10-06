@@ -6,9 +6,11 @@ on:
   pull_request:
   workflow_dispatch:
 
+# PR — отменяем устаревший прогон; push в master — нет: иначе новый коммит обрывает идущий деплой
+# посреди `docker compose up`. Прогоны master идут по очереди (ждущий заменяется более новым), порядок деплоя сохраняется.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   DEPLOY_HOST: 94.103.87.151
