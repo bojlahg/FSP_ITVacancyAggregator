@@ -3,13 +3,14 @@ import contextlib
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 
 from app.core.config import get_settings
-from app.core.enums import Grade
+from app.core.enums import AttemptStatus, Grade
 from app.modules.candidates.models import Candidate
 from app.modules.categories.models import CandidateCategory
 from app.modules.testing import service as testing_service
+from app.modules.testing.models import TestAttempt as Attempt
 from app.modules.testing.models import TestAttemptItem as AttemptItem
 from tests.test_engine import synthetic_bank
 
@@ -335,3 +336,71 @@ async def test_open_answer_without_llm_is_kept_unscored(client, session, monkeyp
     await answer_all(client, session, headers, started.json()["id"], correct=True)
     result = (await client.get(f"{API}/tests/attempts/{started.json()['id']}/result", headers=headers)).json()
     assert result["approach_score"] is None
+
+
+async def test_express_test_gives_no_category_and_keeps_grade_rules(client, session, monkeypatch):
+    headers = await signup(client, "express@example.com")
+    await onboard(client, headers)
+    status = (await client.get(f"{API}/candidates/me/grade-status", headers=headers)).json()
+    assert status["express"] == {"items": 8, "per_day": get_settings().express_tests_per_day}
+
+    body = {"specialization": "backend", "grade_target": "middle", "purpose": "express"}
+    started = await client.post(f"{API}/tests/attempts", json=body, headers=headers)
+    assert started.status_code == 201, started.text
+    attempt_id = started.json()["id"]
+    assert started.json()["purpose"] == "express"
+    assert started.json()["total_estimate"] == started.json()["total_max"] == 8
+
+    answered = 0
+    while not (
+        current := (await client.get(f"{API}/tests/attempts/{attempt_id}/current", headers=headers)).json()
+    )["finished"]:
+        item = await session.get(AttemptItem, current["item_id"])
+        await session.refresh(item)
+        assert item.payload["kind"] != "open_approach", "в экспресс-тесте нет открытого вопроса"
+        response = {"choice_ids": item.answer_key["choice_ids"]}
+        ack = await client.post(
+            f"{API}/tests/attempts/{attempt_id}/answer",
+            json={"item_id": current["item_id"], "response": response},
+            headers=headers,
+        )
+        assert ack.status_code == 200, ack.text
+        answered += 1
+    assert answered == 8
+
+    result = (await client.get(f"{API}/tests/attempts/{attempt_id}/result", headers=headers)).json()
+    assert result["purpose"] == "express" and result["result"] in {"pass", "confident_pass"}
+    assert result["category"] is None
+    assert result["next_actions"][0]["action"] == "full_test"
+    profile = (await client.get(f"{API}/candidates/me", headers=headers)).json()
+    assert profile["category"] is None
+    assert await session.scalar(select(func.count()).select_from(CandidateCategory)) == 0
+
+    # Полный тест на тот же грейд доступен сразу: экспресс правила грейда не трогает
+    full = await client.post(
+        f"{API}/tests/attempts", json={"specialization": "backend", "grade_target": "middle"}, headers=headers
+    )
+    assert full.status_code == 201, full.text
+
+
+async def test_express_test_limit_and_switch(client, session, monkeypatch):
+    headers = await signup(client, "limit@example.com")
+    await onboard(client, headers)
+    body = {"specialization": "backend", "grade_target": "junior", "purpose": "express"}
+
+    monkeypatch.setattr(get_settings(), "express_test_enabled", False)
+    disabled = await client.post(f"{API}/tests/attempts", json=body, headers=headers)
+    assert disabled.status_code == 403 and disabled.json()["error"]["code"] == "express_disabled"
+    status = (await client.get(f"{API}/candidates/me/grade-status", headers=headers)).json()
+    assert status["express"] is None
+
+    monkeypatch.setattr(get_settings(), "express_test_enabled", True)
+    monkeypatch.setattr(get_settings(), "express_tests_per_day", 1)
+    first = await client.post(f"{API}/tests/attempts", json=body, headers=headers)
+    assert first.status_code == 201, first.text
+    await session.execute(
+        update(Attempt).where(Attempt.id == first.json()["id"]).values(status=AttemptStatus.completed)
+    )
+    await session.commit()
+    second = await client.post(f"{API}/tests/attempts", json=body, headers=headers)
+    assert second.status_code == 429

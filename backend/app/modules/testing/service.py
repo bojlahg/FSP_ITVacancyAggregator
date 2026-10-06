@@ -7,13 +7,15 @@ from sqlalchemy import delete, func, select, update
 from sqlalchemy.dialects.postgresql import distinct_on, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core import llm
+from app.core import llm, ratelimit
 from app.core.config import get_settings
 from app.core.enums import AttemptPurpose, AttemptResult, AttemptStatus, Grade, SkillSource, TemplateStatus
-from app.core.errors import AppError, ConflictError, NotFoundError
+from app.core.errors import AppError, ConflictError, ForbiddenError, NotFoundError
+from app.core.ratelimit import TooManyRequestsError
 from app.modules.candidates.models import Candidate, CandidateSkill
 from app.modules.catalog.service import get_catalog
 from app.modules.categories import service as categories_service
+from app.modules.categories.schemas import ExpressTestInfo
 from app.modules.matching import service as matching_service
 from app.modules.survey import service as survey_service
 from app.modules.testing.engine import confidence, integrity
@@ -93,7 +95,7 @@ async def _planner(db: AsyncSession, attempt: TestAttempt) -> Planner:
 
 def _total_estimate(planner: Planner) -> int:
     mode = planner.mode
-    open_item = GRADE_ORDER.index(planner.config.grade_target) >= GRADE_ORDER.index(
+    open_item = mode.open_item and GRADE_ORDER.index(planner.config.grade_target) >= GRADE_ORDER.index(
         planner.blueprints.open_approach_from_grade
     )
     return mode.stage1_items + mode.stage2_items + mode.pilot_slots + int(open_item)
@@ -140,12 +142,18 @@ async def start(db: AsyncSession, candidate: Candidate, body: AttemptCreate) -> 
             "Есть незавершённый тест", code="attempt_in_progress", details={"attempt_id": in_progress.id}
         )
 
-    decision = await categories_service.check_can_start(db, candidate, body.grade_target.value)
-    if not decision.allowed:
-        details = {"available_at": decision.available_at.isoformat()} if decision.available_at else None
-        raise ConflictError(
-            decision.reason or "Сейчас нельзя", code=decision.code or "conflict", details=details
-        )
+    express = body.purpose == AttemptPurpose.express
+    if express:
+        await _check_express(db, candidate)
+        purpose, mode = AttemptPurpose.express, "express"
+    else:
+        decision = await categories_service.check_can_start(db, candidate, body.grade_target.value)
+        if not decision.allowed:
+            details = {"available_at": decision.available_at.isoformat()} if decision.available_at else None
+            raise ConflictError(
+                decision.reason or "Сейчас нельзя", code=decision.code or "conflict", details=details
+            )
+        purpose, mode = AttemptPurpose(decision.purpose), get_settings().test_mode
 
     response = await survey_service.latest_response(db, candidate.id)
     stack_modules = survey_service.stack_modules_for(
@@ -155,8 +163,8 @@ async def start(db: AsyncSession, candidate: Candidate, body: AttemptCreate) -> 
         candidate_id=candidate.id,
         specialization=candidate.specialization,
         grade_target=body.grade_target,
-        purpose=AttemptPurpose(decision.purpose),
-        blueprint={"mode": get_settings().test_mode, "stack_modules": stack_modules},
+        purpose=purpose,
+        blueprint={"mode": mode, "stack_modules": stack_modules},
         seed=secrets.randbits(31),
         status=AttemptStatus.in_progress,
         flags={},
@@ -164,6 +172,25 @@ async def start(db: AsyncSession, candidate: Candidate, body: AttemptCreate) -> 
     db.add(attempt)
     await db.commit()
     return _attempt_out(attempt, [], await _planner(db, attempt))
+
+
+async def _check_express(db: AsyncSession, candidate: Candidate) -> None:
+    """Экспресс-тест (§10.3.1) не трогает правила грейда, но показывает шаблоны банка: лимит в сутки."""
+    settings = get_settings()
+    if not settings.express_test_enabled:
+        raise ForbiddenError("Экспресс-тест на платформе выключен", code="express_disabled")
+    if not await ratelimit.hit(db, f"express:{candidate.id}", settings.express_tests_per_day, 86400):
+        raise TooManyRequestsError("Экспресс-тестов на сегодня больше нет — попробуйте завтра")
+
+
+def express_info() -> ExpressTestInfo | None:
+    """Для экрана «Категория и грейд»: длина экспресс-теста; None — выключен."""
+    settings = get_settings()
+    if not settings.express_test_enabled:
+        return None
+    mode = get_blueprints().modes["express"]
+    items = mode.stage1_items + mode.stage2_items
+    return ExpressTestInfo(items=items, per_day=settings.express_tests_per_day)
 
 
 async def get_attempt(db: AsyncSession, candidate: Candidate, attempt_id: int) -> AttemptOut:
@@ -331,6 +358,8 @@ async def _finalize(
         flags["integrity"] = _integrity(items, summary.theta).as_dict()
     attempt.flags = flags
 
+    if attempt.purpose == AttemptPurpose.express:
+        return  # экспресс-тест категорию, навыки и выдачу не меняет (§10.3.1)
     previous = None
     if attempt.candidate_id is not None:
         previous = await categories_service.get_current(db, attempt.candidate_id)
@@ -523,6 +552,7 @@ async def result(db: AsyncSession, candidate: Candidate, attempt_id: int) -> Att
         attempt_id=attempt.id,
         specialization=attempt.specialization,
         grade_target=attempt.grade_target,
+        purpose=attempt.purpose,
         result=attempt.result,
         theta=attempt.theta,
         se=attempt.se,
@@ -546,6 +576,20 @@ async def result(db: AsyncSession, candidate: Candidate, attempt_id: int) -> Att
 async def _next_actions(db: AsyncSession, candidate: Candidate, attempt: TestAttempt) -> list[NextAction]:
     blueprints = get_blueprints()
     grade = attempt.grade_target.value
+    if attempt.purpose == AttemptPurpose.express:
+        # После экспресс-оценки — полный тест на этот грейд, если правила грейда его разрешают
+        decision = await categories_service.check_can_start(db, candidate, grade)
+        text = "Пройти полный тест — он присваивает категорию"
+        message = text if decision.allowed else f"{text}: {decision.reason or 'позже'}"
+        action = "full_test" if decision.code != "same_grade" else "none"
+        return [
+            NextAction(
+                action=action,
+                grade=attempt.grade_target if action != "none" else None,
+                available_at=decision.available_at,
+                message=message if action != "none" else "Это ваш текущий грейд — он уже подтверждён тестом",
+            )
+        ]
     if attempt.result == AttemptResult.fail:
         target, action, text = blueprints.previous_grade(grade), "retake_lower", "Пройти тест на грейд ниже"
     else:
@@ -568,6 +612,7 @@ async def latest_thetas(db: AsyncSession, specialization: str) -> list[float]:
             TestAttempt.status == AttemptStatus.completed,
             TestAttempt.theta.is_not(None),
             TestAttempt.candidate_id.is_not(None),
+            TestAttempt.purpose != AttemptPurpose.express,
         )
         .order_by(
             TestAttempt.candidate_id, TestAttempt.finished_at.desc().nulls_last(), TestAttempt.id.desc()

@@ -231,6 +231,7 @@ DEBUG_TOOLS=true            # отладочный раздел; перед по
 | `APP_ENV` | `dev` (в `infra/docker-compose.yml` — `prod`, если не задан) | `prod` требует собственный `JWT_SECRET` от 32 символов и `COOKIE_SECURE=true`, иначе backend не стартует |
 | `DEMO_MODE` | `true` | демо-вход, сброс демо-данных и ограничений смены грейда |
 | `TEST_MODE` | `full` | `short` — сокращённый тест для показа (8–10 заданий) |
+| `EXPRESS_TEST_ENABLED`, `EXPRESS_TESTS_PER_DAY` | `true`, `5` | экспресс-тест без категории (§10.3.1): кнопка на экране «Категория и грейд», лимит на кандидата в сутки |
 | `INTEGRITY_SIGNALS_ENABLED` | `true` | сигналы честности попытки (§10.9): `false` — не считаются, не сохраняются и не показываются работодателю |
 | `PUBLIC_BASE_URL`, `CORS_ORIGINS` | localhost:5173 | адрес фронта для ссылок в письмах, OIDC и CORS |
 | `POSTGRES_*` | `itscout` | БД |

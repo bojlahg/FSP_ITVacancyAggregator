@@ -68,6 +68,8 @@ class AttemptPurpose(StrEnum):
     upgrade = "upgrade"
     downgrade = "downgrade"
     vacancy_preview = "vacancy_preview"
+    # Экспресс-тест (§10.3.1): короткая проверка уровня, категорию не присваивает
+    express = "express"
 
 
 class AttemptStatus(StrEnum):

@@ -2969,7 +2969,7 @@ export interface components {
          * AttemptPurpose
          * @enum {string}
          */
-        AttemptPurpose: "calibration" | "upgrade" | "downgrade" | "vacancy_preview";
+        AttemptPurpose: "calibration" | "upgrade" | "downgrade" | "vacancy_preview" | "express";
         /**
          * AttemptResult
          * @enum {string}
@@ -2982,6 +2982,8 @@ export interface components {
             /** Specialization */
             specialization: string;
             grade_target: components["schemas"]["Grade"];
+            /** @description express — экспресс-тест: категория по нему не присваивается */
+            purpose: components["schemas"]["AttemptPurpose"];
             result: components["schemas"]["AttemptResult"];
             /**
              * Theta
@@ -4429,6 +4431,19 @@ export interface components {
             /** Text */
             text: string;
         };
+        /** ExpressTestInfo */
+        ExpressTestInfo: {
+            /**
+             * Items
+             * @description Заданий в экспресс-тесте
+             */
+            items: number;
+            /**
+             * Per Day
+             * @description Сколько экспресс-тестов можно пройти за сутки
+             */
+            per_day: number;
+        };
         /** FspAchievementOut */
         FspAchievementOut: {
             /** Competition Name */
@@ -4707,6 +4722,8 @@ export interface components {
         };
         /** GradeStatus */
         GradeStatus: {
+            /** @description Экспресс-тест (§10.3.1): короткая проверка уровня без категории; null — выключен */
+            express: components["schemas"]["ExpressTestInfo"] | null;
             current: components["schemas"]["CategoryRecord"] | null;
             /** History */
             history: components["schemas"]["CategoryRecord"][];
@@ -5521,7 +5538,7 @@ export interface components {
         NextAction: {
             /**
              * Action
-             * @description retake_lower | try_higher | none
+             * @description retake_lower | try_higher | full_test (после экспресс-теста) | none
              */
             action: string;
             grade?: components["schemas"]["Grade"] | null;

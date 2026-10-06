@@ -20,6 +20,7 @@ class ModeConfig(BaseModel):
     stage2_items: int
     extra_items_max: int
     pilot_slots: int
+    open_item: bool = True  # открытый вопрос о подходе с open_approach_from_grade
 
 
 class Scale(BaseModel):

@@ -147,7 +147,7 @@ class GradeEvidence(ApiModel):
 
 
 class NextAction(ApiModel):
-    action: str = Field(description="retake_lower | try_higher | none")
+    action: str = Field(description="retake_lower | try_higher | full_test (после экспресс-теста) | none")
     grade: Grade | None = None
     available_at: datetime | None = None
     message: str
@@ -157,6 +157,7 @@ class AttemptResultOut(ApiModel):
     attempt_id: int
     specialization: str
     grade_target: Grade
+    purpose: AttemptPurpose = Field(description="express — экспресс-тест: категория по нему не присваивается")
     result: AttemptResult
     theta: float = Field(description="Оценка способности на IRT-шкале специализации")
     se: float = Field(description="Стандартная ошибка оценки")

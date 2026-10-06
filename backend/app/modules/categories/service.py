@@ -6,7 +6,7 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
-from app.core.enums import AttemptStatus, Grade
+from app.core.enums import AttemptPurpose, AttemptStatus, Grade
 from app.core.schemas import CategoryRef
 from app.modules.candidates.models import Candidate
 from app.modules.catalog.service import get_catalog
@@ -72,7 +72,9 @@ def _records(candidate: Candidate, attempts: list[TestAttempt]) -> list[AttemptR
             specialization=a.specialization,
         )
         for a in attempts
-        if reset_at is None or a.started_at >= reset_at or a.status == AttemptStatus.in_progress
+        # Экспресс-тест в правилах грейда не считается — кроме незавершённого: он блокирует новый тест
+        if (reset_at is None or a.started_at >= reset_at or a.status == AttemptStatus.in_progress)
+        and (a.purpose != AttemptPurpose.express or a.status == AttemptStatus.in_progress)
     ]
 
 
@@ -159,7 +161,10 @@ async def grade_status(db: AsyncSession, candidate: Candidate) -> GradeStatus:
         current_record.evidence = await testing_service.grade_evidence(
             db, current_row.attempt_id, current_row.grade.value, current_row.valid_until, for_candidate=True
         )
+    from app.modules.testing import service as testing_service
+
     return GradeStatus(
+        express=testing_service.express_info(),
         current=current_record,
         history=[record(row) for row in history_rows],
         attempts=[

@@ -172,7 +172,8 @@ class Planner:
                 return NextItem(template, STAGE_EXTRA, True, instance_seed)
 
         open_from = GRADE_ORDER.index(self.blueprints.open_approach_from_grade)
-        if GRADE_ORDER.index(grade) >= open_from and not any(a.stage == STAGE_OPEN for a in history):
+        open_due = self.mode.open_item and GRADE_ORDER.index(grade) >= open_from
+        if open_due and not any(a.stage == STAGE_OPEN for a in history):
             open_items = [
                 t
                 for t in self.pool

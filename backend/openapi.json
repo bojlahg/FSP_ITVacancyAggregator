@@ -11722,7 +11722,8 @@
           "calibration",
           "upgrade",
           "downgrade",
-          "vacancy_preview"
+          "vacancy_preview",
+          "express"
         ],
         "title": "AttemptPurpose"
       },
@@ -11747,6 +11748,10 @@
           },
           "grade_target": {
             "$ref": "#/components/schemas/Grade"
+          },
+          "purpose": {
+            "$ref": "#/components/schemas/AttemptPurpose",
+            "description": "express — экспресс-тест: категория по нему не присваивается"
           },
           "result": {
             "$ref": "#/components/schemas/AttemptResult"
@@ -11827,6 +11832,7 @@
           "attempt_id",
           "specialization",
           "grade_target",
+          "purpose",
           "result",
           "theta",
           "se",
@@ -15778,6 +15784,26 @@
         ],
         "title": "ExplanationLine"
       },
+      "ExpressTestInfo": {
+        "properties": {
+          "items": {
+            "type": "integer",
+            "title": "Items",
+            "description": "Заданий в экспресс-тесте"
+          },
+          "per_day": {
+            "type": "integer",
+            "title": "Per Day",
+            "description": "Сколько экспресс-тестов можно пройти за сутки"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "per_day"
+        ],
+        "title": "ExpressTestInfo"
+      },
       "FspAchievementOut": {
         "properties": {
           "competition_name": {
@@ -16395,6 +16421,17 @@
       },
       "GradeStatus": {
         "properties": {
+          "express": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExpressTestInfo"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Экспресс-тест (§10.3.1): короткая проверка уровня без категории; null — выключен"
+          },
           "current": {
             "anyOf": [
               {
@@ -16433,6 +16470,7 @@
         },
         "type": "object",
         "required": [
+          "express",
           "current",
           "history",
           "attempts",
@@ -18502,7 +18540,7 @@
           "action": {
             "type": "string",
             "title": "Action",
-            "description": "retake_lower | try_higher | none"
+            "description": "retake_lower | try_higher | full_test (после экспресс-теста) | none"
           },
           "grade": {
             "anyOf": [

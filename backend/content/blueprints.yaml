@@ -19,6 +19,13 @@ modes:
     stage2_items: 4
     extra_items_max: 2
     pilot_slots: 0
+  # Экспресс-тест (§10.3.1): 3–5 минут, без уточняющих заданий и открытого вопроса; категорию не присваивает
+  express:
+    stage1_items: 4
+    stage2_items: 4
+    extra_items_max: 0
+    pilot_slots: 0
+    open_item: false
 
 selection:
   window: 0.6            # стартовое окно сложности |b − цель|, расширяется при нехватке шаблонов

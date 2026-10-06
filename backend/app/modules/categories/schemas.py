@@ -40,7 +40,15 @@ class GradeAction(ApiModel):
     reason: str | None = None
 
 
+class ExpressTestInfo(ApiModel):
+    items: int = Field(description="Заданий в экспресс-тесте")
+    per_day: int = Field(description="Сколько экспресс-тестов можно пройти за сутки")
+
+
 class GradeStatus(ApiModel):
+    express: ExpressTestInfo | None = Field(
+        description="Экспресс-тест (§10.3.1): короткая проверка уровня без категории; null — выключен"
+    )
     current: CategoryRecord | None
     history: list[CategoryRecord]
     attempts: list[AttemptSummary]
