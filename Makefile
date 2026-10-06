@@ -32,7 +32,8 @@ openapi:       ## выгрузить backend/openapi.json и перегенер�
 migration:     ## make migration m="описание"
 	cd backend && uv run alembic revision --autogenerate -m "$(m)"
 
-reseed:        ## демо-данные заново (на сервере: в контейнере backend)
+reseed:        ## бэкап (одноразовый контейнер backup, БД не трогает), затем демо-данные заново в контейнере backend
+	$(DC) run --rm --no-deps backup once
 	$(DC) exec -T backend python -m seed.generate
 
 validate:      ## симуляционная валидация (§12) → docs/validation/report.md, metrics.json, PNG

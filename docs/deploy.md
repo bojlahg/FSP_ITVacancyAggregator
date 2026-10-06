@@ -164,11 +164,11 @@ gh run watch <id> && gh run view <id> --log
 
 Лог Actions станет публичным вместе с репозиторием, поэтому `logs` отбрасывает access-логи uvicorn (IP клиентов, пути с кодами OIDC) и маскирует email и IPv4 в остальных строках (`<email>`, `<ip>`). Полные логи — только по SSH: `docker compose ... logs backend`.
 
-С SSH: `cd /opt/itscout/app && make reseed` (или `docker compose --env-file .env -f infra/docker-compose.yml exec -T backend python -m seed.generate`). Демо-данные можно сбросить и через API: `POST /api/v1/admin/reseed` от демо-админа. Сброс удаляет всех пользователей, компании, их API-ключи и webhook'и; сохраняется только экспертная разметка пар и оценки Angoff.
+С SSH: `cd /opt/itscout/app && make reseed` — сначала бэкап (`docker compose ... run --rm --no-deps backup once`), затем `exec -T backend python -m seed.generate`; если бэкап не удался, сброса не будет. Демо-данные можно сбросить и через API: `POST /api/v1/admin/reseed` от демо-админа. Сброс удаляет всех пользователей, компании, их API-ключи и webhook'и; сохраняется только экспертная разметка пар и оценки Angoff.
 
 ### 5.4. Бэкапы
 
-Сервис `backup` (`infra/docker-compose.yml`, скрипт `infra/scripts/backup.sh`) раз в `BACKUP_INTERVAL_HOURS` (24 ч) снимает `pg_dump` в формате custom и архив загруженных файлов (резюме, состояние LLM) в том `backups`, хранит `BACKUP_KEEP_DAYS` (7) дней. Свежий дамп проверяется `pg_restore -l`, архив — `tar -t`; старые копии удаляются только после проверенного бэкапа, при любой ошибке скрипт пишет `backup failed: <шаг>` и ничего не ротирует. Том отдельный: деплой (`rsync --delete` в `/opt/itscout/app`) и `make reseed` его не трогают. Перед `action=reseed` бэкап снимается автоматически.
+Сервис `backup` (`infra/docker-compose.yml`, скрипт `infra/scripts/backup.sh`) раз в `BACKUP_INTERVAL_HOURS` (24 ч) снимает `pg_dump` в формате custom и архив загруженных файлов (резюме, состояние LLM) в том `backups`, хранит `BACKUP_KEEP_DAYS` (7) дней. Свежий дамп проверяется `pg_restore -l`, архив — `tar -t`; старые копии удаляются только после проверенного бэкапа, при любой ошибке скрипт пишет `backup failed: <шаг>` и ничего не ротирует. Том отдельный: деплой (`rsync --delete` в `/opt/itscout/app`) и reseed его не трогают. Перед `make reseed` и `action=reseed` бэкап снимается автоматически; `POST /admin/reseed` и отладочный reseed из кабинета бэкап не снимают.
 
 Бэкап лежит на том же сервере: от ошибок, reseed и порчи данных он защищает, от потери самого сервера — нет. Для этого копию нужно забирать наружу (`scp` с сервера или S3-хранилище провайдера) — в рамках хакатона не настроено.
 
@@ -182,8 +182,11 @@ $DC exec -T backup sh /usr/local/bin/backup.sh list          # выбрать ф
 $DC exec -T backup sh /usr/local/bin/backup.sh once          # сначала — свежий бэкап текущего состояния
 $DC stop backend
 $DC exec -T backup sh -c 'PGPASSWORD="$POSTGRES_PASSWORD" pg_restore -h db -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner /backups/db-<время>.dump'
+# Загруженные файлы, если нужно. В сервисе backup том uploads подключён только на чтение, поэтому —
+# одноразовый контейнер из того же образа с томами проекта itscout: backups на чтение, uploads на запись
+docker run --rm --entrypoint sh -v itscout_backups:/backups:ro -v itscout_uploads:/uploads postgres:16-alpine \
+  -c 'tar -tzf /backups/uploads-<время>.tar.gz >/dev/null && find /uploads -mindepth 1 -delete && tar -xzf /backups/uploads-<время>.tar.gz -C /uploads'
 $DC start backend
-# загруженные файлы, если нужно: tar -xzf из /backups/uploads-<время>.tar.gz в том uploads
 ```
 
 Проверено на копии: дамп восстанавливается в пустую базу с теми же данными (кандидаты, экспертная разметка).
