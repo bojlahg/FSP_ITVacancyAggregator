@@ -54,6 +54,13 @@ def _now() -> datetime:
     return datetime.now(UTC)
 
 
+async def _outside_snapshot(db: AsyncSession, candidate_id: int) -> dict:
+    current = await categories_service.get_current(db, candidate_id)
+    label = categories_service.category_ref(current.specialization, current.grade.value).label
+    text = f"Категория кандидата {label} — вне категорий вакансии, score не считается"
+    return {"score": None, "lines": [{"kind": "warning", "source": "category", "text": text}]}
+
+
 def _snapshot(match: CandidateMatch | None) -> dict | None:
     if match is None:
         return None
@@ -171,12 +178,13 @@ async def apply(
     await invitations_service.ensure_demo_scope(
         db, need.employer_id, candidate.id, "Это вакансия демо-компании: отклик на неё недоступен"
     )
-    match = await matching_service.snapshot_for(db, need.employer_id, candidate.id, need)
+    # Только совпадение с самой вакансией: score «по своей категории» поставил бы чужую категорию первой
+    match = await matching_service.match_for(db, need.employer_id, candidate.id, need)
     application = Application(
         need_id=need.id,
         candidate_id=candidate.id,
         cover_note=body.cover_note,
-        match_snapshot=_snapshot(match),
+        match_snapshot=_snapshot(match) if match else await _outside_snapshot(db, candidate.id),
         status=ApplicationStatus.sent,
     )
     db.add(application)

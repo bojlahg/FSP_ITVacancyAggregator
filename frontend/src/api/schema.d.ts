@@ -2869,7 +2869,7 @@ export interface components {
             cover_note: string | null;
             /**
              * Match Score
-             * @description null — снимок совпадения не сохранился
+             * @description null — категория кандидата вне категорий вакансии или снимок не сохранился
              */
             match_score: number | null;
             match_explanation: components["schemas"]["Explanation"];

@@ -111,3 +111,24 @@ async def test_application_survives_vacancy_new_version(client, session):
     again = await client.post(f"{API}/vacancies/{newer['id']}/apply", json={}, headers=candidate)
     assert again.status_code == 409
     assert len((await client.get(f"{API}/needs/{newer['id']}/applications", headers=employer)).json()) == 1
+
+
+async def test_application_outside_vacancy_categories_has_no_score(client, session):
+    employer = await signup(client, "hr@bank.ru")
+    candidate, _ = await make_candidate(client, session, "anna@example.com")
+    frontend = await publish(
+        client,
+        employer,
+        title="Senior Frontend",
+        specialization="frontend",
+        grade="senior",
+        required_skills=["react"],
+        optional_skills=[],
+    )
+
+    applied = await client.post(f"{API}/vacancies/{frontend['id']}/apply", json={}, headers=candidate)
+    assert applied.status_code == 201, applied.text
+
+    [item] = (await client.get(f"{API}/needs/{frontend['id']}/applications", headers=employer)).json()
+    assert item["match_score"] is None
+    assert "вне категорий вакансии" in item["match_explanation"]["lines"][0]["text"]

@@ -11455,7 +11455,7 @@
               }
             ],
             "title": "Match Score",
-            "description": "null — снимок совпадения не сохранился"
+            "description": "null — категория кандидата вне категорий вакансии или снимок не сохранился"
           },
           "match_explanation": {
             "$ref": "#/components/schemas/Explanation"
