@@ -41,10 +41,24 @@ async def get_by_user(db: AsyncSession, user_id: int) -> Candidate:
     return candidate
 
 
-async def skill_states(db: AsyncSession, candidate_id: int) -> list[SkillState]:
+def fsp_skills_count(candidate: Candidate, for_employer: bool) -> bool:
+    """Навыки из ФСП — только при подтверждённом владении (§9.3) и, для работодателя, если ФСП не скрыт.
+
+    Одно правило для профиля, карточки, PDF и индекса выдачи: статус на карточке совпадает с тем, что в score.
+    """
+    from app.modules.fsp import service as fsp_service
+
+    return fsp_service.counts_in_score(candidate) and (not for_employer or privacy_of(candidate).show_fsp)
+
+
+async def skill_states(db: AsyncSession, candidate_id: int, for_employer: bool = False) -> list[SkillState]:
     names = {skill.id: skill.name for skill in get_catalog().skills}
+    candidate = await db.get(Candidate, candidate_id)
+    with_fsp = candidate is not None and fsp_skills_count(candidate, for_employer)
     sources: dict[str, set[SkillSource]] = {}
     for row in await db.scalars(select(CandidateSkill).where(CandidateSkill.candidate_id == candidate_id)):
+        if row.source == SkillSource.fsp and not with_fsp:
+            continue
         sources.setdefault(row.skill_id, set()).add(row.source)
     states = []
     for skill_id, found in sources.items():

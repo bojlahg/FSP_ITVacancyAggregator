@@ -101,8 +101,9 @@ async def refresh_candidate(db: AsyncSession, candidate_id: int) -> None:
     attempt = await db.get(TestAttempt, current.attempt_id) if current.attempt_id else None
     skills: dict[str, str] = {}
     fsp_counts = fsp_service.counts_in_score(candidate)
+    fsp_skills = candidates_service.fsp_skills_count(candidate, for_employer=True)
     for skill in await db.scalars(select(CandidateSkill).where(CandidateSkill.candidate_id == candidate_id)):
-        if skill.source == SkillSource.fsp and not fsp_counts:
+        if skill.source == SkillSource.fsp and not fsp_skills:
             continue
         # Сильнейший источник навыка — по тому же порядку, что в профиле (skill_states, §8.3)
         status = candidates_service.STATUS_BY_SOURCE.get(skill.source, SkillStatus.declared)
@@ -1205,7 +1206,7 @@ async def _card(
             )
             for item in experience
         ],
-        skills=await candidates_service.skill_states(db, candidate_id),
+        skills=await candidates_service.skill_states(db, candidate_id, for_employer=True),
         topic_scores=[
             TopicScore(topic=topic, name=topic_names.get(topic, topic), score=s["score"], items=s["items"])
             for topic, s in sorted((row.topic_scores or {}).items())

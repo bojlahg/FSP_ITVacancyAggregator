@@ -214,7 +214,8 @@ async def own_document(db: AsyncSession, candidate: Candidate, variant: Variant)
             topics = topic_rows(result.topic_scores)
         except ConflictError:
             topics = []
-    verified, others = skill_groups(await candidates_service.skill_states(db, candidate.id))
+    states = await candidates_service.skill_states(db, candidate.id, for_employer=public)
+    verified, others = skill_groups(states)
     show_fsp = candidate.fsp_id is not None and (privacy.show_fsp or not public)
     ranks, achievements, competencies = fsp_lines(
         await fsp_service.profile(db, candidate) if show_fsp else None
