@@ -155,7 +155,8 @@ export function CandidateRow({
           )}
 
           {explanation && explanation.length > 0 && <ExplanationList items={explanation} limit={explanationLimit} />}
-          {acceptance && <AcceptanceLine acceptance={acceptance} />}
+          {/* В списке «высокая» у большинства и ничего не говорит — показываем только сигнал; полная строка в карточке */}
+          {acceptance && acceptance.level !== "high" && <AcceptanceLine acceptance={acceptance} />}
 
           {actions && <div className="flex flex-wrap gap-2 pt-1">{actions}</div>}
         </div>
