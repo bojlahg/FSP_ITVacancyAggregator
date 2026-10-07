@@ -84,10 +84,11 @@ export default function EmployerInvitationsPage() {
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-4">
           <Tabs value={tab} onValueChange={(value) => set({ tab: value === "all" ? null : value })}>
-            <TabsList className="max-w-full">
+            {/* На телефоне пять вкладок не помещаются в строку — переносятся, а не растягивают страницу */}
+            <TabsList className="h-auto max-w-full flex-wrap">
               {TABS.map((item) => (
                 // Вкладки здесь — фильтр списка без отдельных панелей: ссылка на несуществующую панель нарушает ARIA
-                <TabsTrigger key={item.value} value={item.value} aria-controls={undefined}>
+                <TabsTrigger key={item.value} value={item.value} aria-controls={undefined} className="h-8 flex-none">
                   {item.label}
                   {invitations.data && (
                     <span className="font-mono text-xs text-muted-foreground tabular-nums">{countOf(item.value)}</span>
@@ -162,8 +163,18 @@ function InvitationRow({ invitation, needTitle, withdrawing, onWithdraw }: Invit
             <StatusBadge status={invitation.status} />
           </div>
           <div className="text-sm">
-            <span className="font-medium">{invitation.title}</span>
-            {needTitle && (
+            {needTitle && sameTitle(needTitle, invitation.title) ? (
+              // Заголовок приглашения по умолчанию берётся из потребности — не повторяем его дважды
+              <Link
+                to={`/employer/needs/${invitation.need_id}`}
+                className="font-medium underline decoration-border underline-offset-2 hover:text-primary hover:decoration-primary"
+              >
+                {invitation.title}
+              </Link>
+            ) : (
+              <span className="font-medium">{invitation.title}</span>
+            )}
+            {needTitle && !sameTitle(needTitle, invitation.title) && (
               <span className="text-muted-foreground">
                 {" "}
                 ·{" "}
@@ -220,6 +231,11 @@ function InvitationRow({ invitation, needTitle, withdrawing, onWithdraw }: Invit
       </CardContent>
     </Card>
   );
+}
+
+function sameTitle(a: string, b: string): boolean {
+  const normalize = (value: string) => value.trim().replace(/[.\s]+$/, "").toLowerCase();
+  return normalize(a) === normalize(b);
 }
 
 /** sent → viewed → ответ (accepted | declined) | expired | withdrawn — §8.1 п.7. */
