@@ -23,7 +23,7 @@ import {
   type ExplainerScenario,
   type ExplainerTemplate,
 } from "@/lib/explainer-queries";
-import { extraItemsNote } from "@/lib/format";
+import { extraItemsNote, testItemsRange } from "@/lib/format";
 import { ITEM_KIND_LABELS } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 
@@ -569,8 +569,22 @@ export default function HowItWorksPage() {
         <h1 className="text-[clamp(40px,8vw,84px)] leading-[0.98] font-extrabold tracking-[-0.03em]">
           Как работает <span className="text-primary">тест</span>
         </h1>
+        <div className="max-w-[46em] space-y-3 text-lg leading-relaxed">
+          <p>
+            Тест — это короткие практические задачи по вашей специализации. Следующий вопрос подбирается по тому, как
+            вы ответили на предыдущие, поэтому уровень становится понятен за небольшое число заданий.
+          </p>
+          <p>
+            Грейду можно верить: сложность каждой задачи заранее измерена, результат сравнивается с одинаковым для всех
+            порогом, а рядом с ним честно показано, насколько система уверена.
+          </p>
+          <p>
+            Слитые ответы не помогают: задачи собираются из шаблонов, и у каждого кандидата свои числа, код и порядок
+            вариантов — заученный ответ на чужой вопрос к вашему не подойдёт.
+          </p>
+        </div>
         <p className="max-w-[46em] text-base leading-relaxed text-muted-foreground">
-          Грейд определяет только тест: калиброванный банк параметризованных шаблонов, двухэтапная адаптивная сборка
+          Дальше — подробно и с формулами. Грейд определяет только тест: калиброванный банк параметризованных шаблонов, двухэтапная адаптивная сборка
           и оценка на общей IRT-шкале специализации. Всё ниже считается вживую тем же кодом, что проводит настоящий
           тест.
         </p>
@@ -665,10 +679,3 @@ export default function HowItWorksPage() {
   );
 }
 
-/** Заданий в тесте без уточняющих: по грейдам отличается только открытым вопросом (с Middle). */
-function testItemsRange(counts: number[]): string {
-  if (counts.length === 0) return "—";
-  const low = Math.min(...counts);
-  const high = Math.max(...counts);
-  return low === high ? String(low) : `${low}–${high}`;
-}

@@ -21,6 +21,14 @@ export function extraItemsNote(extra: number): string {
   return extra > 0 ? `может добавиться до ${extra} уточняющих у порога грейда` : "";
 }
 
+/** Заданий в тесте без уточняющих по грейдам: «19» или «18–22» (отличаются открытым вопросом с Middle). */
+export function testItemsRange(counts: number[]): string {
+  if (counts.length === 0) return "—";
+  const low = Math.min(...counts);
+  const high = Math.max(...counts);
+  return low === high ? String(low) : `${low}–${high}`;
+}
+
 const pluralRules = new Intl.PluralRules("ru-RU");
 
 /** plural(5, ["кандидат", "кандидата", "кандидатов"]) → «кандидатов» */
