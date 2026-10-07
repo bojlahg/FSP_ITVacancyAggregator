@@ -89,7 +89,11 @@ async def decline_invitation(
     "/invitations",
     response_model=InvitationForEmployer,
     status_code=201,
-    summary="Пригласить кандидата: предложение, вилка, способ связи (409 — лимит активных приглашений)",
+    summary=(
+        "Пригласить кандидата: предложение, вилка, способ связи "
+        "(409 invitation_limit — лимит активных приглашений, "
+        "company_profile_required — не заполнено название компании)"
+    ),
     responses=error_responses(401, 403, 404, 409, 422),
 )
 async def create_invitation(

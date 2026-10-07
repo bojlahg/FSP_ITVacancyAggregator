@@ -1279,7 +1279,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Пригласить кандидата: предложение, вилка, способ связи (409 — лимит активных приглашений) */
+        /** Пригласить кандидата: предложение, вилка, способ связи (409 invitation_limit — лимит активных приглашений, company_profile_required — не заполнено название компании) */
         post: operations["create_invitation_api_v1_invitations_post"];
         delete?: never;
         options?: never;

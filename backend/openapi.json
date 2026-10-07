@@ -5882,7 +5882,7 @@
         "tags": [
           "employer: invitations"
         ],
-        "summary": "Пригласить кандидата: предложение, вилка, способ связи (409 — лимит активных приглашений)",
+        "summary": "Пригласить кандидата: предложение, вилка, способ связи (409 invitation_limit — лимит активных приглашений, company_profile_required — не заполнено название компании)",
         "operationId": "create_invitation_api_v1_invitations_post",
         "requestBody": {
           "content": {

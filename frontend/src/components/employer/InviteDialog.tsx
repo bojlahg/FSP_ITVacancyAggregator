@@ -1,7 +1,8 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Send } from "lucide-react";
+import { AlertTriangle, Loader2, Send } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { Link } from "react-router";
 import { z } from "zod";
 import { FormAlert } from "@/components/FormAlert";
 import { FormField } from "@/components/FormField";
@@ -23,6 +24,7 @@ import { apiError, applyValidationErrors } from "@/lib/api-error";
 import {
   type EmployerProfile,
   type InvitationForEmployer,
+  isCompanyProfileRequired,
   isInvitationLimit,
   type Need,
   useCompany,
@@ -96,6 +98,8 @@ export function InviteDialog({ open, onOpenChange, candidate, need, onSent }: In
             <Skeleton className="h-24 w-full" />
             <Skeleton className="h-10 w-2/3" />
           </div>
+        ) : company.data && !company.data.company_name ? (
+          <CompanyRequired />
         ) : (
           candidate && (
             <InviteForm
@@ -114,6 +118,31 @@ export function InviteDialog({ open, onOpenChange, candidate, need, onSent }: In
   );
 }
 
+/** Кандидат видит компанию по названию: без него приглашение не отправить (409 company_profile_required). */
+function CompanyRequired() {
+  return (
+    <>
+      <div
+        role="alert"
+        className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive-tint px-3 py-2 text-sm text-destructive-strong"
+      >
+        <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
+        <span>
+          Заполните название компании в профиле перед отправкой приглашения: кандидат увидит, кто его приглашает.{" "}
+          <Link to="/employer/company" className="font-medium underline underline-offset-2">
+            Перейти в профиль компании
+          </Link>
+        </span>
+      </div>
+      <DialogFooter>
+        <DialogClose asChild>
+          <Button variant="ghost">Закрыть</Button>
+        </DialogClose>
+      </DialogFooter>
+    </>
+  );
+}
+
 interface InviteFormProps {
   candidateId: number;
   need: Need | null;
@@ -126,6 +155,7 @@ function InviteForm({ candidateId, need, company, onDone }: InviteFormProps) {
   // Без потребности даём выбрать её из списка: тогда снимок объяснения и лимит приглашений считаются по ней.
   const needs = useNeeds();
   const [formError, setFormError] = useState<string | null>(null);
+  const [companyMissing, setCompanyMissing] = useState(false);
 
   const {
     register,
@@ -178,6 +208,10 @@ function InviteForm({ candidateId, need, company, onDone }: InviteFormProps) {
       {
         onSuccess: onDone,
         onError: (err) => {
+          if (isCompanyProfileRequired(err)) {
+            setCompanyMissing(true);
+            return;
+          }
           if (isInvitationLimit(err)) {
             const limit = need?.stats.invitations_limit;
             setFormError(
@@ -190,6 +224,8 @@ function InviteForm({ candidateId, need, company, onDone }: InviteFormProps) {
       },
     );
   };
+
+  if (companyMissing) return <CompanyRequired />;
 
   return (
     <>

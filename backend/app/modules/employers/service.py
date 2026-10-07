@@ -4,7 +4,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.enums import InvitationStatus
-from app.core.errors import AppError, ForbiddenError
+from app.core.errors import AppError, ConflictError, ForbiddenError
 from app.modules.applications.models import Application
 from app.modules.catalog.service import get_catalog
 from app.modules.employers.models import Employer
@@ -38,6 +38,14 @@ async def get_by_user(db: AsyncSession, user_id: int) -> Employer:
     if employer is None:
         raise ForbiddenError("Профиль работодателя не найден")
     return employer
+
+
+def ensure_company_named(employer: Employer, action: str) -> None:
+    """Без названия кандидат видел бы «Компания» и пустой блок о ней (docs/implementation.md §8.1 п.6)."""
+    if not (employer.company_name or "").strip():
+        raise ConflictError(
+            f"Заполните название компании в профиле перед {action}", code="company_profile_required"
+        )
 
 
 async def reputation(db: AsyncSession, employer_id: int) -> EmployerReputation:

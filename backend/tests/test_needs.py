@@ -30,7 +30,10 @@ NEED = {
 }
 
 
-async def signup(client, email: str, role: str = "employer") -> dict[str, str]:
+async def signup(
+    client, email: str, role: str = "employer", company: str | None = "Тестовая компания"
+) -> dict[str, str]:
+    """Работодатель по умолчанию с названием компании: без него приглашения и публикация — 409."""
     response = await client.post(
         f"{API}/auth/register",
         json={
@@ -42,7 +45,11 @@ async def signup(client, email: str, role: str = "employer") -> dict[str, str]:
         },
     )
     assert response.status_code == 201, response.text
-    return {"Authorization": f"Bearer {response.json()['access_token']}"}
+    headers = {"Authorization": f"Bearer {response.json()['access_token']}"}
+    if role == "employer" and company:
+        profile = await client.put(f"{API}/employers/me", json={"company_name": company}, headers=headers)
+        assert profile.status_code == 200, profile.text
+    return headers
 
 
 async def candidate_id(session, email: str) -> int:
@@ -209,7 +216,7 @@ async def test_unknown_catalog_values_are_rejected(client, db):
 
 
 async def test_publish_requires_company_and_toggles(client, db):
-    headers = await signup(client, "hr@bank.ru")
+    headers = await signup(client, "hr@bank.ru", company=None)
     need = (await client.post(f"{API}/needs", json=NEED, headers=headers)).json()
 
     blocked = await client.post(f"{API}/needs/{need['id']}/publish", headers=headers)
@@ -254,7 +261,7 @@ async def test_parse_rejects_short_text(client, db):
 
 
 async def test_stats_and_employer_reputation(client, session):
-    headers = await signup(client, "hr@bank.ru")
+    headers = await signup(client, "hr@bank.ru", company=None)
     await signup(client, "anna@example.com", role="candidate")
     await signup(client, "boris@example.com", role="candidate")
     anna = await candidate_id(session, "anna@example.com")

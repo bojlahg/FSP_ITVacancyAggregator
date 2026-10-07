@@ -347,3 +347,19 @@ async def test_bad_search_and_salary_values_are_client_errors(client, session):
     assert huge.status_code == 422
     query = await client.get(f"{API}/talent/search", params={"salary_max": 2**40}, headers=employer)
     assert query.status_code == 422
+
+
+async def test_invitation_requires_company_name(client, session):
+    employer = await signup(client, "hr@bank.ru", company=None)
+    _, cid = await make_candidate(client, session, "anna@example.com")
+
+    blocked = await client.post(f"{API}/invitations", json=invite(cid), headers=employer)
+
+    assert blocked.status_code == 409
+    assert blocked.json()["error"]["code"] == "company_profile_required"
+    assert "перед отправкой приглашения" in blocked.json()["error"]["message"]
+    assert await session.scalar(select(Invitation.id)) is None
+
+    await client.put(f"{API}/employers/me", json={"company_name": "Банк Пример"}, headers=employer)
+    sent = await client.post(f"{API}/invitations", json=invite(cid), headers=employer)
+    assert sent.status_code == 201, sent.text

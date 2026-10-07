@@ -343,6 +343,12 @@ export function isInvitationLimit(err: unknown): boolean {
   return status === 409 && code === "invitation_limit";
 }
 
+/** 409: без названия компании нельзя приглашать и публиковать вакансии. */
+export function isCompanyProfileRequired(err: unknown): boolean {
+  const { status, code } = apiError(err);
+  return status === 409 && code === "company_profile_required";
+}
+
 export function useEmployerInvitations(query: EmployerInvitationsQuery) {
   return useQuery({
     queryKey: employerKeys.invitations(query),

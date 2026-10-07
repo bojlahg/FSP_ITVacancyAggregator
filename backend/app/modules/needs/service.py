@@ -266,11 +266,7 @@ async def set_published(db: AsyncSession, user_id: int, need_id: int, published:
     need = await _get_latest_own(db, user_id, need_id)
     if published and not need.published:
         employer = await _employer(db, user_id)
-        if not employer.company_name:
-            raise ConflictError(
-                "Заполните название компании в профиле перед публикацией вакансии",
-                code="company_profile_required",
-            )
+        employers_service.ensure_company_named(employer, "публикацией вакансии")
         if need.status == NeedStatus.closed:
             raise ConflictError("Закрытую потребность нельзя опубликовать", code="need_closed")
         ensure_publishable_text(need)

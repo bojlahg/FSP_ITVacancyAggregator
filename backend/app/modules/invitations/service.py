@@ -209,6 +209,7 @@ async def create(
     db: AsyncSession, user_id: int, body: InvitationCreate, outbox: list[Mail] | None = None
 ) -> InvitationForEmployer:
     employer = await employers_service.get_by_user(db, user_id)
+    employers_service.ensure_company_named(employer, "отправкой приглашения")
     if await db.get(Candidate, body.candidate_id) is None or not await matching_service.reachable(
         db, employer.id, body.candidate_id
     ):
