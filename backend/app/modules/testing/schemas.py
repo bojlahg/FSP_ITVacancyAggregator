@@ -82,6 +82,10 @@ class TopicScore(ApiModel):
     name: str
     score: float = Field(ge=0, le=1)
     items: int
+    level: Literal["strong", "medium", "weak", "insufficient"] = Field(
+        description="Словесная оценка темы по порогам content/blueprints.yaml (topic_levels); "
+        "insufficient — заданий по теме слишком мало для вывода"
+    )
 
 
 class ApproachCriterion(ApiModel):

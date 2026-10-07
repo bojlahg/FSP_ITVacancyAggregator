@@ -4775,8 +4775,16 @@ export interface components {
             attempts: components["schemas"]["AttemptSummary"][];
             /** Actions */
             actions: components["schemas"]["GradeAction"][];
-            /** Cooldown Days */
+            /**
+             * Cooldown Days
+             * @description Смена грейда (вверх или вниз) — не чаще раза в N дней (§6.3)
+             */
             cooldown_days: number;
+            /**
+             * Failed Retry Days
+             * @description Повтор теста на неподтверждённый грейд — через N дней (§6.3)
+             */
+            failed_retry_days: number;
         };
         /**
          * GradedBy
@@ -6255,6 +6263,12 @@ export interface components {
             score: number;
             /** Items */
             items: number;
+            /**
+             * Level
+             * @description Словесная оценка темы по порогам content/blueprints.yaml (topic_levels); insufficient — заданий по теме слишком мало для вывода
+             * @enum {string}
+             */
+            level: "strong" | "medium" | "weak" | "insufficient";
         };
         /** TopicWeight */
         TopicWeight: {

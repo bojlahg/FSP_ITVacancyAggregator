@@ -1330,7 +1330,13 @@ async def _card(
         ],
         skills=await candidates_service.skill_states(db, candidate_id, for_employer=True),
         topic_scores=[
-            TopicScore(topic=topic, name=topic_names.get(topic, topic), score=s["score"], items=s["items"])
+            TopicScore(
+                topic=topic,
+                name=topic_names.get(topic, topic),
+                score=s["score"],
+                items=s["items"],
+                level=get_blueprints().topic_level(s["score"], s["items"]),
+            )
             for topic, s in sorted((row.topic_scores or {}).items())
         ],
         approach_answers=approach_answers,

@@ -35,6 +35,9 @@ selection:
   edge_offset: 1.0       # цель второго этапа выше Senior / ниже Intern: порог ± edge_offset
   open_candidates: 3     # открытый вопрос — случайный из стольких, ближайших по b к порогу грейда
 verify_skill: {min_items: 2, min_share: 0.7}
+# Разбор по темам на экране результата: доля верных ≥ strong — «сильная сторона», < weak — «стоит подтянуть»;
+# при меньше чем min_items заданиях по теме вывода нет (insufficient)
+topic_levels: {min_items: 2, strong: 0.7, weak: 0.4}
 open_approach_from_grade: middle
 
 # «Проверка под вакансию» (§10.7): насколько навыки вакансии смещают веса тем blueprint'а.

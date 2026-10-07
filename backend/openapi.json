@@ -16589,7 +16589,13 @@
           },
           "cooldown_days": {
             "type": "integer",
-            "title": "Cooldown Days"
+            "title": "Cooldown Days",
+            "description": "Смена грейда (вверх или вниз) — не чаще раза в N дней (§6.3)"
+          },
+          "failed_retry_days": {
+            "type": "integer",
+            "title": "Failed Retry Days",
+            "description": "Повтор теста на неподтверждённый грейд — через N дней (§6.3)"
           }
         },
         "type": "object",
@@ -16600,7 +16606,8 @@
           "history",
           "attempts",
           "actions",
-          "cooldown_days"
+          "cooldown_days",
+          "failed_retry_days"
         ],
         "title": "GradeStatus"
       },
@@ -20325,6 +20332,17 @@
           "items": {
             "type": "integer",
             "title": "Items"
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "strong",
+              "medium",
+              "weak",
+              "insufficient"
+            ],
+            "title": "Level",
+            "description": "Словесная оценка темы по порогам content/blueprints.yaml (topic_levels); insufficient — заданий по теме слишком мало для вывода"
           }
         },
         "type": "object",
@@ -20332,7 +20350,8 @@
           "topic",
           "name",
           "score",
-          "items"
+          "items",
+          "level"
         ],
         "title": "TopicScore"
       },

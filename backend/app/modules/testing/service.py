@@ -582,7 +582,11 @@ async def result(db: AsyncSession, candidate: Candidate, attempt_id: int) -> Att
         category=category,
         topic_scores=[
             TopicScore(
-                topic=topic, name=blueprints.topic_names.get(topic, topic), score=s["score"], items=s["items"]
+                topic=topic,
+                name=blueprints.topic_names.get(topic, topic),
+                score=s["score"],
+                items=s["items"],
+                level=blueprints.topic_level(s["score"], s["items"]),
             )
             for topic, s in sorted((attempt.topic_scores or {}).items())
         ],

@@ -16,6 +16,21 @@ def test_blueprint_topic_quotas_match_mode_lengths():
         assert sum(blueprint.topics.values()) == full.stage1_items + full.stage2_items, spec
 
 
+def test_topic_level_golden():
+    # пороги content/blueprints.yaml topic_levels: min_items 2, strong 0.7, weak 0.4
+    blueprints = get_blueprints()
+    cases = [(1.0, 1), (0.0, 1), (0.7, 2), (2 / 3, 3), (0.4, 5), (0.39, 5), (0.0, 2)]
+    assert [blueprints.topic_level(score, items) for score, items in cases] == [
+        "insufficient",
+        "insufficient",
+        "strong",
+        "medium",
+        "medium",
+        "weak",
+        "weak",
+    ]
+
+
 def test_bank_covers_every_blueprint_topic():
     blueprints = get_blueprints()
     missing = [

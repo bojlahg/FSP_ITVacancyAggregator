@@ -56,7 +56,8 @@ class GradeStatus(ApiModel):
     history: list[CategoryRecord]
     attempts: list[AttemptSummary]
     actions: list[GradeAction]
-    cooldown_days: int
+    cooldown_days: int = Field(description="Смена грейда (вверх или вниз) — не чаще раза в N дней (§6.3)")
+    failed_retry_days: int = Field(description="Повтор теста на неподтверждённый грейд — через N дней (§6.3)")
 
 
 class GradeDecision(ApiModel):

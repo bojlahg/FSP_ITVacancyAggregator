@@ -42,6 +42,12 @@ class VerifySkill(BaseModel):
     min_share: float
 
 
+class TopicLevels(BaseModel):
+    min_items: int
+    strong: float
+    weak: float
+
+
 class VacancyConfig(BaseModel):
     boost_required: int
     boost_optional: int
@@ -57,6 +63,7 @@ class Blueprints(BaseModel):
     modes: dict[str, ModeConfig]
     selection: Selection
     verify_skill: VerifySkill
+    topic_levels: TopicLevels
     open_approach_from_grade: str
     vacancy: VacancyConfig
     topic_names: dict[str, str]
@@ -70,6 +77,15 @@ class Blueprints(BaseModel):
         from_grade = GRADE_ORDER.index(self.open_approach_from_grade)
         open_item = mode.open_item and GRADE_ORDER.index(grade) >= from_grade
         return mode.stage1_items + mode.stage2_items + mode.pilot_slots + int(open_item)
+
+    def topic_level(self, score: float, items: int) -> str:
+        """Словесная оценка темы для разбора на экране результата: strong | medium | weak | insufficient."""
+        rule = self.topic_levels
+        if items < rule.min_items:
+            return "insufficient"
+        if score >= rule.strong:
+            return "strong"
+        return "weak" if score < rule.weak else "medium"
 
     def next_grade(self, grade: str) -> str | None:
         index = GRADE_ORDER.index(grade)

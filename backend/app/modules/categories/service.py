@@ -188,6 +188,7 @@ async def grade_status(db: AsyncSession, candidate: Candidate) -> GradeStatus:
         ],
         actions=actions,
         cooldown_days=get_settings().grade_change_cooldown_days,
+        failed_retry_days=get_settings().failed_grade_retry_days,
     )
 
 

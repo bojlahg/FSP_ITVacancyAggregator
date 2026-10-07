@@ -107,6 +107,9 @@ async def test_full_path_assigns_category(client, session):
     assert result["category"]["label"].endswith("Middle")
     assert result["next_actions"][0]["action"] == "try_higher"
     assert result["topic_scores"]
+    # Все ответы верные: каждая тема с достаточным числом заданий — сильная сторона
+    assert {t["level"] for t in result["topic_scores"]} <= {"strong", "insufficient"}
+    assert "strong" in {t["level"] for t in result["topic_scores"]}
 
     profile = (await client.get(f"{API}/candidates/me", headers=headers)).json()
     assert profile["onboarding_step"] == "done"
@@ -116,6 +119,8 @@ async def test_full_path_assigns_category(client, session):
     status = (await client.get(f"{API}/candidates/me/grade-status", headers=headers)).json()
     senior = next(action for action in status["actions"] if action["grade"] == "senior")
     assert senior["allowed"] and senior["action"] == "upgrade"
+    assert status["cooldown_days"] == get_settings().grade_change_cooldown_days
+    assert status["failed_retry_days"] == get_settings().failed_grade_retry_days
 
 
 async def test_failed_calibration_gives_no_category_and_offers_lower(client, session):
