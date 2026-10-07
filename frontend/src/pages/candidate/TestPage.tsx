@@ -115,7 +115,7 @@ export default function TestPage() {
           </span>
         )}
         {position !== null && !clarifying && base !== null && upper !== null && upper > base && (
-          <span className="w-full text-right text-xs text-muted-foreground">{extraItemsNote(upper - base)}</span>
+          <span className="w-full text-right text-sm text-muted-foreground">{extraItemsNote(upper - base)}</span>
         )}
       </div>
       {position !== null && upper !== null && (
