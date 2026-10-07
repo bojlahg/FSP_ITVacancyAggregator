@@ -4,9 +4,13 @@ import { Button } from "@/components/ui/button";
 import { apiError } from "@/lib/api-error";
 import { useAuth } from "@/lib/auth";
 import { useResendVerification } from "@/lib/auth-queries";
+import { cn } from "@/lib/utils";
 
-/** Напоминание подтвердить почту. Не блокирует работу: подтверждение пока необязательно. */
-export function EmailVerificationBanner() {
+/**
+ * Напоминание подтвердить почту. Подтверждение необязательно, поэтому баннер живёт только рядом
+ * с настройкой писем, а не на каждой странице кабинета (и тем более не во время теста).
+ */
+export function EmailVerificationBanner({ className }: { className?: string }) {
   const { user } = useAuth();
   const resend = useResendVerification();
   const [dismissed, setDismissed] = useState(false);
@@ -16,12 +20,15 @@ export function EmailVerificationBanner() {
   return (
     <div
       role="status"
-      className="mb-6 flex flex-wrap items-center gap-3 rounded-lg border border-primary/30 bg-primary-tint px-4 py-3 text-sm"
+      className={cn(
+        "flex flex-wrap items-center gap-3 rounded-lg border border-primary/30 bg-primary-tint px-4 py-3 text-sm",
+        className,
+      )}
     >
       <MailWarning className="size-5 shrink-0 text-primary" aria-hidden />
       <div className="min-w-[12rem] flex-1">
         <p>
-          Подтвердите почту — письмо отправлено на <b className="font-mono [overflow-wrap:anywhere]">{user.email}</b>
+          Почта не подтверждена — письмо со ссылкой отправлено на <b className="font-mono [overflow-wrap:anywhere]">{user.email}</b>
         </p>
         {resend.isSuccess && <p className="mt-0.5 text-xs text-muted-foreground">Письмо отправлено ещё раз.</p>}
         {resend.isError && (

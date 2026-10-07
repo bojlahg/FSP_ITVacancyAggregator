@@ -1,4 +1,5 @@
 import { Mail } from "lucide-react";
+import { EmailVerificationBanner } from "@/components/EmailVerificationBanner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { apiError } from "@/lib/api-error";
@@ -28,6 +29,7 @@ export function EmailNotificationsCard({ role }: { role: keyof typeof descriptio
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-2">
+        <EmailVerificationBanner className="mb-2" />
         <label className="flex items-center gap-3 text-sm">
           <Checkbox
             checked={checked}

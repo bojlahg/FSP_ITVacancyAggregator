@@ -3,7 +3,6 @@ import { Bug, Loader2, LogOut, Menu, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router";
-import { EmailVerificationBanner } from "@/components/EmailVerificationBanner";
 import { LegalLinks } from "@/components/LegalLinks";
 import { ProductMark } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -144,7 +143,6 @@ export function CabinetLayout({ homePath, roleLabel, nav: baseNav, debugLink = t
           <ThemeToggle />
         </div>
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:pt-4 lg:pb-10">
-          <EmailVerificationBanner />
           <Outlet />
         </main>
         <footer className="mx-auto w-full max-w-7xl px-4 pb-6 font-mono text-xs text-muted-foreground sm:px-6 lg:px-10">
