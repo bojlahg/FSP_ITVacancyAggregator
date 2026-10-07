@@ -51,7 +51,7 @@
 
 ## 5. Инфраструктура и секреты
 
-- Заголовки безопасности (Caddy): CSP для фронта (`script-src 'self'`, `frame-ancestors 'none'`), `X-Frame-Options`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy`, HSTS на домене; тело запросов к API — не больше 10 МБ.
+- Заголовки безопасности (Caddy): CSP для фронта (`script-src 'self'`, `frame-ancestors 'none'`; `frame-src blob:` — только для предпросмотра своего обезличенного PDF), `X-Frame-Options`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy`, HSTS на домене; тело запросов к API — не больше 10 МБ.
 
 - HTTPS с сертификатом Let's Encrypt (Caddy), запросы к домену по HTTP редиректятся на HTTPS.
 - Наружу открыт только Caddy (порты 80/443). Backend, Postgres, мок реестра и Keycloak доступны лишь внутри сети compose; у Keycloak наружу открыт только realm `fsp`, админка и realm `master` закрыты.

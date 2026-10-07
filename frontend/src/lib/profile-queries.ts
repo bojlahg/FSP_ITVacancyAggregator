@@ -100,16 +100,32 @@ function saveBlob(blob: Blob, filename: string): void {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+async function fetchMyPdf(variant: PdfVariant): Promise<{ blob: Blob; filename: string }> {
+  const { data, error, response } = await api.GET("/api/v1/candidates/me/profile.pdf", {
+    params: { query: { variant } },
+    parseAs: "blob",
+  });
+  if (!data || !response.ok) throw toApiError(response, await errorBody(error));
+  return { blob: data, filename: filenameOf(response) };
+}
+
 /** Скачать свой PDF-профиль: полный или как его видит работодатель до контакта. */
 export function useDownloadMyPdf() {
   return useMutation({
     mutationFn: async (variant: PdfVariant) => {
-      const { data, error, response } = await api.GET("/api/v1/candidates/me/profile.pdf", {
-        params: { query: { variant } },
-        parseAs: "blob",
-      });
-      if (!data || !response.ok) throw toApiError(response, await errorBody(error));
-      saveBlob(data, filenameOf(response));
+      const { blob, filename } = await fetchMyPdf(variant);
+      saveBlob(blob, filename);
+    },
+  });
+}
+
+/** Обезличенный PDF для просмотра на странице: молчаливое скачивание кандидат принимал за «ничего не произошло». */
+export function usePreviewMyPdf() {
+  return useMutation({
+    mutationFn: async () => {
+      const { blob, filename } = await fetchMyPdf("public");
+      // URL отзывает страница, когда он больше не нужен (см. ProfilePage)
+      return { url: URL.createObjectURL(blob), filename };
     },
   });
 }

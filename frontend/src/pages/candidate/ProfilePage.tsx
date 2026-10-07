@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CheckCircle2, Download, Eye, FileText, Loader2, Plus, Save, Trash2, X } from "lucide-react";
-import { useState, type BaseSyntheticEvent, type ReactNode } from "react";
+import { useEffect, useState, type BaseSyntheticEvent, type ReactNode } from "react";
 import { Controller, useFieldArray, useForm, type Control, type FieldPath } from "react-hook-form";
 import { Link } from "react-router";
 import { ResumeUploadCard } from "@/components/candidate/ResumeUploadCard";
@@ -14,6 +14,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { apiError, applyValidationErrors } from "@/lib/api-error";
@@ -33,6 +41,7 @@ import {
   type PdfVariant,
   type ResumeParseResult,
   useDownloadMyPdf,
+  usePreviewMyPdf,
   useSoftSkills,
   useTeamRoles,
   useUpdateProfile,
@@ -46,7 +55,13 @@ const EMPTY_JOB = { company: "", position: "", startedOn: "", endedOn: "", descr
 export default function ProfilePage() {
   const me = useCandidateMe();
   const download = useDownloadMyPdf();
+  const preview = usePreviewMyPdf();
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [pendingVariant, setPendingVariant] = useState<PdfVariant | null>(null);
+  const previewUrl = preview.data?.url;
+  useEffect(() => () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+  }, [previewUrl]);
 
   const downloadPdf = (variant: PdfVariant) => {
     setPendingVariant(variant);
@@ -61,8 +76,15 @@ export default function ProfilePage() {
         description="Данные профиля видят работодатели: фамилия, контакты и названия компаний скрыты до принятого приглашения. Резюме помогает заполнить форму быстрее, но не влияет на категорию."
         actions={
           <>
-            <Button variant="outline" onClick={() => downloadPdf("public")} disabled={download.isPending || !me.data}>
-              {pendingVariant === "public" ? <Loader2 className="animate-spin" /> : <Eye />} Как видит работодатель
+            <Button
+              variant="outline"
+              onClick={() => {
+                setPreviewOpen(true);
+                preview.mutate();
+              }}
+              disabled={preview.isPending || !me.data}
+            >
+              {preview.isPending ? <Loader2 className="animate-spin" /> : <Eye />} Как видит работодатель
             </Button>
             <Button onClick={() => downloadPdf("full")} disabled={download.isPending || !me.data}>
               {pendingVariant === "full" ? <Loader2 className="animate-spin" /> : <Download />} PDF-профиль
@@ -71,6 +93,14 @@ export default function ProfilePage() {
         }
       />
       <FormAlert message={download.isError ? apiError(download.error).message : null} className="mb-4" />
+      <EmployerViewDialog
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        pdf={preview.data ?? null}
+        pending={preview.isPending}
+        error={preview.isError ? apiError(preview.error).message : null}
+        onRetry={() => preview.mutate()}
+      />
 
       {me.isPending ? (
         <SkeletonCards count={3} />
@@ -80,6 +110,54 @@ export default function ProfilePage() {
         <ProfileForm profile={me.data} />
       )}
     </>
+  );
+}
+
+interface EmployerViewDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  pdf: { url: string; filename: string } | null;
+  pending: boolean;
+  error: string | null;
+  onRetry: () => void;
+}
+
+/** Обезличенный PDF — ровно то, что получит работодатель до принятия приглашения. */
+function EmployerViewDialog({ open, onOpenChange, pdf, pending, error, onRetry }: EmployerViewDialogProps) {
+  const url = pdf?.url ?? null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>Как вас видит работодатель</DialogTitle>
+          <DialogDescription>
+            Обезличенный профиль до принятия приглашения: без фамилии, контактов и названий компаний.
+          </DialogDescription>
+        </DialogHeader>
+        {pending ? (
+          <SkeletonCards count={1} />
+        ) : error ? (
+          <ErrorState className="py-6" description={error} onRetry={onRetry} />
+        ) : url ? (
+          <iframe title="Профиль глазами работодателя" src={url} className="h-[65vh] w-full rounded-md border" />
+        ) : null}
+        {url && !pending && !error && pdf && (
+          <DialogFooter>
+            <Button asChild variant="outline">
+              <a href={url} target="_blank" rel="noopener">
+                <Eye /> Открыть в новой вкладке
+              </a>
+            </Button>
+            <Button asChild>
+              <a href={url} download={pdf.filename}>
+                <Download /> Скачать PDF
+              </a>
+            </Button>
+          </DialogFooter>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 

@@ -1,8 +1,12 @@
 import { z } from "zod";
+import { formatNumber } from "@/lib/format";
 import type { CandidateProfileUpdate } from "@/lib/profile-queries";
 import type { CandidateProfile } from "@/lib/testing-queries";
 
-const digits = z.string().trim().regex(/^\d*$/, "Только цифры");
+// Суммы показываем с разрядами («100 000»), поэтому пробелы между цифрами допустимы.
+const digits = z.string().trim().regex(/^[\d\s]*$/, "Только цифры");
+// Тот же предел, что в CandidateProfileUpdate.experience_years на backend.
+const EXPERIENCE_MAX_YEARS = 60;
 const optionalText = (max: number) => z.string().trim().max(max, `Не больше ${max} символов`);
 
 const experienceSchema = z
@@ -35,7 +39,10 @@ export const profileSchema = z
     experienceYears: z
       .string()
       .trim()
-      .regex(/^(\d{1,2}([.,]\d)?)?$/, "Число лет, например 3 или 2,5"),
+      .regex(/^(\d{1,2}([.,]\d)?)?$/, "Число лет, например 3 или 2,5")
+      .refine((value) => !value || Number(value.replace(",", ".")) <= EXPERIENCE_MAX_YEARS, {
+        message: `Не больше ${EXPERIENCE_MAX_YEARS} лет`,
+      }),
     roles: z.array(z.string()),
     industriesExp: z.array(z.string()),
     softSkills: z.array(z.string()),
@@ -43,7 +50,7 @@ export const profileSchema = z
     declaredSkills: z.array(z.string()),
     experience: z.array(experienceSchema),
   })
-  .refine((values) => !values.salaryMin || !values.salaryMax || Number(values.salaryMax) >= Number(values.salaryMin), {
+  .refine((values) => !values.salaryMin || !values.salaryMax || toNumber(values.salaryMax)! >= toNumber(values.salaryMin)!, {
     path: ["salaryMax"],
     message: "Верхняя граница не может быть меньше нижней",
   });
@@ -79,7 +86,10 @@ export const FROM_RESUME_FIELDS: Record<string, keyof ProfileFormValues> = {
 
 const toMonth = (value?: string | null) => (value ? value.slice(0, 7) : "");
 const fromMonth = (value: string) => (value ? `${value}-01` : null);
-const toNumber = (value: string) => (value ? Number(value.replace(",", ".")) : null);
+function toNumber(value: string): number | null {
+  const compact = value.replace(/\s/g, "").replace(",", ".");
+  return compact ? Number(compact) : null;
+}
 
 type ProfileSource = Pick<
   CandidateProfileUpdate,
@@ -113,8 +123,8 @@ function baseValues(source: ProfileSource, declaredSkills: string[]): ProfileFor
     city: source.city ?? "",
     relocation: source.relocation ?? false,
     workFormats: source.work_formats ?? [],
-    salaryMin: source.salary_min != null ? String(source.salary_min) : "",
-    salaryMax: source.salary_max != null ? String(source.salary_max) : "",
+    salaryMin: source.salary_min != null ? formatNumber(source.salary_min) : "",
+    salaryMax: source.salary_max != null ? formatNumber(source.salary_max) : "",
     experienceYears: source.experience_years != null ? String(source.experience_years).replace(".", ",") : "",
     roles: source.roles ?? [],
     industriesExp: source.industries_exp ?? [],
