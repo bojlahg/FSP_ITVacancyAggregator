@@ -13,6 +13,8 @@ from app.modules.testing.engine.model import Generated
 
 NAMES = ["anna", "boris", "vera", "gleb", "dina", "egor", "zoya", "ivan", "lena", "maks"]
 CITIES = ["Kazan", "Omsk", "Perm", "Tomsk", "Sochi", "Tver", "Ufa"]
+# в тексте задания город по-русски; латиница — только в данных и коде
+CITIES_RU = ["Казань", "Омск", "Пермь", "Томск", "Сочи", "Тверь", "Уфа"]
 STATUSES = ["new", "paid", "shipped", "cancelled"]
 
 
@@ -391,7 +393,7 @@ def metric_choice(rng: random.Random) -> Generated:
 @generator("data.task_type")
 def task_type(rng: random.Random) -> Generated:
     """Тип задачи машинного обучения по постановке."""
-    city = rng.choice(CITIES)
+    city = rng.choice(CITIES_RU)
     n = rng.choice([50, 100, 300, 500, 1000])
     cases = [
         (f"Предсказать цену квартиры в городе {city} по площади, этажу и району.", "Регрессия"),
@@ -733,7 +735,7 @@ def normal_rule(rng: random.Random) -> Generated:
         ]
     )
     return Generated(
-        stem=f"{what} распределено нормально со средним {mean} и стандартным отклонением {sd}. "
+        stem=f"{what}: распределение нормальное, среднее {mean}, стандартное отклонение {sd}. "
         f"Какая доля значений приблизительно лежит в интервале от {mean - k * sd} до {mean + k * sd}? "
         "Ответ в процентах.",
         number=share,

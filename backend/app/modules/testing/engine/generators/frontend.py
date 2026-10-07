@@ -5,6 +5,7 @@ from collections import Counter, deque
 from collections.abc import Iterable, Iterator
 from typing import Any
 
+from app.modules.testing.engine.expressions import plural
 from app.modules.testing.engine.generators import generator
 from app.modules.testing.engine.model import Generated
 
@@ -713,7 +714,7 @@ def cors_preflight(rng: random.Random) -> Generated:
     path = rng.choice(["orders", "profile", "items", "reports"])
     return Generated(
         stem=(
-            f"Страница https://{site} выполняет запросы к const url = 'https://{api}/{path}'. "
+            f"Страница https://{site} отправляет запросы на другой origin: url = 'https://{api}/{path}'. "
             "Какие из запросов браузер предварит preflight-запросом OPTIONS? Выберите все верные."
         ),
         correct=tuple(rng.sample(CORS_PREFLIGHT, 4)),
@@ -738,7 +739,7 @@ def http_status_scenario(rng: random.Random) -> Generated:
     resource = rng.choice(["/api/orders", "/api/profile", "/api/cart", "/api/projects"])
     stem = rng.choice(
         [
-            f"Фронтенд обращается к {resource}. Ситуация: {situation}. Какой код ответа корректен?",
+            f"Фронтенд обращается к {resource}. {situation}. Какой код ответа корректен?",
             f"{situation} (эндпоинт {resource}). Какой HTTP-статус должен вернуть сервер?",
         ]
     )
@@ -927,7 +928,7 @@ STATE_SCENARIOS = [
     ("Значение поля поиска {x} внутри одного компонента до отправки формы", "local"),
     ("Признак «показать пароль» в форме входа, который нужен только самому полю пароля", "local"),
     (
-        "Содержимое черновика {x} редактируется на клиенте, до отправки на сервер не сохраняется и нужно "
+        "Черновик формы в разделе {x} редактируется на клиенте, до отправки на сервер не сохраняется и нужен "
         "шапке и нескольким далёким друг от друга страницам",
         "global",
     ),
@@ -1821,7 +1822,8 @@ def binary_search_steps(rng: random.Random) -> Generated:
     )
     return Generated(
         stem=(
-            f"Массив {name} отсортирован по возрастанию и содержит {n} элементов. Какое наибольшее число "
+            f"Массив {name} отсортирован по возрастанию и содержит {n} "
+            f"{plural(n, 'элемент', 'элемента', 'элементов')}. Какое наибольшее число "
             "итераций цикла while может выполнить search (худший случай, включая отсутствующее значение)?"
         ),
         code=code,
@@ -1986,12 +1988,13 @@ def pagination_requests(rng: random.Random) -> Generated:
     full = rng.randint(2, 9)
     total = per_page * full + rng.randint(1, per_page - 1)
     resource = rng.choice(PAGED_RESOURCES)
+    records = f"{total} {plural(total, 'запись', 'записи', 'записей')}"
     stem = rng.choice(
         [
             f"API отдаёт список {resource} постранично (параметр page), по {per_page} записей на страницу. "
-            f"Всего {total} записей. Сколько запросов нужно сделать фронтенду, чтобы загрузить все записи?",
+            f"Всего {records}. Сколько запросов нужно сделать фронтенду, чтобы загрузить все записи?",
             f"Бэкенд возвращает не больше {per_page} {resource} за один запрос (параметр page). "
-            f"В базе {total} записей. Сколько запросов страниц понадобится, чтобы показать их все?",
+            f"В базе {records}. Сколько запросов страниц понадобится, чтобы показать их все?",
         ]
     )
     return Generated(stem=stem, number=float(full + 1))
@@ -2589,7 +2592,8 @@ def virtual_list_rendered(rng: random.Random) -> Generated:
     last = -(-(scroll + viewport) // item) - 1
     rendered = min(total - 1, last + overscan) - max(0, first - overscan) + 1
     stem = (
-        f"Виртуализированный список из {total} элементов фиксированной высоты {item} px, высота области "
+        f"Виртуализированный список из {total} {plural(total, 'элемента', 'элементов', 'элементов')} "
+        f"фиксированной высоты {item} px, высота области "
         f"прокрутки {viewport} px, scrollTop = {scroll} px. Рендерятся все элементы, хотя бы частично "
         "попадающие "
         f"в область, плюс overscan: ещё {overscan} шт. сверху и {overscan} шт. снизу (если такие элементы "

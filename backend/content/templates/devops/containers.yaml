@@ -214,7 +214,7 @@
     key: {choice: [LOG_LEVEL, FEATURE_NEW_CHECKOUT, CACHE_TTL, DB_POOL_SIZE, RATE_LIMIT]}
     replicas: {int: [2, 8]}
   stem_variants:
-    - "Deployment {{app}} ({{replicas}} реплик) получает {{key}} из ConfigMap через env (configMapKeyRef). Вы изменили значение в ConfigMap через kubectl apply, но приложение продолжает работать со старым. Почему и что сделать?"
+    - "Deployment {{app}} ({{replicas|реплика|реплики|реплик}}) получает {{key}} из ConfigMap через env (configMapKeyRef). Вы изменили значение в ConfigMap через kubectl apply, но приложение продолжает работать со старым. Почему и что сделать?"
     - "После kubectl edit configmap {{app}}-config значение {{key}} в подах {{app}} не изменилось: переменная окружения {{key}} задана через valueFrom.configMapKeyRef. Как применить новое значение?"
   options:
     correct:

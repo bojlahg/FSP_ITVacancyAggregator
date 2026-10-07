@@ -1,5 +1,6 @@
 import random
 
+from app.modules.testing.engine.expressions import plural
 from app.modules.testing.engine.generators import generator
 from app.modules.testing.engine.model import Generated
 
@@ -40,11 +41,15 @@ def binary_search_steps(rng: random.Random) -> Generated:
     extra = rng.randint(0, 2 ** (power - 1))
     size = 2**power + extra
     steps = size.bit_length()
+    elements = plural(
+        size, "отсортированного элемента", "отсортированных элементов", "отсортированных элементов"
+    )
     return Generated(
         stem=(
-            f"Массив из {size:,} отсортированных элементов. Сколько сравнений в худшем случае "
-            "сделает бинарный поиск, чтобы найти элемент или убедиться, что его нет?"
-        ).replace(",", " "),
+            f"Массив из {size:,} {elements}. ".replace(",", " ")
+            + "Сколько сравнений в худшем случае сделает бинарный поиск, чтобы найти элемент или убедиться, "
+            "что его нет?"
+        ),
         number=float(steps),
         tolerance=0,
     )
@@ -937,7 +942,8 @@ def node_await_loop_time(rng: random.Random) -> Generated:
     code = f"async function loadAll(ids) {{\n{body}\n}}\n\nawait loadAll(ids); // ids.length === {n}"
     stem = (
         f"Каждый вызов {fn}() — сетевой запрос, который всегда занимает ровно {ms} мс и не нагружает CPU; "
-        f"сервер обрабатывает любое число запросов одновременно. Массив ids содержит {n} элементов. "
+        f"сервер обрабатывает любое число запросов одновременно. "
+        f"Массив ids содержит {n} {plural(n, 'элемент', 'элемента', 'элементов')}. "
         "Сколько миллисекунд займёт loadAll(ids)? Накладными расходами пренебречь."
     )
     return Generated(stem=stem, code=code, code_language="javascript", number=float(answer), tolerance=0)
@@ -969,8 +975,19 @@ def node_module_cache(rng: random.Random) -> Generated:
 
 # --- Базовые задания уровня Intern: открытый числовой ответ без угадывания ---
 
-ACCESS_PATHS = ["/api/users", "/api/orders", "/api/cart", "/login", "/api/items/7", "/health", "/api/search"]
-ACCESS_METHODS = ["GET", "GET", "POST", "PUT", "DELETE"]
+# метод подобран к пути: DELETE /login в логе выглядел бы случайным
+ACCESS_REQUESTS = [
+    ("GET", "/api/users"),
+    ("GET", "/api/orders"),
+    ("POST", "/api/orders"),
+    ("GET", "/api/cart"),
+    ("PUT", "/api/cart"),
+    ("POST", "/login"),
+    ("GET", "/api/items/7"),
+    ("DELETE", "/api/items/7"),
+    ("GET", "/health"),
+    ("GET", "/api/search"),
+]
 
 
 @generator("backend.http_count_client_errors")
@@ -985,7 +1002,8 @@ def http_count_client_errors(rng: random.Random) -> Generated:
     lines = []
     for kind in kinds:
         code = rng.choice(HTTP_CODES[kind]).split()[0]
-        lines.append(f"{rng.choice(ACCESS_METHODS):<6} {rng.choice(ACCESS_PATHS):<14} {code}")
+        method, path = rng.choice(ACCESS_REQUESTS)
+        lines.append(f"{method:<6} {path:<14} {code}")
     stem = rng.choice(
         [
             "Фрагмент лога доступа сервиса: метод, путь, код ответа. "
@@ -1469,7 +1487,8 @@ def dynamic_array_copies(rng: random.Random) -> Generated:
     stem = (
         f"Пустой {name} с начальной ёмкостью {capacity}. При добавлении в заполненный буфер ёмкость "
         f"увеличивается в {growth} раза, и все уже лежащие элементы копируются в новый буфер. Сколько всего "
-        f"копирований элементов произойдёт при последовательном добавлении {count} элементов (запись самого "
+        f"копирований элементов произойдёт при последовательном добавлении {count} "
+        f"{plural(count, 'элемента', 'элементов', 'элементов')} (запись самого "
         "добавляемого элемента не считается)?"
     )
     return Generated(stem=stem, number=float(copies), tolerance=0)

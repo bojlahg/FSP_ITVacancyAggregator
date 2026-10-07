@@ -6,6 +6,7 @@ import random
 from collections import Counter
 from fractions import Fraction
 
+from app.modules.testing.engine.expressions import plural
 from app.modules.testing.engine.generators import generator
 from app.modules.testing.engine.model import Generated
 
@@ -67,7 +68,14 @@ def uniq_without_sort(rng: random.Random) -> Generated:
 @generator("devops.top_ip_pipeline")
 def top_ip_pipeline(rng: random.Random) -> Generated:
     """Классический конвейер «самый частый IP»: awk | sort | uniq -c | sort -rn | head."""
-    paths = ["/api/orders", "/api/users", "/health", "/login", "/api/cart", "/static/app.js"]
+    requests = [
+        "GET /api/orders",
+        "POST /api/orders",
+        "GET /api/users",
+        "GET /health",
+        "POST /login",
+        "GET /static/app.js",
+    ]
     while True:
         ips = [f"10.0.{rng.randint(0, 9)}.{rng.randint(2, 254)}" for _ in range(4)]
         if len(set(ips)) < 4:
@@ -81,10 +89,7 @@ def top_ip_pipeline(rng: random.Random) -> Generated:
         if lines[0] == top or lines[-1] == top:
             continue
         break
-    log = [
-        f"{ip} {rng.choice(['GET', 'POST'])} {rng.choice(paths)} {rng.choice([200, 200, 201, 404, 500])}"
-        for ip in lines
-    ]
+    log = [f"{ip} {rng.choice(requests)} {rng.choice([200, 200, 201, 404, 500])}" for ip in lines]
     tail = rng.choice(["sort -rn | head -n 1", "sort -n | tail -n 1"])
     code = "\n".join(["$ cat access.log", *log, f"$ awk '{{print $1}}' access.log | sort | uniq -c | {tail}"])
     return Generated(
@@ -490,7 +495,7 @@ def prometheus_metric_type(rng: random.Random) -> Generated:
     stem = rng.choice(
         [
             f"Какой тип метрики Prometheus подходит для величины: {quantity}?",
-            f"Вы добавляете инструментирование в {service}. Нужно экспортировать {quantity}. "
+            f"Вы добавляете инструментирование в {service}. Нужно экспортировать метрику: {quantity}. "
             "Какой тип метрики Prometheus выбрать?",
         ]
     )
@@ -530,15 +535,19 @@ def terraform_count_shift(rng: random.Random) -> Generated:
         f'Ресурсы уже созданы. Из списка names удалили элемент "{names[removed]}". '
         "Что покажет terraform plan (имя ресурса — аргумент, требующий изменения)?"
     )
-    shifted = f"[{removed}]" if removed == last - 1 else f"[{removed}]…[{last - 1}]"
-    correct = (
-        f"Ресурсы с индексами {shifted} получат имена соседей и будут изменены или "
-        f"пересозданы, а ресурс [{last}] будет удалён"
-    )
+    if removed == last - 1:
+        shifted = f"Ресурс с индексом [{removed}] получит имя соседа и будет изменён или пересоздан"
+    else:
+        shifted = (
+            f"Ресурсы с индексами [{removed}]…[{last - 1}] получат имена соседей "
+            "и будут изменены или пересозданы"
+        )
+    correct = f"{shifted}, а ресурс [{last}] будет удалён"
     wrong = [
         f'Будет удалён только ресурс с именем "{names[removed]}", остальные не изменятся',
         "Изменений не будет: Terraform сопоставляет ресурсы по значению name",
-        f"Будут удалены и созданы заново все {len(names)} ресурсов",
+        "Будут удалены и созданы заново все "
+        f"{len(names)} {plural(len(names), 'ресурс', 'ресурса', 'ресурсов')}",
         "terraform plan завершится ошибкой: индексы в state не совпадают с конфигурацией",
     ]
     return Generated(stem=stem, code=code, code_language="hcl", correct=(correct,), wrong=tuple(wrong))

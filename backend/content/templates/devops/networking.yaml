@@ -16,17 +16,16 @@
   irt: {a: 1.0, b: -0.9}
   params:
     host: {choice: [api.shop.example, itscout.test, status.corp.example, cdn.media.example, pay.bank.example, docs.service.example]}
-    path: {choice: [health, api/v1/orders, login, metrics, api/v2/users, static/app.js]}
-    method: {choice: [GET, POST, HEAD]}
+    request: {choice: [GET /health, GET /api/v1/orders, POST /login, GET /metrics, HEAD /api/v2/users, GET /static/app.js]}
     tool: {choice: [curl, wget, "клиент на Python (requests)", "сервис на Go (net/http)"]}
   stem_variants:
-    - "{{tool}} выполняет запрос {{method}} https://{{host}}/{{path}} (без прокси, DNS-кэш пуст, новое соединение, HTTP/1.1 или HTTP/2). Расположите этапы в порядке их выполнения."
-    - "Что происходит, когда {{tool}} делает {{method}} https://{{host}}/{{path}}? Прокси нет, в кэше DNS ничего нет, соединение новое. Расположите этапы по порядку."
+    - "{{tool}} отправляет запрос {{request}} на https://{{host}} (без прокси, DNS-кэш пуст, новое соединение, HTTP/1.1 или HTTP/2). Расположите этапы в порядке их выполнения."
+    - "Что происходит, когда {{tool}} отправляет {{request}} на https://{{host}}? Прокси нет, в кэше DNS ничего нет, соединение новое. Расположите этапы по порядку."
   order_items:
     - "Разрешение имени {{host}} в IP-адрес через DNS"
     - "TCP-рукопожатие (SYN, SYN-ACK, ACK) с портом 443"
     - "TLS-рукопожатие и проверка сертификата {{host}}"
-    - "Отправка HTTP-запроса {{method}} /{{path}}"
+    - "Отправка HTTP-запроса {{request}}"
     - "Получение HTTP-ответа от сервера"
 
 - id: ops.net.cidr_hosts
@@ -135,7 +134,7 @@
       - "Нужно уменьшить net.ipv4.tcp_fin_timeout, и ядро само закроет эти сокеты"
       - "Удалённая сторона не отвечает на SYN, и ядро повторяет попытки"
       - "Пакеты теряются, и соединения ждут повторной передачи данных"
-      - "Это соединения, которые приложение закрыло первым, а {{dep}} ещё не подтвердил FIN"
+      - "Это соединения, которые приложение закрыло первым, а удалённая сторона ещё не подтвердила FIN"
       - "Переполнена очередь accept: ядро держит соединения до вызова accept()"
 
 - id: ops.net.private_ip

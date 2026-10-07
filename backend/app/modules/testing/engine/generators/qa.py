@@ -5,6 +5,7 @@ import math
 import random
 from collections.abc import Iterable
 
+from app.modules.testing.engine.expressions import plural
 from app.modules.testing.engine.generators import generator
 from app.modules.testing.engine.model import Generated
 
@@ -47,7 +48,11 @@ def equivalence_classes(rng: random.Random) -> Generated:
     """Классы: по одному на каждый валидный диапазон + невалидные ниже минимума и выше максимума."""
     text, unit, labels = rng.choice(EQUIVALENCE_DOMAINS)
     ranges = rng.randint(2, 4)
-    cuts = sorted(rng.sample(range(3, 60), ranges))
+    while True:
+        cuts = sorted(rng.sample(range(3, 60), ranges))
+        # соседние пороги не ближе 3: иначе выходит вырожденный диапазон «23–23»
+        if all(right - left >= 3 for left, right in zip(cuts, cuts[1:], strict=False)):
+            break
     upper_open = rng.random() < 0.5
     parts = []
     low = 1
@@ -74,19 +79,21 @@ def equivalence_classes(rng: random.Random) -> Generated:
     )
 
 
+# единица после «до N»: формы родительного падежа для 1, 2–4 и 5+ (до 21 года, до 43 лет)
 BOUNDARY_FIELDS = [
-    ("Возраст клиента", "лет"),
-    ("Количество билетов в заказе", "шт."),
-    ("Длина пароля", "символов"),
-    ("Срок аренды", "дней"),
+    ("Возраст клиента", ("года", "лет", "лет")),
+    ("Количество билетов в заказе", ("шт.", "шт.", "шт.")),
+    ("Длина пароля", ("символа", "символов", "символов")),
+    ("Срок аренды", ("дня", "дней", "дней")),
 ]
 
 
 @generator("qa.boundary_values_inclusive")
 def boundary_values_inclusive(rng: random.Random) -> Generated:
-    field, unit = rng.choice(BOUNDARY_FIELDS)
+    field, forms = rng.choice(BOUNDARY_FIELDS)
     low = rng.randint(2, 20)
     high = low + rng.randint(10, 80)
+    unit = plural(high, *forms)
     correct = _joined([low - 1, low, high, high + 1])
     wrong = [
         _joined([low, high]),
@@ -282,7 +289,7 @@ TECHNIQUE_SCENARIOS = [
         "decision",
     ),
     (
-        "Решение об одобрении заявки «{field}» зависит от комбинации "
+        "Решение об одобрении заявки на кредит зависит от комбинации "
         "условий: возраст, наличие долга, подтверждённый доход",
         "decision",
     ),
@@ -292,7 +299,7 @@ TECHNIQUE_SCENARIOS = [
         "state",
     ),
     (
-        "Объект «{field}» меняет статусы по событиям, и нужно проверить "
+        "Объект «{entity}» меняет статусы по событиям, и нужно проверить "
         "допустимые и запрещённые переходы между ними",
         "state",
     ),
@@ -301,7 +308,7 @@ TECHNIQUE_SCENARIOS = [
         "pairwise",
     ),
     (
-        "Форму «{field}» нужно проверить в {a} браузерах, нескольких ОС и языках; "
+        "Форму «{form}» нужно проверить в {a} браузерах, нескольких ОС и языках; "
         "все комбинации не успеть, но каждая пара значений должна встретиться",
         "pairwise",
     ),
@@ -312,23 +319,29 @@ TECHNIQUE_SCENARIOS = [
     ),
     (
         "По опыту прошлых релизов тестировщик составляет список типичных "
-        "ошибок (пустые строки, спецсимволы, двойной клик) и проверяет «{field}» по нему",
+        "ошибок (пустые строки, спецсимволы, двойной клик) и проверяет форму «{form}» по нему",
         "guess",
     ),
 ]
-TECHNIQUE_FIELDS = ["Кредит", "Регистрация", "Доставка", "Количество", "Возраст", "Бронирование"]
+# поле, форма и объект со статусами — из одной предметной области
+TECHNIQUE_SUBJECTS = [
+    ("Сумма кредита", "Заявка на кредит", "Заявка на кредит"),
+    ("Возраст", "Регистрация", "Учётная запись"),
+    ("Срок доставки", "Доставка", "Доставка"),
+    ("Количество гостей", "Бронирование", "Бронирование"),
+]
 
 
 @generator("qa.technique_choice")
 def technique_choice(rng: random.Random) -> Generated:
     text, answer = rng.choice(TECHNIQUE_SCENARIOS)
     a, b = rng.randint(5, 8), rng.randrange(1000, 10001, 500)
-    field = rng.choice(TECHNIQUE_FIELDS)
+    field, form, entity = rng.choice(TECHNIQUE_SUBJECTS)
     question = rng.choice(
         ["Какая техника тест-дизайна подходит лучше всего?", "Какую технику тест-дизайна выбрать?"]
     )
     return Generated(
-        stem=f"{text.format(a=a, b=b, field=field)}. {question}",
+        stem=f"{text.format(a=a, b=b, field=field, form=form, entity=entity)}. {question}",
         correct=(TECHNIQUES[answer],),
         wrong=tuple(label for key, label in TECHNIQUES.items() if key != answer),
     )
@@ -738,6 +751,7 @@ def sql_task_query(rng: random.Random) -> Generated:
     orders, status = rng.choice([("orders", "status"), ("tickets", "state"), ("payments", "status")])
     mail = rng.choice(["email", "phone", "birth_date"])
     limit = rng.choice([3, 5, 10, 20])
+    top = plural(limit, "самую дорогую позицию", "самые дорогие позиции", "самых дорогих позиций")
     since = rng.choice(["2025-01-01", "2025-07-01", "2026-03-01", "2026-06-15"])
     tasks = [
         (
@@ -752,7 +766,7 @@ def sql_task_query(rng: random.Random) -> Generated:
             ],
         ),
         (
-            f"Получить {limit} самых дорогих позиций из таблицы {goods} (цена — {price})",
+            f"Получить {limit} {top} из таблицы {goods} (цена — {price})",
             f"SELECT * FROM {goods} ORDER BY {price} DESC LIMIT {limit};",
             [
                 f"SELECT * FROM {goods} ORDER BY {price} ASC LIMIT {limit};",
@@ -1156,21 +1170,22 @@ def junit_before_each(rng: random.Random) -> Generated:
 # --- Тест-дизайн: дополнительные генераторы ----------------------------------------------------
 
 RANGE_FIELDS = [
-    ("Возраст клиента", "лет"),
-    ("Количество билетов в заказе", "шт."),
-    ("Длина логина", "символов"),
-    ("Срок аренды", "дней"),
-    ("Количество гостей", "чел."),
-    ("Срок кредита", "мес."),
-    ("Вес посылки", "кг"),
+    ("Возраст клиента", ("года", "лет", "лет")),
+    ("Количество билетов в заказе", ("шт.", "шт.", "шт.")),
+    ("Длина логина", ("символа", "символов", "символов")),
+    ("Срок аренды", ("дня", "дней", "дней")),
+    ("Количество гостей", ("чел.", "чел.", "чел.")),
+    ("Срок кредита", ("мес.", "мес.", "мес.")),
+    ("Вес посылки", ("кг", "кг", "кг")),
 ]
 
 
 def _range_field(rng: random.Random) -> tuple[str, str, int, int]:
-    field, unit = rng.choice(RANGE_FIELDS)
+    """Поле, единица в форме после «до {high}» и границы диапазона."""
+    field, forms = rng.choice(RANGE_FIELDS)
     low = rng.randint(2, 30)
     high = low + rng.randint(15, 90)
-    return field, unit, low, high
+    return field, plural(high, *forms), low, high
 
 
 @generator("qa.td_positive_negative")
@@ -1603,7 +1618,7 @@ def api_header_purpose(rng: random.Random) -> Generated:
 
 @generator("qa.api_pagination")
 def api_pagination(rng: random.Random) -> Generated:
-    path, plural, _, _ = rng.choice(API_RESOURCES)
+    path, items, _, _ = rng.choice(API_RESOURCES)
     size = rng.choice([10, 20, 25, 50])
     full = rng.randint(3, 40)
     rest = rng.randint(1, size - 1)
@@ -1612,12 +1627,12 @@ def api_pagination(rng: random.Random) -> Generated:
         stem = (
             f"GET {path}?limit={size}&offset=0 возвращает поле total = {total}. "
             f"Сколько запросов с limit={size} "
-            f"понадобится, чтобы получить все {total} {plural}?"
+            f"понадобится, чтобы получить всю коллекцию {items}?"
         )
         answer = full + 1
     else:
         stem = (
-            f"Всего {plural}: {total}, API отдаёт их страницами по {size} (page=1, 2, …). Сколько записей "
+            f"Всего {items}: {total}, API отдаёт их страницами по {size} (page=1, 2, …). Сколько записей "
             "вернётся на последней странице?"
         )
         answer = rest
@@ -2053,11 +2068,15 @@ TEST_ARTIFACTS = [
         "Тест-план",
     ),
     (
-        "Описание найденной в {feature} проблемы: шаги воспроизведения, ожидаемый и фактический результат",
+        "Описание проблемы, найденной в функции {feature}: шаги воспроизведения, ожидаемый и фактический "
+        "результат",
         "Баг-репорт",
     ),
     ("Набор тест-кейсов {feature}, сгруппированных для совместного запуска", "Тестовый набор (test suite)"),
-    ("Таблица связи требований к {feature} с тест-кейсами, которые их проверяют", "Матрица трассируемости"),
+    (
+        "Таблица связи требований к функции {feature} с тест-кейсами, которые их проверяют",
+        "Матрица трассируемости",
+    ),
     (
         "Итоговый документ о результатах тестирования {feature}: что проверено, найденные дефекты, риски",
         "Отчёт о тестировании",
@@ -2082,19 +2101,27 @@ def test_artifact(rng: random.Random) -> Generated:
 # --- Нагрузка: дополнительные генераторы --------------------------------------------------------
 
 PERF_TERMS = [
-    ("Число запросов, которые {service} обрабатывает за секунду", "Пропускная способность (throughput, RPS)"),
-    ("Время от отправки запроса к {service} до получения полного ответа", "Время отклика (response time)"),
-    ("Доля запросов к {service}, завершившихся ошибкой", "Процент ошибок (error rate)"),
+    ("Число запросов, которые {nom} обрабатывает за секунду", "Пропускная способность (throughput, RPS)"),
+    ("Время от отправки запроса к {dat} до получения полного ответа", "Время отклика (response time)"),
+    ("Доля запросов к {dat}, завершившихся ошибкой", "Процент ошибок (error rate)"),
     (
-        "Значение, быстрее которого обработаны 95% запросов к {service}",
+        "Значение, быстрее которого обработаны 95% запросов к {dat}",
         "95-й перцентиль времени отклика (p95)",
     ),
-    ("Пауза между действиями виртуального пользователя {service}, имитирующая чтение страницы", "Think time"),
-    ("Постепенное увеличение числа виртуальных пользователей {service} в начале теста", "Ramp-up"),
+    ("Пауза между действиями виртуального пользователя {gen}, имитирующая чтение страницы", "Think time"),
+    ("Постепенное увеличение числа виртуальных пользователей {gen} в начале теста", "Ramp-up"),
     (
-        "Число пользователей, одновременно выполняющих запросы к {service}",
+        "Число пользователей, одновременно выполняющих запросы к {dat}",
         "Конкурентность (concurrent users)",
     ),
+]
+# сервис в именительном, родительном и дательном падежах
+PERF_SERVICES = [
+    ("сервис поиска", "сервиса поиска", "сервису поиска"),
+    ("API каталога", "API каталога", "API каталога"),
+    ("сервис оплаты", "сервиса оплаты", "сервису оплаты"),
+    ("сайт магазина", "сайта магазина", "сайту магазина"),
+    ("сервис авторизации", "сервиса авторизации", "сервису авторизации"),
 ]
 
 
@@ -2102,17 +2129,8 @@ PERF_TERMS = [
 def perf_metric_term(rng: random.Random) -> Generated:
     index = rng.randrange(len(PERF_TERMS))
     text, term = PERF_TERMS[index]
-    service = rng.choice(
-        ["сервис поиска", "API каталога", "сервис оплаты", "сайт магазина", "сервис авторизации"]
-    )
-    service_gen = {
-        "сервис поиска": "сервиса поиска",
-        "API каталога": "API каталога",
-        "сервис оплаты": "сервиса оплаты",
-        "сайт магазина": "сайта магазина",
-        "сервис авторизации": "сервиса авторизации",
-    }
-    filled = text.format(service=service if index == 0 else service_gen[service])
+    nom, gen, dat = rng.choice(PERF_SERVICES)
+    filled = text.format(nom=nom, gen=gen, dat=dat)
     return Generated(
         stem=f"{filled}. Как называется эта характеристика нагрузочного теста?",
         correct=(term,),
@@ -2189,16 +2207,19 @@ def perf_apdex(rng: random.Random) -> Generated:
 # --- Веб и мобильные: дополнительные генераторы -------------------------------------------------
 
 MOBILE_BASICS = [
-    ("Формат установочного файла Android-приложения для ручной установки сборки {app}", ".apk"),
+    ("Формат установочного файла Android-приложения {app} для ручной установки сборки", ".apk"),
     ("Формат файла сборки iOS-приложения {app}", ".ipa"),
     (
         "Формат, в котором Android-приложение {app} загружают в Google Play для публикации",
         ".aab (Android App Bundle)",
     ),
-    ("Сервис Apple для раздачи бета-сборок {app} тестировщикам", "TestFlight"),
-    ("Консольная утилита для установки сборок {app} и чтения логов на Android-устройстве", "adb"),
-    ("Среда разработки Apple, в состав которой входит симулятор iOS для запуска {app}", "Xcode"),
-    ("Виртуальное Android-устройство из Android Studio для запуска {app}", "AVD (Android Virtual Device)"),
+    ("Сервис Apple для раздачи бета-сборок приложения {app} тестировщикам", "TestFlight"),
+    ("Консольная утилита для установки сборок приложения {app} и чтения логов на Android-устройстве", "adb"),
+    ("Среда разработки Apple, в состав которой входит симулятор iOS для запуска приложения {app}", "Xcode"),
+    (
+        "Виртуальное Android-устройство из Android Studio для запуска приложения {app}",
+        "AVD (Android Virtual Device)",
+    ),
 ]
 
 
@@ -2206,9 +2227,7 @@ MOBILE_BASICS = [
 def mobile_basics(rng: random.Random) -> Generated:
     index = rng.randrange(len(MOBILE_BASICS))
     text, answer = MOBILE_BASICS[index]
-    app = rng.choice(
-        ["приложения такси", "банковского приложения", "приложения доставки", "фитнес-приложения"]
-    )
+    app = rng.choice(["сервиса такси", "банка", "службы доставки", "фитнес-трекера"])
     return Generated(
         stem=f"{text.format(app=app)}. Что это?",
         correct=(answer,),
@@ -2223,7 +2242,7 @@ WEB_STORAGE = [
         "localStorage",
     ),
     ("Значение автоматически отправляется на сервер {site} с каждым запросом к его домену", "Cookie"),
-    ("Чтение значения из JavaScript на {site} можно запретить флагом HttpOnly", "Cookie"),
+    ("Чтение значения из JavaScript на страницах {site} можно запретить флагом HttpOnly", "Cookie"),
     ("Асинхронное хранилище {site} для больших объёмов структурированных данных с индексами", "IndexedDB"),
 ]
 
