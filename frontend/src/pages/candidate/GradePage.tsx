@@ -28,14 +28,14 @@ import {
 import { cn } from "@/lib/utils";
 
 const actionView: Record<string, { label: string; icon: LucideIcon }> = {
-  calibrate: { label: "Тест на", icon: Target },
-  upgrade: { label: "Повысить до", icon: ArrowUp },
-  downgrade: { label: "Понизить до", icon: ArrowDown },
-  retry: { label: "Повторить тест на", icon: RotateCw },
+  calibrate: { label: "Тест на грейд", icon: Target },
+  upgrade: { label: "Повысить до грейда", icon: ArrowUp },
+  downgrade: { label: "Понизить до грейда", icon: ArrowDown },
+  retry: { label: "Повторить тест на грейд", icon: RotateCw },
   // Срок категории истёк (§6.3): тот же грейд — подтверждение
-  reconfirm: { label: "Подтвердить", icon: RotateCw },
+  reconfirm: { label: "Подтвердить грейд", icon: RotateCw },
   // Настройка платформы GRADE_RETEST_CAN_DOWNGRADE: перепроверка своего грейда, провал понижает
-  retest: { label: "Перепроверить", icon: RotateCw },
+  retest: { label: "Перепроверить грейд", icon: RotateCw },
 };
 
 export default function GradePage() {
@@ -142,7 +142,7 @@ function GradeView({ status, specialization }: { status: GradeStatus; specializa
             ) : (
               <ul className="space-y-3">
                 {status.actions.map((action) => {
-                  const view = actionView[action.action] ?? { label: "Тест на", icon: Target };
+                  const view = actionView[action.action] ?? { label: "Тест на грейд", icon: Target };
                   const Icon = view.icon;
                   return (
                     <li key={`${action.action}-${action.grade}`} className="space-y-1.5">

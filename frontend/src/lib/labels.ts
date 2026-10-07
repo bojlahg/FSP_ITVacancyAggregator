@@ -26,7 +26,7 @@ export const SPECIALIZATION_FULL_LABELS: Record<string, string> = {
 };
 
 export const GRADE_LABELS: Record<string, string> = {
-  intern: "Intern",
+  intern: "Стажёр",
   junior: "Junior",
   middle: "Middle",
   senior: "Senior",
@@ -55,7 +55,7 @@ export function candidateCategoryLabel(candidate: {
 }
 
 export const ATTEMPT_PURPOSE_LABELS: Record<string, string> = {
-  calibration: "Калибровка",
+  calibration: "Первый тест",
   upgrade: "Повышение",
   downgrade: "Понижение",
   vacancy_preview: "Проверка под вакансию",

@@ -267,7 +267,7 @@ function NextActions({ data }: { data: AttemptResultOut }) {
               <p className="flex items-center gap-2 text-muted-foreground">
                 <CalendarClock className="size-4 text-primary" aria-hidden />
                 <span>
-                  Тест на {gradeLabel(grade)} будет доступен{" "}
+                  Тест на грейд {gradeLabel(grade)} будет доступен{" "}
                   {availableAt ? <b className="font-mono text-foreground">{formatDate(availableAt)}</b> : "позже"}
                 </span>
               </p>
