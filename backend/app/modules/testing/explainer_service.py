@@ -62,7 +62,16 @@ def _grade_names() -> dict[str, str]:
 
 def _grades() -> list[ExplainerGrade]:
     blueprints, names = get_blueprints(), _grade_names()
-    return [ExplainerGrade(grade=Grade(g), name=names.get(g, g), cut=blueprints.cut(g)) for g in GRADE_ORDER]
+    mode = blueprints.modes["full"]
+    return [
+        ExplainerGrade(
+            grade=Grade(g),
+            name=names.get(g, g),
+            cut=blueprints.cut(g),
+            test_items=blueprints.expected_items(mode, g),
+        )
+        for g in GRADE_ORDER
+    ]
 
 
 def _tested_specializations() -> dict[str, str]:

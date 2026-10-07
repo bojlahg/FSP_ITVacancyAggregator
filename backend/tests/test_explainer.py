@@ -6,7 +6,7 @@ from typing import Any
 import pytest
 
 from app.core.config import get_settings
-from app.modules.testing.engine.bank import get_bank
+from app.modules.testing.engine.bank import get_bank, get_blueprints
 from app.modules.testing.engine.render import render
 from app.modules.testing.explainer_service import _content, diversity_of
 
@@ -47,6 +47,17 @@ async def test_overview_is_public(client):
     assert [g["grade"] for g in body["grades"]] == ["intern", "junior", "middle", "senior"]
     assert {s["slug"] for s in body["specializations"]} >= {"backend", "frontend", "qa", "devops", "data"}
     assert all(s["active_templates"] > 0 for s in body["specializations"])
+    # Одно число на грейд — то же, что total_estimate попытки («Вопрос 1 из N»)
+    assert [g["test_items"] for g in body["grades"]] == [20, 20, 21, 21]
+
+
+def test_expected_items_golden():
+    """Этапы 9+9, 2 пилотных, открытый вопрос с Middle; в экспрессе ни пилотных, ни открытого (§10.3)."""
+    blueprints = get_blueprints()
+    full, express = blueprints.modes["full"], blueprints.modes["express"]
+    grades = ("intern", "junior", "middle", "senior")
+    assert [blueprints.expected_items(full, g) for g in grades] == [20, 20, 21, 21]
+    assert blueprints.expected_items(express, "senior") == 8
 
 
 async def test_templates_list_without_keys(client):

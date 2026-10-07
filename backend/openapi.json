@@ -15432,13 +15432,19 @@
             "type": "number",
             "title": "Cut",
             "description": "Порог грейда на IRT-шкале специализации, логиты"
+          },
+          "test_items": {
+            "type": "integer",
+            "title": "Test Items",
+            "description": "Заданий в полном тесте на этот грейд без уточняющих у порога: оба этапа, пилотные и открытый вопрос — столько же, сколько total_estimate попытки"
           }
         },
         "type": "object",
         "required": [
           "grade",
           "name",
-          "cut"
+          "cut",
+          "test_items"
         ],
         "title": "ExplainerGrade"
       },

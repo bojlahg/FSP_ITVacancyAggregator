@@ -65,6 +65,12 @@ class Blueprints(BaseModel):
     def cut(self, grade: str) -> float:
         return self.scale.cuts[grade]
 
+    def expected_items(self, mode: ModeConfig, grade: str) -> int:
+        """Заданий в тесте без уточняющих у порога: оба этапа, пилотные и открытый вопрос (§10.3)."""
+        from_grade = GRADE_ORDER.index(self.open_approach_from_grade)
+        open_item = mode.open_item and GRADE_ORDER.index(grade) >= from_grade
+        return mode.stage1_items + mode.stage2_items + mode.pilot_slots + int(open_item)
+
     def next_grade(self, grade: str) -> str | None:
         index = GRADE_ORDER.index(grade)
         return GRADE_ORDER[index + 1] if index + 1 < len(GRADE_ORDER) else None

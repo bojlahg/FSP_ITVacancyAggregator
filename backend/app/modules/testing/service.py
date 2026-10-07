@@ -19,7 +19,7 @@ from app.modules.categories.schemas import ExpressTestInfo
 from app.modules.matching import service as matching_service
 from app.modules.survey import service as survey_service
 from app.modules.testing.engine import confidence, integrity
-from app.modules.testing.engine.bank import GRADE_ORDER, get_bank, get_blueprints
+from app.modules.testing.engine.bank import get_bank, get_blueprints
 from app.modules.testing.engine.render import render
 from app.modules.testing.engine.scoring import score
 from app.modules.testing.engine.session import STAGE_OPEN, Answered, AttemptConfig, Planner
@@ -94,11 +94,7 @@ async def _planner(db: AsyncSession, attempt: TestAttempt) -> Planner:
 
 
 def _total_estimate(planner: Planner) -> int:
-    mode = planner.mode
-    open_item = mode.open_item and GRADE_ORDER.index(planner.config.grade_target) >= GRADE_ORDER.index(
-        planner.blueprints.open_approach_from_grade
-    )
-    return mode.stage1_items + mode.stage2_items + mode.pilot_slots + int(open_item)
+    return planner.blueprints.expected_items(planner.mode, planner.config.grade_target)
 
 
 def _total_max(planner: Planner) -> int:

@@ -262,6 +262,10 @@ class ExplainerGrade(ApiModel):
     grade: Grade
     name: str
     cut: float = Field(description="Порог грейда на IRT-шкале специализации, логиты")
+    test_items: int = Field(
+        description="Заданий в полном тесте на этот грейд без уточняющих у порога: "
+        "оба этапа, пилотные и открытый вопрос — столько же, сколько total_estimate попытки"
+    )
 
 
 class ExplainerSpecialization(ApiModel):

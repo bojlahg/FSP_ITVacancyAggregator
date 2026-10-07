@@ -4235,6 +4235,11 @@ export interface components {
              * @description Порог грейда на IRT-шкале специализации, логиты
              */
             cut: number;
+            /**
+             * Test Items
+             * @description Заданий в полном тесте на этот грейд без уточняющих у порога: оба этапа, пилотные и открытый вопрос — столько же, сколько total_estimate попытки
+             */
+            test_items: number;
         };
         /** ExplainerInformation */
         ExplainerInformation: {
