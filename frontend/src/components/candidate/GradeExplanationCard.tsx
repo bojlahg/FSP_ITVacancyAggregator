@@ -77,10 +77,6 @@ export function GradeExplanationCard() {
 
 function Decision({ decision }: { decision: GradeDecision }) {
   const grade = gradeLabel(decision.category.grade);
-  // Шкала от порога ниже до порога выше с запасом: видно, где θ̂ относительно границ грейда
-  const low = decision.cut - 1;
-  const high = (decision.next_cut ?? decision.cut + 1) + 0.5;
-  const position = (value: number) => `${Math.min(100, Math.max(0, ((value - low) / (high - low)) * 100))}%`;
 
   return (
     <div className="space-y-4">
@@ -106,40 +102,6 @@ function Decision({ decision }: { decision: GradeDecision }) {
           }
         />
       </dl>
-
-      <div className="space-y-1.5" aria-hidden>
-        <div className="relative h-2 rounded-full bg-muted">
-          <span
-            className="absolute inset-y-0 rounded-full bg-primary-tint"
-            style={{
-              left: position(decision.cut),
-              right: decision.next_cut !== null ? `calc(100% - ${position(decision.next_cut)})` : 0,
-            }}
-          />
-          {decision.se !== null && (
-            <span
-              className="absolute inset-y-0 rounded-full bg-primary/30"
-              style={{
-                left: position(decision.theta - decision.se),
-                right: `calc(100% - ${position(decision.theta + decision.se)})`,
-              }}
-            />
-          )}
-          <span className="absolute -top-1 h-4 w-0.5 bg-foreground" style={{ left: position(decision.cut) }} />
-          {decision.next_cut !== null && (
-            <span className="absolute -top-1 h-4 w-0.5 bg-border" style={{ left: position(decision.next_cut) }} />
-          )}
-          <span
-            className="absolute -top-1 size-4 -translate-x-1/2 rounded-full border-2 border-background bg-primary"
-            style={{ left: position(decision.theta) }}
-          />
-        </div>
-        <div className="flex justify-between font-mono text-xs text-muted-foreground">
-          <span>ниже порога</span>
-          <span>{grade}</span>
-          <span>{decision.next_grade ? gradeLabel(decision.next_grade) : "выше"}</span>
-        </div>
-      </div>
 
       <p className="text-xs text-muted-foreground">
         Результат действует до {formatDate(decision.valid_until)} Подробно о заданиях и шкале —{" "}

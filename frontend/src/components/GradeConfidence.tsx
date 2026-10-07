@@ -101,10 +101,16 @@ export function GradeEvidenceCard({
           <Fact icon={ListChecks}>
             {evidence.adaptive ? "Адаптивный тест" : "Тест"}
             {evidence.short_mode ? " (сокращённый демо-режим)" : ""}: {items} с оценкой, задания подбирались по
-            ответам;{" "}
-            <span className="font-mono whitespace-nowrap tabular-nums">
-              θ = {evidence.theta.toFixed(2).replace(".", ",")} ± {evidence.se.toFixed(2).replace(".", ",")}
-            </span>
+            ответам
+            {/* Кандидату θ̂ и погрешность показывает блок «Как определён грейд» — здесь без повтора */}
+            {audience === "employer" && (
+              <>
+                ;{" "}
+                <span className="font-mono whitespace-nowrap tabular-nums">
+                  θ = {evidence.theta.toFixed(2).replace(".", ",")} ± {evidence.se.toFixed(2).replace(".", ",")}
+                </span>
+              </>
+            )}
           </Fact>
           {audience === "employer" && integrity && (
             <Fact icon={ScanEye}>
