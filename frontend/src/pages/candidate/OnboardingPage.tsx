@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Award, Check, FileUp, PlayCircle } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { AbandonExpressButton } from "@/components/candidate/AbandonExpressButton";
 import { CategoryBadge } from "@/components/CategoryBadge";
@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { apiError } from "@/lib/api-error";
+import { useAuth } from "@/lib/auth";
+import { clearOnboardingDraft, loadOnboardingDraft, saveOnboardingDraft } from "@/lib/onboarding-draft";
 import {
   type CandidateProfile,
   type Grade,
@@ -66,9 +68,14 @@ export default function OnboardingPage() {
 /** Режим фиксируется по onboarding_step при входе: последующие обновления профиля не перескакивают шаги. */
 function OnboardingFlow({ me }: { me: CandidateProfile }) {
   const [mode] = useState(me.onboarding_step);
+  const userId = useAuth().user?.id;
+  const finished = mode === "test" || mode === "done";
+  useEffect(() => {
+    if (finished) clearOnboardingDraft(userId);
+  }, [finished, userId]);
   if (mode === "test") return <ResumeAttempt />;
   if (mode === "done") return <OnboardingDone me={me} />;
-  return <Wizard me={me} initialStep={stepIndexByOnboarding[mode] ?? 0} />;
+  return <Wizard me={me} userId={userId} initialStep={stepIndexByOnboarding[mode] ?? 0} />;
 }
 
 function ResumeAttempt() {
@@ -137,17 +144,35 @@ function OnboardingDone({ me }: { me: CandidateProfile }) {
   );
 }
 
-function Wizard({ me, initialStep }: { me: CandidateProfile; initialStep: number }) {
+interface WizardProps {
+  me: CandidateProfile;
+  userId: number | undefined;
+  initialStep: number;
+}
+
+function Wizard({ me, userId, initialStep }: WizardProps) {
   const queryClient = useQueryClient();
   const gradeStatus = useGradeStatus();
   const grades = useGrades();
-  const [step, setStep] = useState(initialStep);
-  // Результат опроса есть только в ответе POST /survey/responses — после перезагрузки страницы его нет.
+  const [draft] = useState(() => loadOnboardingDraft(userId));
+  const [step, setStepState] = useState(() => restoredStep(draft.step, initialStep, me.specialization));
+  // Результат опроса есть только в ответе POST /survey/responses — после перезагрузки его хранит черновик.
   const [surveyResult, setSurveyResult] = useState<SurveyResult | null>(
-    () => queryClient.getQueryData<SurveyResult>(queryKeys.surveyResult) ?? null,
+    () => queryClient.getQueryData<SurveyResult>(queryKeys.surveyResult) ?? draft.surveyResult ?? null,
   );
   const [specialization, setSpecialization] = useState<string | null>(me.specialization);
-  const [grade, setGrade] = useState<Grade | null>(surveyResult?.suggested_grade ?? me.category?.grade ?? null);
+  const [grade, setGradeState] = useState<Grade | null>(
+    () => draft.grade ?? surveyResult?.suggested_grade ?? me.category?.grade ?? null,
+  );
+
+  const setStep = (next: number) => {
+    setStepState(next);
+    saveOnboardingDraft(userId, { step: next });
+  };
+  const setGrade = (next: Grade | null) => {
+    setGradeState(next);
+    saveOnboardingDraft(userId, { grade: next });
+  };
 
   const currentGrade = me.category?.grade ?? null;
 
@@ -184,9 +209,11 @@ function Wizard({ me, initialStep }: { me: CandidateProfile; initialStep: number
       <Card>
         {step === 0 && (
           <SurveyStep
+            userId={userId}
             onDone={(result) => {
               setSurveyResult(result);
-              setGrade((current) => current ?? result.suggested_grade);
+              saveOnboardingDraft(userId, { surveyResult: result });
+              setGrade(grade ?? result.suggested_grade);
               setStep(1);
             }}
           />
@@ -195,6 +222,8 @@ function Wizard({ me, initialStep }: { me: CandidateProfile; initialStep: number
           <SpecializationStep
             surveyResult={surveyResult}
             current={specialization}
+            initialPicked={draft.pickedSpecialization ?? null}
+            onPick={(slug) => saveOnboardingDraft(userId, { pickedSpecialization: slug })}
             onBack={() => setStep(0)}
             onSurveyRequired={() => setStep(0)}
             onConfirmed={(slug) => {
@@ -220,6 +249,7 @@ function Wizard({ me, initialStep }: { me: CandidateProfile; initialStep: number
             grade={grade}
             purpose={purposeFor(grade, gradeStatus.data, grades.data, currentGrade)}
             onBack={() => setStep(2)}
+            onStarted={() => clearOnboardingDraft(userId)}
           />
         )}
         {step === 3 && !(specialization && grade) && (
@@ -234,4 +264,12 @@ function Wizard({ me, initialStep }: { me: CandidateProfile; initialStep: number
       </Card>
     </>
   );
+}
+
+/** Шаг из черновика, если он не опережает сервер: опрос и специализация должны быть уже сохранены. */
+function restoredStep(saved: number | undefined, initialStep: number, specialization: string | null): number {
+  if (saved === undefined || !Number.isInteger(saved) || saved < 0 || saved >= steps.length) return initialStep;
+  if (saved >= 1 && initialStep === 0) return 0;
+  if (saved >= 2 && !specialization) return 1;
+  return saved;
 }

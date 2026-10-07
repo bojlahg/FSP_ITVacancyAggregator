@@ -21,19 +21,30 @@ interface SpecializationStepProps {
   surveyResult: SurveyResult | null;
   /** Уже подтверждённая специализация из профиля. */
   current: string | null;
+  /** Выбранная, но ещё не подтверждённая карточка — из черновика онбординга. */
+  initialPicked?: string | null;
+  onPick?: (specialization: string) => void;
   onBack: () => void;
   onConfirmed: (specialization: string) => void;
   /** 409 survey_required: опрос не засчитан — вернуть кандидата к опросу. */
   onSurveyRequired: () => void;
 }
 
-export function SpecializationStep({ surveyResult, current, onBack, onConfirmed, onSurveyRequired }: SpecializationStepProps) {
+export function SpecializationStep({
+  surveyResult,
+  current,
+  initialPicked = null,
+  onPick,
+  onBack,
+  onConfirmed,
+  onSurveyRequired,
+}: SpecializationStepProps) {
   const catalog = useSpecializations();
   const confirm = useConfirmSpecialization();
   const firstTestable =
     surveyResult?.recommended.find((item) => catalog.data?.some((s) => s.slug === item.specialization && s.has_test))
       ?.specialization ?? null;
-  const [picked, setPicked] = useState<string | null>(null);
+  const [picked, setPicked] = useState<string | null>(initialPicked);
   const selected = picked ?? current ?? firstTestable;
 
   if (catalog.isPending) {
@@ -72,7 +83,10 @@ export function SpecializationStep({ surveyResult, current, onBack, onConfirmed,
       <button
         key={spec.slug}
         type="button"
-        onClick={() => setPicked(spec.slug)}
+        onClick={() => {
+          setPicked(spec.slug);
+          onPick?.(spec.slug);
+        }}
         disabled={!spec.has_test}
         aria-pressed={isSelected}
         className={cn(

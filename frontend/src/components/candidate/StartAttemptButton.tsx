@@ -15,13 +15,23 @@ interface StartAttemptButtonProps {
   size?: ComponentProps<typeof Button>["size"];
   disabled?: boolean;
   className?: string;
+  /** Попытка создана — перед переходом на экран теста. */
+  onStarted?: () => void;
 }
 
 /**
  * Старт попытки → экран теста. 409 «attempt_in_progress» ведёт в незаконченную попытку,
  * «grade_cooldown» показывает, когда тест станет доступен.
  */
-export function StartAttemptButton({ params, children, variant, size, disabled, className }: StartAttemptButtonProps) {
+export function StartAttemptButton({
+  params,
+  children,
+  variant,
+  size,
+  disabled,
+  className,
+  onStarted,
+}: StartAttemptButtonProps) {
   const navigate = useNavigate();
   const start = useStartAttempt();
   const conflict = start.error ? startAttemptConflict(start.error) : null;
@@ -29,7 +39,10 @@ export function StartAttemptButton({ params, children, variant, size, disabled, 
   const onClick = () => {
     if (!params || start.isPending) return;
     start.mutate(params, {
-      onSuccess: (attempt) => void navigate(`/candidate/test/${attempt.id}`),
+      onSuccess: (attempt) => {
+        onStarted?.();
+        void navigate(`/candidate/test/${attempt.id}`);
+      },
       onError: (err) => {
         const found = startAttemptConflict(err);
         if (found?.kind === "in_progress") void navigate(`/candidate/test/${found.attemptId}`);

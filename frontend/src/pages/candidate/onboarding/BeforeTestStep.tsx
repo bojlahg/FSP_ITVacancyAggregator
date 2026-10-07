@@ -21,9 +21,10 @@ interface BeforeTestStepProps {
   grade: Grade;
   purpose: AttemptPurpose;
   onBack: () => void;
+  onStarted?: () => void;
 }
 
-export function BeforeTestStep({ specialization, grade, purpose, onBack }: BeforeTestStepProps) {
+export function BeforeTestStep({ specialization, grade, purpose, onBack, onStarted }: BeforeTestStepProps) {
   const specializations = useSpecializations();
   const grades = useGrades();
   const specName =
@@ -64,7 +65,12 @@ export function BeforeTestStep({ specialization, grade, purpose, onBack }: Befor
         <Button variant="ghost" onClick={onBack}>
           <ArrowLeft /> Назад
         </Button>
-        <StartAttemptButton params={{ specialization, grade_target: grade, purpose }} size="lg" className="justify-items-end">
+        <StartAttemptButton
+          params={{ specialization, grade_target: grade, purpose }}
+          size="lg"
+          className="justify-items-end"
+          onStarted={onStarted}
+        >
           Начать тест <ArrowRight />
         </StartAttemptButton>
       </CardFooter>

@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, ArrowRight, ClipboardList, Loader2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm, type FieldErrors, type Resolver } from "react-hook-form";
 import { z } from "zod";
 import { SkillsMultiSelect } from "@/components/candidate/SkillsMultiSelect";
@@ -13,8 +13,8 @@ import { CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from 
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { apiError, applyValidationErrors } from "@/lib/api-error";
+import { loadOnboardingDraft, saveOnboardingDraft } from "@/lib/onboarding-draft";
 import {
   type SkillOut,
   type SurveyQuestion,
@@ -28,7 +28,26 @@ type SalaryValue = { from: string; to: string };
 type FieldValue = string | string[] | SalaryValue;
 type SurveyFormValues = Record<string, FieldValue>;
 
-const TEXT_MAX_LENGTH = 2000;
+// Текстовый вопрос опроса — город: он пишется в профиль, где поле до 100 символов.
+const TEXT_MAX_LENGTH = 100;
+// Тот же предел, что проверяет backend для числовых ответов (survey/service.py, стаж в годах).
+const NUMBER_MAX = 60;
+// Подсказки для поля «Город»: ввести можно любой.
+const CITY_SUGGESTIONS = [
+  "Москва",
+  "Санкт-Петербург",
+  "Новосибирск",
+  "Екатеринбург",
+  "Казань",
+  "Нижний Новгород",
+  "Самара",
+  "Ростов-на-Дону",
+  "Краснодар",
+  "Пермь",
+  "Воронеж",
+  "Томск",
+  "Иннополис",
+];
 // Больше вариантов — выпадающий список вместо радиокнопок.
 const RADIO_MAX_OPTIONS = 6;
 
@@ -57,6 +76,7 @@ function questionSchema(question: SurveyQuestion): z.ZodType {
         }
         const value = parseNumber(raw);
         if (value === null || value < 0) ctx.addIssue({ code: "custom", message: "Введите неотрицательное число" });
+        else if (value > NUMBER_MAX) ctx.addIssue({ code: "custom", message: `Не больше ${NUMBER_MAX}` });
       });
     case "salary_range":
       return z.object({ from: z.string(), to: z.string() }).superRefine(({ from, to }, ctx) => {
@@ -110,6 +130,20 @@ function toAnswer(question: SurveyQuestion, value: FieldValue | undefined): unkn
   }
 }
 
+/** Ответ из черновика подставляем, только если он той же формы, что поле вопроса. */
+function restoredValue(question: SurveyQuestion, saved: unknown): FieldValue {
+  const fallback = defaultValue(question);
+  if (Array.isArray(fallback)) {
+    return Array.isArray(saved) && saved.every((item) => typeof item === "string") ? saved : fallback;
+  }
+  if (typeof fallback === "string") return typeof saved === "string" ? saved : fallback;
+  if (saved && typeof saved === "object" && !Array.isArray(saved)) {
+    const { from, to } = saved as Record<string, unknown>;
+    if (typeof from === "string" && typeof to === "string") return { from, to };
+  }
+  return fallback;
+}
+
 function errorOf(errors: FieldErrors<SurveyFormValues>, name: string): string | undefined {
   const error = errors[name] as { message?: unknown } | undefined;
   return typeof error?.message === "string" ? error.message : undefined;
@@ -125,10 +159,12 @@ function paginate<T>(items: T[]): T[][] {
 }
 
 interface SurveyStepProps {
+  /** Для черновика ответов в sessionStorage (переживает F5). */
+  userId?: number;
   onDone: (result: SurveyResult) => void;
 }
 
-export function SurveyStep({ onDone }: SurveyStepProps) {
+export function SurveyStep({ userId, onDone }: SurveyStepProps) {
   const questions = useSurveyQuestions();
 
   if (questions.isPending) {
@@ -156,16 +192,29 @@ export function SurveyStep({ onDone }: SurveyStepProps) {
       </CardContent>
     );
   }
-  return <SurveyForm questions={questions.data} onDone={onDone} />;
+  return <SurveyForm questions={questions.data} userId={userId} onDone={onDone} />;
 }
 
-function SurveyForm({ questions, onDone }: { questions: SurveyQuestion[]; onDone: (result: SurveyResult) => void }) {
+interface SurveyFormProps {
+  questions: SurveyQuestion[];
+  userId?: number;
+  onDone: (result: SurveyResult) => void;
+}
+
+function SurveyForm({ questions, userId, onDone }: SurveyFormProps) {
   const submit = useSubmitSurvey();
-  const [page, setPage] = useState(0);
-  const [skillNames, setSkillNames] = useState<Record<string, string>>({});
+  const [draft] = useState(() => loadOnboardingDraft(userId));
+  const [skillNames, setSkillNames] = useState<Record<string, string>>(() => draft.skillNames ?? {});
 
   const indexed = useMemo(() => questions.map((question, index) => ({ question, name: fieldName(index) })), [questions]);
   const pages = useMemo(() => paginate(indexed), [indexed]);
+  const [page, setPageState] = useState(() =>
+    Number.isInteger(draft.surveyPage) ? Math.min(Math.max(draft.surveyPage ?? 0, 0), pages.length - 1) : 0,
+  );
+  const setPage = (next: number) => {
+    setPageState(next);
+    saveOnboardingDraft(userId, { surveyPage: next });
+  };
 
   const { resolver, defaults, apiFieldMap } = useMemo(() => {
     const shape: Record<string, z.ZodType> = {};
@@ -173,7 +222,7 @@ function SurveyForm({ questions, onDone }: { questions: SurveyQuestion[]; onDone
     const fieldMap: Record<string, string> = {};
     for (const { question, name } of indexed) {
       shape[name] = questionSchema(question);
-      values[name] = defaultValue(question);
+      values[name] = restoredValue(question, draft.surveyAnswers?.[question.id]);
       fieldMap[question.id] = name;
     }
     return {
@@ -181,15 +230,28 @@ function SurveyForm({ questions, onDone }: { questions: SurveyQuestion[]; onDone
       defaults: values,
       apiFieldMap: fieldMap,
     };
-  }, [indexed]);
+  }, [indexed, draft]);
 
   const {
     control,
     handleSubmit,
     trigger,
     setError,
+    subscribe,
     formState: { errors, isSubmitting },
   } = useForm<SurveyFormValues>({ resolver, defaultValues: defaults });
+
+  // Ответы сохраняем по id вопроса: индексы полей зависят от порядка вопросов в опросе.
+  useEffect(() => {
+    return subscribe({
+      formState: { values: true },
+      callback: ({ values }) => {
+        const answers: Record<string, unknown> = {};
+        for (const { question, name } of indexed) answers[question.id] = values[name];
+        saveOnboardingDraft(userId, { surveyAnswers: answers });
+      },
+    });
+  }, [subscribe, indexed, userId]);
 
   const currentPage = pages[page] ?? [];
   const isLastPage = page === pages.length - 1;
@@ -213,12 +275,12 @@ function SurveyForm({ questions, onDone }: { questions: SurveyQuestion[]; onDone
   // Ошибка на одном из прошлых экранов — возвращаемся туда.
   const onInvalid = (invalid: FieldErrors<SurveyFormValues>) => {
     const firstPage = pages.findIndex((items) => items.some(({ name }) => invalid[name]));
-    if (firstPage >= 0) setPage(firstPage);
+    if (firstPage >= 0 && firstPage !== page) setPage(firstPage);
   };
 
   const next = async () => {
     const valid = await trigger(currentPage.map(({ name }) => name));
-    if (valid) setPage((current) => current + 1);
+    if (valid) setPage(page + 1);
   };
 
   return (
@@ -263,10 +325,11 @@ function SurveyForm({ questions, onDone }: { questions: SurveyQuestion[]; onDone
                     describedBy={errorId}
                     skillNames={skillNames}
                     onSkillNames={(skills) =>
-                      setSkillNames((current) => ({
-                        ...current,
-                        ...Object.fromEntries(skills.map((skill) => [skill.id, skill.name])),
-                      }))
+                      setSkillNames((current) => {
+                        const next = { ...current, ...Object.fromEntries(skills.map((skill) => [skill.id, skill.name])) };
+                        saveOnboardingDraft(userId, { skillNames: next });
+                        return next;
+                      })
                     }
                   />
                 )}
@@ -283,16 +346,18 @@ function SurveyForm({ questions, onDone }: { questions: SurveyQuestion[]; onDone
       </CardContent>
 
       <CardFooter className="mt-5 justify-between gap-2 border-t border-border-subtle pt-5">
-        <Button type="button" variant="ghost" onClick={() => setPage((current) => current - 1)} disabled={page === 0}>
+        <Button type="button" variant="ghost" onClick={() => setPage(page - 1)} disabled={page === 0}>
           <ArrowLeft /> Назад
         </Button>
+        {/* Разные key: иначе React переиспользует ту же кнопку, она становится type=submit ещё до конца
+            клика «Далее» — и форма отправляется сама, подсвечивая ошибки на последнем экране. */}
         {isLastPage ? (
-          <Button type="submit" disabled={isSubmitting}>
+          <Button key="submit" type="submit" disabled={isSubmitting}>
             {isSubmitting && <Loader2 className="animate-spin" aria-hidden />}
             Узнать специализацию <ArrowRight />
           </Button>
         ) : (
-          <Button type="button" onClick={() => void next()}>
+          <Button key="next" type="button" onClick={() => void next()}>
             Далее <ArrowRight />
           </Button>
         )}
@@ -404,6 +469,7 @@ function QuestionInput({
           type="number"
           inputMode="decimal"
           min={0}
+          max={NUMBER_MAX}
           className="max-w-48 font-mono"
           value={typeof value === "string" ? value : ""}
           onChange={(event) => onChange(event.target.value)}
@@ -447,16 +513,30 @@ function QuestionInput({
         </div>
       );
     }
-    case "text":
+    case "text": {
+      const listId = question.id === "city" ? `${id}-suggestions` : undefined;
       return (
-        <Textarea
-          id={id}
-          maxLength={TEXT_MAX_LENGTH}
-          value={typeof value === "string" ? value : ""}
-          onChange={(event) => onChange(event.target.value)}
-          onBlur={onBlur}
-          {...aria}
-        />
+        <>
+          <Input
+            id={id}
+            maxLength={TEXT_MAX_LENGTH}
+            className="max-w-sm"
+            list={listId}
+            autoComplete={question.id === "city" ? "address-level2" : undefined}
+            value={typeof value === "string" ? value : ""}
+            onChange={(event) => onChange(event.target.value)}
+            onBlur={onBlur}
+            {...aria}
+          />
+          {listId && (
+            <datalist id={listId}>
+              {CITY_SUGGESTIONS.map((city) => (
+                <option key={city} value={city} />
+              ))}
+            </datalist>
+          )}
+        </>
       );
+    }
   }
 }
