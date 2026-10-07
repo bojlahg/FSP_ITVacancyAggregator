@@ -4,7 +4,7 @@ from fastapi import APIRouter, BackgroundTasks, Cookie, Depends, Response
 from fastapi.responses import JSONResponse
 
 from app.core.config import get_settings
-from app.core.deps import CurrentUser, DbSession, require_demo_mode
+from app.core.deps import CurrentUser, DbSession, SessionUser, require_demo_mode
 from app.core.errors import AppError, app_error_response, error_responses
 from app.core.mail import send_safely
 from app.core.ratelimit import limit_auth_requests, limit_login_email
@@ -102,7 +102,7 @@ async def verify_email(body: VerifyEmailRequest, db: DbSession) -> MessageRespon
     responses=error_responses(401, 429),
 )
 async def resend_verification(
-    user: CurrentUser, background: BackgroundTasks, db: DbSession
+    user: SessionUser, background: BackgroundTasks, db: DbSession
 ) -> MessageResponse:
     mail = await service.resend_verification(db, user.id)
     if mail is None:
@@ -168,7 +168,7 @@ me_router = APIRouter(tags=["auth"])
 
 
 @me_router.get("/me", response_model=UserOut, summary="Текущий пользователь", responses=error_responses(401))
-async def me(user: CurrentUser, db: DbSession) -> UserOut:
+async def me(user: SessionUser, db: DbSession) -> UserOut:
     return await service.me(db, user.id)
 
 

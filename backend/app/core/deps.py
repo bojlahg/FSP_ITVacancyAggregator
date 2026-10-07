@@ -26,9 +26,10 @@ DbSession = Annotated[AsyncSession, Depends(get_session)]
 class AuthUser:
     id: int
     role: Role
+    email_verified: bool = True
 
 
-async def get_current_user(
+async def get_session_user(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
     db: DbSession,
 ) -> AuthUser:
@@ -44,7 +45,21 @@ async def get_current_user(
     user = await db.get(User, int(payload["sub"]))
     if user is None or user.deleted_at is not None:
         raise UnauthorizedError("Аккаунт удалён")
-    return AuthUser(id=user.id, role=Role(payload["role"]))
+    return AuthUser(id=user.id, role=Role(payload["role"]), email_verified=user.email_verified_at is not None)
+
+
+def _ensure_verified(user: AuthUser) -> AuthUser:
+    # §2: при EMAIL_VERIFICATION_REQUIRED без подтверждённой почты доступны только вход, /auth/me и письмо
+    if get_settings().email_verification_required and not user.email_verified:
+        raise ForbiddenError(
+            "Подтвердите почту: перейдите по ссылке из письма, отправленного при регистрации",
+            code="email_not_verified",
+        )
+    return user
+
+
+async def get_current_user(user: Annotated[AuthUser, Depends(get_session_user)]) -> AuthUser:
+    return _ensure_verified(user)
 
 
 def _require(role: Role):
@@ -68,6 +83,8 @@ def require_demo_mode() -> None:
 
 
 CurrentUser = Annotated[AuthUser, Depends(get_current_user)]
+# Сессия без проверки подтверждения почты — только для /auth/me и повторной отправки письма
+SessionUser = Annotated[AuthUser, Depends(get_session_user)]
 CurrentCandidate = Annotated[AuthUser, Depends(_require(Role.candidate))]
 CurrentEmployerSession = Annotated[AuthUser, Depends(_require(Role.employer))]
 
@@ -82,7 +99,7 @@ async def _employer_or_api_key(
         from app.modules.integrations.service import authenticate_key
 
         return AuthUser(id=await authenticate_key(db, api_key), role=Role.employer)
-    user = await get_current_user(credentials, db)
+    user = _ensure_verified(await get_session_user(credentials, db))
     if user.role != Role.employer:
         raise ForbiddenError()
     return user

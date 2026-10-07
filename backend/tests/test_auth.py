@@ -161,6 +161,42 @@ async def test_resend_verification_sends_new_mail(client, db, sent_mail):
     assert len(sent_mail) == 2
 
 
+async def test_verification_required_closes_api_until_email_confirmed(client, db, sent_mail, monkeypatch):
+    """§2: EMAIL_VERIFICATION_REQUIRED — без подтверждения доступны только /me и повторное письмо."""
+    monkeypatch.setattr(get_settings(), "email_verification_required", True)
+    registered = await client.post(f"{API}/auth/register", json=register_body("strict@example.com"))
+    headers = {"Authorization": f"Bearer {registered.json()['access_token']}"}
+
+    closed = await client.get(f"{API}/candidates/me", headers=headers)
+    assert closed.status_code == 403
+    assert closed.json()["error"]["code"] == "email_not_verified"
+    me = (await client.get(f"{API}/me", headers=headers)).json()
+    assert me["email_verified"] is False and me["email_verification_required"] is True
+    assert (await client.post(f"{API}/auth/resend-verification", headers=headers)).status_code == 200
+
+    token = re.search(r"token=([\w-]+)", sent_mail[-1].text).group(1)
+    assert (await client.post(f"{API}/auth/verify-email", json={"token": token})).status_code == 200
+    # Тот же access-токен: статус почты читается из БД на каждом запросе
+    assert (await client.get(f"{API}/candidates/me", headers=headers)).status_code == 200
+
+
+async def test_verification_required_applies_to_employers(client, db, monkeypatch):
+    monkeypatch.setattr(get_settings(), "email_verification_required", True)
+    body = register_body("hr@example.com", role="employer")
+    registered = await client.post(f"{API}/auth/register", json=body)
+    headers = {"Authorization": f"Bearer {registered.json()['access_token']}"}
+    response = await client.get(f"{API}/needs", headers=headers)
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "email_not_verified"
+
+
+async def test_unverified_email_is_not_blocking_by_default(client, db):
+    registered = await client.post(f"{API}/auth/register", json=register_body("relaxed@example.com"))
+    headers = {"Authorization": f"Bearer {registered.json()['access_token']}"}
+    assert registered.json()["user"]["email_verification_required"] is False
+    assert (await client.get(f"{API}/candidates/me", headers=headers)).status_code == 200
+
+
 async def test_demo_login_reuses_same_account(client, db):
     first = await client.post(f"{API}/auth/demo-login", json={"persona": "employer"})
     second = await client.post(f"{API}/auth/demo-login", json={"persona": "employer"})

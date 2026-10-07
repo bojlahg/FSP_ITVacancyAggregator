@@ -42,6 +42,9 @@ class UserOut(ApiModel):
     email: EmailStr
     role: Role
     email_verified: bool
+    email_verification_required: bool = Field(
+        description="EMAIL_VERIFICATION_REQUIRED: без подтверждённой почты API — 403 email_not_verified"
+    )
     email_notifications: bool = Field(description="Письма о приглашениях и откликах (§8.9)")
     created_at: datetime
 

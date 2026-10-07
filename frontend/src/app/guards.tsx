@@ -14,6 +14,10 @@ export function RequireRole({ role }: { role: AuthUser["role"] }) {
   if (user.role !== role) {
     return <Navigate to={homePathFor(user.role)} replace />;
   }
+  // EMAIL_VERIFICATION_REQUIRED (§2): без подтверждённой почты кабинет закрыт — только экран подтверждения
+  if (user.email_verification_required && !user.email_verified) {
+    return <Navigate to="/verify-email" replace />;
+  }
   return <Outlet />;
 }
 

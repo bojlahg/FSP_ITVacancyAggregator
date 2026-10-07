@@ -56,6 +56,7 @@ def _user_out(user: User) -> UserOut:
         email=user.email,
         role=user.role,
         email_verified=user.email_verified_at is not None,
+        email_verification_required=get_settings().email_verification_required,
         email_notifications=user.email_notifications,
         created_at=user.created_at,
     )

@@ -6300,6 +6300,11 @@ export interface components {
             /** Email Verified */
             email_verified: boolean;
             /**
+             * Email Verification Required
+             * @description EMAIL_VERIFICATION_REQUIRED: без подтверждённой почты API — 403 email_not_verified
+             */
+            email_verification_required: boolean;
+            /**
              * Email Notifications
              * @description Письма о приглашениях и откликах (§8.9)
              */

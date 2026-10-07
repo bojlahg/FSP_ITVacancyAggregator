@@ -20403,6 +20403,11 @@
             "type": "boolean",
             "title": "Email Verified"
           },
+          "email_verification_required": {
+            "type": "boolean",
+            "title": "Email Verification Required",
+            "description": "EMAIL_VERIFICATION_REQUIRED: без подтверждённой почты API — 403 email_not_verified"
+          },
           "email_notifications": {
             "type": "boolean",
             "title": "Email Notifications",
@@ -20420,6 +20425,7 @@
           "email",
           "role",
           "email_verified",
+          "email_verification_required",
           "email_notifications",
           "created_at"
         ],

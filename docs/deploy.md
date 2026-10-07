@@ -122,7 +122,7 @@ EMAIL_BACKEND=smtp
 SMTP_HOST=mail
 SMTP_PORT=25
 SMTP_SECURITY=none
-EMAIL_VERIFICATION_REQUIRED=false      # true — после проверки доставляемости писем
+EMAIL_VERIFICATION_REQUIRED=false      # true — кабинет только после подтверждения почты (e2e с регистрацией при этом упадёт)
 LLM_PROVIDER=none                      # yandex + YANDEX_API_KEY, YANDEX_FOLDER_ID — включить LLM
 ```
 
