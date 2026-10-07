@@ -54,7 +54,7 @@ export const router = createBrowserRouter([
             children: [
               { index: true, handle: { title: "Кабинет кандидата" }, lazy: lazyPage(() => import("@/pages/candidate/CandidateDashboardPage")) },
               { path: "onboarding", handle: { title: "Онбординг" }, lazy: lazyPage(() => import("@/pages/candidate/OnboardingPage")) },
-              { path: "test/:attemptId", handle: { title: "Тест" }, lazy: lazyPage(() => import("@/pages/candidate/TestPage")) },
+              { path: "test/:attemptId", handle: { title: "Тест", focus: true }, lazy: lazyPage(() => import("@/pages/candidate/TestPage")) },
               { path: "test/:attemptId/result", handle: { title: "Результат теста" }, lazy: lazyPage(() => import("@/pages/candidate/TestResultPage")) },
               { path: "profile", handle: { title: "Профиль и резюме" }, lazy: lazyPage(() => import("@/pages/candidate/ProfilePage")) },
               { path: "grade", handle: { title: "Категория и грейд" }, lazy: lazyPage(() => import("@/pages/candidate/GradePage")) },

@@ -2,7 +2,8 @@ import type { LucideIcon } from "lucide-react";
 import { Bug, Loader2, LogOut, Menu, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Link, NavLink, Outlet, useNavigate } from "react-router";
+import { Link, NavLink, Outlet, useMatches, useNavigate } from "react-router";
+import type { RouteHandle } from "@/app/DocumentTitle";
 import { LegalLinks } from "@/components/LegalLinks";
 import { ProductMark } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -47,6 +48,24 @@ export function CabinetLayout({ homePath, roleLabel, nav: baseNav, debugLink = t
 
   const email = user?.email ?? "";
   const initials = email.slice(0, 2).toUpperCase();
+  // Во время теста (handle.focus) меню и ссылки кабинета скрыты: один промах мышью уводит со страницы
+  const focus = useMatches().some((match) => (match.handle as RouteHandle | undefined)?.focus);
+
+  if (focus) {
+    return (
+      <div className="flex min-h-dvh flex-col bg-background">
+        <header className="sticky top-0 z-20 border-b border-border-subtle bg-background/95 backdrop-blur">
+          <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-10">
+            <ProductMark className="flex-row items-center gap-3" />
+            <ThemeToggle />
+          </div>
+        </header>
+        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-10">
+          <Outlet />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-dvh bg-background">

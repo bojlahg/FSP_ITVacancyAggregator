@@ -3,9 +3,12 @@ import { Outlet, useMatches } from "react-router";
 
 const DEFAULT_TITLE = "ITScout — платформа ИТ-подбора ФСП";
 
-/** handle маршрута в router.tsx: название вкладки браузера. */
-interface RouteHandle {
+/** handle маршрута в router.tsx. */
+export interface RouteHandle {
+  /** Название вкладки браузера. */
   title?: string;
+  /** Режим фокуса: кабинет прячет меню и навигацию (идёт тест, §6.2). */
+  focus?: boolean;
 }
 
 /** Корневой элемент маршрутов: «<Страница> — ITScout» по самому глубокому маршруту с title. */
