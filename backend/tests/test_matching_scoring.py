@@ -149,6 +149,9 @@ def test_stronger_within_grade_but_overqualified_drops():
     assert score(middle_strong) > score(overqualified)
     texts = [line["text"] for line in evaluate(overqualified, NEED, LABELS).lines]
     assert any("ближе к уровню Senior" in text for text in texts)
+    # Нейтрально, а не как минус: кандидат сильнее нужного грейда, ему предлагают тест на грейд выше
+    notes = [x for x in evaluate(overqualified, NEED, LABELS).lines if "ближе к уровню" in x["text"]]
+    assert notes[0]["kind"] == "neutral"
     assert not any("ближе к уровню" in line["text"] for line in evaluate(middle_strong, NEED, LABELS).lines)
 
 

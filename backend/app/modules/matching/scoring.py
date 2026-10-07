@@ -458,8 +458,8 @@ def explain(
     if strength["overqualified_penalty"] > 0 and overqualified:
         higher = get_blueprints().next_grade(need.grade) or ""
         name = next((g.name for g in get_catalog().grades if g.slug.value == higher), higher)
-        text = f"По тесту уже ближе к уровню {name} — задачи и ожидания могут быть выше"
-        lines.append(_line("warning", "test", text))
+        text = f"По тесту уже ближе к уровню {name} — сильнее нужного грейда"
+        lines.append(_line("neutral", "test", text))
 
     for skill, required, value, status, similar in details:
         name = labels.get(skill, skill)
