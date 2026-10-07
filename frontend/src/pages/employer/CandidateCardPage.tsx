@@ -33,9 +33,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { apiError } from "@/lib/api-error";
-import { type CandidateCard, parseId, useCandidateCard, useNeed } from "@/lib/employer-queries";
+import { type CandidateCard, parseId, useCandidateCard, useIndustries, useNeed } from "@/lib/employer-queries";
 import { daysSince, formatDate, formatDaysAgo, formatExperience, formatNumber, plural, toPercent } from "@/lib/format";
 import { FSP_LEVEL_LABELS, SKILL_STATUS_LABELS, workFormatsLabel } from "@/lib/labels";
+import { useSoftSkills, useTeamRoles } from "@/lib/profile-queries";
 
 type SkillStatus = CandidateCard["skills"][number]["status"];
 
@@ -55,6 +56,9 @@ export default function CandidateCardPage() {
   const need = useNeed(needId);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [invited, setInvited] = useState(false);
+  const industries = useIndustries();
+  const teamRoles = useTeamRoles();
+  const softSkills = useSoftSkills();
 
   const back = needId ? (
     <Button asChild variant="ghost" size="sm" className="-ml-3 mb-2">
@@ -309,13 +313,13 @@ export default function CandidateCardPage() {
                 {data.industries_exp.length > 0 && (
                   <div className="flex justify-between gap-3">
                     <dt className="text-muted-foreground">Отрасли</dt>
-                    <dd className="text-right">{data.industries_exp.join(", ")}</dd>
+                    <dd className="text-right">{catalogNames(data.industries_exp, industries.data)}</dd>
                   </div>
                 )}
                 {data.roles.length > 0 && (
                   <div className="flex justify-between gap-3">
                     <dt className="text-muted-foreground">Роли</dt>
-                    <dd className="text-right">{data.roles.join(", ")}</dd>
+                    <dd className="text-right">{catalogNames(data.roles, teamRoles.data)}</dd>
                   </div>
                 )}
                 {brief.last_activity_at && (
@@ -331,7 +335,7 @@ export default function CandidateCardPage() {
                 <div className="mt-4 flex flex-wrap gap-1.5">
                   {data.soft_skills.map((skill) => (
                     <Badge key={skill} variant="muted">
-                      {skill}
+                      {catalogNames([skill], softSkills.data)}
                     </Badge>
                   ))}
                 </div>
@@ -350,6 +354,11 @@ export default function CandidateCardPage() {
       />
     </>
   );
+}
+
+/** Названия из справочника вместо слагов; пока справочник грузится или слаг неизвестен — сам слаг. */
+function catalogNames(slugs: readonly string[], catalog: readonly { slug: string; name: string }[] | undefined): string {
+  return slugs.map((slug) => catalog?.find((item) => item.slug === slug)?.name ?? slug).join(", ");
 }
 
 function ContactsCard({ card }: { card: CandidateCard }) {

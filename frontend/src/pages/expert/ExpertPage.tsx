@@ -14,6 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiError } from "@/lib/api-error";
+import { useIndustries } from "@/lib/employer-queries";
 import {
   type ExpertSummary,
   type ExpertTask,
@@ -157,6 +158,10 @@ function LabelingTab() {
 }
 
 function NeedCard({ need }: { need: NonNullable<ExpertTask["need"]> }) {
+  const industries = useIndustries();
+  const industry = need.industry
+    ? (industries.data?.find((item) => item.slug === need.industry)?.name ?? need.industry)
+    : null;
   return (
     <Card>
       <CardHeader>
@@ -173,7 +178,7 @@ function NeedCard({ need }: { need: NonNullable<ExpertTask["need"]> }) {
           </Row>
           {need.work_format && <Row label="Формат">{WORK_FORMAT_LABELS[need.work_format] ?? need.work_format}</Row>}
           {need.city && <Row label="Город">{need.city}</Row>}
-          {need.industry && <Row label="Отрасль">{need.industry}</Row>}
+          {industry && <Row label="Отрасль">{industry}</Row>}
         </dl>
         {need.team_description && <p className="rounded-md bg-muted p-3 whitespace-pre-line">{need.team_description}</p>}
       </CardContent>
