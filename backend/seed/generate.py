@@ -1165,7 +1165,7 @@ class Seeder:
                 industry=industry,
                 work_format=WorkFormat(fmt),
                 city=city,
-                team_description="Продуктовая команда из 6–8 человек, релизы каждую неделю, код-ревью и автотесты.",
+                team_description=data.NEED_TEAMS[title],
                 salary_from=s_from,
                 salary_to=s_to,
                 published=published,
