@@ -240,7 +240,7 @@ async def test_upload_returns_prefill_and_does_not_touch_profile(client, session
     assert {"python", "fastapi", "postgresql"} <= {item["skill_id"] for item in prefill["declared_skills"]}
     assert len(prefill["experience"]) == 2
     assert {"first_name", "declared_skills", "experience"} <= set(body["from_resume"])
-    assert body["suggested_grade"] == Grade.senior
+    assert body["suggested_grade"] == Grade.middle  # 4,5 года: Senior — от 5 лет (§6.2)
     assert body["unmapped_terms"] == ["Tarantool"]
     assert len(list(tmp_path.rglob("*.pdf"))) == 1
 

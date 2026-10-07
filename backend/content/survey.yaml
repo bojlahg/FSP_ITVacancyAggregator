@@ -94,11 +94,12 @@ questions:
     text: Ожидания по зарплате, ₽ в месяц
     kind: salary_range
 
-# Подсказка грейда по стажу (кандидат выбирает сам, §6.2)
+# Подсказка грейда по стажу (кандидат выбирает сам, §6.2): стаж < max_years → grade.
+# Границы совпадают с experience_hint в grades.yaml — меняйте вместе.
 grade_hint:
   - {max_years: 0.5, grade: intern}
-  - {max_years: 1, grade: junior}
-  - {max_years: 3, grade: middle}
+  - {max_years: 2, grade: junior}
+  - {max_years: 5, grade: middle}
   - {max_years: 100, grade: senior}
 
 # Какие стек-модули теста включать: основной язык или навыки → модуль специализации
