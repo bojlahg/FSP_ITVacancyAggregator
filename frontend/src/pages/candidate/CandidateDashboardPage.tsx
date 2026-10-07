@@ -184,7 +184,8 @@ function CategoryCard({ category }: { category: NonNullable<CandidateProfile["ca
 
   return (
     <Card className="relative overflow-hidden lg:col-span-2">
-      <Trace width={180} height={140} radius={32} className="absolute top-0 right-0 hidden opacity-70 sm:block" />
+      {/* Трасса заканчивается в шапке карточки: ниже справа стоит кнопка «Категория и грейд» */}
+      <Trace width={180} height={80} radius={32} className="absolute top-0 right-0 hidden opacity-70 sm:block" />
       <CardHeader>
         <CardDescription className="font-mono text-xs tracking-wider uppercase">Ваша категория</CardDescription>
         <CategoryBadge specialization={category.specialization} grade={category.grade} variant="solid" size="lg" />
