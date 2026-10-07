@@ -60,6 +60,8 @@ _RIGHT = r"(?![\w#+&])"
 _URL = re.compile(r"(?:https?://|www\.)\S+|\S+@\S+\.\w+", re.IGNORECASE)
 _BULLET = re.compile(r"^[\s\-–—•*·●▪►✓✔>\d.)]+")
 _SENTENCE_SPLIT = re.compile(r"(?<=[.!?;])\s+")
+_CLAUSE_SPLIT = re.compile(r"(?<=[.!?;,])\s+|\s+[—–]\s+")
+_TRAILING_PUNCT = re.compile(r"[\s.,;:!?…—–-]+$")
 _OPTIONAL_MARKER = re.compile(
     r"будет\s+(?:большим\s+)?плюсом|плюсом\s+будет|будет\s+преимуществом|преимуществом\s+будет|"
     r"желательн\w*|nice[\s\-]+to[\s\-]+have|(?:is|as)\s+a\s+plus|необязательн\w*|не\s+обязательн\w*|"
@@ -549,6 +551,23 @@ def detect_title(text: str) -> str | None:
     return None
 
 
+def compose_title(specialization: str | None, grade: Grade | None, first_line: str | None) -> str | None:
+    """Заголовок потребности: грейд и должность из справочников («Junior Backend-разработчик»).
+
+    Без специализации — первая фраза текста без завершающей точки: целое предложение в заголовке
+    читается как описание, а не как название позиции.
+    """
+    catalog = get_catalog()
+    role = next((s.role_name for s in catalog.specializations if s.slug == specialization), None)
+    if role:
+        grade_name = next((g.name for g in catalog.grades if g.slug == grade), None)
+        return f"{grade_name} {role}" if grade_name else role
+    if not first_line:
+        return None
+    clause = _TRAILING_PUNCT.sub("", _CLAUSE_SPLIT.split(first_line)[0])
+    return clause[:TITLE_MAX].strip() or None
+
+
 def detect_team(text: str) -> str | None:
     """Строка «Команда …» / «Наша команда …» или первая строка после заголовка «О команде:»."""
     header_seen = False
@@ -617,10 +636,12 @@ def parse_dict(text: str) -> DictResult:
     required, optional = split_required_optional(text, matches)
     title = detect_title(text) or ""
     salary_from, salary_to = detect_salary(text)
+    specialization = detect_specialization(text, title, required, optional)
+    grade = detect_grade(text, title)
     draft = NeedDraft(
-        title=title or None,
-        specialization=detect_specialization(text, title, required, optional),
-        grade=detect_grade(text, title),
+        title=compose_title(specialization, grade, title),
+        specialization=specialization,
+        grade=grade,
         required_skills=required,
         optional_skills=optional,
         industry=detect_industry(text),
@@ -732,6 +753,8 @@ async def parse_need_text(text: str, user_id: int | None = None) -> NeedParseRes
     base = parse_dict(text)
     data = await llm.complete_json(LLM_SYSTEM, text, _llm_schema_hint(), user_id=user_id)
     merged, contributed = merge_llm(base, data)
+    # LLM мог дополнить специализацию или грейд — заголовок собирается заново по итоговым полям
+    merged.draft.title = compose_title(merged.draft.specialization, merged.draft.grade, detect_title(text))
     return NeedParseResult(
         parser=ParserKind.llm if contributed else ParserKind.dict,
         draft=merged.draft,

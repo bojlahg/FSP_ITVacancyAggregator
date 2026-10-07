@@ -1,11 +1,13 @@
 # Специализации — docs/implementation.md §5.1 (стек-модули — §5.3, §10.8).
 # has_test: есть ли тестовый банк на MVP; без теста — «скоро».
 # adjacent — смежные специализации (slug из этого же файла).
+# role_name — должность для заголовка потребности после разбора текста: «Junior Backend-разработчик».
 # stack_modules — id стек-модулей теста (набор шаблонов по языку/фреймворку), не id навыков.
 
 - slug: backend
   name: Backend-разработка
   short_name: Backend
+  role_name: Backend-разработчик
   has_test: true
   adjacent: [fullstack, devops]
   description: Серверная часть приложений, API, базы данных, интеграции и производительность.
@@ -14,6 +16,7 @@
 - slug: frontend
   name: Frontend-разработка
   short_name: Frontend
+  role_name: Frontend-разработчик
   has_test: true
   adjacent: [fullstack, mobile]
   description: Клиентская часть веб-приложений, интерфейсы, работа с API и состоянием.
@@ -22,6 +25,7 @@
 - slug: qa
   name: Тестирование (QA)
   short_name: QA
+  role_name: QA-инженер
   has_test: true
   adjacent: []
   description: Ручное и автоматизированное тестирование, тест-дизайн, тестирование API и нагрузки.
@@ -30,6 +34,7 @@
 - slug: devops
   name: DevOps / SRE
   short_name: DevOps
+  role_name: DevOps-инженер
   has_test: true
   adjacent: [backend]
   description: Инфраструктура, CI/CD, контейнеризация, мониторинг и надёжность сервисов.
@@ -38,6 +43,7 @@
 - slug: data
   name: Data Science / ML
   short_name: Data Science
+  role_name: Data Scientist
   has_test: true
   adjacent: [backend]
   description: Анализ данных, машинное обучение, статистика и подготовка данных для моделей.
@@ -46,6 +52,7 @@
 - slug: fullstack
   name: Fullstack-разработка
   short_name: Fullstack
+  role_name: Fullstack-разработчик
   has_test: false
   adjacent: [backend, frontend]
   description: Разработка и серверной, и клиентской части приложения.
@@ -54,6 +61,7 @@
 - slug: mobile
   name: Мобильная разработка
   short_name: Mobile
+  role_name: Мобильный разработчик
   has_test: false
   adjacent: [frontend]
   description: Приложения для iOS и Android, нативные и кроссплатформенные.
@@ -62,6 +70,7 @@
 - slug: analyst
   name: Системный и бизнес-анализ
   short_name: Аналитик
+  role_name: Системный аналитик
   has_test: false
   adjacent: [data]
   description: Сбор и формализация требований, моделирование процессов, проектирование интеграций.
@@ -70,6 +79,7 @@
 - slug: gamedev
   name: Разработка игр
   short_name: Gamedev
+  role_name: Разработчик игр
   has_test: false
   adjacent: []
   description: Игровая логика, движки, графика и инструменты для разработки игр.

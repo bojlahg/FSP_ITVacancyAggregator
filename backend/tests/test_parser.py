@@ -67,7 +67,7 @@ def test_backend_fintech_remote():
     assert draft.work_format == WorkFormat.remote
     assert draft.city is None
     assert draft.industry == "fintech"
-    assert draft.title == "Middle Python-разработчик (Backend) в платёжный сервис"
+    assert draft.title == "Middle Backend-разработчик"
     assert "Kafka Streams" in result.unmapped_terms
     assert "requirements" not in draft.required_skills
 
@@ -225,6 +225,31 @@ async def test_llm_merge_adds_only_catalog_values(monkeypatch):
     assert draft.city == "Москва"
     assert "Debezium" in result.unmapped_terms
     assert [term.lower() for term in result.unmapped_terms].count("kafka streams") == 1
+
+
+def test_title_from_grade_and_specialization_or_first_clause():
+    text = "Ищем junior backend-разработчика на Python в финтех-команду. Стек: FastAPI, PostgreSQL."
+    assert parser.parse_dict(text).draft.title == "Junior Backend-разработчик"
+    assert parser.parse_dict(DEVOPS_SENIOR).draft.title == "Senior DevOps-инженер"
+    assert parser.compose_title("qa", None, "что угодно") == "QA-инженер"
+    assert parser.compose_title("data", Grade.intern, None) == "Стажёр Data Scientist"
+
+    unknown = parser.parse_dict("Нужен человек в команду, срочно! Работа с документами и отчётами.").draft
+    assert unknown.specialization is None and unknown.title == "Нужен человек в команду"
+    assert parser.compose_title(None, Grade.middle, "Ищем сильного инженера.") == "Ищем сильного инженера"
+    assert parser.compose_title(None, None, None) is None
+
+
+async def test_llm_specialization_and_grade_rebuild_title(monkeypatch):
+    async def fake_llm(system: str, user: str, schema_hint: str, user_id: int | None = None) -> dict:
+        return {"specialization": "qa", "grade": "junior"}
+
+    monkeypatch.setattr(llm, "complete_json", fake_llm)
+
+    result = await parser.parse_need_text("Нужен человек в команду, срочно! Проверять релизы.")
+
+    assert result.parser == ParserKind.llm
+    assert result.draft.title == "Junior QA-инженер"
 
 
 def test_llm_merge_ignores_invalid_payload():
