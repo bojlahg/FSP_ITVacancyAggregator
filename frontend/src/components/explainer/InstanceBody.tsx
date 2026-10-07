@@ -1,4 +1,5 @@
 import type { components } from "@/api/schema";
+import { CodeBlock } from "@/components/CodeBlock";
 
 type Instance = components["schemas"]["ExplainerInstance"];
 
@@ -8,21 +9,7 @@ export function InstanceBody({ instance, kind }: { instance: Instance; kind: str
     <>
       <p className="text-sm leading-relaxed whitespace-pre-line">{instance.stem}</p>
       {instance.code && (
-        <div className="mt-3 overflow-hidden rounded-lg bg-ink text-ink-foreground">
-          {instance.code_language && (
-            <div className="border-b border-ink-foreground/15 px-3 py-1 font-mono text-xs opacity-70">
-              {instance.code_language}
-            </div>
-          )}
-          <pre
-            tabIndex={0}
-            role="region"
-            aria-label="Код к заданию"
-            className="overflow-x-auto p-3 font-mono text-xs leading-relaxed focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-          >
-            <code>{instance.code}</code>
-          </pre>
-        </div>
+        <CodeBlock code={instance.code} language={instance.code_language} compact className="mt-3" />
       )}
       {instance.options.length > 0 ? (
         <ul className="mt-3 grid gap-1.5 text-sm">

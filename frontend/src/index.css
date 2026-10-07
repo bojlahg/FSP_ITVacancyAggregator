@@ -198,6 +198,16 @@
   pre {
     @apply font-mono;
   }
+  /* Лигатуры JetBrains Mono рисуют >= как ⩾ и != как ≠: в заданиях «что выведет код» это сбивает */
+  code,
+  kbd,
+  pre,
+  .font-mono {
+    font-variant-ligatures: none;
+    font-feature-settings:
+      "liga" 0,
+      "calt" 0;
+  }
   ::selection {
     @apply bg-primary text-primary-foreground;
   }

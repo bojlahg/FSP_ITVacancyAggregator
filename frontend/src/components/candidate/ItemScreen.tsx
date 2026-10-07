@@ -1,6 +1,7 @@
 import { Clock, EyeOff, Loader2, Send } from "lucide-react";
 import { useEffect, useRef, useState, type ClipboardEvent, type MouseEvent } from "react";
 import { ItemAnswerInput } from "@/components/candidate/ItemAnswerInput";
+import { CodeBlock } from "@/components/CodeBlock";
 import { FormAlert } from "@/components/FormAlert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -106,23 +107,7 @@ export function ItemScreen({ item, localDeadlineMs, busy, loadingNext, error, fo
         <CardContent className="space-y-4">
           <div className="space-y-4 select-none" onCopy={blockCopy} onCut={blockCopy} onContextMenu={blockCopy}>
             <p className="font-mono text-lg leading-snug font-bold whitespace-pre-line">{item.stem}</p>
-            {item.code && (
-              <div className="overflow-hidden rounded-lg bg-ink text-ink-foreground">
-                {item.code_language && (
-                  <div className="border-b border-ink-foreground/15 px-4 py-1.5 font-mono text-xs opacity-70">
-                    {item.code_language}
-                  </div>
-                )}
-                <pre
-                  tabIndex={0}
-                  role="region"
-                  aria-label="Код к заданию"
-                  className="overflow-x-auto p-4 font-mono text-sm leading-relaxed focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                >
-                  <code>{item.code}</code>
-                </pre>
-              </div>
-            )}
+            {item.code && <CodeBlock code={item.code} language={item.code_language} />}
           </div>
           <div onContextMenu={blockCopy}>
             <ItemAnswerInput item={item} kind={kind} draft={draft} onChange={setDraft} disabled={busy || expired} />
