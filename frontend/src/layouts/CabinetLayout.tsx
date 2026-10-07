@@ -19,6 +19,24 @@ export interface CabinetNavItem {
   icon: LucideIcon;
   /** Точное совпадение пути для подсветки (для индексного маршрута кабинета). */
   end?: boolean;
+  /** Подпись группы: соседние пункты с одной подписью выводятся блоком под ней. */
+  group?: string;
+}
+
+interface NavSection {
+  group?: string;
+  items: CabinetNavItem[];
+}
+
+/** Соседние пункты с одинаковой группой — одна секция меню. */
+function navSections(nav: CabinetNavItem[]): NavSection[] {
+  const sections: NavSection[] = [];
+  for (const item of nav) {
+    const last = sections.at(-1);
+    if (last && last.group === item.group) last.items.push(item);
+    else sections.push({ group: item.group, items: [item] });
+  }
+  return sections;
 }
 
 interface CabinetLayoutProps {
@@ -100,29 +118,44 @@ export function CabinetLayout({ homePath, roleLabel, nav: baseNav, debugLink = t
           </span>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-3" aria-label="Разделы кабинета">
-          <ul className="space-y-0.5">
-            {nav.map(({ to, label, icon: Icon, end }) => (
-              <li key={to}>
-                <NavLink
-                  to={to}
-                  end={end}
-                  onClick={() => setMenuOpen(false)}
-                  className={({ isActive }) =>
-                    cn(
-                      "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                      isActive
-                        ? "bg-primary-tint text-primary"
-                        : "text-foreground hover:bg-muted hover:text-foreground",
-                    )
-                  }
+        <nav className="flex-1 overflow-y-auto px-3 pb-3" aria-label="Разделы кабинета">
+          {navSections(nav).map((section, index) => (
+            <div
+              key={section.group ?? `section-${index}`}
+              className={cn(index > 0 && "mt-3 border-t border-border-subtle pt-3")}
+            >
+              {section.group && (
+                <div
+                  id={`cabinet-nav-group-${index}`}
+                  className="px-3 pb-1 font-mono text-xs font-medium tracking-wider text-muted-foreground uppercase"
                 >
-                  <Icon className="size-4 shrink-0" aria-hidden />
-                  {label}
-                </NavLink>
-              </li>
-            ))}
-          </ul>
+                  {section.group}
+                </div>
+              )}
+              <ul className="space-y-0.5" aria-labelledby={section.group ? `cabinet-nav-group-${index}` : undefined}>
+                {section.items.map(({ to, label, icon: Icon, end }) => (
+                  <li key={to}>
+                    <NavLink
+                      to={to}
+                      end={end}
+                      onClick={() => setMenuOpen(false)}
+                      className={({ isActive }) =>
+                        cn(
+                          "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                          isActive
+                            ? "bg-primary-tint text-primary"
+                            : "text-foreground hover:bg-muted hover:text-foreground",
+                        )
+                      }
+                    >
+                      <Icon className="size-4 shrink-0" aria-hidden />
+                      {label}
+                    </NavLink>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </nav>
 
         <div className="flex items-center gap-3 border-t border-border-subtle px-4 py-4">
