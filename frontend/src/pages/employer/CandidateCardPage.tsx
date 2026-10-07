@@ -132,13 +132,19 @@ export default function CandidateCardPage() {
                 Грейд не подтверждён тестом — навыки тестом не проверены.{" "}
               </b>
             )}
-            Слепой первый просмотр: без фото, возраста и пола, фамилия скрыта до принятия приглашения.
+            {data.contacts_unlocked
+              ? "Кандидат открыл контакты — полное имя и связь в карточке справа."
+              : "Слепой первый просмотр: без фото, возраста и пола, фамилия скрыта до принятия приглашения."}
           </>
         }
         actions={
           <>
             <CandidatePdfButton candidateId={brief.id} unlocked={data.contacts_unlocked} />
-            {invited || ["sent", "viewed", "accepted"].includes(data.invitation_status ?? "") ? (
+            {data.invitation_status === "accepted" ? (
+              <Button variant="secondary" disabled>
+                <CheckCircle2 /> Приглашение принято
+              </Button>
+            ) : invited || ["sent", "viewed"].includes(data.invitation_status ?? "") ? (
               <Button variant="secondary" disabled>
                 <CheckCircle2 /> Приглашение отправлено
               </Button>
