@@ -11,6 +11,7 @@ import { SkeletonCards } from "@/components/SkeletonCards";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { apiError } from "@/lib/api-error";
+import { extraItemsNote } from "@/lib/format";
 import { type AnswerPayload, queryKeys, useAttempt, useCurrentItem, useSubmitAnswer } from "@/lib/testing-queries";
 import { useFocusLossCounter } from "@/lib/use-focus-loss";
 
@@ -110,12 +111,19 @@ export default function TestPage() {
         {position !== null && (
           <span className="font-mono text-sm font-medium tabular-nums">
             Вопрос {position}
-            {base !== null && upper !== null && (upper > base ? ` из ${base}–${upper}` : ` из ${upper}`)}
+            {base !== null && upper !== null && ` из ${clarifying ? upper : base}`}
           </span>
+        )}
+        {position !== null && !clarifying && base !== null && upper !== null && upper > base && (
+          <span className="w-full text-right text-xs text-muted-foreground">{extraItemsNote(upper - base)}</span>
         )}
       </div>
       {position !== null && upper !== null && (
-        <Progress value={(position / upper) * 100} className="mb-6" aria-label="Прогресс теста" />
+        <Progress
+          value={(position / (clarifying || base === null ? upper : base)) * 100}
+          className="mb-6"
+          aria-label="Прогресс теста"
+        />
       )}
 
       {clarifying && upper !== null && (

@@ -16,6 +16,11 @@ export function formatSalaryRange(from?: number | null, to?: number | null): str
   return "не указана";
 }
 
+/** «Можно добавить до 4 уточняющих»: одна формулировка числа заданий на всех экранах (§10.3). */
+export function extraItemsNote(extra: number): string {
+  return extra > 0 ? `может добавиться до ${extra} уточняющих у порога грейда` : "";
+}
+
 const pluralRules = new Intl.PluralRules("ru-RU");
 
 /** plural(5, ["кандидат", "кандидата", "кандидатов"]) → «кандидатов» */

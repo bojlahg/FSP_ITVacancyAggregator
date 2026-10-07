@@ -4,12 +4,14 @@ import { StartAttemptButton } from "@/components/candidate/StartAttemptButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { useExplainerOverview } from "@/lib/explainer-queries";
+import { extraItemsNote, plural } from "@/lib/format";
 import { gradeLabel, SPECIALIZATION_FULL_LABELS } from "@/lib/labels";
 import { type AttemptPurpose, type Grade, useGrades, useSpecializations } from "@/lib/testing-queries";
 
-// docs/implementation.md §6.2 и §10.3: ~25 минут, 18 заданий двух этапов + уточняющие у порога + пилотные.
+// docs/implementation.md §6.2 и §10.3: ~25 минут; число заданий — с сервера, то же, что в шапке теста.
 const rules: { icon: LucideIcon; title: string; text: string }[] = [
-  { icon: ListOrdered, title: "Один вопрос на экране", text: "Около 20 заданий, примерно 25 минут. Число может немного вырасти, если результат близок к порогу грейда." },
+  { icon: ListOrdered, title: "Один вопрос на экране", text: "" },
   { icon: Undo2, title: "Назад вернуться нельзя", text: "Ответ отправляется сразу. Если не знаете — выберите наиболее вероятный вариант." },
   { icon: Timer, title: "Таймер на каждый вопрос", text: "Время считает сервер. Когда оно выходит, текущий ответ отправляется автоматически." },
   { icon: EyeOff, title: "Уход со вкладки фиксируется", text: "Мы отмечаем переключения вкладок, но баллы за это не снимаем." },
@@ -32,6 +34,13 @@ export function BeforeTestStep({ specialization, grade, purpose, onBack, onStart
     SPECIALIZATION_FULL_LABELS[specialization] ??
     specialization;
   const gradeName = grades.data?.find((item) => item.slug === grade)?.name ?? gradeLabel(grade);
+  const overview = useExplainerOverview();
+  const items = overview.data?.grades.find((item) => item.grade === grade)?.test_items;
+  const extra = overview.data ? extraItemsNote(overview.data.extra_items_max) : "";
+  const countText =
+    items !== undefined
+      ? `${items} ${plural(items, ["задание", "задания", "заданий"])}, примерно 25 минут${extra ? `; ${extra}` : ""}.`
+      : "Примерно 25 минут. Если результат близок к порогу грейда, добавятся уточняющие задания.";
 
   return (
     <>
@@ -52,7 +61,7 @@ export function BeforeTestStep({ specialization, grade, purpose, onBack, onStart
               <Icon className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden />
               <div className="space-y-1">
                 <div className="font-mono text-sm font-bold">{title}</div>
-                <p className="text-sm text-muted-foreground">{text}</p>
+                <p className="text-sm text-muted-foreground">{text || countText}</p>
               </div>
             </li>
           ))}

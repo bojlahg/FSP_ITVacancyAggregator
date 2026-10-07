@@ -23,6 +23,7 @@ import {
   type ExplainerScenario,
   type ExplainerTemplate,
 } from "@/lib/explainer-queries";
+import { extraItemsNote } from "@/lib/format";
 import { ITEM_KIND_LABELS } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 
@@ -592,7 +593,8 @@ export default function HowItWorksPage() {
               { label: "Специализаций", value: specs.length },
               {
                 label: "Заданий в тесте",
-                value: `${overview.data.stage1_items + overview.data.stage2_items}+${overview.data.extra_items_max}`,
+                value: testItemsRange(overview.data.grades.map((g) => g.test_items)),
+                note: extraItemsNote(overview.data.extra_items_max),
               },
               { label: "Грейдов на шкале", value: overview.data.grades.length },
             ].map((fact) => (
@@ -601,6 +603,7 @@ export default function HowItWorksPage() {
                   {fact.label}
                 </dt>
                 <dd className="mt-1 font-mono text-3xl font-bold tabular-nums">{fact.value}</dd>
+                {"note" in fact && fact.note && <dd className="mt-1 text-sm text-muted-foreground">{fact.note}</dd>}
               </div>
             ))}
           </dl>
@@ -660,4 +663,12 @@ export default function HowItWorksPage() {
       </section>
     </>
   );
+}
+
+/** Заданий в тесте без уточняющих: по грейдам отличается только открытым вопросом (с Middle). */
+function testItemsRange(counts: number[]): string {
+  if (counts.length === 0) return "—";
+  const low = Math.min(...counts);
+  const high = Math.max(...counts);
+  return low === high ? String(low) : `${low}–${high}`;
 }
