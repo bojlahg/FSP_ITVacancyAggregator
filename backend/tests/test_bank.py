@@ -1,5 +1,6 @@
 from app.modules.catalog.service import get_catalog
 from app.modules.testing.engine.bank import coverage, get_blueprints, load_bank, validate_bank
+from app.modules.testing.engine.expressions import plural, substitute
 
 
 def test_bank_is_valid():
@@ -27,3 +28,21 @@ def test_bank_covers_every_blueprint_topic():
         spec for spec, counts in coverage(load_bank(), blueprints).items() if sum(counts.values()) >= 30
     }
     assert not [item for item in missing if item.split(".")[0] in started], missing
+
+
+def test_plural_forms_golden():
+    forms = ("повтор", "повтора", "повторов")
+    expected = {0: "повторов", 1: "повтор", 2: "повтора", 4: "повтора", 5: "повторов", 11: "повторов"}
+    expected |= {12: "повторов", 14: "повторов", 21: "повтор", 22: "повтора", 101: "повтор", 111: "повторов"}
+    assert {n: plural(n, *forms) for n in expected} == expected
+
+
+def test_substitute_plural_placeholder_and_angular_pipe():
+    params = {"n": 3, "items": "invoices"}
+    assert substitute("до {{n|раза|раз|раз}}", params) == "до 3 раз"
+    assert substitute("{{n|задача|задачи|задач}}", {"n": 21}) == "21 задача"
+    # пайп Angular в тексте задания — не форма числа: латиница после | не подставляется
+    assert substitute("{{ items | activeOnly: field }} и {{items}}", params) == (
+        "{{ items | activeOnly: field }} и invoices"
+    )
+

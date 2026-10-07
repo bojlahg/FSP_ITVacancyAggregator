@@ -15,17 +15,35 @@ _BINARY = {
 }
 _UNARY = {ast.USub: operator.neg, ast.UAdd: operator.pos}
 _FUNCS = {"min": min, "max": max, "round": round, "abs": abs}
-PLACEHOLDER = re.compile(r"\{\{\s*(\w+)\s*\}\}")
+# {{n}} или {{n|повтор|повтора|повторов}}: формы — для 1, 2–4 и 5+; кириллица отличает их от пайпов Angular
+_FORM = r"[а-яё][^{}|]*"
+PLACEHOLDER = re.compile(rf"\{{\{{\s*(\w+)\s*(?:\|({_FORM})\|({_FORM})\|({_FORM}))?\}}\}}", re.IGNORECASE)
+
+
+def plural(n: int, one: str, few: str, many: str) -> str:
+    """Форма слова после числа: 1 повтор, 3 повтора, 11 повторов, 21 повтор."""
+    n = abs(int(n))
+    if n % 10 == 1 and n % 100 != 11:
+        return one
+    if 2 <= n % 10 <= 4 and not 12 <= n % 100 <= 14:
+        return few
+    return many
 
 
 def substitute(text: str, params: dict) -> str:
-    """{{name}} → значение параметра. Одинарные фигурные скобки (код, JSON) не трогаются."""
+    """{{name}} → значение параметра, {{name|форма1|форма2|форма5}} → «число слово» в нужной форме.
+
+    Одинарные фигурные скобки (код, JSON) не трогаются.
+    """
 
     def replace(match: re.Match) -> str:
-        name = match.group(1)
+        name, *forms = match.groups()
         if name not in params:
             raise KeyError(f"неизвестный параметр {{{{{name}}}}}")
-        return str(params[name])
+        value = params[name]
+        if forms[0] is None:
+            return str(value)
+        return f"{value} {plural(value, *(form.strip() for form in forms))}"
 
     return PLACEHOLDER.sub(replace, text)
 
