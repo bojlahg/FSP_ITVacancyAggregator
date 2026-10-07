@@ -110,7 +110,7 @@ export default function CandidateDashboardPage() {
                     </div>
                     <div className="flex items-center gap-3">
                       <SalaryRange from={invitation.salary_from} to={invitation.salary_to} className="text-sm" />
-                      <StatusBadge status={invitation.status} />
+                      <StatusBadge status={invitation.status} audience="recipient" />
                     </div>
                   </li>
                 ))}

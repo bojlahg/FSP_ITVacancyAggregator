@@ -17,13 +17,22 @@ const config: Record<Status, { label: string; dot: string; box: string }> = {
   withdrawn: { label: "Отозвано", dot: "bg-border", box: "border-border text-muted-foreground" },
 };
 
+/** Кандидату «Отправлено» про входящее приглашение звучит странно: со своей стороны это новое приглашение. */
+const RECIPIENT_LABELS: Partial<Record<Status, string>> = {
+  sent: "Новое",
+  viewed: "Ждёт ответа",
+};
+
 interface StatusBadgeProps {
   status: Status;
+  /** recipient — подпись для получателя приглашения (кандидата), sender — для отправителя. */
+  audience?: "sender" | "recipient";
   className?: string;
 }
 
-export function StatusBadge({ status, className }: StatusBadgeProps) {
-  const { label, dot, box } = config[status];
+export function StatusBadge({ status, audience = "sender", className }: StatusBadgeProps) {
+  const { dot, box } = config[status];
+  const label = (audience === "recipient" ? RECIPIENT_LABELS[status] : undefined) ?? config[status].label;
   return (
     <span
       className={cn(

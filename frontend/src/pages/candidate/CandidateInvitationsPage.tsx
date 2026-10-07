@@ -177,8 +177,7 @@ function InvitationCard({ invitation, open, onToggle, accepting, onAccept, onDec
         >
           <span className="min-w-0 space-y-1.5">
             <span className="flex flex-wrap items-center gap-2">
-              <StatusBadge status={invitation.status} />
-              {invitation.status === "sent" && <span className="font-mono text-xs font-bold text-primary">новое</span>}
+              <StatusBadge status={invitation.status} audience="recipient" />
             </span>
             <span className="block font-mono text-lg leading-tight font-bold">{invitation.title}</span>
             <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
@@ -194,7 +193,7 @@ function InvitationCard({ invitation, open, onToggle, accepting, onAccept, onDec
               )}
             </span>
           </span>
-          <span className="flex items-center gap-3 md:flex-col md:items-end">
+          <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 md:flex-col md:flex-nowrap md:items-end">
             <SalaryRange from={invitation.salary_from} to={invitation.salary_to} className="text-xl text-primary md:text-2xl" />
             {invitation.salary_market && <SalaryMarketBadge market={invitation.salary_market} />}
             <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
@@ -365,8 +364,8 @@ function DeclineForm({ invitation, onDone }: { invitation: InvitationForCandidat
       <DialogHeader>
         <DialogTitle>Отклонить приглашение</DialogTitle>
         <DialogDescription>
-          {invitation.company.company_name}: «{invitation.title}». Причина поможет работодателю делать более точные
-          предложения — он увидит только общую статистику.
+          Компания «{invitation.company.company_name}», приглашение «{invitation.title}». Работодатель увидит выбранную
+          причину и комментарий в своём списке приглашений — это поможет ему делать более точные предложения.
         </DialogDescription>
       </DialogHeader>
       <form id="decline-form" className="grid gap-4" onSubmit={handleSubmit(onSubmit)} noValidate>
@@ -390,7 +389,12 @@ function DeclineForm({ invitation, onDone }: { invitation: InvitationForCandidat
             </p>
           )}
         </fieldset>
-        <FormField id="decline-comment" label="Комментарий" error={errors.comment?.message} hint="Необязательно">
+        <FormField
+          id="decline-comment"
+          label="Комментарий"
+          error={errors.comment?.message}
+          hint="Необязательно, работодатель его увидит"
+        >
           <Textarea id="decline-comment" rows={3} aria-invalid={!!errors.comment} {...register("comment")} />
         </FormField>
       </form>
@@ -456,7 +460,7 @@ function ReportForm({ invitation, onDone }: { invitation: InvitationForCandidate
       <DialogHeader>
         <DialogTitle>Пожаловаться на приглашение</DialogTitle>
         <DialogDescription>
-          {invitation.company.company_name}: «{invitation.title}». Жалобу проверит администратор ITScout, работодатель не
+          Компания «{invitation.company.company_name}», приглашение «{invitation.title}». Жалобу проверит администратор ITScout, работодатель не
           узнает, кто её отправил. Статус приглашения не изменится — отклонить его можно отдельно.
         </DialogDescription>
       </DialogHeader>
