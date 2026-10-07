@@ -1994,6 +1994,93 @@
         }
       }
     },
+    "/api/v1/tests/attempts/{attempt_id}/abandon": {
+      "post": {
+        "tags": [
+          "candidate: testing"
+        ],
+        "summary": "Прервать незаконченный экспресс-тест: попытка закрывается без результата (409 not_express — это не экспресс-тест, attempt_finished — уже завершён)",
+        "operationId": "abandon_attempt_api_v1_tests_attempts__attempt_id__abandon_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "attempt_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Attempt Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttemptOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Требуется вход",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Недостаточно прав",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Не найдено",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт состояния",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Ошибка валидации данных",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/tests/attempts/{attempt_id}/result": {
       "get": {
         "tags": [
@@ -14162,6 +14249,12 @@
             ],
             "title": "Deadline At",
             "description": "Серверный дедлайн ответа"
+          },
+          "previous_timed_out": {
+            "type": "boolean",
+            "title": "Previous Timed Out",
+            "description": "Время на прошлое задание вышло без ответа (вкладка была закрыта) — оно пропущено",
+            "default": false
           }
         },
         "type": "object",

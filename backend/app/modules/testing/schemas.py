@@ -48,6 +48,10 @@ class CurrentItem(ApiModel):
     max_length: int | None = Field(default=None, description="Для open_approach")
     time_limit_sec: int | None = None
     deadline_at: datetime | None = Field(default=None, description="Серверный дедлайн ответа")
+    previous_timed_out: bool = Field(
+        default=False,
+        description="Время на прошлое задание вышло без ответа (вкладка была закрыта) — оно пропущено",
+    )
 
 
 class AnswerPayload(ApiModel):

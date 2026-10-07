@@ -567,6 +567,7 @@ backend:
 Постановщики просили, чтобы жюри могло само пройти тест, и назвали допустимым экспресс-тест на 3–5 минут (`docs/qa-summary-fsp-2026.md`). Кнопка «Пройти экспресс-тест» на экране «Категория и грейд» (`purpose: "express"` в `POST /tests/attempts`):
 - режим `express` в `content/blueprints.yaml`: 4 + 4 задания, без уточняющих, пилотных и открытого вопроса; тот же движок — MST, свои экземпляры, контроль экспозиции, время считает сервер;
 - **категорию не присваивает**: навыки, индекс выдачи и перцентили не меняются, в правилах грейда (§6.3) попытка не считается — кроме незавершённой, которая, как любая, блокирует новый тест; θ̂ экспресс-попыток не идёт в данные Angoff;
+- незаконченный экспресс-тест можно прервать: `POST /tests/attempts/{id}/abandon` закрывает попытку статусом `abandoned` без результата (кнопка «Завершить экспресс-тест» на экране теста, в «Категория и грейд» и в онбординге). Чужая попытка — 404, полный тест так не прервать — 409 `not_express`: он тратит попытку смены грейда;
 - результат — «порог пройден / ниже порога» выбранного грейда с той же уверенностью (§10.4.1) и кнопкой «Полный тест»;
 - выключатель `EXPRESS_TEST_ENABLED` (по умолчанию включён) и лимит `EXPRESS_TESTS_PER_DAY` (5) на кандидата в сутки: каждая попытка показывает шаблоны банка, поэтому без лимита экспресс-тест стал бы способом его выгрузить.
 
@@ -886,9 +887,10 @@ GET  /candidates/me/grade-status           текущая категория, и
 GET  /candidates/me/grade-explanation      как определён грейд: θ̂, SE, порог, дата теста (§13.1)
 GET|POST /candidates/me/appeals            возражения против категории и ответы на них
 POST /tests/attempts                       {specialization, grade_target, purpose} → 409 при интервале
-GET  /tests/attempts/{id}/current          текущее задание (без ключа)
+GET  /tests/attempts/{id}/current          текущее задание (без ключа); previous_timed_out — прошлое пропущено по времени
 POST /tests/attempts/{id}/answer           {item_id, response}
 GET  /tests/attempts/{id}/result
+POST /tests/attempts/{id}/abandon          прервать незаконченный экспресс-тест (§10.3.1)
 GET  /candidates/me/fsp ; POST /candidates/me/fsp/link   {fsp_id, consent}   ручная привязка
 GET  /fsp/oidc/start?consent=true → {authorization_url} ; GET /fsp/oidc/callback   OIDC через ФСП ID (§9.3)
 DELETE /candidates/me/fsp

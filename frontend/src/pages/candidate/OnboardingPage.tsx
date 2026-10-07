@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Award, Check, FileUp, PlayCircle } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
+import { AbandonExpressButton } from "@/components/candidate/AbandonExpressButton";
 import { CategoryBadge } from "@/components/CategoryBadge";
 import { ErrorState } from "@/components/ErrorState";
 import { PageHeader } from "@/components/PageHeader";
@@ -90,11 +91,14 @@ function ResumeAttempt() {
       </CardHeader>
       <CardContent>
         {attempt ? (
-          <Button asChild size="lg">
-            <Link to={`/candidate/test/${attempt.id}`}>
-              Продолжить тест <ArrowRight />
-            </Link>
-          </Button>
+          <div className="flex flex-wrap items-start gap-3">
+            <Button asChild size="lg">
+              <Link to={`/candidate/test/${attempt.id}`}>
+                Продолжить тест <ArrowRight />
+              </Link>
+            </Button>
+            {attempt.purpose === "express" && <AbandonExpressButton attemptId={attempt.id} size="lg" />}
+          </div>
         ) : (
           <Button asChild variant="outline">
             <Link to="/candidate/grade">Открыть «Категория и грейд»</Link>

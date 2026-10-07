@@ -13,10 +13,18 @@ interface ExpressTestCardProps {
   specialization: string;
   defaultGrade: Grade;
   disabled: boolean;
+  /** Идёт незаконченный экспресс-тест: подсказываем, как его завершить. */
+  unfinishedExpress?: boolean;
 }
 
 /** Экспресс-тест (§10.3.1): короткая проверка уровня — категорию не присваивает и попытки не тратит. */
-export function ExpressTestCard({ express, specialization, defaultGrade, disabled }: ExpressTestCardProps) {
+export function ExpressTestCard({
+  express,
+  specialization,
+  defaultGrade,
+  disabled,
+  unfinishedExpress = false,
+}: ExpressTestCardProps) {
   const grades = useGrades();
   const [grade, setGrade] = useState<Grade>(defaultGrade);
   const minutes = Math.max(3, Math.round(express.items / 2));
@@ -53,6 +61,12 @@ export function ExpressTestCard({ express, specialization, defaultGrade, disable
         >
           <Zap /> Пройти экспресс-тест
         </StartAttemptButton>
+        {unfinishedExpress && (
+          <p className="text-sm text-muted-foreground sm:col-span-2">
+            Предыдущий экспресс-тест не закончен — продолжите его или завершите кнопкой «Завершить экспресс-тест» в
+            блоке «Текущий статус».
+          </p>
+        )}
       </CardContent>
     </Card>
   );

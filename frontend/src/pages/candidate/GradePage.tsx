@@ -2,6 +2,7 @@ import { ArrowDown, ArrowRight, ArrowUp, Award, CalendarClock, ClipboardList, Hi
 import type { LucideIcon } from "lucide-react";
 import { Link } from "react-router";
 import { CategoryBadge } from "@/components/CategoryBadge";
+import { AbandonExpressButton } from "@/components/candidate/AbandonExpressButton";
 import { GradeExplanationCard } from "@/components/candidate/GradeExplanationCard";
 import { ExpressTestCard } from "@/components/candidate/ExpressTestCard";
 import { StartAttemptButton } from "@/components/candidate/StartAttemptButton";
@@ -110,12 +111,19 @@ function GradeView({ status, specialization }: { status: GradeStatus; specializa
 
           {inProgress && (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-primary-tint p-3">
-              <span>Есть незаконченный тест на {gradeLabel(inProgress.grade_target)}</span>
-              <Button asChild size="sm">
-                <Link to={`/candidate/test/${inProgress.id}`}>
-                  Продолжить <ArrowRight />
-                </Link>
-              </Button>
+              <span>
+                {inProgress.purpose === "express"
+                  ? `Есть незаконченный экспресс-тест на ${gradeLabel(inProgress.grade_target)} — пока он идёт, другой тест не начать`
+                  : `Есть незаконченный тест на ${gradeLabel(inProgress.grade_target)}`}
+              </span>
+              <div className="flex flex-wrap items-start gap-2">
+                <Button asChild size="sm">
+                  <Link to={`/candidate/test/${inProgress.id}`}>
+                    Продолжить <ArrowRight />
+                  </Link>
+                </Button>
+                {inProgress.purpose === "express" && <AbandonExpressButton attemptId={inProgress.id} />}
+              </div>
             </div>
           )}
 
@@ -194,6 +202,7 @@ function GradeView({ status, specialization }: { status: GradeStatus; specializa
           specialization={specialization}
           defaultGrade={current?.category.grade ?? "junior"}
           disabled={Boolean(inProgress)}
+          unfinishedExpress={inProgress?.purpose === "express"}
         />
       )}
 

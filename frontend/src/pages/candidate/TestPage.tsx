@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router";
 import { CategoryBadge } from "@/components/CategoryBadge";
 import { Badge } from "@/components/ui/badge";
+import { AbandonExpressButton } from "@/components/candidate/AbandonExpressButton";
 import { ItemScreen } from "@/components/candidate/ItemScreen";
 import { ErrorState } from "@/components/ErrorState";
 import { SkeletonCards } from "@/components/SkeletonCards";
@@ -22,18 +23,19 @@ export default function TestPage() {
   const current = useCurrentItem(attemptId);
   const answer = useSubmitAnswer(attemptId);
   const focus = useFocusLossCounter();
-  const [lateNotice, setLateNotice] = useState(false);
+  // late — ответ пришёл после дедлайна; timeout — время вышло без ответа, задание пропущено
+  const [notice, setNotice] = useState<"late" | "timeout" | null>(null);
 
   if (!Number.isFinite(attemptId)) return <Navigate to="/candidate/grade" replace />;
 
   const resultPath = `/candidate/test/${attemptId}/result`;
 
   /** true — ответ принят; false — ошибка, можно отправить ещё раз. */
-  const submit = async (itemId: number, payload: AnswerPayload): Promise<boolean> => {
+  const submit = async (itemId: number, payload: AnswerPayload, timedOut: boolean): Promise<boolean> => {
     try {
       const ack = await answer.mutateAsync({ itemId, response: payload, focusLostCount: focus.count });
       focus.reset();
-      setLateNotice(ack.late);
+      setNotice(timedOut ? "timeout" : ack.late ? "late" : null);
       if (ack.finished) {
         // Профиль и grade-status (ключи под ["candidates", "me"]) изменились: новая категория, история.
         void queryClient.invalidateQueries({ queryKey: queryKeys.me });
@@ -46,12 +48,16 @@ export default function TestPage() {
       // Задание уже сменилось (ответ из другой вкладки или по дедлайну) — просто берём актуальное.
       if (apiError(err).code === "not_current_item") {
         answer.reset();
+        if (timedOut) setNotice("timeout");
         await queryClient.invalidateQueries({ queryKey: queryKeys.currentItem(attemptId) });
         return true;
       }
       return false;
     }
   };
+
+  // Прерванный экспресс-тест результата не имеет — возвращаемся к категории и грейду
+  if (attempt.data?.status === "abandoned") return <Navigate to="/candidate/grade" replace />;
 
   if (current.isPending) {
     return (
@@ -86,6 +92,8 @@ export default function TestPage() {
   const upper = max !== null && position !== null ? Math.max(max, position) : max;
   const clarifying = position !== null && base !== null && position > base;
   const busy = answer.isPending || current.isFetching;
+  // Сервер сам пропускает задание, время которого вышло, пока вкладка была закрыта (previous_timed_out)
+  const shownNotice = item.previous_timed_out ? "timeout" : notice;
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -118,10 +126,12 @@ export default function TestPage() {
         </div>
       )}
 
-      {lateNotice && (
+      {shownNotice && (
         <div role="status" className="mb-4 flex items-start gap-2 rounded-lg bg-destructive-tint px-4 py-3 text-sm">
           <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden />
-          Ответ на прошлый вопрос пришёл после окончания времени и засчитан как неверный.
+          {shownNotice === "timeout"
+            ? "Время на прошлый вопрос вышло — он пропущен и засчитан как неверный."
+            : "Ответ на прошлый вопрос пришёл после окончания времени и засчитан как неверный."}
         </div>
       )}
 
@@ -136,6 +146,13 @@ export default function TestPage() {
         focusLost={focus.count}
         onSubmit={submit}
       />
+
+      {attempt.data?.purpose === "express" && (
+        <div className="mt-6 flex flex-wrap items-start justify-between gap-3 text-sm text-muted-foreground">
+          <span className="pt-1.5">Экспресс-тест можно прервать: категорию и попытки он не затрагивает.</span>
+          <AbandonExpressButton attemptId={attemptId} />
+        </div>
+      )}
     </div>
   );
 }

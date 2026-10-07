@@ -557,6 +557,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tests/attempts/{attempt_id}/abandon": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Прервать незаконченный экспресс-тест: попытка закрывается без результата (409 not_express — это не экспресс-тест, attempt_finished — уже завершён) */
+        post: operations["abandon_attempt_api_v1_tests_attempts__attempt_id__abandon_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tests/attempts/{attempt_id}/result": {
         parameters: {
             query?: never;
@@ -3799,6 +3816,12 @@ export interface components {
              * @description Серверный дедлайн ответа
              */
             deadline_at?: string | null;
+            /**
+             * Previous Timed Out
+             * @description Время на прошлое задание вышло без ответа (вкладка была закрыта) — оно пропущено
+             * @default false
+             */
+            previous_timed_out: boolean;
         };
         /** CurvePoint */
         CurvePoint: {
@@ -7939,6 +7962,73 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AnswerAck"];
+                };
+            };
+            /** @description Требуется вход */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Недостаточно прав */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Конфликт состояния */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ошибка валидации данных */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    abandon_attempt_api_v1_tests_attempts__attempt_id__abandon_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                attempt_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttemptOut"];
                 };
             };
             /** @description Требуется вход */

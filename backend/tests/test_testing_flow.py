@@ -270,6 +270,29 @@ async def test_late_answer_scores_zero(client, session):
     assert stored.score == 0.0
 
 
+async def test_item_timed_out_while_away_is_skipped_and_flagged(client, session):
+    headers = await signup(client, "away@example.com")
+    await onboard(client, headers)
+    started = await client.post(
+        f"{API}/tests/attempts", json={"specialization": "backend", "grade_target": "junior"}, headers=headers
+    )
+    attempt_id = started.json()["id"]
+    first = (await client.get(f"{API}/tests/attempts/{attempt_id}/current", headers=headers)).json()
+    assert first["previous_timed_out"] is False
+
+    item = await session.get(AttemptItem, first["item_id"])
+    item.shown_at = item.shown_at - timedelta(seconds=item.payload["time_limit_sec"] + 60)
+    await session.commit()
+
+    second = (await client.get(f"{API}/tests/attempts/{attempt_id}/current", headers=headers)).json()
+    assert second["item_id"] != first["item_id"] and second["previous_timed_out"] is True
+    again = (await client.get(f"{API}/tests/attempts/{attempt_id}/current", headers=headers)).json()
+    assert again["item_id"] == second["item_id"] and again["previous_timed_out"] is False
+    session.expire_all()
+    skipped = await session.get(AttemptItem, first["item_id"])
+    assert skipped.score == 0.0 and skipped.response == {"late": True}
+
+
 async def test_open_answer_checklist_scored_by_code_and_shown_to_employer(client, session, monkeypatch):
     """§10.5: LLM только отмечает критерии, approach = доля отмеченных; работодатель видит ответ и отметки."""
     from app.core import llm
@@ -381,6 +404,37 @@ async def test_express_test_gives_no_category_and_keeps_grade_rules(client, sess
         f"{API}/tests/attempts", json={"specialization": "backend", "grade_target": "middle"}, headers=headers
     )
     assert full.status_code == 201, full.text
+
+
+async def test_unfinished_express_can_be_abandoned_only_by_owner(client, session):
+    headers = await signup(client, "quit@example.com")
+    stranger = await signup(client, "stranger@example.com")
+    await onboard(client, headers)
+    express = {"specialization": "backend", "grade_target": "middle", "purpose": "express"}
+    started = (await client.post(f"{API}/tests/attempts", json=express, headers=headers)).json()
+    await client.get(f"{API}/tests/attempts/{started['id']}/current", headers=headers)
+    full = {"specialization": "backend", "grade_target": "middle"}
+    blocked = await client.post(f"{API}/tests/attempts", json=full, headers=headers)
+    assert blocked.status_code == 409 and blocked.json()["error"]["code"] == "attempt_in_progress"
+
+    foreign = await client.post(f"{API}/tests/attempts/{started['id']}/abandon", headers=stranger)
+    assert foreign.status_code == 404
+    abandoned = await client.post(f"{API}/tests/attempts/{started['id']}/abandon", headers=headers)
+
+    assert abandoned.status_code == 200, abandoned.text
+    assert abandoned.json()["status"] == "abandoned" and abandoned.json()["finished_at"]
+    again = await client.post(f"{API}/tests/attempts/{started['id']}/abandon", headers=headers)
+    assert again.status_code == 409 and again.json()["error"]["code"] == "attempt_finished"
+    current = await client.get(f"{API}/tests/attempts/{started['id']}/current", headers=headers)
+    assert current.json()["finished"] is True
+    status = (await client.get(f"{API}/candidates/me/grade-status", headers=headers)).json()
+    assert all(action["allowed"] for action in status["actions"])
+    real = await client.post(f"{API}/tests/attempts", json=full, headers=headers)
+    assert real.status_code == 201, real.text
+
+    # Настоящий тест так не прервать: он тратит попытку смены грейда (§6.3)
+    refused = await client.post(f"{API}/tests/attempts/{real.json()['id']}/abandon", headers=headers)
+    assert refused.status_code == 409 and refused.json()["error"]["code"] == "not_express"
 
 
 async def test_express_test_limit_and_switch(client, session, monkeypatch):

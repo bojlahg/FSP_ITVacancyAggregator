@@ -63,6 +63,20 @@ async def answer_item(
     return await service.answer(db, candidate, attempt_id, body)
 
 
+@router.post(
+    "/{attempt_id}/abandon",
+    response_model=AttemptOut,
+    summary=(
+        "Прервать незаконченный экспресс-тест: попытка закрывается без результата "
+        "(409 not_express — это не экспресс-тест, attempt_finished — уже завершён)"
+    ),
+    responses=error_responses(401, 403, 404, 409),
+)
+async def abandon_attempt(attempt_id: int, user: CurrentCandidate, db: DbSession) -> AttemptOut:
+    candidate = await candidates_service.get_by_user(db, user.id)
+    return await service.abandon_express(db, candidate, attempt_id)
+
+
 @router.get(
     "/{attempt_id}/result",
     response_model=AttemptResultOut,

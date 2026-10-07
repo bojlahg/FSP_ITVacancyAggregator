@@ -206,7 +206,7 @@ def _is_late(item: TestAttemptItem, at: datetime) -> bool:
     return at > _deadline(item) + timedelta(seconds=get_settings().answer_grace_seconds)
 
 
-def _current_out(item: TestAttemptItem, planner: Planner) -> CurrentItem:
+def _current_out(item: TestAttemptItem, planner: Planner, previous_timed_out: bool = False) -> CurrentItem:
     payload = item.payload
     return CurrentItem(
         finished=False,
@@ -222,6 +222,7 @@ def _current_out(item: TestAttemptItem, planner: Planner) -> CurrentItem:
         max_length=payload.get("max_length"),
         time_limit_sec=payload["time_limit_sec"],
         deadline_at=_deadline(item),
+        previous_timed_out=previous_timed_out,
     )
 
 
@@ -270,10 +271,12 @@ async def current_item(db: AsyncSession, candidate: Candidate, attempt_id: int) 
     now = _now()
 
     pending = next((item for item in items if item.answered_at is None), None)
+    timed_out = False
     if pending is not None:
         if not _is_late(pending, now):
             return _current_out(pending, planner)
         _mark_answered(pending, None, now, late=True)  # время вышло — засчитывается как неверный
+        timed_out = True
 
     next_item = planner.next_item(_history(items))
     if next_item is None:
@@ -298,7 +301,7 @@ async def current_item(db: AsyncSession, candidate: Candidate, attempt_id: int) 
     await _record_stat(db, instance.template_id, shown=1)
     attempt.stage = max(attempt.stage, next_item.stage)
     await db.commit()
-    return _current_out(item, planner)
+    return _current_out(item, planner, previous_timed_out=timed_out)
 
 
 async def answer(db: AsyncSession, candidate: Candidate, attempt_id: int, body: AnswerRequest) -> AnswerAck:
@@ -328,6 +331,22 @@ async def answer(db: AsyncSession, candidate: Candidate, attempt_id: int, body: 
         await _finalize(db, attempt, planner, items)
     await db.commit()
     return AnswerAck(accepted=True, late=late, finished=finished)
+
+
+async def abandon_express(db: AsyncSession, candidate: Candidate, attempt_id: int) -> AttemptOut:
+    """Прервать экспресс-тест (§10.3.1): иначе незаконченный экспресс блокирует старт настоящего теста.
+
+    Экспресс категорию не меняет, поэтому попытка просто закрывается как abandoned, без результата.
+    """
+    attempt = await _owned_attempt(db, candidate, attempt_id, lock=True)
+    if attempt.purpose != AttemptPurpose.express:
+        raise ConflictError("Прервать можно только экспресс-тест", code="not_express")
+    if attempt.status != AttemptStatus.in_progress:
+        raise ConflictError("Тест уже завершён", code="attempt_finished")
+    attempt.status = AttemptStatus.abandoned
+    attempt.finished_at = _now()
+    await db.commit()
+    return _attempt_out(attempt, await _items(db, attempt.id), await _planner(db, attempt))
 
 
 async def _grade_open_answer(attempt: TestAttempt, item: TestAttemptItem, user_id: int) -> None:

@@ -2,7 +2,7 @@
 
 # Справочник эндпоинтов
 
-ITScout API 0.1.0: 139 операций. Префикс `/api/v1`; схемы запросов и ответов — в `backend/openapi.json` и Swagger UI (`/api/docs`). Колонка «Ошибки» — описанные коды ответов, тело ошибки всегда `{error: {code, message, details}}`.
+ITScout API 0.1.0: 140 операций. Префикс `/api/v1`; схемы запросов и ответов — в `backend/openapi.json` и Swagger UI (`/api/docs`). Колонка «Ошибки» — описанные коды ответов, тело ошибки всегда `{error: {code, message, details}}`.
 
 ## service
 
@@ -79,6 +79,7 @@ ITScout API 0.1.0: 139 операций. Префикс `/api/v1`; схемы з
 | `GET` | `/tests/attempts/{attempt_id}` | Состояние попытки | JWT | 200 | 401, 403, 404, 422 |
 | `GET` | `/tests/attempts/{attempt_id}/current` | Текущее задание (по одному, без возврата назад) | JWT | 200 | 401, 403, 404, 422 |
 | `POST` | `/tests/attempts/{attempt_id}/answer` | Ответ на текущее задание | JWT | 200 | 401, 403, 404, 409, 422 |
+| `POST` | `/tests/attempts/{attempt_id}/abandon` | Прервать незаконченный экспресс-тест: попытка закрывается без результата (409 not_express — это не экспресс-тест, attempt_finished — уже завершён) | JWT | 200 | 401, 403, 404, 409, 422 |
 | `GET` | `/tests/attempts/{attempt_id}/result` | Результат: грейд, θ, перцентиль, разбор по темам, следующие шаги | JWT | 200 | 401, 403, 404, 409, 422 |
 | `GET` | `/candidates/me/grade-status` | Категория и грейд: текущий статус, история, доступные действия и сроки | JWT | 200 | 401, 403 |
 | `GET` | `/candidates/me/grade-explanation` | Как определён грейд: θ̂, SE, порог грейда, дата теста (решение принимает только тест) | JWT | 200 | 401, 403 |

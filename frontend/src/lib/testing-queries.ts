@@ -188,6 +188,25 @@ export function useAttempt(attemptId: number) {
   });
 }
 
+/** Прервать незаконченный экспресс-тест (§10.3.1): иначе он блокирует старт настоящего теста. */
+export function useAbandonExpress() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (attemptId: number) => {
+      const { data, error, response } = await api.POST("/api/v1/tests/attempts/{attempt_id}/abandon", {
+        params: { path: { attempt_id: attemptId } },
+      });
+      if (!data) throw toApiError(response, error);
+      return data;
+    },
+    onSuccess: (attempt) => {
+      queryClient.setQueryData(queryKeys.attempt(attempt.id), attempt);
+      // grade-status и onboarding_step лежат под ["candidates", "me"]
+      void queryClient.invalidateQueries({ queryKey: queryKeys.me });
+    },
+  });
+}
+
 export interface CurrentItemWithClock {
   item: CurrentItem;
   /**

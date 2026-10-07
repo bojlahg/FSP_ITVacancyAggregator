@@ -25,7 +25,8 @@ export interface ItemScreenProps {
   loadingNext: boolean;
   error: string | null;
   focusLost: number;
-  onSubmit: (itemId: number, payload: AnswerPayload) => Promise<boolean>;
+  /** timedOut — время вышло, а ответ так и не выбран: задание уходит пустым (пропущено). */
+  onSubmit: (itemId: number, payload: AnswerPayload, timedOut: boolean) => Promise<boolean>;
 }
 
 const blockCopy = (event: ClipboardEvent | MouseEvent) => event.preventDefault();
@@ -53,7 +54,7 @@ export function ItemScreen({ item, localDeadlineMs, busy, loadingNext, error, fo
   const send = async () => {
     if (submittedRef.current || item.item_id == null) return;
     submittedRef.current = true;
-    const ok = await onSubmit(item.item_id, toPayload(kind, draft));
+    const ok = await onSubmit(item.item_id, toPayload(kind, draft), expired && isDraftEmpty(kind, draft));
     if (!ok) submittedRef.current = false;
   };
 
