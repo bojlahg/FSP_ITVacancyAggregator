@@ -13,7 +13,8 @@ const docs = resolve(root, "docs");
 const fonts = resolve(root, "backend/app/modules/resume/assets/fonts");
 const out = resolve(docs, "ITScout-docs.pdf");
 
-// Порядок — по пунктам 3.4 ТЗ; README идёт обзором
+// Порядок — по пунктам 3.4 ТЗ; README идёт обзором. Документы по шаблонам (use cases, руководство,
+// описание методов API, инструкция по развёртыванию) стоят рядом со своими темами
 const PARTS = [
   ["README.md", "overview", root],
   ["architecture.md", "architecture"],
@@ -21,10 +22,14 @@ const PARTS = [
   ["matching.md", "matching"],
   ["validation.md", "validation"],
   ["fsp-integration.md", "fsp-integration"],
+  ["use-cases.md", "use-cases"],
+  ["user-guide.md", "user-guide"],
   ["api.md", "api"],
   ["api-endpoints.md", "api-endpoints"],
+  ["api-methods.md", "api-methods"],
   ["versions.md", "versions"],
   ["deploy.md", "deploy"],
+  ["deployment-instruction.md", "deployment-instruction"],
   ["security.md", "security"],
   ["performance.md", "performance"],
   ["anti-fraud-ats.md", "anti-fraud-ats"],
