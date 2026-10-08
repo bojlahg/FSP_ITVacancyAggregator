@@ -73,10 +73,13 @@ export function GradeEvidenceCard({
   evidence,
   integrity = null,
   audience,
+  showConfidence = true,
 }: {
   evidence: GradeEvidence;
   integrity?: IntegritySignals | null;
   audience: "employer" | "candidate";
+  /** false — полосу уверенности экран уже показывает рядом (статус на «Категория и грейд»). */
+  showConfidence?: boolean;
 }) {
   const items = `${evidence.items_scored} ${plural(evidence.items_scored, ["задание", "задания", "заданий"])}`;
   return (
@@ -92,8 +95,8 @@ export function GradeEvidenceCard({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4 text-sm">
-        <GradeConfidenceBar confidence={evidence.confidence} compact={audience === "employer"} />
-        <ul className="grid gap-2 sm:grid-cols-2">
+        {showConfidence && <GradeConfidenceBar confidence={evidence.confidence} compact={audience === "employer"} />}
+        <ul className={cn("grid gap-2", showConfidence && "sm:grid-cols-2")}>
           <Fact icon={CalendarCheck}>
             {evidence.tested_at ? `Тест пройден ${formatDate(evidence.tested_at)}` : "Дата теста неизвестна"}, результат
             действителен до {formatDate(evidence.valid_until)}

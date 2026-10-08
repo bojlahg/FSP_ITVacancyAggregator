@@ -9,7 +9,8 @@ const OPTIONS: { value: ThemeChoice; label: string; icon: LucideIcon }[] = [
   { value: "dark", label: "Тёмная тема", icon: Moon },
 ];
 
-export function ThemeToggle({ className }: { className?: string }) {
+/** size="lg" — кнопки 44 px для касания (шторка меню на телефоне). */
+export function ThemeToggle({ className, size = "default" }: { className?: string; size?: "default" | "lg" }) {
   const current = useTheme();
   return (
     <div
@@ -26,7 +27,8 @@ export function ThemeToggle({ className }: { className?: string }) {
           title={label}
           onClick={() => setTheme(value)}
           className={cn(
-            "flex size-7 items-center justify-center rounded-sm transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+            "flex items-center justify-center rounded-sm transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+            size === "lg" ? "size-11 rounded-md" : "size-7",
             current === value ? "bg-primary-tint text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground",
           )}
         >
