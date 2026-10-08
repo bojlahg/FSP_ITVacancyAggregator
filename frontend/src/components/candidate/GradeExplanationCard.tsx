@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, MessageSquareWarning, Scale } from "lucide-react";
+import { ChevronDown, Loader2, MessageSquareWarning, Scale } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link } from "react-router";
@@ -7,11 +7,9 @@ import { z } from "zod";
 import { ErrorState } from "@/components/ErrorState";
 import { FormAlert } from "@/components/FormAlert";
 import { FormField } from "@/components/FormField";
-import { SkeletonCards } from "@/components/SkeletonCards";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { apiError } from "@/lib/api-error";
 import { formatDate, toPercent } from "@/lib/format";
@@ -24,55 +22,103 @@ import {
   useGradeExplanation,
   useMyAppeals,
 } from "@/lib/legal-queries";
+import { cn } from "@/lib/utils";
 
 function num(value: number): string {
   return value.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-/** Блок «Как определён грейд» (152-ФЗ ст. 16): решение принимает тест, возражение рассматривает человек. */
-export function GradeExplanationCard() {
+/**
+ * Блок «Как определён грейд» (152-ФЗ ст. 16): решение принимает тест, возражение рассматривает человек.
+ * Объяснение свёрнуто — в заголовке θ̂ и пороги; «Оспорить» — отдельной строкой под ним.
+ */
+export function GradeExplanationCard({ className }: { className?: string }) {
   const explanation = useGradeExplanation();
   const appeals = useMyAppeals();
+  const [open, setOpen] = useState(false);
 
-  return (
-    <Card className="lg:col-span-2">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+  if (explanation.isPending || appeals.isPending) {
+    return (
+      <div className={cn("grid gap-4", className)} role="status" aria-busy="true" aria-label="Загрузка">
+        <Skeleton className="h-[74px] rounded-xl" />
+        <Skeleton className="h-16 rounded-xl" />
+      </div>
+    );
+  }
+  if (explanation.isError || appeals.isError) {
+    return (
+      <div className={cn("rounded-xl border bg-card p-5", className)}>
+        <h2 className="mb-3 flex items-center gap-2 font-mono text-base font-bold">
           <Scale className="size-4 text-primary" aria-hidden /> Как определён грейд
-        </CardTitle>
-        <CardDescription>
-          Категорию определяет только тест — не резюме, не опрос и не ИИ.{" "}
-          <Link to={legalPath("recommendations")} className="text-primary underline underline-offset-4">
-            Правила подбора
-          </Link>
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-5 text-sm">
-        {explanation.isPending || appeals.isPending ? (
-          <SkeletonCards count={1} />
-        ) : explanation.isError || appeals.isError ? (
-          <ErrorState
-            description={apiError(explanation.error ?? appeals.error).message}
-            onRetry={() => {
-              void explanation.refetch();
-              void appeals.refetch();
-            }}
+        </h2>
+        <ErrorState
+          variant="block"
+          title="Не удалось загрузить объяснение грейда."
+          description={apiError(explanation.error ?? appeals.error).message}
+          onRetry={() => {
+            void explanation.refetch();
+            void appeals.refetch();
+          }}
+        />
+      </div>
+    );
+  }
+
+  const decision = explanation.data.current;
+  return (
+    <div className={cn("grid gap-4", className)}>
+      <section className="rounded-xl border bg-card" aria-labelledby="grade-explanation-title">
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls="grade-explanation-body"
+          onClick={() => setOpen((value) => !value)}
+          className="flex w-full items-center gap-3 rounded-xl p-5 text-left transition-colors outline-none hover:bg-muted/50 focus-visible:ring-[3px] focus-visible:ring-ring/40"
+        >
+          <Scale className="size-4 shrink-0 text-primary" aria-hidden />
+          <span className="flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-4">
+            <span id="grade-explanation-title" className="font-mono text-base font-bold">
+              Как определён грейд
+            </span>
+            <span className="font-mono text-xs text-muted-foreground tabular-nums sm:text-[13px]">
+              {decision ? decisionSummary(decision) : "появится после первого теста"}
+            </span>
+          </span>
+          <ChevronDown
+            className={cn("size-5 shrink-0 text-muted-foreground transition-transform", open && "rotate-180")}
+            aria-hidden
           />
-        ) : explanation.data.current === null ? (
+        </button>
+        <div id="grade-explanation-body" hidden={!open} className="space-y-4 border-t border-border-subtle p-5 text-sm">
           <p className="text-muted-foreground">
-            Категории пока нет. После теста здесь будет видно, с каким порогом сравнивался ваш результат, и появится
-            возможность его оспорить.
+            Категорию определяет только тест — не резюме, не опрос и не ИИ.{" "}
+            <Link to={legalPath("recommendations")} className="text-primary underline underline-offset-4">
+              Правила подбора
+            </Link>
           </p>
-        ) : (
-          <>
-            <Decision decision={explanation.data.current} />
-            <Separator />
-            <AppealBlock decision={explanation.data.current} appeals={appeals.data} />
-          </>
-        )}
-      </CardContent>
-    </Card>
+          {decision ? (
+            <Decision decision={decision} />
+          ) : (
+            <p className="text-muted-foreground">
+              Категории пока нет. После теста здесь будет видно, с каким порогом сравнивался ваш результат, и появится
+              возможность его оспорить.
+            </p>
+          )}
+        </div>
+      </section>
+      {decision && <AppealBlock decision={decision} appeals={appeals.data} />}
+    </div>
   );
+}
+
+/** «θ 0,78 ± 0,45 · порог Middle 0,20 · порог Senior 1,20» — видно без раскрытия блока. */
+function decisionSummary(decision: GradeDecision): string {
+  const parts = [`θ ${num(decision.theta)}${decision.se === null ? "" : ` ± ${num(decision.se)}`}`];
+  parts.push(`порог ${gradeLabel(decision.category.grade)} ${num(decision.cut)}`);
+  if (decision.next_grade && decision.next_cut !== null) {
+    parts.push(`порог ${gradeLabel(decision.next_grade)} ${num(decision.next_cut)}`);
+  }
+  return parts.join(" · ");
 }
 
 function Decision({ decision }: { decision: GradeDecision }) {
@@ -160,17 +206,15 @@ function AppealBlock({ decision, appeals }: { decision: GradeDecision; appeals: 
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="max-w-2xl space-y-1">
-          <h3 className="font-mono text-sm font-bold">Не согласны с результатом?</h3>
-          <p className="text-muted-foreground">
-            Опишите, что пошло не так. Обращение прочитает человек из команды ITScout и ответит здесь. Ответ сам по себе
-            грейд не меняет — изменить его может только тест.
-          </p>
-        </div>
+    <section aria-label="Оспорить результат" className="space-y-4 rounded-xl border border-border-subtle p-4 text-sm sm:px-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="max-w-3xl text-muted-foreground">
+          <b className="font-medium text-foreground">Не согласны с результатом?</b> Опишите, что пошло не так.
+          Обращение прочитает человек из команды ITScout и ответит здесь. Ответ сам по себе грейд не меняет — изменить
+          его может только тест.
+        </p>
         {!open && !pending && (
-          <Button variant="outline" onClick={() => setOpen(true)}>
+          <Button variant="outline" className="max-sm:w-full" onClick={() => setOpen(true)}>
             <MessageSquareWarning /> Оспорить
           </Button>
         )}
@@ -226,6 +270,6 @@ function AppealBlock({ decision, appeals }: { decision: GradeDecision; appeals: 
           ))}
         </ul>
       )}
-    </div>
+    </section>
   );
 }

@@ -1,4 +1,4 @@
-import { Zap } from "lucide-react";
+import { Info, Zap } from "lucide-react";
 import { useState } from "react";
 import { StartAttemptButton } from "@/components/candidate/StartAttemptButton";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,32 +37,39 @@ export function ExpressTestCard({
         </CardTitle>
         <CardDescription>
           {express.items} {plural(express.items, ["задание", "задания", "заданий"])} той же механики: адаптивный подбор,
-          свои экземпляры, время на ответ считает сервер. Покажет, проходите ли вы порог выбранного грейда.{" "}
-          <b className="text-foreground">Категорию не присваивает</b> и попытки смены грейда не тратит — подходит,
-          чтобы познакомиться с тестом. До {express.per_day} в сутки.
+          время на ответ считает сервер. Покажет, проходите ли вы порог выбранного грейда.
         </CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-3 sm:grid-cols-[minmax(0,12rem)_auto] sm:items-end">
-        <div className="grid gap-1.5">
-          <Label htmlFor="express-grade">Грейд</Label>
-          <Select id="express-grade" value={grade} onChange={(event) => setGrade(event.target.value as Grade)}>
-            {(grades.data ?? []).map((item) => (
-              <option key={item.slug} value={item.slug}>
-                {gradeLabel(item.slug)}
-              </option>
-            ))}
-          </Select>
+      <CardContent className="grid gap-4">
+        <div className="flex items-start gap-2 rounded-lg bg-primary-tint p-3 text-sm">
+          <Info className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+          <p>
+            <b>Категорию не присваивает</b> и попытки смены грейда не тратит — подходит, чтобы познакомиться с тестом.
+            До {express.per_day} в сутки.
+          </p>
         </div>
-        <StartAttemptButton
-          variant="outline"
-          disabled={disabled}
-          className="justify-items-start"
-          params={{ specialization, grade_target: grade, purpose: "express" }}
-        >
-          <Zap /> Пройти экспресс-тест
-        </StartAttemptButton>
+        <div className="grid gap-3 sm:grid-cols-[minmax(0,12rem)_auto] sm:items-end">
+          <div className="grid gap-1.5">
+            <Label htmlFor="express-grade">Грейд</Label>
+            <Select id="express-grade" value={grade} onChange={(event) => setGrade(event.target.value as Grade)}>
+              {(grades.data ?? []).map((item) => (
+                <option key={item.slug} value={item.slug}>
+                  {gradeLabel(item.slug)}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <StartAttemptButton
+            variant="outline"
+            disabled={disabled}
+            className="justify-items-start max-sm:[&>button]:w-full"
+            params={{ specialization, grade_target: grade, purpose: "express" }}
+          >
+            <Zap /> Пройти экспресс-тест
+          </StartAttemptButton>
+        </div>
         {unfinishedExpress && (
-          <p className="text-sm text-muted-foreground sm:col-span-2">
+          <p className="text-sm text-muted-foreground">
             Предыдущий экспресс-тест не закончен — продолжите его или завершите кнопкой «Завершить экспресс-тест» в
             блоке «Текущий статус».
           </p>
