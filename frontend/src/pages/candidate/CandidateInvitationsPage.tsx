@@ -7,6 +7,7 @@ import {
   Flag,
   Globe,
   Loader2,
+  Lock,
   Mail,
   MessageCircle,
   Phone,
@@ -15,7 +16,7 @@ import {
   User,
   X,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { type ReactNode, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { EmptyState } from "@/components/EmptyState";
@@ -25,11 +26,10 @@ import { FormAlert } from "@/components/FormAlert";
 import { FormField } from "@/components/FormField";
 import { PageHeader } from "@/components/PageHeader";
 import { SalaryMarketBadge, SalaryMarketNote } from "@/components/SalaryMarketNote";
-import { SalaryRange } from "@/components/SalaryRange";
+import { SalaryFigure } from "@/components/SalaryFigure";
 import { SkeletonCards } from "@/components/SkeletonCards";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import {
   Dialog,
   DialogClose,
@@ -42,7 +42,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { apiError } from "@/lib/api-error";
 import { useIndustries } from "@/lib/employer-queries";
-import { formatDate, formatHours, toPercent } from "@/lib/format";
+import { daysSince, formatDate, formatDaysAgo, formatHours, toPercent } from "@/lib/format";
 import {
   type InvitationForCandidate,
   useAcceptInvitation,
@@ -65,11 +65,21 @@ const REPORT_REASON_LABELS: Record<(typeof REPORT_REASONS)[number], string> = {
 };
 const OPEN_STATUSES: readonly InvitationForCandidate["status"][] = ["sent", "viewed"];
 
+/** Группы списка: новые — сверху, архив (отклонённые, истёкшие, отозванные) свёрнут. */
+const GROUPS = [
+  { key: "open", title: "Новые", statuses: OPEN_STATUSES },
+  { key: "accepted", title: "Принятые", statuses: ["accepted"] },
+  { key: "archive", title: "Архив", statuses: ["declined", "expired", "withdrawn"] },
+] as const satisfies readonly { key: string; title: string; statuses: readonly InvitationForCandidate["status"][] }[];
+
+const eyebrow = "font-mono text-xs font-medium tracking-[0.1em] text-muted-foreground uppercase";
+
 export default function CandidateInvitationsPage() {
   const invitations = useMyInvitations();
   const view = useViewInvitation();
   const accept = useAcceptInvitation();
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const [archiveOpen, setArchiveOpen] = useState(false);
   const [declining, setDeclining] = useState<InvitationForCandidate | null>(null);
   const [reporting, setReporting] = useState<InvitationForCandidate | null>(null);
   // POST /view — один раз за сессию на приглашение, даже если карточку раскрыли несколько раз.
@@ -89,11 +99,24 @@ export default function CandidateInvitationsPage() {
     }
   };
 
-  const sorted = [...(invitations.data ?? [])].sort((a, b) => {
-    const openA = OPEN_STATUSES.includes(a.status) ? 0 : 1;
-    const openB = OPEN_STATUSES.includes(b.status) ? 0 : 1;
-    return openA - openB || b.created_at.localeCompare(a.created_at);
-  });
+  const sorted = [...(invitations.data ?? [])].sort((a, b) => b.created_at.localeCompare(a.created_at));
+  const groups = GROUPS.map((group) => ({
+    ...group,
+    items: sorted.filter((item) => (group.statuses as readonly string[]).includes(item.status)),
+  }));
+
+  const renderCard = (invitation: InvitationForCandidate) => (
+    <InvitationCard
+      key={invitation.id}
+      invitation={invitation}
+      open={expanded.has(invitation.id)}
+      onToggle={() => toggle(invitation)}
+      accepting={accept.isPending && accept.variables === invitation.id}
+      onAccept={() => accept.mutate(invitation.id)}
+      onDecline={() => setDeclining(invitation)}
+      onReport={() => setReporting(invitation)}
+    />
+  );
 
   return (
     <>
@@ -114,20 +137,47 @@ export default function CandidateInvitationsPage() {
           description="Как только работодатель выберет вас в подборке, приглашение появится здесь."
         />
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-8">
           <FormAlert message={accept.isError ? `Не удалось принять: ${apiError(accept.error).message}` : null} />
-          {sorted.map((invitation) => (
-            <InvitationCard
-              key={invitation.id}
-              invitation={invitation}
-              open={expanded.has(invitation.id)}
-              onToggle={() => toggle(invitation)}
-              accepting={accept.isPending && accept.variables === invitation.id}
-              onAccept={() => accept.mutate(invitation.id)}
-              onDecline={() => setDeclining(invitation)}
-              onReport={() => setReporting(invitation)}
-            />
-          ))}
+          {groups.map((group) => {
+            if (group.items.length === 0) return null;
+            const headingId = `invitations-${group.key}`;
+            if (group.key === "archive") {
+              return (
+                <section key={group.key} aria-labelledby={headingId} className="grid gap-3">
+                  <h2 className="m-0">
+                    <button
+                      type="button"
+                      id={headingId}
+                      aria-expanded={archiveOpen}
+                      aria-controls={`${headingId}-list`}
+                      onClick={() => setArchiveOpen((value) => !value)}
+                      className={cn(
+                        eyebrow,
+                        "inline-flex min-h-9 items-center gap-2 rounded-md pr-2 outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/40",
+                      )}
+                    >
+                      <ChevronDown className={cn("size-4 transition-transform", !archiveOpen && "-rotate-90")} aria-hidden />
+                      {group.title} · {group.items.length}
+                    </button>
+                  </h2>
+                  {archiveOpen && (
+                    <div id={`${headingId}-list`} className="grid gap-3">
+                      {group.items.map(renderCard)}
+                    </div>
+                  )}
+                </section>
+              );
+            }
+            return (
+              <section key={group.key} aria-labelledby={headingId} className="grid gap-3">
+                <h2 id={headingId} className={eyebrow}>
+                  {group.title} · {group.items.length}
+                </h2>
+                {group.items.map(renderCard)}
+              </section>
+            );
+          })}
         </div>
       )}
 
@@ -155,6 +205,10 @@ interface InvitationCardProps {
   onReport: () => void;
 }
 
+/** Две колонки одной сетки: слева компания, роль и «почему вам», справа панель решения с вилкой. */
+const columns = "grid gap-x-8 gap-y-4 md:grid-cols-[minmax(0,1fr)_minmax(260px,300px)]";
+const panel = "flex min-w-0 flex-col gap-4 md:border-l md:border-border-subtle md:pl-8";
+
 function InvitationCard({ invitation, open, onToggle, accepting, onAccept, onDecline, onReport }: InvitationCardProps) {
   const { company } = invitation;
   const industries = useIndustries();
@@ -165,47 +219,101 @@ function InvitationCard({ invitation, open, onToggle, accepting, onAccept, onDec
   const accepted = invitation.status === "accepted";
   const detailsId = `invitation-${invitation.id}`;
 
+  let decision: ReactNode = null;
+  if (canRespond) {
+    decision = (
+      <>
+        <p className="flex items-start gap-2 rounded-lg bg-muted px-3 py-2.5 text-sm">
+          <Lock className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+          <span>Примете приглашение — работодатель увидит ваши контакты, а вы — контакт рекрутера.</span>
+        </p>
+        {/* На телефоне решение закреплено внизу экрана, пока карточка открыта */}
+        <div className="sticky bottom-0 z-10 -mx-4 mt-auto flex flex-row-reverse gap-2 rounded-b-xl border-t border-border-subtle bg-card px-4 pt-3 pb-4 sm:-mx-6 sm:px-6 md:static md:mx-0 md:flex-col md:border-0 md:bg-transparent md:p-0">
+          <Button
+            size="lg"
+            className="min-w-0 flex-[2_1_0%] max-md:px-3 md:flex-none"
+            onClick={onAccept}
+            disabled={accepting}
+          >
+            {accepting ? <Loader2 className="animate-spin" /> : <Check className="max-md:hidden" />}
+            <span>
+              Принять<span className="md:hidden"> приглашение</span>
+            </span>
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            className="min-w-0 flex-[1_1_0%] max-md:px-3 md:flex-none"
+            onClick={onDecline}
+            disabled={accepting}
+          >
+            <X className="max-md:hidden" /> Отклонить
+          </Button>
+        </div>
+      </>
+    );
+  } else if (invitation.contact_method) {
+    decision = <ContactBlock invitation={invitation} />;
+  }
+
   return (
-    <Card className={cn(invitation.status === "sent" && "border-primary ring-1 ring-primary/20")}>
-      <CardHeader>
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-expanded={open}
-          aria-controls={detailsId}
-          className="grid w-full gap-3 rounded-md text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 md:grid-cols-[minmax(0,1fr)_auto]"
-        >
-          <span className="min-w-0 space-y-1.5">
-            <span className="flex flex-wrap items-center gap-2">
-              <StatusBadge status={invitation.status} audience="recipient" />
+    <article
+      aria-labelledby={`${detailsId}-title`}
+      className={cn(
+        "min-w-0 rounded-xl border bg-card text-card-foreground",
+        invitation.status === "sent" ? "border-2 border-primary" : canRespond && "border-primary",
+      )}
+    >
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        aria-controls={detailsId}
+        className={cn(
+          columns,
+          "w-full rounded-xl p-4 text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 sm:p-6",
+        )}
+      >
+        <span className="flex min-w-0 flex-col gap-3">
+          <span className="flex items-center gap-3">
+            <span
+              className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary-tint text-primary sm:size-10"
+              aria-hidden
+            >
+              <Building2 className="size-4 sm:size-5" />
             </span>
-            <span className="block font-mono text-lg leading-tight font-bold">{invitation.title}</span>
-            <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-              <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
-                <Building2 className="size-3.5" aria-hidden /> {company.company_name}
-              </span>
-              {industry && <span>{industry}</span>}
-              <span>{formatDate(invitation.created_at)}</span>
-              {canRespond && (
-                <span className="inline-flex items-center gap-1.5">
-                  <Clock className="size-3.5" aria-hidden /> ответить до {formatDate(invitation.expires_at)}
-                </span>
-              )}
+            <span className="flex min-w-0 flex-col">
+              <span className="text-sm font-medium">{company.company_name}</span>
+              {industry && <span className="text-xs text-muted-foreground">{industry}</span>}
             </span>
+            <StatusBadge status={invitation.status} audience="recipient" className="ml-auto" />
           </span>
-          <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 md:flex-col md:flex-nowrap md:items-end">
-            <SalaryRange from={invitation.salary_from} to={invitation.salary_to} className="text-xl text-primary md:text-2xl" />
-            {invitation.salary_market && <SalaryMarketBadge market={invitation.salary_market} />}
-            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-              {open ? "Свернуть" : "Подробнее"}
-              <ChevronDown className={cn("size-4 transition-transform", open && "rotate-180")} aria-hidden />
-            </span>
+          <span id={`${detailsId}-title`} className="font-mono text-lg font-semibold tracking-tight text-balance sm:text-xl">
+            {invitation.title}
           </span>
-        </button>
-      </CardHeader>
+          <span className="inline-flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
+            <Clock className="size-3 shrink-0" aria-hidden />
+            пришло {formatDaysAgo(daysSince(invitation.created_at))}
+            {canRespond && <> · ответьте до {formatDate(invitation.expires_at)}</>}
+          </span>
+        </span>
+        <span className={cn(panel, "gap-1.5 max-md:rounded-lg max-md:bg-primary-tint max-md:p-3")}>
+          <span className={eyebrow}>Вилка</span>
+          <SalaryFigure
+            from={invitation.salary_from}
+            to={invitation.salary_to}
+            className="text-[22px] leading-7 md:text-2xl md:leading-8"
+          />
+          {invitation.salary_market && <SalaryMarketBadge market={invitation.salary_market} />}
+          <span className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-primary">
+            {open ? "Свернуть" : "Подробнее"}
+            <ChevronDown className={cn("size-4 transition-transform", open && "rotate-180")} aria-hidden />
+          </span>
+        </span>
+      </button>
 
       {accepted && (
-        <CardContent>
+        <div className="px-4 pb-4 sm:px-6 sm:pb-6">
           <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary-tint px-3 py-2 text-sm" role="status">
             <Unlock className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
             <span>
@@ -213,59 +321,45 @@ function InvitationCard({ invitation, open, onToggle, accepting, onAccept, onDec
               сами.
             </span>
           </div>
-        </CardContent>
+        </div>
       )}
 
       {open && (
-        <>
-          <CardContent id={detailsId} className="grid gap-5 md:grid-cols-2">
-            <div className="space-y-4">
-              <ScamWarnings invitation={invitation} />
-              <p className="text-sm leading-relaxed whitespace-pre-line">{invitation.message}</p>
-              {invitation.salary_market && <SalaryMarketNote market={invitation.salary_market} />}
-              <ContactBlock invitation={invitation} />
-              <CompanyBlock invitation={invitation} />
-            </div>
-            <div className="h-fit rounded-lg bg-muted/60 p-4">
-              <div className="mb-2 font-mono text-xs font-bold tracking-wider uppercase">Почему вам</div>
+        <div id={detailsId} className={cn(columns, "border-t border-border-subtle px-4 pt-5 sm:px-6", canRespond ? "pb-0 md:pb-6" : "pb-4 sm:pb-6")}>
+          <div className="flex min-w-0 flex-col gap-5">
+            <ScamWarnings invitation={invitation} />
+            <div className="space-y-2.5">
+              <div className={eyebrow}>Почему вам</div>
               {invitation.why_you.lines.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Работодатель пригласил вас без привязки к потребности.</p>
               ) : (
-                <ExplanationList items={invitation.why_you.lines} />
+                <ExplanationList items={invitation.why_you.lines} className="space-y-2" />
               )}
-              <p className="mt-3 text-xs text-muted-foreground">
-                То же объяснение совпадения, которое видел работодатель.
-              </p>
+              <p className="text-xs text-muted-foreground">То же объяснение совпадения, которое видел работодатель.</p>
             </div>
-          </CardContent>
-          <div className="flex justify-end px-6">
-            {invitation.report ? (
-              <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground" role="status">
-                <Flag className="size-3.5" aria-hidden /> Жалоба отправлена {formatDate(invitation.report.created_at)}
-                {invitation.report.status === "resolved" ? " · рассмотрена" : " · на рассмотрении"}
-              </span>
-            ) : (
-              <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={onReport}>
-                <Flag /> Пожаловаться
-              </Button>
-            )}
+            <div className="space-y-2.5 border-t border-border-subtle pt-4">
+              <div className={eyebrow}>Сообщение работодателя</div>
+              <p className="text-sm leading-relaxed whitespace-pre-line">{invitation.message}</p>
+            </div>
+            {invitation.salary_market && <SalaryMarketNote market={invitation.salary_market} />}
+            <CompanyBlock invitation={invitation} />
+            <div>
+              {invitation.report ? (
+                <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground" role="status">
+                  <Flag className="size-3.5" aria-hidden /> Жалоба отправлена {formatDate(invitation.report.created_at)}
+                  {invitation.report.status === "resolved" ? " · рассмотрена" : " · на рассмотрении"}
+                </span>
+              ) : (
+                <Button variant="ghost" size="sm" className="-ml-3 text-muted-foreground" onClick={onReport}>
+                  <Flag /> Пожаловаться
+                </Button>
+              )}
+            </div>
           </div>
-          {canRespond && (
-            <CardFooter className="flex-wrap gap-2 border-t border-border-subtle pt-5">
-              <Button onClick={onAccept} disabled={accepting}>
-                {accepting ? <Loader2 className="animate-spin" /> : <Check />} Принять
-              </Button>
-              <Button variant="outline" onClick={onDecline} disabled={accepting}>
-                <X /> Отклонить
-              </Button>
-              <span className="text-xs text-muted-foreground">
-                Приняв, вы откроете работодателю свои контакты.
-              </span>
-            </CardFooter>
-          )}
-        </>
+          {decision && <div className={panel}>{decision}</div>}
+        </div>
       )}
-    </Card>
+    </article>
   );
 }
 
@@ -317,15 +411,15 @@ function CompanyBlock({ invitation }: { invitation: InvitationForCandidate }) {
     reputation.median_response_hours !== null && `отвечает на отклики за ${formatHours(reputation.median_response_hours)}`,
   ].filter((fact): fact is string => typeof fact === "string");
   return (
-    <div className="space-y-1.5 text-sm">
-      <div className="font-mono text-xs font-bold tracking-wider uppercase">О компании</div>
+    <div className="space-y-2.5 border-t border-border-subtle pt-4 text-sm">
+      <div className={eyebrow}>О компании</div>
       {company.description && <p className="text-muted-foreground">{company.description}</p>}
       {company.website && (
         <a
           href={company.website}
           target="_blank"
           rel="noreferrer noopener"
-          className="inline-flex items-center gap-1.5 text-primary hover:underline"
+          className="inline-flex items-center gap-1.5 text-primary underline underline-offset-2"
         >
           <Globe className="size-3.5" aria-hidden /> {company.website}
         </a>
