@@ -10,17 +10,19 @@ interface AbandonExpressButtonProps {
   attemptId: number;
   onDone?: () => void;
   size?: ComponentProps<typeof Button>["size"];
+  /** На экране вопроса кнопка тихая (ghost), чтобы не спорить с «Ответить». */
+  variant?: "outline" | "ghost";
   className?: string;
 }
 
 /** «Завершить экспресс-тест» с подтверждением: попытка закрывается без результата и больше не блокирует тесты. */
-export function AbandonExpressButton({ attemptId, onDone, size = "sm", className }: AbandonExpressButtonProps) {
+export function AbandonExpressButton({ attemptId, onDone, size = "sm", variant = "outline", className }: AbandonExpressButtonProps) {
   const abandon = useAbandonExpress();
   const [confirming, setConfirming] = useState(false);
 
   if (!confirming) {
     return (
-      <Button variant="outline" size={size} className={className} onClick={() => setConfirming(true)}>
+      <Button variant={variant} size={size} className={className} onClick={() => setConfirming(true)}>
         <Square aria-hidden /> Завершить экспресс-тест
       </Button>
     );

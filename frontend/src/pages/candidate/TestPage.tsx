@@ -14,6 +14,7 @@ import { apiError } from "@/lib/api-error";
 import { extraItemsNote } from "@/lib/format";
 import { type AnswerPayload, queryKeys, useAttempt, useCurrentItem, useSubmitAnswer } from "@/lib/testing-queries";
 import { useFocusLossCounter } from "@/lib/use-focus-loss";
+import { cn } from "@/lib/utils";
 
 export default function TestPage() {
   const params = useParams();
@@ -96,38 +97,36 @@ export default function TestPage() {
   // Сервер сам пропускает задание, время которого вышло, пока вкладка была закрыта (previous_timed_out)
   const shownNotice = item.previous_timed_out ? "timeout" : notice;
 
+  const total = clarifying || base === null ? upper : base;
+
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto max-w-3xl space-y-5">
       <h1 className="sr-only">Прохождение теста</h1>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        {attempt.data ? (
-          <span className="flex flex-wrap items-center gap-2">
-            <CategoryBadge specialization={attempt.data.specialization} grade={attempt.data.grade_target} />
-            {attempt.data.purpose === "express" && <Badge variant="soft">экспресс-тест</Badge>}
-          </span>
-        ) : (
-          <span />
-        )}
-        {position !== null && (
-          <span className="font-mono text-sm font-medium tabular-nums">
-            Вопрос {position}
-            {base !== null && upper !== null && ` из ${clarifying ? upper : base}`}
-          </span>
-        )}
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          {attempt.data ? (
+            <span className="flex flex-wrap items-center gap-2">
+              <CategoryBadge specialization={attempt.data.specialization} grade={attempt.data.grade_target} />
+              {attempt.data.purpose === "express" && <Badge variant="muted">экспресс-тест</Badge>}
+            </span>
+          ) : (
+            <span />
+          )}
+          {position !== null && (
+            <span className="font-mono text-sm font-medium text-muted-foreground tabular-nums">
+              Вопрос <b className="font-bold text-foreground">{position}</b>
+              {base !== null && upper !== null && ` из ${clarifying ? upper : base}`}
+            </span>
+          )}
+        </div>
+        {position !== null && total !== null && <QuestionProgress position={position} total={total} />}
         {position !== null && !clarifying && base !== null && upper !== null && upper > base && (
-          <span className="w-full text-right text-sm text-muted-foreground">{extraItemsNote(upper - base)}</span>
+          <p className="text-right text-xs text-muted-foreground">{extraItemsNote(upper - base)}</p>
         )}
       </div>
-      {position !== null && upper !== null && (
-        <Progress
-          value={(position / (clarifying || base === null ? upper : base)) * 100}
-          className="mb-6"
-          aria-label="Прогресс теста"
-        />
-      )}
 
       {clarifying && upper !== null && (
-        <div role="status" className="mb-4 flex items-start gap-2 rounded-lg bg-primary-tint px-4 py-3 text-sm">
+        <div role="status" className="flex items-start gap-2 rounded-lg bg-primary-tint px-4 py-3 text-sm">
           <Info className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
           Результат близок к порогу грейда, поэтому тест задаёт уточняющие вопросы — не больше {upper - (base ?? 0)}.
           Так решение о грейде будет точнее.
@@ -135,7 +134,7 @@ export default function TestPage() {
       )}
 
       {shownNotice && (
-        <div role="status" className="mb-4 flex items-start gap-2 rounded-lg bg-destructive-tint px-4 py-3 text-sm">
+        <div role="status" className="flex items-start gap-2 rounded-lg bg-destructive-tint px-4 py-3 text-sm">
           <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden />
           {shownNotice === "timeout"
             ? "Время на прошлый вопрос вышло — он пропущен и засчитан как неверный."
@@ -155,12 +154,37 @@ export default function TestPage() {
         onSubmit={submit}
       />
 
+      {/* Прервать экспресс-тест — тихое действие, отделённое от ответа, чтобы не нажать его вместо «Ответить» */}
       {attempt.data?.purpose === "express" && (
-        <div className="mt-6 flex flex-wrap items-start justify-between gap-3 text-sm text-muted-foreground">
-          <span className="pt-1.5">Экспресс-тест можно прервать: категорию и попытки он не затрагивает.</span>
-          <AbandonExpressButton attemptId={attemptId} />
+        <div className="flex flex-col items-center gap-1 pt-2 text-center text-xs text-muted-foreground sm:flex-row sm:flex-wrap sm:justify-between sm:gap-x-6 sm:gap-y-3 sm:text-left sm:text-sm">
+          <span className="max-sm:order-2">Экспресс-тест можно прервать: категорию и попытки он не затрагивает.</span>
+          <AbandonExpressButton attemptId={attemptId} variant="ghost" size="default" className="max-sm:order-1" />
         </div>
       )}
+    </div>
+  );
+}
+
+// Больше сегментов не различить на телефоне — тогда сплошная полоса.
+const MAX_SEGMENTS = 30;
+
+/** Прогресс теста: по сегменту на вопрос, пройденные и текущий закрашены. */
+function QuestionProgress({ position, total }: { position: number; total: number }) {
+  const label = `Вопрос ${position} из ${total}`;
+  if (total > MAX_SEGMENTS) return <Progress value={(position / total) * 100} aria-label={label} />;
+  return (
+    <div
+      role="progressbar"
+      aria-label={label}
+      aria-valuemin={1}
+      aria-valuemax={total}
+      aria-valuenow={position}
+      className={cn("grid", total > 16 ? "gap-0.5 sm:gap-1" : "gap-1")}
+      style={{ gridTemplateColumns: `repeat(${total}, minmax(0, 1fr))` }}
+    >
+      {Array.from({ length: total }, (_, index) => (
+        <span key={index} className={cn("h-1.5 rounded-full", index < position ? "bg-primary" : "bg-muted")} />
+      ))}
     </div>
   );
 }

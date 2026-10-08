@@ -11,8 +11,13 @@ import { cn } from "@/lib/utils";
 // Лимит текста открытого ответа на backend (AnswerPayload.text), если задание не прислало свой.
 const OPEN_ANSWER_FALLBACK_MAX = 1500;
 
+// Выбранный вариант — рамка 2px (border + inset-ring) и заливка tint; буква в моно-квадрате красится вместе с ним.
 const optionClass =
-  "flex cursor-pointer items-start gap-3 rounded-lg border px-4 py-3 text-sm transition-colors hover:bg-muted has-[:checked]:border-primary has-[:checked]:bg-primary-tint has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/40 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60";
+  "group flex min-h-13 cursor-pointer items-start gap-3 rounded-lg border bg-card px-4 py-3 text-base transition-colors hover:bg-muted has-[:checked]:border-primary has-[:checked]:bg-primary-tint has-[:checked]:inset-ring-1 has-[:checked]:inset-ring-primary has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/40 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60 max-sm:py-4";
+const letterClass =
+  "flex size-7 shrink-0 items-center justify-center rounded-md bg-muted font-mono text-[13px] font-semibold text-muted-foreground group-has-[:checked]:bg-primary group-has-[:checked]:text-primary-foreground max-sm:size-6 max-sm:text-xs";
+
+const optionLetter = (index: number) => String.fromCharCode(65 + index);
 
 interface ItemAnswerInputProps {
   item: CurrentItem;
@@ -41,12 +46,14 @@ export function ItemAnswerInput({ item, kind, draft, onChange, disabled }: ItemA
               checked={draft.choice === option.id}
               onChange={() => onChange({ ...draft, choice: option.id })}
               disabled={disabled}
-              className="mt-0.5 size-4 shrink-0 accent-primary outline-none"
+              className="mt-[5px] size-[18px] shrink-0 accent-primary outline-none max-sm:mt-0.5 max-sm:size-5"
             />
-            <span className="font-mono text-xs font-bold text-muted-foreground" aria-hidden>
-              {String.fromCharCode(65 + index)}
+            <span className={letterClass} aria-hidden>
+              {optionLetter(index)}
             </span>
-            <span className={cn("whitespace-pre-wrap", monoOptions && "font-mono")}>{option.text}</span>
+            <span className={cn("min-w-0 py-0.5 font-medium whitespace-pre-wrap max-sm:py-0", monoOptions && "font-mono")}>
+              {option.text}
+            </span>
           </label>
         ))}
       </div>
@@ -58,10 +65,10 @@ export function ItemAnswerInput({ item, kind, draft, onChange, disabled }: ItemA
       return (
         <fieldset className="grid gap-2">
           <legend className="mb-2 text-sm text-muted-foreground">Выберите все верные варианты</legend>
-          {options.map((option) => (
+          {options.map((option, index) => (
             <label key={option.id} className={optionClass}>
               <Checkbox
-                className="mt-0.5"
+                className="mt-[5px] size-[18px] max-sm:mt-0.5 max-sm:size-5"
                 checked={draft.choices.includes(option.id)}
                 disabled={disabled}
                 onChange={(event) =>
@@ -73,7 +80,10 @@ export function ItemAnswerInput({ item, kind, draft, onChange, disabled }: ItemA
                   })
                 }
               />
-              <span className="whitespace-pre-wrap">{option.text}</span>
+              <span className={letterClass} aria-hidden>
+                {optionLetter(index)}
+              </span>
+              <span className="min-w-0 py-0.5 font-medium whitespace-pre-wrap max-sm:py-0">{option.text}</span>
             </label>
           ))}
         </fieldset>
