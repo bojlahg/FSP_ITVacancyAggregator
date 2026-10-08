@@ -1,22 +1,25 @@
 import { Braces, Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiError } from "@/lib/api-error";
+import { cn } from "@/lib/utils";
 import { useDownloadCandidateJsonResume, useDownloadCandidatePdf } from "@/lib/profile-queries";
 
 interface CandidatePdfButtonProps {
   candidateId: number;
   /** Полный PDF с контактами — только после раскрытия контактов, иначе обезличенный. */
   unlocked: boolean;
+  /** Выравнивание кнопок и ошибки: в шапке — по правому краю, в блоке контактов — по левому. */
+  align?: "start" | "end";
 }
 
 /** PDF-профиль кандидата (§7) и экспорт в JSON Resume для ATS. */
-export function CandidatePdfButton({ candidateId, unlocked }: CandidatePdfButtonProps) {
+export function CandidatePdfButton({ candidateId, unlocked, align = "end" }: CandidatePdfButtonProps) {
   const download = useDownloadCandidatePdf();
   const exportJson = useDownloadCandidateJsonResume();
   const failed = download.error ?? exportJson.error;
   return (
-    <div className="flex flex-col items-end gap-1">
-      <div className="flex flex-wrap justify-end gap-2">
+    <div className={cn("flex flex-col gap-1", align === "end" ? "items-end" : "items-start")}>
+      <div className={cn("flex flex-wrap gap-2", align === "end" ? "justify-end" : "justify-start")}>
       <Button
         variant="outline"
         onClick={() => download.mutate(candidateId)}

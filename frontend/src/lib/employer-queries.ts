@@ -264,14 +264,19 @@ export function useToggleShortlist(needId: number) {
           shortlist_outside: current.shortlist_outside.filter((item) => item.id !== id),
         };
       });
+      // Карточка кандидата, открытая из этой подборки, показывает ту же булавку
+      queryClient.setQueryData<CandidateCard>(employerKeys.candidate(id, needId), (current) =>
+        current?.match ? { ...current, match: { ...current.match, shortlisted: add } } : current,
+      );
       return { snapshot };
     },
     onError: (_err, _vars, context) => {
       for (const [key, data] of context?.snapshot ?? []) queryClient.setQueryData(key as QueryKey, data);
     },
-    onSettled: () => {
+    onSettled: (_data, _err, toggle) => {
       void queryClient.invalidateQueries({ queryKey: prefix });
       void queryClient.invalidateQueries({ queryKey: employerKeys.need(needId), exact: true });
+      void queryClient.invalidateQueries({ queryKey: employerKeys.candidate(shortlistTarget(toggle), needId), exact: true });
     },
   });
 }
