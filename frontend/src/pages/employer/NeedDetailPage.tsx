@@ -1,5 +1,6 @@
 import {
   ArrowLeft,
+  Check,
   CheckCircle2,
   ChevronDown,
   Eye,
@@ -7,8 +8,6 @@ import {
   FilterX,
   FlaskConical,
   History,
-  Layers,
-  ListOrdered,
   Loader2,
   Mail,
   Pencil,
@@ -17,32 +16,26 @@ import {
   Send,
   ShieldQuestion,
   SlidersHorizontal,
-  Users,
   X,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useState } from "react";
 import { Link, useParams } from "react-router";
+import { ActionMenu, type ActionMenuItem } from "@/components/ActionMenu";
 import { CandidateCategoryBadge, CategoryBadge } from "@/components/CategoryBadge";
-import { CandidateRow } from "@/components/employer/CandidateRow";
 import { CommitInput } from "@/components/employer/CommitInput";
 import { InviteDialog } from "@/components/employer/InviteDialog";
+import { MatchRow } from "@/components/employer/MatchRow";
+import { NeedTextIssues } from "@/components/employer/NeedTextIssues";
 import { SalaryCoverageCard } from "@/components/employer/SalaryCoverageCard";
+import { ScoreTile } from "@/components/employer/ScoreTile";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { FormAlert } from "@/components/FormAlert";
-import { NeedTextIssues } from "@/components/employer/NeedTextIssues";
-import { PageHeader } from "@/components/PageHeader";
 import { SalaryRange } from "@/components/SalaryRange";
-import { ScoreBadge } from "@/components/ScoreBadge";
 import { SkeletonCards } from "@/components/SkeletonCards";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
-import { Select } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 import { apiError } from "@/lib/api-error";
 import {
   type CandidateBrief,
@@ -51,12 +44,13 @@ import {
   type Need,
   parseId,
   type RecommendationsQuery,
+  shortlistTarget,
   useIndustries,
   useNeed,
   useNeeds,
   useRecommendations,
+  useSalaryCoverage,
   useSetNeedPublished,
-  shortlistTarget,
   useToggleShortlist,
 } from "@/lib/employer-queries";
 import { formatNumber, plural, toPercent } from "@/lib/format";
@@ -68,14 +62,16 @@ import { cn } from "@/lib/utils";
 const GRADES: readonly Grade[] = ["intern", "junior", "middle", "senior"];
 const FORMATS = ["office", "hybrid", "remote"] as const;
 const FRESH_OPTIONS = [
-  { value: "14", label: "До 2 недель" },
-  { value: "30", label: "До месяца" },
-  { value: "90", label: "До 3 месяцев" },
+  { value: "14", label: "до 2 недель" },
+  { value: "30", label: "до месяца" },
+  { value: "90", label: "до 3 месяцев" },
 ];
 const FILTER_KEYS = ["grade", "fsp", "verified", "salary", "format", "city", "fresh", "hard"];
+// Сколько строк показывать сразу: в группе без выбранной категории и в плоском списке (шаг «Показать ещё»)
+const GROUP_PREVIEW = 5;
+const PAGE_STEP = 10;
 
 const groupKey = (category: { specialization: string; grade: string }) => `${category.specialization}.${category.grade}`;
-const groupAnchor = (key: string) => `group-${key.replace(".", "-")}`;
 const candidateHref = (candidateId: number, needId: number) => `/employer/candidates/${candidateId}?need=${needId}`;
 
 export default function NeedDetailPage() {
@@ -119,7 +115,10 @@ function NeedView({ need }: { need: Need }) {
     hard: params.get("hard") !== "0",
     view: params.get("view") === "top" ? ("none" as const) : ("category" as const),
   };
-  const hasActiveFilters = FILTER_KEYS.some((key) => params.has(key));
+  // Выбранная категория — фильтр отображения поверх того же ответа: score и порядок не меняются
+  const selectedCategory = filters.view === "category" ? params.get("cat") : null;
+  const activeFilters = FILTER_KEYS.filter((key) => params.has(key)).length;
+  const hasActiveFilters = activeFilters > 0;
 
   const query: RecommendationsQuery = {
     group_by: filters.view,
@@ -136,391 +135,289 @@ function NeedView({ need }: { need: Need }) {
   const shortlist = useToggleShortlist(need.id);
   const publish = useSetNeedPublished(need.id);
 
-  const [inviteTarget, setInviteTarget] = useState<CandidateBrief | null>(null);
+  const [inviteTarget, setInviteTarget] = useState<CandidateMatch | null>(null);
   const [invited, setInvited] = useState<Map<number, string>>(new Map());
   const [lastInvited, setLastInvited] = useState<string | null>(null);
   const [outOfFiltersOpen, setOutOfFiltersOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  // «Показать ещё»: счётчик сбрасывается при смене фильтров и вида
+  const listKey = params.toString();
+  const [shown, setShown] = useState({ key: listKey, count: PAGE_STEP });
+  const shownCount = shown.key === listKey ? shown.count : PAGE_STEP;
 
   const { invitations_active: activeInvites, invitations_limit: inviteLimit } = need.stats;
   const limitReached = inviteLimit > 0 && activeInvites >= inviteLimit;
-
-  // Клик по рекомендованной категории прокручивает к её группе (после перехода к группировке — когда придут данные).
-  const scrollTarget = useRef<string | null>(null);
-  const scrollToGroup = (key: string) => {
-    const element = document.getElementById(groupAnchor(key));
-    if (element && filters.view === "category") {
-      element.scrollIntoView({ behavior: "smooth", block: "start" });
-      return;
-    }
-    scrollTarget.current = key;
-    set({ view: null });
-  };
-  useEffect(() => {
-    if (!scrollTarget.current || recs.isPlaceholderData) return;
-    const element = document.getElementById(groupAnchor(scrollTarget.current));
-    scrollTarget.current = null;
-    element?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [recs.data, recs.isPlaceholderData]);
+  const stack = [...(need.required_skills ?? []), ...(need.optional_skills ?? [])];
 
   const toggleShortlist = (match: CandidateMatch) => {
     shortlist.mutate(match.shortlisted ? { add: false, candidateId: match.candidate.id } : { add: true, match });
   };
   const pendingShortlistId = shortlist.isPending && shortlist.variables ? shortlistTarget(shortlist.variables) : undefined;
+  const selectCategory = (key: string | null) => set({ cat: key, view: null });
 
-  const renderRow = (match: CandidateMatch) => {
-    const invitedStatus = invited.get(match.candidate.id) ?? openInvitation(match.invitation_status);
-    return (
-      <CandidateRow
-        key={match.candidate.id}
-        candidate={match.candidate}
-        href={candidateHref(match.candidate.id, need.id)}
-        score={match.score}
-        explanation={match.explanation.lines}
-        acceptance={match.acceptance}
-        salaryTo={need.salary_to}
-        shortlisted={match.shortlisted}
-        shortlistPending={pendingShortlistId === match.candidate.id}
-        onToggleShortlist={() => toggleShortlist(match)}
-        explanationLimit={3}
-        actions={
-          <>
-            {invitedStatus ? (
-              <Button size="sm" variant="secondary" disabled>
-                <CheckCircle2 /> {invitedStatus === "accepted" ? "Приглашение принято" : "Приглашение отправлено"}
-              </Button>
-            ) : (
-              <Button
-                size="sm"
-                onClick={() => setInviteTarget(match.candidate)}
-                disabled={limitReached}
-                title={limitReached ? "Все слоты приглашений по потребности заняты" : undefined}
-              >
-                <Send /> Пригласить
-              </Button>
-            )}
-            <Button asChild size="sm" variant="ghost">
-              <Link to={candidateHref(match.candidate.id, need.id)}>Карточка и полное объяснение</Link>
-            </Button>
-          </>
-        }
-      />
-    );
-  };
+  const renderRow = (match: CandidateMatch) => (
+    <MatchRow
+      key={match.candidate.id}
+      match={match}
+      href={candidateHref(match.candidate.id, need.id)}
+      salaryTo={need.salary_to}
+      stack={stack}
+      shortlistPending={pendingShortlistId === match.candidate.id}
+      onToggleShortlist={() => toggleShortlist(match)}
+      invitedStatus={invited.get(match.candidate.id) ?? openInvitation(match.invitation_status)}
+      onInvite={() => setInviteTarget(match)}
+      inviteDisabledReason={limitReached ? "Все слоты приглашений по потребности заняты" : undefined}
+    />
+  );
 
   const data = recs.data;
   const groups = data ? groupCandidates(data.candidates, data.categories) : [];
+  const selected = selectedCategory ? groups.find((group) => group.key === selectedCategory) : undefined;
+  const selectedLabel = selectedCategory
+    ? (data?.categories.find((item) => groupKey(item.category) === selectedCategory)?.category.label ?? null)
+    : null;
+  const flatList = filters.view === "none" ? (data?.candidates ?? []) : selectedCategory ? (selected?.items ?? []) : null;
+
+  const menuItems: ActionMenuItem[] = [
+    ...(need.parent_id !== null
+      ? [{ label: `Версия ${need.version - 1}`, icon: History, to: `/employer/needs/${need.parent_id}` }]
+      : []),
+    { label: "Приглашения", icon: Mail, to: `/employer/invitations?need=${need.id}` },
+    { label: "Проверка под вакансию", icon: FlaskConical, to: `/employer/vacancy-test?need=${need.id}` },
+    {
+      label: need.published ? "Снять вакансию" : "Опубликовать как вакансию",
+      icon: need.published ? EyeOff : Eye,
+      pending: publish.isPending,
+      onSelect: () => publish.mutate(!need.published),
+    },
+  ];
 
   return (
-    <>
-      <Button asChild variant="ghost" size="sm" className="-ml-3 mb-2">
-        <Link to="/employer/needs">
-          <ArrowLeft /> Потребности
-        </Link>
-      </Button>
-
-      <PageHeader
-        eyebrow={
-          <span className="inline-flex flex-wrap items-center gap-2">
-            Подборка · версия {need.version}
+    <div className="flex flex-col gap-6 lg:gap-8">
+      <header className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
+        <div className="flex min-w-0 flex-[1_1_520px] flex-col gap-2">
+          <Link
+            to="/employer/needs"
+            className="inline-flex min-h-11 items-center gap-1.5 self-start text-sm font-medium text-muted-foreground hover:text-foreground sm:min-h-0"
+          >
+            <ArrowLeft className="size-4" aria-hidden /> Потребности
+          </Link>
+          <div className="flex flex-wrap items-center gap-2.5 sm:mt-2">
+            <span className="font-mono text-xs font-medium tracking-widest text-muted-foreground uppercase">
+              Подборка · версия {need.version}
+            </span>
             {need.published && <Badge variant="soft">опубликована как вакансия</Badge>}
             {need.status !== "active" && <Badge variant="muted">{NEED_STATUS_LABELS[need.status]}</Badge>}
-          </span>
-        }
-        title={need.title}
-        description={
-          need.team_description ??
-          "Рекомендованные категории и кандидаты, ранжированные по совпадению с потребностью. Каждое число объяснено тем же кодом, которым посчитан score."
-        }
-        actions={
-          <>
-            {need.parent_id !== null && (
-              <Button asChild variant="ghost" size="sm">
-                <Link to={`/employer/needs/${need.parent_id}`}>
-                  <History /> Версия {need.version - 1}
-                </Link>
-              </Button>
-            )}
-            <Button asChild variant="ghost" size="sm">
-              <Link to={`/employer/invitations?need=${need.id}`}>
-                <Mail /> Приглашения
-              </Link>
-            </Button>
-            <Button asChild variant="ghost" size="sm">
-              <Link to={`/employer/vacancy-test?need=${need.id}`}>
-                <FlaskConical /> Проверка под вакансию
-              </Link>
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => publish.mutate(!need.published)}
-              disabled={publish.isPending}
-            >
-              {publish.isPending ? <Loader2 className="animate-spin" /> : need.published ? <EyeOff /> : <Eye />}
-              {need.published ? "Снять вакансию" : "Опубликовать как вакансию"}
-            </Button>
-            <Button asChild variant="outline" size="sm">
-              <Link to={`/employer/needs/${need.id}/edit`}>
-                <Pencil /> Изменить потребность
-              </Link>
-            </Button>
-          </>
-        }
-      />
+          </div>
+          <h1 className="font-mono text-2xl font-bold tracking-tight text-balance sm:text-3xl">{need.title}</h1>
+          <p className="max-w-3xl text-base text-pretty text-muted-foreground max-sm:hidden">
+            {need.team_description ??
+              "Рекомендованные категории и кандидаты, ранжированные по совпадению с потребностью. Каждое число объяснено тем же кодом, которым посчитан score."}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline">
+            <Link to={`/employer/needs/${need.id}/edit`}>
+              <Pencil /> Изменить потребность
+            </Link>
+          </Button>
+          <ActionMenu label="Ещё: приглашения, проверка под вакансию, публикация вакансии" items={menuItems} />
+        </div>
+      </header>
 
-      <FormAlert message={publish.isError ? apiError(publish.error).message : null} className="mb-4" />
-      <NeedTextIssues issues={need.text_issues ?? []} className="mb-4" />
+      {(publish.isError || (need.text_issues ?? []).length > 0) && (
+        <div className="grid gap-4">
+          <FormAlert message={publish.isError ? apiError(publish.error).message : null} />
+          <NeedTextIssues issues={need.text_issues ?? []} />
+        </div>
+      )}
       <OlderVersionNotice need={need} />
 
-      <div className="mb-8 grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <NeedSummary need={need} activeInvites={activeInvites} inviteLimit={inviteLimit} />
-        <SalaryCoverageCard need={need} />
-      </div>
+      <NeedSummary need={need} activeInvites={activeInvites} inviteLimit={inviteLimit} />
 
-      {/* Уровень 1: рекомендованные категории */}
-      <section className="mb-8" aria-labelledby="rec-categories">
-        <h2 id="rec-categories" className="mb-3 text-lg font-extrabold">
-          Рекомендованные категории
-        </h2>
+      <section aria-labelledby="rec-categories" className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 id="rec-categories" className="font-mono text-lg font-semibold tracking-tight sm:text-xl">
+            Рекомендованные категории
+          </h2>
+          <span className="text-xs text-muted-foreground max-sm:hidden">
+            Выберите категорию — список кандидатов ниже обновится
+          </span>
+        </div>
         {recs.isPending ? (
-          <SkeletonCards count={3} className="md:grid-cols-3" />
-        ) : recs.isError ? null : data && data.categories.length === 0 ? (
-          <p className="rounded-xl border border-dashed px-5 py-6 text-sm text-muted-foreground">
+          <div className="flex gap-2 overflow-hidden sm:grid sm:grid-cols-[repeat(auto-fit,minmax(min(168px,100%),1fr))]">
+            {[0, 1, 2, 3].map((index) => (
+              <Skeleton key={index} className="h-11 w-36 shrink-0 rounded-full sm:h-28 sm:w-auto sm:rounded-[10px]" />
+            ))}
+          </div>
+        ) : recs.isError ? (
+          <p className="text-sm text-muted-foreground">Категории появятся, когда подборка загрузится.</p>
+        ) : data && data.categories.length === 0 ? (
+          <p className="rounded-[10px] border border-dashed px-5 py-6 text-sm text-muted-foreground">
             В базе пока нет кандидатов в подходящих категориях.
           </p>
         ) : (
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {data?.categories.map((category) => (
-              <CategoryCard key={groupKey(category.category)} category={category} onSelect={scrollToGroup} />
-            ))}
+          <div className="relative -mx-4 flex gap-2 overflow-x-auto px-4 pb-0.5 sm:mx-0 sm:grid sm:grid-cols-[repeat(auto-fit,minmax(min(168px,100%),1fr))] sm:overflow-visible sm:px-0 sm:pb-0">
+            {data?.categories.map((category) => {
+              const key = groupKey(category.category);
+              const active = selectedCategory === key;
+              return (
+                <CategoryTab
+                  key={key}
+                  category={category}
+                  active={active}
+                  onSelect={() => selectCategory(active ? null : key)}
+                />
+              );
+            })}
           </div>
         )}
       </section>
 
-      {/* Уровень 2: кандидаты */}
-      <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
-        {/* Своя прокрутка: фильтры длиннее экрана, а колонка «прилипает» */}
-        <aside className="grid content-start gap-4 lg:sticky lg:top-6 lg:max-h-[calc(100dvh-3rem)] lg:self-start lg:overflow-y-auto lg:overscroll-contain lg:pr-1">
-          <Card className="gap-3">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Pin className="size-4 text-primary" aria-hidden /> Шорт-лист
-                <Badge variant="soft" className="ml-auto">
-                  {data ? data.shortlist.length + data.shortlist_outside.length : need.stats.shortlisted}
-                </Badge>
-              </CardTitle>
-              <CardDescription>Закреплён за потребностью: не меняется при смене фильтров и правке.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {recs.isPending ? (
-                <SkeletonCards count={1} />
-              ) : !data || data.shortlist.length + data.shortlist_outside.length === 0 ? (
-                <p className="rounded-lg border border-dashed px-3 py-4 text-center text-xs text-muted-foreground">
-                  Нажмите «В шорт-лист» у кандидата, чтобы закрепить его здесь.
-                </p>
-              ) : (
-                <ul className="grid gap-2">
-                  {data.shortlist.map((match) => (
-                    <li key={match.candidate.id} className="flex items-center gap-2 rounded-lg bg-muted/60 px-2 py-1.5">
-                      <ScoreBadge score={match.score} size="sm" />
-                      <Link
-                        to={candidateHref(match.candidate.id, need.id)}
-                        className="min-w-0 flex-1 truncate text-sm font-medium hover:text-primary"
-                      >
-                        {match.candidate.display_name}
-                        <span className="block truncate font-mono text-[11px] text-muted-foreground">
-                          {candidateCategoryLabel(match.candidate)}
-                        </span>
-                      </Link>
-                      {!invited.has(match.candidate.id) && !openInvitation(match.invitation_status) && (
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          className="size-7"
-                          onClick={() => setInviteTarget(match.candidate)}
-                          disabled={limitReached}
-                          aria-label={`Пригласить ${match.candidate.display_name}`}
-                        >
-                          <Send />
-                        </Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        className="size-7"
-                        onClick={() => shortlist.mutate({ add: false, candidateId: match.candidate.id })}
-                        disabled={pendingShortlistId === match.candidate.id}
-                        aria-label={`Убрать ${match.candidate.display_name} из шорт-листа`}
-                      >
-                        <X />
-                      </Button>
-                    </li>
-                  ))}
-                  {data.shortlist_outside.map((brief) => (
-                    <li key={brief.id} className="flex items-center gap-2 rounded-lg border border-dashed px-2 py-1.5">
-                      <Link
-                        to={candidateHref(brief.id, need.id)}
-                        className="min-w-0 flex-1 truncate text-sm font-medium hover:text-primary"
-                      >
-                        {brief.display_name}
-                        <span className="block truncate font-mono text-[11px] text-muted-foreground">
-                          {candidateCategoryLabel(brief)} · не подходит под новые требования
-                        </span>
-                      </Link>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        className="size-7"
-                        onClick={() => shortlist.mutate({ add: false, candidateId: brief.id })}
-                        disabled={pendingShortlistId === brief.id}
-                        aria-label={`Убрать ${brief.display_name} из шорт-листа`}
-                      >
-                        <X />
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <FormAlert
-                message={shortlist.isError ? `Шорт-лист не сохранён: ${apiError(shortlist.error).message}` : null}
-                className="mt-3"
-              />
-            </CardContent>
-          </Card>
-
-          <Card className="gap-4">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <SlidersHorizontal className="size-4 text-primary" aria-hidden /> Фильтры
-              </CardTitle>
-              <CardDescription>Поверх подборки, без потери результата. Состояние — в адресе страницы.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-              <div className="grid gap-3">
-                <label className="flex items-center gap-3 text-sm">
-                  <Checkbox checked={filters.fsp} onChange={(event) => set({ fsp: event.target.checked })} />
-                  Есть достижения ФСП
-                </label>
-                <label className="flex items-center gap-3 text-sm">
-                  <Checkbox checked={filters.verified} onChange={(event) => set({ verified: event.target.checked })} />
-                  Только навыки, проверенные тестом
-                </label>
-                <label className="flex items-start gap-3 text-sm">
-                  <Checkbox
-                    className="mt-0.5"
-                    checked={filters.hard}
-                    onChange={(event) => set({ hard: event.target.checked ? null : "0" })}
-                  />
-                  <span>
-                    Жёсткие условия потребности
-                    <span className="block text-xs text-muted-foreground">формат, город, ожидания выше вилки на 30%+</span>
-                  </span>
-                </label>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="filter-grade">Грейд</Label>
-                <Select id="filter-grade" value={filters.grade ?? ""} onChange={(event) => set({ grade: event.target.value })}>
-                  <option value="">Все рекомендованные</option>
-                  {(grades.data ?? GRADES.map((slug) => ({ slug, name: slug }))).map((grade) => (
-                    <option key={grade.slug} value={grade.slug}>
-                      {grade.name}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="filter-salary">Ожидания не выше, ₽ на руки</Label>
-                <CommitInput
-                  id="filter-salary"
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
-                  step={10000}
-                  placeholder="например, 250000"
-                  value={filters.salary ? String(filters.salary) : ""}
-                  onCommit={(value) => set({ salary: intParam(value) ?? null })}
-                />
-                <Button
-                  variant="link"
-                  size="sm"
-                  className="h-auto w-fit p-0"
-                  onClick={() => set({ salary: need.salary_to })}
-                >
-                  в пределах вилки (до {formatNumber(need.salary_to)} ₽)
-                </Button>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="filter-format">Формат работы</Label>
-                <Select
-                  id="filter-format"
-                  value={filters.format ?? ""}
-                  onChange={(event) => set({ format: event.target.value })}
-                >
-                  <option value="">Любой</option>
-                  {FORMATS.map((format) => (
-                    <option key={format} value={format}>
-                      {WORK_FORMAT_LABELS[format]}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="filter-city">Город</Label>
-                <CommitInput
-                  id="filter-city"
-                  placeholder="Любой"
-                  value={filters.city}
-                  onCommit={(value) => set({ city: value })}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="filter-fresh">Свежесть результата</Label>
-                <Select
-                  id="filter-fresh"
-                  value={filters.fresh ? String(filters.fresh) : ""}
-                  onChange={(event) => set({ fresh: event.target.value })}
-                >
-                  <option value="">Любая</option>
-                  {FRESH_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => reset(["view"])} disabled={!hasActiveFilters}>
-                <FilterX /> Сбросить фильтры
-              </Button>
-            </CardContent>
-          </Card>
-        </aside>
-
-        <section aria-labelledby="candidates-title" className="min-w-0 space-y-4">
+      <div className="flex flex-wrap items-start gap-6">
+        <section aria-labelledby="candidates-title" className="flex min-w-0 flex-[999_1_520px] flex-col gap-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 id="candidates-title" className="flex items-center gap-2 text-lg font-extrabold">
-              <Users className="size-5 text-primary" aria-hidden />
+            <h2
+              id="candidates-title"
+              className="flex flex-wrap items-baseline gap-x-2.5 font-mono text-lg font-semibold tracking-tight sm:text-xl"
+            >
               Кандидаты
               {data && (
-                <span className="font-mono text-base font-medium text-muted-foreground">
-                  {data.candidates.length}
-                  {data.total > data.candidates.length && ` из ${data.total}`}
+                <span className="font-mono text-sm font-medium text-muted-foreground">
+                  {selectedCategory && selectedLabel
+                    ? `${selected?.items.length ?? 0} в ${selectedLabel}`
+                    : `${data.candidates.length}${data.total > data.candidates.length ? ` из ${data.total}` : ""}`}
                 </span>
               )}
               {recs.isFetching && !recs.isPending && (
-                <Loader2 className="size-4 animate-spin text-muted-foreground" aria-label="Обновляем подборку" />
+                <Loader2 className="size-4 animate-spin self-center text-muted-foreground" aria-label="Обновляем подборку" />
               )}
             </h2>
-            <Tabs value={filters.view} onValueChange={(value) => set({ view: value === "none" ? "top" : null })}>
-              <TabsList>
-                {/* Переключатель вида без панелей — без aria-controls на несуществующую панель */}
-                <TabsTrigger value="category" aria-controls={undefined}>
-                  <Layers /> По категориям
-                </TabsTrigger>
-                <TabsTrigger value="none" aria-controls={undefined}>
-                  <ListOrdered /> Общий топ
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="ghost"
+                className="h-11 border border-border sm:hidden"
+                aria-expanded={filtersOpen}
+                aria-controls="need-filters"
+                onClick={() => setFiltersOpen((open) => !open)}
+              >
+                <SlidersHorizontal /> Фильтры
+                {activeFilters > 0 && <span className="font-semibold text-primary">· {activeFilters}</span>}
+              </Button>
+              <ViewSwitch
+                value={filters.view}
+                onChange={(view) => set(view === "none" ? { view: "top", cat: null } : { view: null })}
+                total={data?.candidates.length}
+              />
+            </div>
+          </div>
+
+          <div
+            id="need-filters"
+            role="group"
+            aria-label="Фильтры поверх подборки"
+            className={cn(
+              "flex-wrap items-center gap-2 rounded-[10px] border border-border-subtle bg-card p-3",
+              filtersOpen ? "flex" : "hidden sm:flex",
+            )}
+          >
+            <SlidersHorizontal className="size-4 text-muted-foreground max-sm:hidden" aria-hidden />
+            <ToggleChip
+              checked={filters.hard}
+              onChange={(checked) => set({ hard: checked ? null : "0" })}
+              title="Формат, город и ожидания выше вилки на 30%+. Кто не прошёл — в блоке «Вне фильтров»"
+            >
+              Жёсткие условия потребности
+            </ToggleChip>
+            <ToggleChip checked={filters.fsp} onChange={(checked) => set({ fsp: checked })}>
+              Есть достижения ФСП
+            </ToggleChip>
+            <ToggleChip checked={filters.verified} onChange={(checked) => set({ verified: checked })}>
+              Только навыки, проверенные тестом
+            </ToggleChip>
+            <SelectChip
+              label="Грейд"
+              active={!!filters.grade}
+              value={filters.grade ?? ""}
+              onChange={(value) => set({ grade: value })}
+            >
+              <option value="">все рекомендованные</option>
+              {(grades.data ?? GRADES.map((slug) => ({ slug, name: slug }))).map((grade) => (
+                <option key={grade.slug} value={grade.slug}>
+                  {grade.name}
+                </option>
+              ))}
+            </SelectChip>
+            <InputChip label="Ожидания до" ariaLabel="Ожидания не выше, ₽ на руки" active={!!filters.salary} suffix="₽">
+              <CommitInput
+                id="filter-salary"
+                aria-label="Ожидания не выше, ₽ на руки"
+                type="number"
+                inputMode="numeric"
+                min={0}
+                step={10000}
+                placeholder="любые"
+                value={filters.salary ? String(filters.salary) : ""}
+                onCommit={(value) => set({ salary: intParam(value) ?? null })}
+                className={chipInputClass("w-20")}
+              />
+            </InputChip>
+            {filters.salary !== need.salary_to && (
+              <Button
+                variant="link"
+                size="sm"
+                className="h-8 px-1"
+                onClick={() => set({ salary: need.salary_to })}
+              >
+                в пределах вилки
+              </Button>
+            )}
+            <SelectChip
+              label="Формат"
+              ariaLabel="Формат работы"
+              active={!!filters.format}
+              value={filters.format ?? ""}
+              onChange={(value) => set({ format: value })}
+            >
+              <option value="">любой</option>
+              {FORMATS.map((format) => (
+                <option key={format} value={format}>
+                  {WORK_FORMAT_LABELS[format]}
+                </option>
+              ))}
+            </SelectChip>
+            <InputChip label="Город" ariaLabel="Город" active={!!filters.city}>
+              <CommitInput
+                id="filter-city"
+                aria-label="Город"
+                placeholder="любой"
+                value={filters.city}
+                onCommit={(value) => set({ city: value })}
+                className={chipInputClass("w-24")}
+              />
+            </InputChip>
+            <SelectChip
+              label="Свежесть"
+              ariaLabel="Свежесть результата"
+              active={!!filters.fresh}
+              value={filters.fresh ? String(filters.fresh) : ""}
+              onChange={(value) => set({ fresh: value })}
+            >
+              <option value="">любая</option>
+              {FRESH_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </SelectChip>
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" className="h-8" onClick={() => reset(["view", "cat"])}>
+                <FilterX /> Сбросить
+              </Button>
+            )}
+            <span className="text-xs text-muted-foreground sm:ml-auto">
+              Фильтры не меняют подборку — состояние в адресе
+            </span>
           </div>
 
           {lastInvited && (
@@ -573,31 +470,56 @@ function NeedView({ need }: { need: Need }) {
               }
               action={
                 hasActiveFilters && (
-                  <Button variant="outline" onClick={() => reset(["view"])}>
+                  <Button variant="outline" onClick={() => reset(["view", "cat"])}>
                     <FilterX /> Сбросить фильтры
                   </Button>
                 )
               }
             />
+          ) : flatList && flatList.length === 0 ? (
+            <EmptyState
+              icon={SearchX}
+              title="В этой категории под условия никто не подошёл"
+              description="Категория посчитана по всей базе, а список — по текущим фильтрам и топу подборки."
+              action={
+                <Button variant="outline" onClick={() => selectCategory(null)}>
+                  Все категории
+                </Button>
+              }
+            />
           ) : (
-            <div className={cn("transition-opacity", recs.isPlaceholderData && "opacity-60")}>
-              {filters.view === "none" ? (
-                <div className="grid gap-3">{data?.candidates.map(renderRow)}</div>
+            <div className={cn("grid gap-3 transition-opacity", recs.isPlaceholderData && "opacity-60")}>
+              {flatList ? (
+                <>
+                  {flatList.slice(0, shownCount).map(renderRow)}
+                  {flatList.length > shownCount && (
+                    <Button
+                      variant="ghost"
+                      className="h-11 border border-border"
+                      onClick={() => setShown({ key: listKey, count: shownCount + PAGE_STEP })}
+                    >
+                      Показать ещё {Math.min(PAGE_STEP, flatList.length - shownCount)} из {flatList.length - shownCount}
+                    </Button>
+                  )}
+                </>
               ) : (
-                <div className="space-y-6">
-                  {groups.map(({ key, category, items }) => (
-                    <div key={key} id={groupAnchor(key)} className="scroll-mt-6 space-y-3">
-                      <div className="flex items-center gap-3">
-                        <CategoryBadge specialization={category.specialization} grade={category.grade} variant="outline" />
-                        <span className="h-px flex-1 bg-border-subtle" aria-hidden />
-                        <span className="font-mono text-xs text-muted-foreground">
-                          {items.length} {plural(items.length, ["кандидат", "кандидата", "кандидатов"])}
-                        </span>
-                      </div>
-                      <div className="grid gap-3">{items.map(renderRow)}</div>
+                groups.map(({ key, category, items }) => (
+                  <div key={key} className="grid gap-3">
+                    <div className="mt-2 flex items-center gap-3 first:mt-0">
+                      <CategoryBadge specialization={category.specialization} grade={category.grade} variant="outline" />
+                      <span className="h-px flex-1 bg-border-subtle" aria-hidden />
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {items.length} {plural(items.length, ["кандидат", "кандидата", "кандидатов"])}
+                      </span>
                     </div>
-                  ))}
-                </div>
+                    {items.slice(0, GROUP_PREVIEW).map(renderRow)}
+                    {items.length > GROUP_PREVIEW && (
+                      <Button variant="ghost" className="h-11 border border-border" onClick={() => selectCategory(key)}>
+                        Показать ещё {items.length - GROUP_PREVIEW} в {category.label}
+                      </Button>
+                    )}
+                  </div>
+                ))
               )}
             </div>
           )}
@@ -625,7 +547,7 @@ function NeedView({ need }: { need: Need }) {
           )}
 
           {data && data.out_of_filter.length > 0 && (
-            <div className="rounded-xl border border-dashed">
+            <div className="rounded-[10px] border border-dashed">
               <button
                 type="button"
                 onClick={() => setOutOfFiltersOpen((open) => !open)}
@@ -647,7 +569,7 @@ function NeedView({ need }: { need: Need }) {
                 <ul className="divide-y divide-border-subtle border-t border-border-subtle">
                   {data.out_of_filter.map((match) => (
                     <li key={match.candidate.id} className="flex flex-wrap items-start gap-3 px-5 py-3">
-                      <ScoreBadge score={match.score} size="sm" />
+                      <ScoreTile score={match.score} size="sm" />
                       <div className="min-w-0 flex-1 space-y-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <Link
@@ -683,20 +605,107 @@ function NeedView({ need }: { need: Need }) {
             </div>
           )}
         </section>
+
+        <aside aria-label="Шорт-лист и ожидания категории" className="flex min-w-0 flex-[1_1_280px] flex-col gap-4">
+          <section aria-labelledby="shortlist-title" className="flex flex-col gap-3 rounded-[10px] border bg-card p-5">
+            <div className="flex items-center justify-between gap-2">
+              <h3 id="shortlist-title" className="flex items-center gap-2 font-mono text-base font-semibold tracking-tight">
+                <Pin className="size-4 text-primary" aria-hidden /> Шорт-лист
+              </h3>
+              <span className="grid h-[22px] min-w-[22px] place-items-center rounded-full bg-primary-tint px-1.5 font-mono text-xs font-semibold text-accent-foreground">
+                {data ? data.shortlist.length + data.shortlist_outside.length : need.stats.shortlisted}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">Закреплён за потребностью: не меняется при смене фильтров и правке.</p>
+            {recs.isPending ? (
+              <Skeleton className="h-12 w-full" />
+            ) : !data || data.shortlist.length + data.shortlist_outside.length === 0 ? (
+              <p className="rounded-lg border border-dashed px-3 py-4 text-center text-xs text-muted-foreground">
+                Нажмите на булавку у кандидата, чтобы закрепить его здесь.
+              </p>
+            ) : (
+              <ul className="grid gap-2">
+                {data.shortlist.map((match) => (
+                  <li key={match.candidate.id} className="flex items-center gap-2.5 rounded-lg bg-muted p-2">
+                    <ScoreTile score={match.score} tone="card" size="sm" />
+                    <Link
+                      to={candidateHref(match.candidate.id, need.id)}
+                      className="min-w-0 flex-1 font-mono text-sm font-semibold hover:text-primary"
+                    >
+                      <span className="block truncate">{match.candidate.display_name}</span>
+                      <span className="block font-mono text-xs font-normal text-muted-foreground">
+                        {candidateCategoryLabel(match.candidate)}
+                      </span>
+                    </Link>
+                    {!invited.has(match.candidate.id) && !openInvitation(match.invitation_status) && (
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="text-primary"
+                        onClick={() => setInviteTarget(match)}
+                        disabled={limitReached}
+                        aria-label={`Пригласить ${match.candidate.display_name}`}
+                      >
+                        <Send />
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className="text-muted-foreground"
+                      onClick={() => shortlist.mutate({ add: false, candidateId: match.candidate.id })}
+                      disabled={pendingShortlistId === match.candidate.id}
+                      aria-label={`Убрать ${match.candidate.display_name} из шорт-листа`}
+                    >
+                      <X />
+                    </Button>
+                  </li>
+                ))}
+                {data.shortlist_outside.map((brief) => (
+                  <li key={brief.id} className="flex items-center gap-2.5 rounded-lg border border-dashed p-2">
+                    <Link
+                      to={candidateHref(brief.id, need.id)}
+                      className="min-w-0 flex-1 font-mono text-sm font-semibold hover:text-primary"
+                    >
+                      <span className="block truncate">{brief.display_name}</span>
+                      <span className="block font-mono text-xs font-normal text-muted-foreground">
+                        {candidateCategoryLabel(brief)} · не подходит под новые требования
+                      </span>
+                    </Link>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className="text-muted-foreground"
+                      onClick={() => shortlist.mutate({ add: false, candidateId: brief.id })}
+                      disabled={pendingShortlistId === brief.id}
+                      aria-label={`Убрать ${brief.display_name} из шорт-листа`}
+                    >
+                      <X />
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <FormAlert message={shortlist.isError ? `Шорт-лист не сохранён: ${apiError(shortlist.error).message}` : null} />
+          </section>
+
+          <SalaryCoverageCard need={need} />
+        </aside>
       </div>
 
       <InviteDialog
-        key={inviteTarget?.id ?? "none"}
+        key={inviteTarget?.candidate.id ?? "none"}
         open={inviteTarget !== null}
         onOpenChange={(open) => !open && setInviteTarget(null)}
-        candidate={inviteTarget}
+        candidate={inviteTarget?.candidate ?? null}
         need={need}
+        match={inviteTarget}
         onSent={(invitation) => {
           setInvited((current) => new Map(current).set(invitation.candidate.id, invitation.status));
           setLastInvited(invitation.candidate.display_name);
         }}
       />
-    </>
+    </div>
   );
 }
 
@@ -726,67 +735,186 @@ function groupCandidates(candidates: CandidateMatch[], categories: CategoryRecom
   return [...byKey.values()].sort((a, b) => rank(a.key) - rank(b.key));
 }
 
-function CategoryCard({
+/** Рекомендованная категория как переключатель-фильтр списка: число, ФСП и покрытие вилки одной полосой. */
+function CategoryTab({
   category,
+  active,
   onSelect,
 }: {
   category: CategoryRecommendation;
-  onSelect: (key: string) => void;
+  active: boolean;
+  onSelect: () => void;
 }) {
-  const exact = category.fit === "exact";
   const coverage = category.salary_coverage === null ? null : toPercent(category.salary_coverage);
+  const fit = CATEGORY_FIT_LABELS[category.fit] ?? category.fit;
   return (
     <button
       type="button"
-      onClick={() => onSelect(groupKey(category.category))}
+      aria-pressed={active}
+      onClick={onSelect}
+      title={category.reason}
       className={cn(
-        "flex flex-col gap-3 rounded-xl border bg-card p-4 text-left transition-[box-shadow,border-color] outline-none hover:shadow-md focus-visible:ring-[3px] focus-visible:ring-ring/40",
-        exact && "border-primary ring-1 ring-primary/30",
+        "relative flex shrink-0 items-center gap-2 rounded-full border text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40",
+        "h-11 px-3.5 sm:h-auto sm:flex-col sm:items-stretch sm:rounded-[10px] sm:px-3.5 sm:py-3",
+        active ? "border-2 border-primary bg-primary-tint" : "border-border bg-card hover:bg-muted/60",
       )}
     >
-      <div className="flex items-start justify-between gap-2">
-        <CategoryBadge
-          specialization={category.category.specialization}
-          grade={category.category.grade}
-          variant={exact ? "solid" : "outline"}
-          size="md"
-        />
-        <span
-          className={cn(
-            "text-right font-mono text-[11px] font-medium tracking-wide uppercase",
-            exact ? "text-primary" : "text-muted-foreground",
-          )}
-        >
-          {CATEGORY_FIT_LABELS[category.fit] ?? category.fit}
+      <span className="font-mono text-[13px] leading-4 font-semibold whitespace-nowrap text-accent-foreground">
+        {category.category.label}
+      </span>
+      <span className="flex items-baseline gap-1.5">
+        <span className="font-mono text-[13px] font-semibold tabular-nums sm:text-xl">{category.candidates_count}</span>
+        <span className="text-xs text-muted-foreground max-sm:sr-only">
+          <span className="sr-only">{plural(category.candidates_count, ["кандидат", "кандидата", "кандидатов"])} </span>·{" "}
+          {category.with_fsp_count} с ФСП
         </span>
-      </div>
-      <div className="flex items-end gap-5">
-        <div>
-          <div className="font-mono text-2xl font-extrabold tabular-nums">{category.candidates_count}</div>
-          <div className="text-xs text-muted-foreground">
-            {plural(category.candidates_count, ["кандидат", "кандидата", "кандидатов"])}
-          </div>
-        </div>
-        <div>
-          <div className="font-mono text-2xl font-extrabold tabular-nums">{category.with_fsp_count}</div>
-          <div className="text-xs text-muted-foreground">с ФСП</div>
-        </div>
-        {coverage !== null && (
-          <div className="flex-1">
-            <div className="mb-1 text-right font-mono text-xs font-bold tabular-nums">{coverage}%</div>
-            <Progress value={coverage} className="h-1.5" aria-label="Покрытие вилки" />
-            <div className="mt-1 text-right text-[11px] text-muted-foreground">покрытие вилки</div>
-          </div>
-        )}
-      </div>
-      <p className="text-sm text-muted-foreground">{category.reason}</p>
+      </span>
+      {coverage !== null && (
+        <span className={cn("h-1 rounded-full max-sm:hidden", active ? "bg-card" : "bg-muted")} aria-hidden>
+          <span className="block h-1 rounded-full bg-primary" style={{ width: `${coverage}%` }} />
+        </span>
+      )}
+      <span className="text-xs text-muted-foreground max-sm:sr-only">
+        {fit.toLowerCase()}
+        {coverage !== null && ` · вилка ${coverage}%`}
+      </span>
     </button>
   );
 }
 
+function ViewSwitch({
+  value,
+  onChange,
+  total,
+}: {
+  value: "category" | "none";
+  onChange: (value: "category" | "none") => void;
+  total?: number;
+}) {
+  const options = [
+    { value: "category" as const, label: "По категориям" },
+    { value: "none" as const, label: total != null ? `Общий топ · ${total}` : "Общий топ" },
+  ];
+  return (
+    <div role="group" aria-label="Порядок списка" className="flex h-11 gap-0.5 rounded-[10px] bg-muted p-[3px] sm:h-9">
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          aria-pressed={value === option.value}
+          onClick={() => onChange(option.value)}
+          className={cn(
+            "rounded-lg px-2.5 font-mono text-[13px] font-medium outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 sm:px-3",
+            value === option.value ? "bg-card text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+const chipClass = (active: boolean) =>
+  cn(
+    "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium transition-colors outline-none",
+    "focus-visible:ring-[3px] focus-visible:ring-ring/40 has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/40",
+    active ? "border-primary bg-primary-tint text-accent-foreground" : "border-border hover:bg-muted/60",
+  );
+
+const chipInputClass = (width: string) =>
+  cn(
+    "h-7 rounded-none border-0 bg-transparent p-0 text-[13px] shadow-none focus-visible:ring-0 dark:bg-transparent",
+    "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+    width,
+  );
+
+/** Флажок-чип: role=checkbox, чтобы фильтр читался и переключался как флажок. */
+function ToggleChip({
+  checked,
+  onChange,
+  title,
+  children,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  title?: string;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={checked}
+      title={title}
+      onClick={() => onChange(!checked)}
+      className={chipClass(checked)}
+    >
+      {checked && <Check className="size-3.5" aria-hidden />}
+      {children}
+    </button>
+  );
+}
+
+function SelectChip({
+  label,
+  ariaLabel,
+  active,
+  value,
+  onChange,
+  children,
+}: {
+  label: string;
+  ariaLabel?: string;
+  active: boolean;
+  value: string;
+  onChange: (value: string) => void;
+  children: ReactNode;
+}) {
+  return (
+    <span className={cn(chipClass(active), "relative pr-7")}>
+      <span aria-hidden>{label}:</span>
+      <select
+        aria-label={ariaLabel ?? label}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="cursor-pointer appearance-none bg-transparent text-[13px] font-medium outline-none [&>option]:bg-popover [&>option]:text-popover-foreground"
+      >
+        {children}
+      </select>
+      <ChevronDown className="pointer-events-none absolute right-2.5 size-3.5 text-muted-foreground" aria-hidden />
+    </span>
+  );
+}
+
+function InputChip({
+  label,
+  ariaLabel,
+  active,
+  suffix,
+  children,
+}: {
+  label: string;
+  ariaLabel: string;
+  active: boolean;
+  suffix?: string;
+  children: ReactNode;
+}) {
+  return (
+    <span className={chipClass(active)} title={ariaLabel}>
+      <span aria-hidden>{label}:</span>
+      {children}
+      {suffix && <span aria-hidden>{suffix}</span>}
+    </span>
+  );
+}
+
+/** Сводка потребности одной карточкой: категория, вилка, покрытие, приглашения и строка стека. На телефоне свёрнута. */
 function NeedSummary({ need, activeInvites, inviteLimit }: { need: Need; activeInvites: number; inviteLimit: number }) {
+  const [open, setOpen] = useState(false);
   const industries = useIndustries();
   const catalog = useSkillCatalog();
+  const coverage = useSalaryCoverage(need.id);
   const skillName = (id: string) => catalog.data?.find((skill) => skill.id === id)?.name ?? id;
   const industry = need.industry
     ? (industries.data?.find((item) => item.slug === need.industry)?.name ?? need.industry)
@@ -794,54 +922,135 @@ function NeedSummary({ need, activeInvites, inviteLimit }: { need: Need; activeI
   const meta = [industry, need.work_format ? WORK_FORMAT_LABELS[need.work_format] : null, need.city].filter(Boolean);
   const required = need.required_skills ?? [];
   const optional = need.optional_skills ?? [];
+  const percent = coverage.data ? toPercent(coverage.data.coverage) : null;
+  const invitesShare = inviteLimit > 0 ? Math.min(100, (activeInvites / inviteLimit) * 100) : 0;
 
   return (
-    <Card className="overflow-hidden py-0">
-      <div className="grid h-full divide-y divide-border-subtle sm:grid-cols-2 sm:divide-y-0">
-        <div className="space-y-2 p-5 sm:border-r sm:border-b sm:border-border-subtle">
-          <div className="font-mono text-xs tracking-wider text-muted-foreground uppercase">Категория</div>
-          <CategoryBadge specialization={need.specialization} grade={need.grade} variant="solid" size="md" />
-          {meta.length > 0 && <div className="text-xs text-muted-foreground">{meta.join(" · ")}</div>}
-        </div>
-        <div className="space-y-2 p-5 sm:border-b sm:border-border-subtle">
-          <div className="font-mono text-xs tracking-wider text-muted-foreground uppercase">Вилка</div>
-          <SalaryRange from={need.salary_from} to={need.salary_to} className="text-xl text-primary" />
-          <div className="text-xs text-muted-foreground">указана в каждом приглашении</div>
-        </div>
-        <div className="space-y-2 p-5 sm:border-r sm:border-border-subtle">
-          <div className="font-mono text-xs tracking-wider text-muted-foreground uppercase">Стек</div>
-          <div className="flex flex-wrap gap-1.5">
-            {required.map((id) => (
-              <Badge key={id} variant="soft" title="Обязательный навык">
-                {skillName(id)}
-              </Badge>
-            ))}
-            {optional.map((id) => (
-              <Badge key={id} variant="muted" title="Желательный навык">
-                {skillName(id)}
-              </Badge>
-            ))}
-            {required.length + optional.length === 0 && <span className="text-sm text-muted-foreground">не указан</span>}
+    <section aria-label="Сводка потребности" className="flex flex-col gap-3">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls="need-summary"
+        onClick={() => setOpen((value) => !value)}
+        className="flex w-full items-center gap-3 rounded-[10px] border bg-card py-3 pr-3 pl-3.5 text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 sm:hidden"
+      >
+        <span className="flex min-w-0 flex-1 flex-col gap-1.5">
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+            <CategoryBadge specialization={need.specialization} grade={need.grade} variant="solid" />
+            <SalaryRange from={need.salary_from} to={need.salary_to} className="text-sm font-semibold" />
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {percent !== null && <b className="font-mono text-foreground">покрытие {percent}% · </b>}
+            описание, стек, приглашения
+          </span>
+        </span>
+        <ChevronDown className={cn("size-4 shrink-0 transition-transform", open && "rotate-180")} aria-hidden />
+      </button>
+
+      <div id="need-summary" className={cn("flex-col gap-3", open ? "flex" : "hidden sm:flex")}>
+        {need.team_description && <p className="text-sm text-muted-foreground sm:hidden">{need.team_description}</p>}
+        <div className="overflow-hidden rounded-[10px] border bg-card">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(220px,100%),1fr))] divide-border-subtle max-sm:divide-y sm:[&>*:not(:last-child)]:border-r sm:[&>*]:border-border-subtle">
+            <SummaryCell label="Категория">
+              <CategoryBadge specialization={need.specialization} grade={need.grade} variant="solid" size="md" />
+              {meta.length > 0 && <span className="text-xs text-muted-foreground">{meta.join(" · ")}</span>}
+            </SummaryCell>
+            <SummaryCell label="Вилка">
+              <span className="font-mono text-lg font-semibold whitespace-nowrap text-primary tabular-nums sm:text-xl">
+                {formatNumber(need.salary_from)} – {formatNumber(need.salary_to)} ₽
+              </span>
+              <span className="text-xs text-muted-foreground">на руки · указана в каждом приглашении</span>
+            </SummaryCell>
+            <SummaryCell label="Покрытие вилки">
+              {coverage.isPending ? (
+                <Skeleton className="h-7 w-32" />
+              ) : coverage.isError ? (
+                <span className="text-xs text-muted-foreground">
+                  Не удалось посчитать.{" "}
+                  <button type="button" className="text-primary hover:underline" onClick={() => void coverage.refetch()}>
+                    Повторить
+                  </button>
+                </span>
+              ) : (
+                <>
+                  <p className="flex flex-wrap items-baseline gap-x-2 text-xs text-muted-foreground">
+                    <b className="font-mono text-xl font-semibold text-foreground tabular-nums">{percent}%</b>
+                    ожиданий кандидатов
+                  </p>
+                  <Bar value={percent ?? 0} />
+                  {coverage.data.median_expectation !== null && (
+                    <span className="text-xs text-muted-foreground">
+                      медиана ожиданий{" "}
+                      <b className="font-mono font-semibold whitespace-nowrap text-foreground">
+                        {formatNumber(coverage.data.median_expectation)} ₽
+                      </b>
+                    </span>
+                  )}
+                </>
+              )}
+            </SummaryCell>
+            <SummaryCell label="Приглашения">
+              <div className="flex flex-wrap items-baseline gap-2">
+                <span className="font-mono text-xl font-semibold tabular-nums">
+                  {activeInvites} / {inviteLimit}
+                </span>
+                <Link to={`/employer/invitations?need=${need.id}`} className="text-xs font-medium text-primary hover:underline">
+                  Все приглашения
+                </Link>
+              </div>
+              <Bar value={invitesShare} />
+              <span className="text-xs text-muted-foreground">активных слотов — приглашайте адресно</span>
+            </SummaryCell>
           </div>
-          <div className="text-xs text-muted-foreground">
-            <span className="text-primary">обязательный</span> · желательный
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border-subtle px-5 py-3.5 sm:px-6">
+            <span className="font-mono text-xs font-medium tracking-widest text-muted-foreground uppercase">Стек</span>
+            <ul className="flex flex-wrap gap-1.5" aria-label="Стек потребности">
+              {required.map((id) => (
+                <li
+                  key={id}
+                  title="Обязательный навык"
+                  className="inline-flex h-6 items-center rounded-full bg-primary-tint px-2.5 font-mono text-xs font-medium text-accent-foreground"
+                >
+                  {skillName(id)}
+                </li>
+              ))}
+              {optional.map((id) => (
+                <li
+                  key={id}
+                  title="Желательный навык"
+                  className="inline-flex h-6 items-center rounded-full border px-2.5 font-mono text-xs font-medium"
+                >
+                  {skillName(id)}
+                </li>
+              ))}
+              {required.length + optional.length === 0 && <li className="text-sm text-muted-foreground">не указан</li>}
+            </ul>
+            {required.length + optional.length > 0 && (
+              <span className="text-xs text-muted-foreground">
+                <span className="text-accent-foreground">заливка</span> — обязательный · рамка — желательный
+              </span>
+            )}
           </div>
-        </div>
-        <div className="space-y-2 p-5">
-          <div className="font-mono text-xs tracking-wider text-muted-foreground uppercase">Приглашения</div>
-          <div className="font-mono text-xl font-extrabold tabular-nums">
-            {activeInvites}
-            <span className="text-muted-foreground"> / {inviteLimit}</span>
-          </div>
-          <Progress
-            value={inviteLimit > 0 ? (activeInvites / inviteLimit) * 100 : 0}
-            className="h-1.5"
-            aria-label="Использовано приглашений"
-          />
-          <div className="text-xs text-muted-foreground">активных слотов — приглашайте адресно</div>
         </div>
       </div>
-    </Card>
+    </section>
+  );
+}
+
+function SummaryCell({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-2.5 px-5 py-4 sm:px-6 sm:py-5">
+      <span className="font-mono text-xs font-medium tracking-widest text-muted-foreground uppercase">{label}</span>
+      {children}
+    </div>
+  );
+}
+
+function Bar({ value }: { value: number }) {
+  return (
+    <span className="block h-1.5 rounded-full bg-muted" aria-hidden>
+      <span className="block h-1.5 rounded-full bg-primary" style={{ width: `${value}%` }} />
+    </span>
   );
 }
 
@@ -851,7 +1060,7 @@ function OlderVersionNotice({ need }: { need: Need }) {
   if (!needs.data || needs.data.some((item) => item.id === need.id)) return null;
   const newer = needs.data.find((item) => item.parent_id === need.id);
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-dashed px-4 py-3 text-sm">
+    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed px-4 py-3 text-sm">
       <History className="size-4 text-muted-foreground" aria-hidden />
       Это прежняя версия потребности — её подборка только для истории.
       {newer ? (
