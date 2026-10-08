@@ -11,11 +11,21 @@ if sys.platform == "win32":
     # psycopg async не работает с ProactorEventLoop — только локальная разработка на Windows
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
+from app.core.config import get_settings  # noqa: E402
 from app.core.db import SessionFactory, engine  # noqa: E402
 from app.core.enums import Role  # noqa: E402
 from app.core.security import create_access_token  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import Base  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _files_in_tmp(tmp_path, monkeypatch) -> None:
+    """Файлы тестов — только во временной папке: загрузки, учёт LLM и реестр ФСП — ни в репо, ни мимо."""
+    settings = get_settings()
+    monkeypatch.setattr(settings, "upload_dir", str(tmp_path / "uploads"))
+    monkeypatch.setattr(settings, "llm_state_dir", str(tmp_path / "llm"))
+    monkeypatch.setattr(settings, "fsp_data_path", str(tmp_path / "fsp.json"))
 
 
 @pytest.fixture(scope="session")

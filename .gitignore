@@ -26,7 +26,8 @@ playwright/.cache/
 # validation outputs (report.md и графики коммитим, сырые данные — нет)
 validation/out/raw/
 
-# uploads / runtime
+# uploads / runtime (локальные запуски пишут в .data/, см. backend/app/core/config.py)
+.data/
 backend/uploads/
 *.log
 

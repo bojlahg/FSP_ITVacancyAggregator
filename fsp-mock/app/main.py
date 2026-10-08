@@ -16,7 +16,8 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     fsp_api_key: str = "dev-fsp-key"
-    fsp_data_path: str = "/data/fsp.json"
+    # Локально — .data/fsp.json в корне репо (его пишет генератор демо-данных), в контейнере — из compose
+    fsp_data_path: str = str(Path(__file__).resolve().parents[2] / ".data" / "fsp.json")
 
 
 class Participant(BaseModel):

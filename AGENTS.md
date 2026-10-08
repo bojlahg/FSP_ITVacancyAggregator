@@ -167,4 +167,6 @@ DATABASE_URL=postgresql+psycopg://dev:dev@127.0.0.1:55432/dev python -m uv run a
 
 После работы останови контейнер: `ssh itscout docker stop itscout-devpg`. psycopg в async-режиме на Windows требует SelectorEventLoop: в `migrations/env.py` это уже учтено.
 
+Локальные запуски (сид, backend, fsp-mock, тесты) не пишут файлы мимо репо: по умолчанию всё рабочее — в `.data/` в корне (в `.gitignore`), тесты — во временную папку pytest. Новый путь к файлам в настройках — по тому же правилу (`LOCAL_DATA` в `backend/app/core/config.py`), в контейнере его задаёт compose. Временные файлы агента — в его scratchpad, не в `/tmp` и не в корне диска.
+
 Окончания строк в репозитории — LF (`.gitattributes`). Пути в скриптах — с прямыми слешами. Shell-скрипты должны работать в Linux-контейнере.

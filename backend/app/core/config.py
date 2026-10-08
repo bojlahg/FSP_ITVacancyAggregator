@@ -1,10 +1,14 @@
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal, Self
 
 from pydantic import BaseModel, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 DEV_JWT_SECRET = "dev-only-insecure-jwt-secret-change-me-0000"
+# Локальный запуск без env пишет рабочие файлы в .data/ в корне репо (в .gitignore), а не в /data — на Windows
+# это D:\data. В контейнерах пути задаёт infra/docker-compose.yml
+LOCAL_DATA = Path(__file__).resolve().parents[3] / ".data"
 
 
 class TeamAccount(BaseModel):
@@ -125,12 +129,12 @@ class Settings(BaseSettings):
     llm_daily_call_limit: int = 40
     llm_daily_token_limit: int = 60000
     llm_user_hourly_limit: int = 5
-    llm_state_dir: str = "/data/uploads/llm"
+    llm_state_dir: str = str(LOCAL_DATA / "uploads" / "llm")
 
     fsp_api_url: str = "http://fsp-mock:8001/fsp-api/v1"
     fsp_api_key: str = "dev-fsp-key"
     # Файл данных fsp-mock; генератор демо-данных пишет его в общий volume
-    fsp_data_path: str = "/data/fsp/fsp.json"
+    fsp_data_path: str = str(LOCAL_DATA / "fsp.json")
     # Ручная привязка по номеру ФСП ID не доказывает владение: достижения видны с пометкой «не подтверждено»,
     # но в score, силу профиля и статус навыков «подтверждено ФСП» не идут. true — учитывать как через ФСП ID
     fsp_manual_link_counts: bool = False
@@ -147,7 +151,7 @@ class Settings(BaseSettings):
     fsp_oidc_state_ttl_seconds: int = 600
     fsp_oidc_cookie_name: str = "itscout_fsp_oidc"
 
-    upload_dir: str = "/data/uploads"
+    upload_dir: str = str(LOCAL_DATA / "uploads")
     # Резюме (§7): PDF до 5 МБ; меньше символов текста — считаем сканом без текстового слоя
     resume_max_bytes: int = 5 * 1024 * 1024
     resume_max_pages: int = 10

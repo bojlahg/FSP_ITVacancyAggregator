@@ -81,12 +81,12 @@ createuser -P itscout && createdb -O itscout itscout
 
 # 2. Мок реестра ФСП
 cd fsp-mock && uv sync --frozen
-FSP_DATA_PATH=../.data/fsp.json uv run uvicorn app.main:app --port 8001 &
+uv run uvicorn app.main:app --port 8001 &   # данные — .data/fsp.json в корне репо
 
 # 3. Backend
 cd ../backend && uv sync --frozen
 export DATABASE_URL=postgresql+psycopg://itscout:<пароль>@localhost:5432/itscout
-export FSP_API_URL=http://localhost:8001/fsp-api/v1 FSP_DATA_PATH=../.data/fsp.json UPLOAD_DIR=../.data/uploads
+export FSP_API_URL=http://localhost:8001/fsp-api/v1   # файлы (fsp.json, загрузки) — в .data/ репо по умолчанию
 uv run alembic upgrade head
 uv run python -m seed.generate
 uv run uvicorn app.main:app --port 8000 &
