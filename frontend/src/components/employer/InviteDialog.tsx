@@ -1,10 +1,13 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertTriangle, Loader2, Send } from "lucide-react";
+import { AlertTriangle, Eye, Loader2, Lock, Send } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link } from "react-router";
 import { z } from "zod";
+import { ExplanationList } from "@/components/ExplanationList";
 import { FormAlert } from "@/components/FormAlert";
+import { CandidateCategoryBadge } from "@/components/CategoryBadge";
+import { ScoreTile } from "@/components/employer/ScoreTile";
 import { FormField } from "@/components/FormField";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -22,6 +25,7 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { apiError, applyValidationErrors } from "@/lib/api-error";
 import {
+  type CandidateMatch,
   type EmployerProfile,
   type InvitationForEmployer,
   isCompanyProfileRequired,
@@ -31,6 +35,7 @@ import {
   useCreateInvitation,
   useNeeds,
 } from "@/lib/employer-queries";
+import { cn } from "@/lib/utils";
 
 const DEFAULT_EXPIRES_DAYS = 14;
 
@@ -77,23 +82,32 @@ interface InviteDialogProps {
   candidate: { id: number; display_name: string } | null;
   /** Потребность, из которой приглашаем: заголовок, вилка и привязка подставляются из неё. */
   need?: Need | null;
+  /** Совпадение с этой потребностью: те же строки «почему вам» уйдут кандидату снимком при отправке. */
+  match?: CandidateMatch | null;
   onSent?: (invitation: InvitationForEmployer) => void;
 }
 
-export function InviteDialog({ open, onOpenChange, candidate, need, onSent }: InviteDialogProps) {
+export function InviteDialog({ open, onOpenChange, candidate, need, match, onSent }: InviteDialogProps) {
   const company = useCompany();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
+      {/* На телефоне — шторка снизу: кнопка отправки всегда видна, форма прокручивается над ней */}
+      <DialogContent
+        className={cn(
+          "sm:max-w-2xl",
+          "max-sm:top-auto max-sm:bottom-0 max-sm:left-0 max-sm:max-h-[calc(100dvh-2.5rem)] max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:gap-4 max-sm:rounded-t-[14px] max-sm:rounded-b-none max-sm:border-x-0 max-sm:border-b-0 max-sm:px-4 max-sm:pt-2 max-sm:pb-0",
+          "max-sm:data-[state=closed]:slide-out-to-bottom max-sm:data-[state=closed]:zoom-out-100 max-sm:data-[state=open]:slide-in-from-bottom max-sm:data-[state=open]:zoom-in-100",
+        )}
+      >
+        <span className="mx-auto h-1 w-9 rounded-full bg-border sm:hidden" aria-hidden />
         <DialogHeader>
           <DialogTitle>Приглашение · {candidate?.display_name}</DialogTitle>
           <DialogDescription>
-            Кандидат увидит вилку и объяснение «почему вам» до начала общения. Его контакты откроются вам после того, как
-            он примет приглашение.
+            Вилка от–до обязательна: кандидат увидит её и объяснение «почему вам» до начала общения.
           </DialogDescription>
         </DialogHeader>
         {company.isPending ? (
-          <div className="grid gap-3" role="status" aria-busy="true" aria-label="Загрузка">
+          <div className="grid gap-3 max-sm:pb-4" role="status" aria-busy="true" aria-label="Загрузка">
             <Skeleton className="h-10 w-full" />
             <Skeleton className="h-24 w-full" />
             <Skeleton className="h-10 w-2/3" />
@@ -103,8 +117,9 @@ export function InviteDialog({ open, onOpenChange, candidate, need, onSent }: In
         ) : (
           candidate && (
             <InviteForm
-              candidateId={candidate.id}
+              candidate={candidate}
               need={need ?? null}
+              match={need && match ? match : null}
               company={company.data ?? null}
               onDone={(invitation) => {
                 onSent?.(invitation);
@@ -134,7 +149,7 @@ function CompanyRequired() {
           </Link>
         </span>
       </div>
-      <DialogFooter>
+      <DialogFooter className="max-sm:pb-4">
         <DialogClose asChild>
           <Button variant="ghost">Закрыть</Button>
         </DialogClose>
@@ -144,13 +159,15 @@ function CompanyRequired() {
 }
 
 interface InviteFormProps {
-  candidateId: number;
+  candidate: { id: number; display_name: string };
   need: Need | null;
+  match: CandidateMatch | null;
   company: EmployerProfile | null;
   onDone: (invitation: InvitationForEmployer) => void;
 }
 
-function InviteForm({ candidateId, need, company, onDone }: InviteFormProps) {
+function InviteForm({ candidate, need, match, company, onDone }: InviteFormProps) {
+  const candidateId = candidate.id;
   const create = useCreateInvitation();
   // Без потребности даём выбрать её из списка: тогда снимок объяснения и лимит приглашений считаются по ней.
   const needs = useNeeds();
@@ -227,10 +244,32 @@ function InviteForm({ candidateId, need, company, onDone }: InviteFormProps) {
 
   if (companyMissing) return <CompanyRequired />;
 
+  const salaryField = (name: "salaryFrom" | "salaryTo", id: string, label: string) => (
+    <FormField id={id} label={label} error={errors[name]?.message}>
+      <Input
+        id={id}
+        type="number"
+        inputMode="numeric"
+        min={0}
+        step={1000}
+        className="font-mono font-semibold max-sm:h-12"
+        aria-invalid={!!errors[name]}
+        {...register(name, { valueAsNumber: true })}
+      />
+    </FormField>
+  );
+
   return (
     <>
       <form id="invite-form" className="grid gap-4" onSubmit={handleSubmit(onSubmit)} noValidate>
         <FormAlert message={formError} />
+        {match && (
+          <div className="flex flex-wrap items-center gap-2.5 rounded-lg bg-muted p-2">
+            <ScoreTile score={match.score} tone="card" size="sm" />
+            <span className="font-mono text-sm font-semibold">{candidate.display_name}</span>
+            <CandidateCategoryBadge candidate={match.candidate} />
+          </div>
+        )}
         {!need && (
           <FormField id="invite-need" label="Потребность" hint="Необязательно: приглашение можно отправить и без неё">
             <Select
@@ -247,47 +286,49 @@ function InviteForm({ candidateId, need, company, onDone }: InviteFormProps) {
             </Select>
           </FormField>
         )}
+        <fieldset className="grid min-w-0 gap-2">
+          <legend className="mb-2 text-sm font-medium">
+            Вилка, ₽ на руки <span className="font-normal text-muted-foreground">— обязательно</span>
+          </legend>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+            {salaryField("salaryFrom", "invite-salary-from", "Вилка от *")}
+            {salaryField("salaryTo", "invite-salary-to", "Вилка до *")}
+            <FormField
+              id="invite-expires"
+              label="Срок ответа, дней"
+              error={errors.expiresInDays?.message}
+              className="col-span-2 sm:col-span-1"
+            >
+              <Input
+                id="invite-expires"
+                type="number"
+                min={1}
+                max={30}
+                className="max-sm:h-12"
+                aria-invalid={!!errors.expiresInDays}
+                {...register("expiresInDays", { valueAsNumber: true })}
+              />
+            </FormField>
+          </div>
+        </fieldset>
+        {match && match.explanation.lines.length > 0 && (
+          <div className="grid gap-2.5 rounded-[10px] border border-border-subtle px-3.5 py-3">
+            <span className="flex items-center gap-2 text-sm font-medium">
+              <Eye className="size-4 text-primary" aria-hidden /> Кандидат увидит «почему вам»
+            </span>
+            <ExplanationList items={match.explanation.lines} />
+            <span className="text-xs text-muted-foreground">
+              Считается тем же кодом, что и score, и уходит снимком при отправке — правке не подлежит.
+            </span>
+          </div>
+        )}
         <FormField id="invite-title" label="Заголовок *" error={errors.title?.message}>
-          <Input id="invite-title" aria-invalid={!!errors.title} {...register("title")} />
+          <Input id="invite-title" className="max-sm:h-12" aria-invalid={!!errors.title} {...register("title")} />
         </FormField>
         <FormField id="invite-message" label="Описание предложения *" error={errors.message?.message}>
           <Textarea id="invite-message" rows={4} aria-invalid={!!errors.message} {...register("message")} />
         </FormField>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <FormField id="invite-salary-from" label="Вилка от, ₽ на руки *" error={errors.salaryFrom?.message}>
-            <Input
-              id="invite-salary-from"
-              type="number"
-              inputMode="numeric"
-              min={0}
-              step={1000}
-              aria-invalid={!!errors.salaryFrom}
-              {...register("salaryFrom", { valueAsNumber: true })}
-            />
-          </FormField>
-          <FormField id="invite-salary-to" label="Вилка до, ₽ на руки *" error={errors.salaryTo?.message}>
-            <Input
-              id="invite-salary-to"
-              type="number"
-              inputMode="numeric"
-              min={0}
-              step={1000}
-              aria-invalid={!!errors.salaryTo}
-              {...register("salaryTo", { valueAsNumber: true })}
-            />
-          </FormField>
-          <FormField id="invite-expires" label="Срок ответа, дней" error={errors.expiresInDays?.message}>
-            <Input
-              id="invite-expires"
-              type="number"
-              min={1}
-              max={30}
-              aria-invalid={!!errors.expiresInDays}
-              {...register("expiresInDays", { valueAsNumber: true })}
-            />
-          </FormField>
-        </div>
-        <fieldset className="grid gap-4 rounded-lg border p-4 sm:grid-cols-2">
+        <fieldset className="grid min-w-0 gap-4 rounded-lg border p-4 sm:grid-cols-2">
           <legend className="px-1 font-mono text-xs font-bold tracking-wider uppercase">Как с вами связаться</legend>
           <FormField id="invite-contact-name" label="Контактное лицо *" error={errors.contactName?.message}>
             <Input id="invite-contact-name" aria-invalid={!!errors.contactName} {...register("contactName")} />
@@ -312,12 +353,23 @@ function InviteForm({ candidateId, need, company, onDone }: InviteFormProps) {
             <Input id="invite-contact-phone" type="tel" aria-invalid={!!errors.contactPhone} {...register("contactPhone")} />
           </FormField>
         </fieldset>
+        <p className="flex items-start gap-2 rounded-lg bg-muted px-3 py-2.5 text-sm">
+          <Lock className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+          Контакты кандидата откроются вам, когда он примет приглашение.
+        </p>
+        {need && need.stats.invitations_limit > 0 && (
+          <p className="font-mono text-xs text-muted-foreground">
+            Активных слотов: {need.stats.invitations_active} из {need.stats.invitations_limit}
+          </p>
+        )}
       </form>
-      <DialogFooter>
+      <DialogFooter className="max-sm:sticky max-sm:bottom-0 max-sm:-mx-4 max-sm:gap-1 max-sm:border-t max-sm:border-border-subtle max-sm:bg-background max-sm:px-4 max-sm:pt-3 max-sm:pb-4">
         <DialogClose asChild>
-          <Button variant="ghost">Отмена</Button>
+          <Button variant="ghost" className="max-sm:h-11 max-sm:text-base">
+            Отмена
+          </Button>
         </DialogClose>
-        <Button type="submit" form="invite-form" disabled={create.isPending}>
+        <Button type="submit" form="invite-form" disabled={create.isPending} className="max-sm:h-12 max-sm:text-base">
           {create.isPending ? <Loader2 className="animate-spin" /> : <Send />} Отправить приглашение
         </Button>
       </DialogFooter>
