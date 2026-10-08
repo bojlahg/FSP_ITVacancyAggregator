@@ -61,11 +61,11 @@ function defaultTemplate(templates: ExplainerTemplate[]): ExplainerTemplate | un
 function SectionTitle({ id, index, title, lead }: { id: string; index: string; title: string; lead: ReactNode }) {
   return (
     <div className="max-w-3xl space-y-3">
-      <div className="font-mono text-xs font-bold tracking-[0.08em] text-primary">{index}</div>
+      <div className="font-mono text-2xl font-extrabold tracking-[0.04em] text-primary sm:text-3xl">{index}</div>
       <h2 id={id} className="text-2xl font-extrabold sm:text-3xl">
         {title}
       </h2>
-      <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">{lead}</p>
+      <p className="text-justify hyphens-auto text-sm leading-relaxed text-muted-foreground sm:text-base">{lead}</p>
     </div>
   );
 }
@@ -123,7 +123,7 @@ function InstanceCard({ instance, index, kind }: { instance: Instance; index: nu
   return (
     <article className="flex flex-col rounded-xl border bg-card p-4 shadow-xs">
       <div className="mb-3 font-mono text-sm font-bold text-primary">Кандидат {index + 1}</div>
-      <InstanceBody instance={instance} kind={kind} />
+      <InstanceBody instance={instance} kind={kind} stretch />
     </article>
   );
 }
@@ -158,7 +158,7 @@ function TemplateMeta({ template, grades }: { template: ExplainerTemplate; grade
           c = {num(template.c)}
         </Badge>
       </div>
-      <p className="text-xs leading-relaxed text-muted-foreground">
+      <p className="text-justify text-xs leading-relaxed hyphens-auto text-muted-foreground">
         Порог ближайшего грейда:{" "}
         {grades
           .filter((g) => g.cut <= template.b)
@@ -385,7 +385,7 @@ function AdaptiveSection({ specialization, overview }: { specialization: string;
             </span>
             <div className="space-y-1">
               <h3 className="text-base font-bold">{step.title}</h3>
-              <p className="text-sm leading-relaxed text-muted-foreground">{step.text}</p>
+              <p className="text-justify hyphens-auto text-sm leading-relaxed text-muted-foreground">{step.text}</p>
             </div>
           </li>
         ))}
@@ -446,7 +446,7 @@ function AdaptiveSection({ specialization, overview }: { specialization: string;
                 <ScenarioCard key={scenario.scenario} scenario={scenario} grades={information.data.grades} />
               ))}
             </div>
-            <p className="text-xs leading-relaxed text-muted-foreground">
+            <p className="text-justify text-xs leading-relaxed hyphens-auto text-muted-foreground">
               Каждый сценарий — {information.data.simulations} попыток настоящим планировщиком
               {information.data.stack_module ? ` (стек-модуль ${information.data.stack_module})` : ""}; ответы
               симулированы по модели 3PL с параметрами a, b, c из банка. Точки под карточками — задания одной попытки
@@ -569,7 +569,7 @@ export default function HowItWorksPage() {
         <h1 className="text-[clamp(40px,8vw,84px)] leading-[0.98] font-extrabold tracking-[-0.03em]">
           Как работает <span className="text-primary">тест</span>
         </h1>
-        <div className="max-w-[46em] space-y-3 text-lg leading-relaxed">
+        <div className="max-w-[46em] space-y-3 text-justify hyphens-auto text-lg leading-relaxed">
           <p>
             Тест — это короткие практические задачи по вашей специализации. Следующий вопрос подбирается по тому, как
             вы ответили на предыдущие, поэтому уровень становится понятен за небольшое число заданий.
@@ -583,7 +583,7 @@ export default function HowItWorksPage() {
             вариантов — заученный ответ на чужой вопрос к вашему не подойдёт.
           </p>
         </div>
-        <p className="max-w-[46em] text-base leading-relaxed text-muted-foreground">
+        <p className="max-w-[46em] text-justify hyphens-auto text-base leading-relaxed text-muted-foreground">
           Дальше — подробно и с формулами. Грейд определяет только тест: калиброванный банк параметризованных шаблонов, двухэтапная адаптивная сборка
           и оценка на общей IRT-шкале специализации. Всё ниже считается вживую тем же кодом, что проводит настоящий
           тест.
