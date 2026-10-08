@@ -1,12 +1,7 @@
 import { ArrowRight, Building2, Eye, Loader2, RefreshCw, UserRound } from "lucide-react";
 import { Link, useNavigate } from "react-router";
-import { CategoryBadge } from "@/components/CategoryBadge";
-import { ExplanationList, type ExplanationLine } from "@/components/ExplanationList";
 import { FormAlert } from "@/components/FormAlert";
-import { SalaryRange } from "@/components/SalaryRange";
-import { ScoreBadge } from "@/components/ScoreBadge";
-import { Trace } from "@/components/Trace";
-import { Badge } from "@/components/ui/badge";
+import { LandingIllustration } from "@/components/landing/LandingIllustration";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiError } from "@/lib/api-error";
@@ -14,80 +9,66 @@ import { postLoginPath, type TokenResponse, type UserRole, useAuth } from "@/lib
 import { useDemoLogin } from "@/lib/auth-queries";
 import { useExplainerOverview } from "@/lib/explainer-queries";
 import { extraItemsNote, testItemsRange } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
-const candidateSteps = [
+/** Механика в три шага вместо абзаца-описания: тест → приглашение с вилкой → контакты после принятия. */
+const mechanics = [
+  { label: "01 · Тест", text: "Категория «специализация × грейд» — только по тесту", key: true },
+  { label: "02 · Приглашение", text: "Работодатель пишет первым и сразу указывает вилку от–до", key: true },
+  { label: "03 · Контакты", text: "Открываются, только когда кандидат принял приглашение", key: false },
+];
+
+interface Step {
+  title: string;
+  text: string;
+  /** Ключевой шаг механики — номер залит primary. */
+  key?: boolean;
+}
+
+const candidateSteps: Step[] = [
   { title: "Опрос", text: "8–10 вопросов о том, чем вы занимаетесь. Система предложит специализацию." },
   { title: "Тест на грейд", text: "Адаптивный тест около 25 минут, по одному вопросу на экран." },
   { title: "Категория", text: "Вы получаете категорию «специализация × грейд», которую видят работодатели." },
-  { title: "Приглашения", text: "Работодатели пишут первыми — сразу с вилкой зарплаты и объяснением «почему вы»." },
+  {
+    title: "Приглашения",
+    text: "Работодатели пишут первыми — сразу с вилкой зарплаты и объяснением «почему вы».",
+    key: true,
+  },
 ];
 
-const employerSteps = [
+const employerSteps: Step[] = [
   { title: "Потребность", text: "Опишите задачу текстом — мы разберём её в стек, грейд и вилку." },
   { title: "Подборка", text: "Рекомендованные категории и кандидаты с понятным объяснением совпадения." },
-  { title: "Приглашение", text: "Пишете конкретному человеку и сразу указываете вилку от–до." },
+  { title: "Приглашение", text: "Пишете конкретному человеку и сразу указываете вилку от–до.", key: true },
   { title: "Контакты", text: "Контакты кандидата открываются, как только он принял приглашение." },
 ];
 
-// Пример объяснения из docs/implementation.md §8.4 — иллюстрация на лендинге, не данные API.
-const sampleExplanation: ExplanationLine[] = [
-  { kind: "positive", text: "Категория совпадает: Middle Backend, подтверждено тестом (78-й перцентиль)" },
-  { kind: "positive", text: "PostgreSQL — проверено тестом: «Базы данных» 85%" },
-  { kind: "positive", text: "ФСП: 2 место, всероссийский хакатон по продуктовому программированию, 2025" },
-  { kind: "warning", text: "Kafka — нет данных" },
+// Работодатель — главное действие демо: механика «первым пишет работодатель» видна с его стороны.
+const demoPersonas: { role: UserRole; label: string; icon: typeof UserRound; variant: "default" | "outline" }[] = [
+  { role: "employer", label: "Посмотреть как работодатель", icon: Building2, variant: "default" },
+  { role: "candidate", label: "Посмотреть как кандидат", icon: UserRound, variant: "outline" },
 ];
 
-const demoPersonas: { role: UserRole; label: string; icon: typeof UserRound }[] = [
-  { role: "candidate", label: "Посмотреть как кандидат", icon: UserRound },
-  { role: "employer", label: "Посмотреть как работодатель", icon: Building2 },
-];
-
-function Steps({ steps }: { steps: { title: string; text: string }[] }) {
+function Steps({ steps }: { steps: Step[] }) {
   return (
-    <ol className="grid gap-5">
+    <ol className="grid gap-4 md:gap-[18px]">
       {steps.map((step, index) => (
-        <li key={step.title} className="flex gap-4">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-full border-[1.5px] border-primary font-mono text-sm font-bold text-primary">
+        <li key={step.title} className="flex gap-3.5 md:gap-4">
+          <span
+            className={cn(
+              "flex size-8 shrink-0 items-center justify-center rounded-full border border-primary font-mono text-[13px] font-medium",
+              step.key ? "bg-primary text-primary-foreground" : "text-primary",
+            )}
+          >
             {index + 1}
           </span>
-          <div className="space-y-1">
-            <h3 className="text-base font-bold">{step.title}</h3>
-            <p className="text-sm leading-relaxed text-muted-foreground">{step.text}</p>
+          <div className="min-w-0 space-y-0.5">
+            <h3 className="font-mono text-base font-semibold tracking-tight">{step.title}</h3>
+            <p className="text-sm text-muted-foreground">{step.text}</p>
           </div>
         </li>
       ))}
     </ol>
-  );
-}
-
-function SampleCard() {
-  return (
-    <figure className="space-y-3">
-      <figcaption className="font-mono text-xs font-medium tracking-[0.06em] text-muted-foreground uppercase">
-        Так кандидат выглядит в подборке
-      </figcaption>
-      <div className="rounded-xl border bg-card p-5 shadow-sm">
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-2">
-            <div className="font-mono text-base font-bold">Анна К.</div>
-            <CategoryBadge specialization="backend" grade="middle" />
-          </div>
-          <ScoreBadge score={84} size="lg" />
-        </div>
-        <ExplanationList items={sampleExplanation} className="mt-4" />
-        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border-subtle pt-4">
-          <Badge variant="soft">ФСП</Badge>
-          <Badge variant="muted">проверено тестом</Badge>
-          <span className="ml-auto text-xs text-muted-foreground">
-            Приглашение: <SalaryRange from={220_000} to={260_000} className="text-foreground" />
-          </span>
-        </div>
-      </div>
-      <p className="text-sm leading-relaxed text-muted-foreground">
-        Объяснение, а не магия: оценка и строки «почему» считаются одним кодом из одних и тех же данных. Работодатель
-        видит, почему кандидат в выдаче, а кандидат — почему пришло приглашение.
-      </p>
-    </figure>
   );
 }
 
@@ -97,7 +78,10 @@ function demoErrorMessage(err: unknown): string {
   return message;
 }
 
-/** Демо-вход теми же готовыми аккаунтами, что и на /login: сразу в кабинет, без регистрации. */
+/**
+ * Главное действие лендинга: демо-вход теми же готовыми аккаунтами, что и на /login — сразу в кабинет.
+ * Регистрация — строкой ссылок под кнопками демо.
+ */
 function DemoEntry() {
   const navigate = useNavigate();
   const demoLogin = useDemoLogin();
@@ -111,23 +95,56 @@ function DemoEntry() {
     });
 
   return (
-    <div className="mt-6 max-w-xl space-y-3 rounded-xl border border-dashed border-primary p-4">
-      <p className="flex items-center gap-2 text-sm">
-        <Eye className="size-4 shrink-0 text-primary" aria-hidden />
-        <span>
-          <b>Демо без регистрации</b>
-          <span className="text-muted-foreground"> — готовые аккаунты с данными</span>
+    <div className="flex max-w-[640px] flex-col gap-3 rounded-xl border border-primary bg-card p-4 sm:gap-4 sm:p-6">
+      <p className="flex flex-col gap-0.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
+        <span className="flex items-center gap-2 font-mono text-xs font-medium tracking-[0.1em] text-primary uppercase">
+          <Eye className="size-4 shrink-0" aria-hidden />
+          Демо без регистрации
+        </span>
+        <span className="pl-6 text-sm text-muted-foreground sm:pl-0">
+          <span className="hidden sm:inline">— </span>готовые аккаунты с данными
         </span>
       </p>
-      <div className="flex flex-wrap gap-2">
-        {demoPersonas.map(({ role, label, icon: Icon }) => (
-          <Button key={role} type="button" variant="outline" disabled={demoLogin.isPending} onClick={() => onDemo(role)}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+        {demoPersonas.map(({ role, label, icon: Icon, variant }) => (
+          <Button
+            key={role}
+            type="button"
+            size="lg"
+            variant={variant}
+            className="h-[52px] w-full sm:w-auto sm:flex-[1_1_220px]"
+            disabled={demoLogin.isPending}
+            onClick={() => onDemo(role)}
+          >
             {demoLogin.isPending && demoLogin.variables === role ? <Loader2 className="animate-spin" /> : <Icon />}
             {label}
           </Button>
         ))}
       </div>
       <FormAlert message={demoLogin.error ? demoErrorMessage(demoLogin.error) : null} />
+      <div className="flex flex-col border-t border-border-subtle pt-3 text-sm text-muted-foreground sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-1 sm:pt-3.5">
+        <span>Нет аккаунта?</span>
+        <div className="flex flex-wrap gap-x-5 sm:contents">
+          <Link
+            to="/register?role=candidate"
+            className="inline-flex min-h-11 items-center font-medium text-primary underline-offset-4 hover:underline sm:min-h-0"
+          >
+            Регистрация кандидата
+          </Link>
+          <Link
+            to="/register?role=employer"
+            className="inline-flex min-h-11 items-center font-medium text-primary underline-offset-4 hover:underline sm:min-h-0"
+          >
+            Регистрация работодателя
+          </Link>
+          <Link
+            to="/login"
+            className="hidden font-medium text-foreground underline-offset-4 hover:underline sm:inline-flex"
+          >
+            Войти
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }
@@ -139,20 +156,20 @@ function BankStats() {
   if (overview.isPending) {
     return (
       <div
-        className="grid grid-cols-2 gap-4 border-t-[1.5px] border-foreground pt-4 lg:grid-cols-4"
+        className="grid grid-cols-2 gap-4 border-t border-foreground pt-5 lg:grid-cols-4"
         role="status"
         aria-busy="true"
         aria-label="Загрузка цифр"
       >
         {Array.from({ length: 4 }, (_, index) => (
-          <Skeleton key={index} className="h-20" />
+          <Skeleton key={index} className="h-24" />
         ))}
       </div>
     );
   }
   if (overview.isError) {
     return (
-      <div className="flex flex-wrap items-center gap-3 border-t-[1.5px] border-foreground pt-4 text-sm text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-3 border-t border-foreground pt-5 text-sm text-muted-foreground">
         Не удалось загрузить цифры банка заданий.
         <Button variant="link" size="sm" className="h-auto p-0" onClick={() => void overview.refetch()}>
           <RefreshCw /> Повторить
@@ -164,9 +181,7 @@ function BankStats() {
   const { specializations, grades, active_templates: activeTemplates, extra_items_max: extraMax } = overview.data;
   if (specializations.length === 0) {
     return (
-      <p className="border-t-[1.5px] border-foreground pt-4 text-sm text-muted-foreground">
-        Банк заданий ещё не загружен.
-      </p>
+      <p className="border-t border-foreground pt-5 text-sm text-muted-foreground">Банк заданий ещё не загружен.</p>
     );
   }
   const facts = [
@@ -181,14 +196,12 @@ function BankStats() {
   ];
 
   return (
-    <dl className="grid grid-cols-2 border-t-[1.5px] border-foreground lg:grid-cols-4">
+    <dl className="grid grid-cols-2 gap-x-4 gap-y-6 border-t border-foreground pt-5 lg:grid-cols-4 lg:gap-8 lg:pt-6">
       {facts.map((fact) => (
-        <div key={fact.label} className="min-w-0 pt-4 pr-4 pb-2">
-          <dt className="font-mono text-xs font-medium tracking-[0.06em] text-muted-foreground uppercase">
-            {fact.label}
-          </dt>
-          <dd className="mt-1 font-mono text-3xl font-bold tabular-nums">{fact.value}</dd>
-          {fact.note && <dd className="mt-1 text-sm text-muted-foreground">{fact.note}</dd>}
+        <div key={fact.label} className="flex min-w-0 flex-col gap-1 lg:gap-1.5">
+          <dt className="font-mono text-xs font-medium tracking-[0.1em] text-muted-foreground uppercase">{fact.label}</dt>
+          <dd className="font-mono text-3xl font-semibold tabular-nums">{fact.value}</dd>
+          {fact.note && <dd className="text-sm text-muted-foreground">{fact.note}</dd>}
         </div>
       ))}
     </dl>
@@ -198,76 +211,75 @@ function BankStats() {
 export default function LandingPage() {
   return (
     <>
-      <section className="grid items-center gap-12 py-12 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-16 lg:py-20">
-        <div className="flex min-w-0 flex-col">
-          <div className="mb-8 inline-flex items-center gap-2.5 self-start rounded-full border-[1.5px] border-primary px-3.5 py-1.5 font-mono text-sm font-medium text-primary">
+      <section className="grid items-start gap-12 pt-4 pb-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-x-[72px] lg:pt-12 lg:pb-16">
+        <div className="flex min-w-0 flex-col gap-6 lg:gap-7">
+          <div className="inline-flex items-center gap-2 self-start rounded-full border border-primary px-3 py-1.5 font-mono text-[13px] font-medium text-primary">
             <span className="size-2 animate-pulse-dot rounded-full bg-destructive" aria-hidden />
             Спецтрек ФСП · ЛЦТ 2026
           </div>
 
-          <h1 className="text-[clamp(56px,9vw,112px)] leading-[0.95] font-extrabold tracking-[-0.04em] text-primary">
-            IT<span className="text-foreground">Scout</span>
-          </h1>
-          <p className="mt-7 max-w-[28em] font-mono text-[clamp(18px,2.2vw,24px)] leading-snug font-medium">
-            Платформа ИТ-подбора, где первым пишет работодатель.
-          </p>
-          <p className="mt-5 max-w-[40em] text-base leading-relaxed text-muted-foreground">
-            Кандидаты проходят тестирование на грейд и попадают в категорию «специализация × грейд». Работодатель
-            выбирает нужную категорию и отправляет приглашение конкретному человеку, сразу с вилкой зарплаты.
-            Достижения в соревнованиях ФСП поднимают кандидата в выдаче.
-          </p>
-
-          <div className="mt-8 flex flex-wrap items-center gap-3">
-            <Button asChild size="lg">
-              <Link to="/register?role=candidate">
-                <UserRound /> Регистрация кандидата
-              </Link>
-            </Button>
-            <Button asChild size="lg" variant="outline">
-              <Link to="/register?role=employer">
-                <Building2 /> Регистрация работодателя
-              </Link>
-            </Button>
-            <Button asChild size="lg" variant="link">
-              <Link to="/login">
-                Войти <ArrowRight />
-              </Link>
-            </Button>
+          <div className="flex flex-col gap-4 lg:gap-5">
+            <p
+              aria-hidden
+              className="font-mono text-[56px] leading-none font-bold tracking-[-0.025em] lg:text-[clamp(72px,6.7vw,96px)]"
+            >
+              <span className="text-primary">IT</span>Scout
+            </p>
+            <h1 className="max-w-[560px] font-mono text-xl font-medium tracking-[-0.025em] text-balance lg:text-2xl">
+              <span className="sr-only">ITScout — </span>
+              Платформа ИТ-подбора, где <span className="text-primary">первым пишет работодатель.</span>
+            </h1>
           </div>
+
+          <ol className="grid max-w-[640px] gap-3.5 sm:grid-cols-3 sm:gap-4">
+            {mechanics.map((step) => (
+              <li
+                key={step.label}
+                className={cn(
+                  "flex flex-col gap-1 border-l-2 pl-3 sm:gap-1.5 sm:border-t-2 sm:border-l-0 sm:pt-3 sm:pl-0",
+                  step.key ? "border-primary" : "border-border",
+                )}
+              >
+                <span
+                  className={cn(
+                    "font-mono text-xs font-semibold tracking-[0.1em] uppercase",
+                    step.key ? "text-primary" : "text-muted-foreground",
+                  )}
+                >
+                  {step.label}
+                </span>
+                <span className="text-sm text-pretty">{step.text}</span>
+              </li>
+            ))}
+          </ol>
 
           <DemoEntry />
 
           <Link
             to="/how-it-works"
-            className="mt-6 self-start font-mono text-sm font-medium text-primary underline-offset-4 hover:underline"
+            className="-mt-2 inline-flex min-h-11 items-center gap-2 self-start font-mono text-[13px] font-medium text-primary underline-offset-4 hover:underline sm:mt-0 sm:min-h-0"
           >
-            Как работает тест: шаблоны, адаптивность, защита от слива{" "}
-            <ArrowRight className="inline size-4 align-[-3px]" aria-hidden />
+            Как работает тест: шаблоны, адаптивность, защита от слива
+            <ArrowRight className="size-4 shrink-0" aria-hidden />
           </Link>
         </div>
 
-        <div className="relative min-w-0">
-          {/* Фирменная трасса огибает угол карточки, как на заглушке infra/site/index.html */}
-          <Trace width={220} height={150} radius={40} flip className="absolute -top-8 -right-8 hidden xl:block" />
-          <div className="relative">
-            <SampleCard />
-          </div>
-        </div>
+        <LandingIllustration />
       </section>
 
-      <section aria-label="ITScout в цифрах" className="pb-14">
+      <section aria-label="ITScout в цифрах" className="pt-2 pb-10 lg:pb-14">
         <BankStats />
       </section>
 
-      <section className="grid gap-10 border-t border-border-subtle py-16 md:grid-cols-2 lg:gap-16">
-        <div className="space-y-6">
-          <h2 className="flex items-center gap-2 text-xl font-extrabold">
+      <section className="grid gap-0 md:grid-cols-2 md:gap-x-[72px] md:gap-y-12 md:pt-4 md:pb-16">
+        <div className="space-y-5 border-t border-border-subtle py-8 md:border-t-0 md:py-0">
+          <h2 className="flex items-center gap-2.5 font-mono text-xl font-semibold tracking-tight">
             <UserRound className="size-5 text-primary" aria-hidden /> Кандидату
           </h2>
           <Steps steps={candidateSteps} />
         </div>
-        <div className="space-y-6">
-          <h2 className="flex items-center gap-2 text-xl font-extrabold">
+        <div className="space-y-5 border-t border-border-subtle py-8 md:border-t-0 md:py-0">
+          <h2 className="flex items-center gap-2.5 font-mono text-xl font-semibold tracking-tight">
             <Building2 className="size-5 text-primary" aria-hidden /> Работодателю
           </h2>
           <Steps steps={employerSteps} />

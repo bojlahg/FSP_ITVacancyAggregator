@@ -4,6 +4,7 @@ import { Logo } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { homePathFor, useAuth } from "@/lib/auth";
+import { cn } from "@/lib/utils";
 
 export default function PublicLayout() {
   const { pathname } = useLocation();
@@ -14,9 +15,10 @@ export default function PublicLayout() {
     <div className="relative flex min-h-dvh flex-col overflow-hidden px-4 py-6 sm:px-8 lg:px-16 lg:py-8">
       <header className="relative z-10 flex flex-wrap items-center justify-between gap-4">
         <Link to="/" aria-label="ITScout — на главную">
-          <Logo className="h-8 sm:h-9" />
+          {/* На телефоне шапка лендинга — логотип, «Войти» и тема в одну строку */}
+          <Logo className={isLanding ? "h-[22px] sm:h-9" : "h-8 sm:h-9"} />
         </Link>
-        <div className="ml-auto flex items-center gap-4">
+        <div className={cn("ml-auto flex items-center", isLanding ? "gap-2 sm:gap-4" : "gap-4")}>
           <span className="mr-4 hidden font-mono text-sm tracking-wide text-muted-foreground lg:inline">
             Лидеры цифровой трансформации 2026 · спецтрек ФСП
           </span>
@@ -37,7 +39,8 @@ export default function PublicLayout() {
                 </Button>
               )}
               {pathname !== "/register" && (
-                <Button asChild size="sm">
+                // На телефоне регистрация лендинга — ссылками в карточке демо, шапка остаётся в одну строку
+                <Button asChild size="sm" className={isLanding ? "hidden sm:inline-flex" : undefined}>
                   <Link to="/register">Зарегистрироваться</Link>
                 </Button>
               )}
