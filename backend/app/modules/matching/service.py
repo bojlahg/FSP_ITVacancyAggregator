@@ -1290,6 +1290,10 @@ async def _card(
     statuses = {} if blind else await invitation_statuses(db, employer_id, [candidate_id])
     if match is not None:
         match.invitation_status = statuses.get(candidate_id)
+        if need is not None and not blind:
+            from app.modules.needs import service as needs_service
+
+            match.shortlisted = candidate_id in await needs_service.shortlist_candidate_ids(db, need.id)
     current = await categories_service.get_current(db, candidate_id)
     approach_answers = []
     integrity = None

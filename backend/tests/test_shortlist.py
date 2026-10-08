@@ -26,6 +26,20 @@ async def test_pinned_candidate_stays_after_need_moves_to_other_category(client,
     assert recs["shortlist_outside"][0]["display_name"] == "Анна К."
 
 
+async def test_card_match_reflects_shortlist(client, session):
+    """Карточка кандидата с ?need_id знает, закреплён ли он: кнопка шорт-листа в карточке."""
+    employer = await signup(client, "hr@bank.ru")
+    _, cid = await make_candidate(client, session, "anna@example.com")
+    need = (await client.post(f"{API}/needs", json=NEED, headers=employer)).json()
+    url = f"{API}/talent/candidates/{cid}?need_id={need['id']}"
+
+    assert (await client.get(url, headers=employer)).json()["match"]["shortlisted"] is False
+    await client.post(f"{API}/needs/{need['id']}/shortlist/{cid}", json={}, headers=employer)
+    assert (await client.get(url, headers=employer)).json()["match"]["shortlisted"] is True
+    await client.delete(f"{API}/needs/{need['id']}/shortlist/{cid}", headers=employer)
+    assert (await client.get(url, headers=employer)).json()["match"]["shortlisted"] is False
+
+
 async def test_pinned_outside_respects_privacy(client, session):
     employer = await signup(client, "hr@bank.ru")
     _, cid = await make_candidate(client, session, "anna@example.com")
