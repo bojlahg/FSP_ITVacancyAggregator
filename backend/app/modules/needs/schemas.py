@@ -19,7 +19,7 @@ class NeedFields(SalaryRange):
     industry: str | None = None
     team_description: str | None = Field(default=None, max_length=4000)
     work_format: WorkFormat | None = None
-    city: str | None = None
+    city: str | None = Field(default=None, max_length=100)
 
 
 class NeedCreate(NeedFields):

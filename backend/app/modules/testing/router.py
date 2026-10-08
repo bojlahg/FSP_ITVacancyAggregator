@@ -21,7 +21,7 @@ router = APIRouter(prefix="/tests/attempts", tags=["candidate: testing"])
     response_model=AttemptOut,
     status_code=201,
     summary="Начать тест на грейд (409 — действует ограничение по частоте)",
-    responses=error_responses(401, 403, 409, 422),
+    responses=error_responses(400, 401, 403, 409, 422, 429),
 )
 async def start_attempt(body: AttemptCreate, user: CurrentCandidate, db: DbSession) -> AttemptOut:
     candidate = await candidates_service.get_by_user(db, user.id)

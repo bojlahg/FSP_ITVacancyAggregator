@@ -155,7 +155,9 @@ async def get_recommendations(
     db: DbSession,
     grade: Grade | None = Query(default=None, description="Ограничить грейдом"),
     has_fsp: bool | None = Query(default=None),
-    verified_only: bool = Query(default=False, description="Только навыки, проверенные тестом"),
+    verified_only: bool = Query(
+        default=False, description="Хотя бы один обязательный навык потребности проверен тестом"
+    ),
     salary_max: int | None = Query(default=None, gt=0, le=MAX_RUBLES),
     work_format: WorkFormat | None = Query(default=None),
     city: str | None = Query(default=None),

@@ -7827,6 +7827,15 @@ export interface operations {
                     "application/json": components["schemas"]["AttemptOut"];
                 };
             };
+            /** @description Некорректный запрос */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Требуется вход */
             401: {
                 headers: {
@@ -7856,6 +7865,15 @@ export interface operations {
             };
             /** @description Ошибка валидации данных */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Слишком много запросов */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10285,7 +10303,7 @@ export interface operations {
                 /** @description Ограничить грейдом */
                 grade?: components["schemas"]["Grade"] | null;
                 has_fsp?: boolean | null;
-                /** @description Только навыки, проверенные тестом */
+                /** @description Хотя бы один обязательный навык потребности проверен тестом */
                 verified_only?: boolean;
                 salary_max?: number | null;
                 work_format?: components["schemas"]["WorkFormat"] | null;

@@ -1695,6 +1695,16 @@
               }
             }
           },
+          "400": {
+            "description": "Некорректный запрос",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Требуется вход",
             "content": {
@@ -1727,6 +1737,16 @@
           },
           "422": {
             "description": "Ошибка валидации данных",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Слишком много запросов",
             "content": {
               "application/json": {
                 "schema": {
@@ -5116,11 +5136,11 @@
             "required": false,
             "schema": {
               "type": "boolean",
-              "description": "Только навыки, проверенные тестом",
+              "description": "Хотя бы один обязательный навык потребности проверен тестом",
               "default": false,
               "title": "Verified Only"
             },
-            "description": "Только навыки, проверенные тестом"
+            "description": "Хотя бы один обязательный навык потребности проверен тестом"
           },
           {
             "name": "salary_max",
@@ -18171,7 +18191,8 @@
           "city": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 100
               },
               {
                 "type": "null"
@@ -18404,7 +18425,8 @@
           "city": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 100
               },
               {
                 "type": "null"
@@ -18713,7 +18735,8 @@
           "city": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 100
               },
               {
                 "type": "null"
