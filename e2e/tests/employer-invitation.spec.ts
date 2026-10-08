@@ -159,6 +159,8 @@ test("работодатель создаёт потребность, собир
   await test.step("9. Работодатель видит «Принято» и контакты кандидата", async () => {
     await openSection(page, "Приглашения");
     await expect(page.getByText("Принято", { exact: true }).first()).toBeVisible();
+    // У принятого приглашения контакты раскрываются кнопкой «Контакты» в строке таблицы
+    await page.getByRole("button", { name: "Контакты", exact: true }).click();
     await expect(page.getByText("Контакты открыты")).toBeVisible();
     await expect(page.getByText(E2E_CANDIDATE.email)).toBeVisible();
     await page.getByRole("link", { name: E2E_CANDIDATE.fullName }).click();
