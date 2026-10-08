@@ -74,7 +74,8 @@ export function CabinetLayout({ homePath, roleLabel, nav: baseNav, debugLink = t
       <div className="flex min-h-dvh flex-col bg-background">
         <header className="sticky top-0 z-20 border-b border-border-subtle bg-background/95 backdrop-blur">
           <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-10">
-            <ProductMark className="flex-row items-center gap-3" />
+            {/* На телефоне в строку не помещается и наезжает на переключатель темы */}
+            <ProductMark className="min-w-0 sm:flex-row sm:items-center sm:gap-3" />
             <ThemeToggle />
           </div>
         </header>
