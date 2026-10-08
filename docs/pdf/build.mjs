@@ -1,4 +1,5 @@
-// Собирает сопроводительную документацию в один PDF: docs/ITScout-docs.pdf.
+// Собирает сопроводительную документацию в PDF: общий docs/ITScout-docs.pdf и отдельные документы по шаблонам
+// (руководство пользователя, use cases, методы API, инструкция по развёртыванию) — см. BOOKS.
 // Markdown → HTML (marked), диаграммы Mermaid и печать — в Chromium (playwright-core).
 // Запуск: cd docs/pdf && npm ci && npm run build. Chromium: CHROMIUM_PATH или браузер Playwright.
 import { readFileSync, writeFileSync } from "node:fs";
@@ -11,10 +12,8 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "../..");
 const docs = resolve(root, "docs");
 const fonts = resolve(root, "backend/app/modules/resume/assets/fonts");
-const out = resolve(docs, "ITScout-docs.pdf");
 
-// Порядок — по пунктам 3.4 ТЗ; README идёт обзором. Документы по шаблонам (use cases, руководство,
-// описание методов API, инструкция по развёртыванию) стоят рядом со своими темами
+// Порядок — по пунктам 3.4 ТЗ; README идёт обзором
 const PARTS = [
   ["README.md", "overview", root],
   ["architecture.md", "architecture"],
@@ -22,24 +21,32 @@ const PARTS = [
   ["matching.md", "matching"],
   ["validation.md", "validation"],
   ["fsp-integration.md", "fsp-integration"],
-  ["use-cases.md", "use-cases"],
-  ["user-guide.md", "user-guide"],
   ["api.md", "api"],
   ["api-endpoints.md", "api-endpoints"],
-  ["api-methods.md", "api-methods"],
   ["versions.md", "versions"],
   ["deploy.md", "deploy"],
-  ["deployment-instruction.md", "deployment-instruction"],
   ["security.md", "security"],
   ["performance.md", "performance"],
   ["anti-fraud-ats.md", "anti-fraud-ats"],
   ["limitations.md", "limitations"],
 ];
-const anchorOf = new Map(PARTS.map(([file, id]) => [file, id]));
+
+// Документы по шаблонам — каждый отдельным PDF; ссылки на разделы общего PDF в них остаются именами файлов
+const BOOKS = [
+  { out: "ITScout-docs.pdf", title: "Сопроводительная документация", parts: PARTS, toc: true },
+  { out: "ITScout-user-guide.pdf", title: "Руководство пользователя", parts: [["user-guide.md", "user-guide"]] },
+  { out: "ITScout-use-cases.pdf", title: "Use cases", parts: [["use-cases.md", "use-cases"]] },
+  { out: "ITScout-api-methods.pdf", title: "API: описание ключевых методов", parts: [["api-methods.md", "api-methods"]] },
+  {
+    out: "ITScout-deployment-instruction.pdf",
+    title: "Инструкция по развёртыванию",
+    parts: [["deployment-instruction.md", "deployment-instruction"]],
+  },
+];
 
 const escape = (text) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-function render(file, id, base) {
+function render(file, id, base, anchorOf) {
   const markdown = readFileSync(resolve(base ?? docs, file), "utf8").replace(/<!--[\s\S]*?-->/g, "");
   const dir = base ?? docs;
   const marked = new Marked({
@@ -67,8 +74,8 @@ function render(file, id, base) {
   return `<section class="part" id="${id}">${marked.parse(markdown)}</section>`;
 }
 
-function toc() {
-  const items = PARTS.map(([file, id, base]) => {
+function toc(parts) {
+  const items = parts.map(([file, id, base]) => {
     const title = readFileSync(resolve(base ?? docs, file), "utf8")
       .replace(/<!--[\s\S]*?-->/g, "")
       .match(/^#\s+(.+)$/m)[1];
@@ -122,12 +129,12 @@ figcaption{font-size:8pt;color:#555;}
 .toc ol{font-size:11pt;line-height:2;}
 `;
 
-const cover = `
+const cover = (title) => `
 <section class="cover">
   <img class="logo" src="${pathToFileURL(resolve(docs, "brandook/logo_01.svg")).href}">
   <div>
     <h1><b>IT</b>Scout</h1>
-    <div class="sub">Сопроводительная документация</div>
+    <div class="sub">${escape(title)}</div>
     <div class="trace"></div>
     <p>Платформа ИТ-подбора с обратной механикой: кандидат подтверждает уровень адаптивным тестом,
     работодатель сам находит его по категории «специализация × грейд» и приходит с предложением и вилкой зарплаты.</p>
@@ -141,9 +148,12 @@ const cover = `
 </section>`;
 
 const mermaidJs = pathToFileURL(resolve(here, "node_modules/mermaid/dist/mermaid.min.js")).href;
-const html = `<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>ITScout — документация</title>
+
+function page(book) {
+  const anchorOf = new Map(book.parts.map(([file, id]) => [file, id]));
+  return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>ITScout — ${escape(book.title)}</title>
 <style>${css}</style><script src="${mermaidJs}"></script></head><body>
-${cover}${toc()}${PARTS.map(([file, id, base]) => render(file, id, base)).join("\n")}
+${cover(book.title)}${book.toc ? toc(book.parts) : ""}${book.parts.map(([file, id, base]) => render(file, id, base, anchorOf)).join("\n")}
 <script>
 mermaid.initialize({startOnLoad:false,securityLevel:"loose",theme:"base",fontFamily:"Inter",
   flowchart:{htmlLabels:true,useMaxWidth:true},
@@ -152,27 +162,31 @@ mermaid.initialize({startOnLoad:false,securityLevel:"loose",theme:"base",fontFam
 mermaid.run({querySelector:".mermaid"}).then(()=>{document.body.dataset.ready="1"},
   (e)=>{document.body.dataset.ready="error";document.body.dataset.error=(e && (e.message || e.str)) || JSON.stringify(e)});
 </script></body></html>`;
-
-const htmlPath = resolve(here, "docs.html");
-writeFileSync(htmlPath, html);
+}
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
-const page = await browser.newPage();
-await page.goto(pathToFileURL(htmlPath).href, { waitUntil: "load" });
-await page.waitForFunction(() => document.body.dataset.ready, null, { timeout: 120_000 });
-const state = await page.evaluate(() => [document.body.dataset.ready, document.body.dataset.error]);
-if (state[0] !== "1") throw new Error(`Mermaid: ${state[1]}`);
-await page.evaluate(() => document.fonts.ready);
-await page.pdf({
-  path: out,
-  format: "A4",
-  printBackground: true,
-  displayHeaderFooter: true,
-  headerTemplate: "<span></span>",
-  footerTemplate:
-    '<div style="width:100%;font-family:monospace;font-size:7pt;color:#888;padding:0 16mm;display:flex;justify-content:space-between">' +
-    '<span>ITScout · сопроводительная документация</span><span><span class="pageNumber"></span> / <span class="totalPages"></span></span></div>',
-  margin: { top: "16mm", bottom: "18mm", left: "16mm", right: "16mm" },
-});
+for (const book of BOOKS) {
+  const htmlPath = resolve(here, "docs.html");
+  writeFileSync(htmlPath, page(book));
+  const tab = await browser.newPage();
+  await tab.goto(pathToFileURL(htmlPath).href, { waitUntil: "load" });
+  await tab.waitForFunction(() => document.body.dataset.ready, null, { timeout: 120_000 });
+  const state = await tab.evaluate(() => [document.body.dataset.ready, document.body.dataset.error]);
+  if (state[0] !== "1") throw new Error(`Mermaid: ${state[1]}`);
+  await tab.evaluate(() => document.fonts.ready);
+  const out = resolve(docs, book.out);
+  await tab.pdf({
+    path: out,
+    format: "A4",
+    printBackground: true,
+    displayHeaderFooter: true,
+    headerTemplate: "<span></span>",
+    footerTemplate:
+      '<div style="width:100%;font-family:monospace;font-size:7pt;color:#888;padding:0 16mm;display:flex;justify-content:space-between">' +
+      `<span>ITScout · ${escape(book.title.toLowerCase())}</span><span><span class="pageNumber"></span> / <span class="totalPages"></span></span></div>`,
+    margin: { top: "16mm", bottom: "18mm", left: "16mm", right: "16mm" },
+  });
+  await tab.close();
+  console.log(`PDF: ${out}`);
+}
 await browser.close();
-console.log(`PDF: ${out}`);
