@@ -1,6 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CheckCircle2, ChevronDown, Inbox, ListChecks, Loader2, Plus, Send, Star, XCircle } from "lucide-react";
 import { useState } from "react";
+import { useSearchParams } from "react-router";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { CandidateRow } from "@/components/employer/CandidateRow";
@@ -71,7 +72,10 @@ const fieldMap = {
 
 export default function EmployerTasksPage() {
   const tasks = useEmployerTasks();
-  const [creating, setCreating] = useState(false);
+  // ?need= — пришли из «Проверки под вакансию»: сразу форма с этой потребностью
+  const [searchParams] = useSearchParams();
+  const presetNeed = parseId(searchParams.get("need"));
+  const [creating, setCreating] = useState(presetNeed !== null);
 
   return (
     <>
@@ -85,7 +89,7 @@ export default function EmployerTasksPage() {
           </Button>
         }
       />
-      {creating && <CreateTaskCard onCreated={() => setCreating(false)} />}
+      {creating && <CreateTaskCard needId={presetNeed} onCreated={() => setCreating(false)} />}
       <div className="grid gap-4">
         {tasks.isPending && <SkeletonCards count={2} />}
         {tasks.isError && <ErrorState description={apiError(tasks.error).message} onRetry={() => void tasks.refetch()} />}
@@ -109,7 +113,7 @@ export default function EmployerTasksPage() {
   );
 }
 
-function CreateTaskCard({ onCreated }: { onCreated: () => void }) {
+function CreateTaskCard({ needId: presetNeed, onCreated }: { needId: number | null; onCreated: () => void }) {
   const needs = useNeeds();
   const specializations = useSpecializations();
   const create = useCreateTask();
@@ -125,7 +129,7 @@ function CreateTaskCard({ onCreated }: { onCreated: () => void }) {
     defaultValues: {
       title: "",
       kind: "auto",
-      needId: "",
+      needId: presetNeed !== null ? String(presetNeed) : "",
       specialization: "",
       grade: "",
       templateId: "",

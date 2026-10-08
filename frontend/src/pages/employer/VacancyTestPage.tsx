@@ -1,6 +1,6 @@
-import { Bot, FileText, FlaskConical, Info, Layers, Loader2, RefreshCw, Sparkles } from "lucide-react";
+import { Bot, FileText, FlaskConical, Info, Layers, ListChecks, Loader2, RefreshCw, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { CodeBlock } from "@/components/CodeBlock";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
@@ -58,60 +58,86 @@ export default function VacancyTestPage() {
       />
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
-        <Card className="h-fit">
-          <CardHeader>
-            <CardTitle>Источник</CardTitle>
-            <CardDescription>Потребность компании или текст вакансии</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-3">
-            <Select aria-label="Потребность" value={source} onChange={(event) => setSource(event.target.value)}>
-              <option value={TEXT_SOURCE}>Текст вакансии</option>
-              {(needs.data ?? []).map((need) => (
-                <option key={need.id} value={String(need.id)}>
-                  {need.title}
-                </option>
-              ))}
-            </Select>
-            {needs.isError && <FormAlert message={`Потребности не загрузились: ${apiError(needs.error).message}`} />}
-            {needId === null && (
-              <>
-                <Textarea
-                  rows={9}
-                  value={text}
-                  onChange={(event) => setText(event.target.value)}
-                  placeholder="Вставьте описание вакансии: стек, обязанности, грейд"
-                  aria-label="Текст вакансии"
-                />
-                <div className="space-y-2">
-                  <div className="font-mono text-xs tracking-wider text-muted-foreground uppercase">Демо-вакансии</div>
-                  <div className="flex flex-wrap gap-2">
-                    {examples.isPending && <Loader2 className="size-4 animate-spin text-muted-foreground" aria-hidden />}
-                    {examples.isError && <span className="text-xs text-muted-foreground">Не загрузились</span>}
-                    {examples.data?.map((example) => (
-                      <Button
-                        key={example.slug}
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setText(example.raw_text);
-                          run({ raw_text: example.raw_text });
-                        }}
-                      >
-                        <FileText /> {example.title}
-                      </Button>
-                    ))}
+        <div className="grid min-w-0 content-start gap-4">
+          <Card className="h-fit">
+            <CardHeader>
+              <CardTitle>Источник</CardTitle>
+              <CardDescription>Потребность компании или текст вакансии</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-3">
+              <Select aria-label="Потребность" value={source} onChange={(event) => setSource(event.target.value)}>
+                <option value={TEXT_SOURCE}>Текст вакансии</option>
+                {(needs.data ?? []).map((need) => (
+                  <option key={need.id} value={String(need.id)}>
+                    {need.title}
+                  </option>
+                ))}
+              </Select>
+              {needs.isError && <FormAlert message={`Потребности не загрузились: ${apiError(needs.error).message}`} />}
+              {needId === null && (
+                <>
+                  <Textarea
+                    rows={9}
+                    value={text}
+                    onChange={(event) => setText(event.target.value)}
+                    placeholder="Вставьте описание вакансии: стек, обязанности, грейд"
+                    aria-label="Текст вакансии"
+                  />
+                  <div className="space-y-2">
+                    <div className="font-mono text-xs tracking-wider text-muted-foreground uppercase">Демо-вакансии</div>
+                    <div className="flex flex-wrap gap-2">
+                      {examples.isPending && <Loader2 className="size-4 animate-spin text-muted-foreground" aria-hidden />}
+                      {examples.isError && <span className="text-xs text-muted-foreground">Не загрузились</span>}
+                      {examples.data?.map((example) => (
+                        <Button
+                          key={example.slug}
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setText(example.raw_text);
+                            run({ raw_text: example.raw_text });
+                          }}
+                        >
+                          <FileText /> {example.title}
+                        </Button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              </>
-            )}
-          </CardContent>
-          <CardFooter>
-            <Button onClick={build} disabled={!canBuild || preview.isPending}>
-              {preview.isPending ? <Loader2 className="animate-spin" /> : <FlaskConical />} Построить проверку
-            </Button>
-          </CardFooter>
-        </Card>
+                </>
+              )}
+            </CardContent>
+            <CardFooter>
+              <Button onClick={build} disabled={!canBuild || preview.isPending}>
+                {preview.isPending ? <Loader2 className="animate-spin" /> : <FlaskConical />} Построить проверку
+              </Button>
+            </CardFooter>
+          </Card>
+
+          <Card className="h-fit">
+            <CardHeader>
+              <CardTitle>Зачем это</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-2 text-sm leading-relaxed text-muted-foreground">
+              <p>
+                Тест на грейд у всех кандидатов категории общий — поэтому грейды сравнимы между собой. Проверка его не
+                меняет и не сохраняется: она показывает, какие темы важны для вашей вакансии и как выглядят задания из
+                банка.
+              </p>
+              <p>
+                Проверить кандидатов именно по этим темам — задание: темы и стек для него подбираются по потребности так
+                же, как здесь, а верное решение подтверждает навык в профиле кандидата.
+              </p>
+            </CardContent>
+            <CardFooter>
+              <Button asChild variant="outline">
+                <Link to={needId !== null ? `/employer/tasks?need=${needId}` : "/employer/tasks"}>
+                  <ListChecks /> {needId !== null ? "Дать задание по этой потребности" : "К заданиям"}
+                </Link>
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
 
         <div className="grid min-w-0 content-start gap-4">
           {preview.isPending && !preview.data && <SkeletonCards count={3} />}
