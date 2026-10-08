@@ -1,4 +1,5 @@
 import { ArrowRight, Lightbulb, ShieldCheck, TrendingUp } from "lucide-react";
+import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
@@ -32,7 +33,8 @@ export function MarketCard({ className }: { className?: string }) {
           <MarketSkeleton />
         ) : market.isError ? (
           <ErrorState
-            title="Не удалось загрузить рынок"
+            variant="block"
+            title="Не удалось загрузить рынок."
             description={apiError(market.error).message}
             onRetry={() => void market.refetch()}
           />
@@ -68,7 +70,7 @@ function MarketBody({ market }: { market: CandidateMarket }) {
           label={`${plural(exact?.needs ?? 0, ["потребность", "потребности", "потребностей"])} в вашей категории`}
           hint={`из них открытых вакансий: ${exact?.vacancies ?? 0}`}
         />
-        <Stat value={nearby} label="рядом: соседний грейд и смежные специализации" />
+        <Stat value={nearby} label="рядом" hint="соседний грейд и смежные специализации" />
         <Stat
           value={market.matching_needs ?? "—"}
           label="подходят вам по навыкам"
@@ -96,7 +98,6 @@ function MarketBody({ market }: { market: CandidateMarket }) {
             {market.salary && <SalaryBlock salary={market.salary} />}
             <SkillsBlock skills={market.skills} />
           </div>
-          <SuggestionsBlock suggestions={market.suggestions} />
         </>
       )}
     </div>
@@ -105,7 +106,7 @@ function MarketBody({ market }: { market: CandidateMarket }) {
 
 function Stat({ value, label, hint }: { value: number | string; label: string; hint?: string }) {
   return (
-    <div className="rounded-xl bg-secondary/60 p-4">
+    <div className="rounded-xl bg-muted p-4">
       <div className="font-mono text-3xl font-extrabold tabular-nums">{value}</div>
       <div className="text-sm">{label}</div>
       {hint && <div className="mt-1 text-xs text-muted-foreground">{hint}</div>}
@@ -125,7 +126,11 @@ function SalaryBlock({ salary }: { salary: NonNullable<CandidateMarket["salary"]
     <section className="space-y-3">
       <h3 className="font-mono text-xs font-medium tracking-wider text-muted-foreground uppercase">Зарплата</h3>
       <div>
-        <SalaryRange from={salary.median_from} to={salary.median_to} className="text-xl" />
+        <SalaryRange
+          from={salary.median_from}
+          to={salary.median_to}
+          className="text-lg whitespace-normal sm:text-xl sm:whitespace-nowrap"
+        />
         <div className="text-xs text-muted-foreground">медианная вилка потребностей</div>
       </div>
       <p className="text-sm">
@@ -156,30 +161,40 @@ const statusBadge: Record<MarketSkill["status"], { label: string; variant: "soft
 function SkillsBlock({ skills }: { skills: MarketSkill[] }) {
   return (
     <section className="space-y-3">
-      <h3 className="font-mono text-xs font-medium tracking-wider text-muted-foreground uppercase">
-        Востребованные навыки
-      </h3>
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 className="font-mono text-xs font-medium tracking-wider text-muted-foreground uppercase">
+          Востребованные навыки
+        </h3>
+        {skills.length > 0 && <span className="text-xs text-muted-foreground">доля потребностей</span>}
+      </div>
       {skills.length === 0 ? (
         <p className="text-sm text-muted-foreground">Потребности не указывают навыков.</p>
       ) : (
-        <ul className="space-y-2.5">
+        // Строки — подсетка одной сетки: полосы и статусы выровнены по колонкам
+        <ul className="space-y-3 sm:grid sm:grid-cols-[minmax(4.5rem,7rem)_minmax(3rem,1fr)_2.5rem_auto] sm:gap-x-3 sm:gap-y-2 sm:space-y-0">
           {skills.map((skill) => {
             const badge = statusBadge[skill.status];
             const share = toPercent(skill.required_share + skill.optional_share);
             return (
-              <li key={skill.skill_id} className="space-y-1">
-                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-                  <span className="text-sm font-medium">{skill.name}</span>
-                  <span className="flex items-center gap-2">
-                    <span className="font-mono text-xs text-muted-foreground tabular-nums">{share}%</span>
-                    <Badge variant={badge.variant}>{badge.label}</Badge>
-                  </span>
-                </div>
+              <li
+                key={skill.skill_id}
+                className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 gap-y-1.5 sm:col-span-4 sm:min-h-8 sm:grid-cols-subgrid sm:gap-y-0"
+              >
+                <span className="col-start-1 row-start-1 truncate text-sm font-medium" title={skill.name}>
+                  {skill.name}
+                </span>
                 <Bar
+                  className="col-span-full row-start-2 sm:col-span-1 sm:col-start-2 sm:row-start-1"
                   required={skill.required_share}
                   optional={skill.optional_share}
                   label={`${skill.name}: обязателен в ${toPercent(skill.required_share)}%, желателен в ${toPercent(skill.optional_share)}%`}
                 />
+                <span className="col-start-2 row-start-1 text-right font-mono text-xs tabular-nums sm:col-start-3">
+                  {share}%
+                </span>
+                <Badge variant={badge.variant} className="col-start-3 row-start-1 sm:col-start-4">
+                  {badge.label}
+                </Badge>
               </li>
             );
           })}
@@ -197,60 +212,76 @@ function SkillsBlock({ skills }: { skills: MarketSkill[] }) {
   );
 }
 
-function Bar({ required, optional, label }: { required: number; optional: number; label: string }) {
+function Bar({
+  required,
+  optional,
+  label,
+  className,
+}: {
+  required: number;
+  optional: number;
+  label: string;
+  className?: string;
+}) {
   return (
-    <div className="flex h-1.5 overflow-hidden rounded-full bg-secondary" role="img" aria-label={label}>
+    <div className={cn("flex h-1.5 overflow-hidden rounded-full bg-secondary", className)} role="img" aria-label={label}>
       <div className="bg-primary" style={{ width: `${Math.min(100, required * 100)}%` }} />
       <div className="bg-primary-pale" style={{ width: `${Math.min(100, optional * 100)}%` }} />
     </div>
   );
 }
 
-function SuggestionsBlock({ suggestions }: { suggestions: MarketSuggestion[] }) {
+/**
+ * «Что ещё поможет»: навыки, подтверждение которых добавит подходящих потребностей (§8.5).
+ * Показывается в «Следующем шаге» кабинета; данные — из того же запроса, что и «Рынок вашей категории».
+ */
+export function MarketSuggestions({ className, fallback = null }: { className?: string; fallback?: ReactNode }) {
+  const market = useMyMarket();
+  if (market.isPending) {
+    return (
+      <div className={cn("space-y-2", className)} aria-busy="true" aria-label="Загрузка">
+        <Skeleton className="h-16 rounded-lg" />
+        <Skeleton className="h-8 w-40" />
+      </div>
+    );
+  }
+  // Ошибку рынка показывает его собственная карточка ниже — здесь общий совет
+  if (market.isError || market.data.suggestions.length === 0) return <>{fallback}</>;
+  return <SuggestionsList suggestions={market.data.suggestions} className={className} />;
+}
+
+function SuggestionsList({ suggestions, className }: { suggestions: MarketSuggestion[]; className?: string }) {
   return (
-    <section className="space-y-3">
-      <h3 className="font-mono text-xs font-medium tracking-wider text-muted-foreground uppercase">Что поможет</h3>
-      {suggestions.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          Сейчас ни один навык из списка в одиночку не добавит подходящих потребностей: они либо уже подтверждены, либо
-          потребности сильно различаются по стеку.
-        </p>
-      ) : (
-        <ul className="grid gap-3 md:grid-cols-3">
-          {suggestions.map((suggestion) => (
-            <li
-              key={suggestion.skill_id}
-              className="flex flex-col gap-3 rounded-xl border border-primary/40 bg-primary-tint p-4"
-            >
-              <div className="flex items-start gap-2">
-                <Lightbulb className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
-                <p className="text-sm">{suggestion.text}</p>
-              </div>
-              <div className="mt-auto flex flex-wrap gap-2">
-                {suggestion.action === "confirm" ? (
-                  <>
-                    <Button asChild size="sm" variant="outline">
-                      <Link to="/candidate/tasks">
-                        Задания <ArrowRight />
-                      </Link>
-                    </Button>
-                    <Button asChild size="sm" variant="ghost">
-                      <Link to="/candidate/grade">Тест</Link>
-                    </Button>
-                  </>
-                ) : (
-                  <Button asChild size="sm" variant="outline">
-                    <Link to="/candidate/profile">
-                      В профиль <ArrowRight />
-                    </Link>
-                  </Button>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
+    <ul className={cn("grid gap-3", className)}>
+      {suggestions.map((suggestion) => (
+        <li key={suggestion.skill_id} className="space-y-3">
+          <div className="flex items-start gap-2 rounded-lg bg-primary-tint p-3">
+            <Lightbulb className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+            <p className="text-sm">{suggestion.text}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {suggestion.action === "confirm" ? (
+              <>
+                <Button asChild size="sm" variant="outline" className="max-sm:h-11">
+                  <Link to="/candidate/tasks">
+                    Задания <ArrowRight />
+                  </Link>
+                </Button>
+                <Button asChild size="sm" variant="ghost" className="max-sm:h-11">
+                  <Link to="/candidate/grade">Тест</Link>
+                </Button>
+              </>
+            ) : (
+              <Button asChild size="sm" variant="outline" className="max-sm:h-11">
+                <Link to="/candidate/profile">
+                  В профиль <ArrowRight />
+                </Link>
+              </Button>
+            )}
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }
 
