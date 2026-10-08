@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { ShieldCheck, Trash2, X } from "lucide-react";
 import { useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link } from "react-router";
 import { FspLinkCard } from "@/components/candidate/FspLinkCard";
 import { EmailNotificationsCard } from "@/components/EmailNotificationsCard";
 import { ErrorState } from "@/components/ErrorState";
@@ -290,14 +290,12 @@ function ConsentsCard() {
 
 function DeleteAccountDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const remove = useDeleteAccount();
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const confirm = async () => {
     await remove.mutateAsync();
-    // Как при выходе: сначала уходим из кабинета, потом чистим сессию
-    await navigate("/", { replace: true });
-    authStore.clear();
+    // Как при выходе: guard кабинета по signedOut уводит на главную
+    authStore.clear(true);
     queryClient.removeQueries();
   };
 

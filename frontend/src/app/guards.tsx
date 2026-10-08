@@ -4,10 +4,12 @@ import { type AuthUser, authStore, homePathFor, postLoginPath, useAuth } from "@
 
 /** Кабинет роли: аноним → /login?next=<путь>, чужая роль → в свой кабинет. */
 export function RequireRole({ role }: { role: AuthUser["role"] }) {
-  const { user } = useAuth();
+  const { user, signedOut } = useAuth();
   const location = useLocation();
 
   if (!user) {
+    // Вышел сам — на главную; сессия истекла или вход не выполнен — на вход с возвратом
+    if (signedOut) return <Navigate to="/" replace />;
     const next = `${location.pathname}${location.search}`;
     return <Navigate to={`/login?next=${encodeURIComponent(next)}`} replace />;
   }

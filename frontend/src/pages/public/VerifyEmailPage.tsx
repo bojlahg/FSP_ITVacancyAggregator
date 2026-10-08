@@ -94,7 +94,7 @@ function RequiredActions() {
   const signOut = async () => {
     await logout.mutateAsync();
     await navigate("/", { replace: true });
-    authStore.clear();
+    authStore.clear(true);
   };
 
   return (

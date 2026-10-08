@@ -12,10 +12,12 @@ export interface AuthState {
   user: AuthUser | null;
   /** unknown — сессия ещё не восстановлена через POST /auth/refresh при старте. */
   status: AuthStatus;
+  /** Пользователь сам вышел (или удалил аккаунт): guard кабинета ведёт на главную, а не на /login?next. */
+  signedOut: boolean;
 }
 
 // Access-токен живёт только в памяти (не в localStorage); refresh-токен — httpOnly cookie от backend.
-let state: AuthState = { accessToken: null, user: null, status: "unknown" };
+let state: AuthState = { accessToken: null, user: null, status: "unknown", signedOut: false };
 const listeners = new Set<() => void>();
 
 function emit() {
@@ -27,15 +29,15 @@ export const authStore = {
     return state;
   },
   setSession(token: TokenResponse) {
-    state = { accessToken: token.access_token, user: token.user, status: "authenticated" };
+    state = { accessToken: token.access_token, user: token.user, status: "authenticated", signedOut: false };
     emit();
   },
   setUser(user: AuthUser) {
     state = { ...state, user };
     emit();
   },
-  clear() {
-    state = { accessToken: null, user: null, status: "anonymous" };
+  clear(signedOut = false) {
+    state = { accessToken: null, user: null, status: "anonymous", signedOut };
     emit();
   },
   subscribe(listener: () => void): () => void {

@@ -2,7 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import { Bug, Loader2, LogOut, Menu, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { Link, NavLink, Outlet, useMatches, useNavigate } from "react-router";
+import { Link, NavLink, Outlet, useMatches } from "react-router";
 import type { RouteHandle } from "@/app/DocumentTitle";
 import { LegalLinks } from "@/components/LegalLinks";
 import { ProductMark } from "@/components/Logo";
@@ -53,16 +53,14 @@ export function CabinetLayout({ homePath, roleLabel, nav: baseNav, debugLink = t
   const [menuOpen, setMenuOpen] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
   const openRef = useRef<HTMLButtonElement>(null);
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const logout = useLogout();
 
   const onLogout = async () => {
     await logout.mutateAsync();
-    // Сначала уходим из кабинета, потом чистим сессию — иначе guard кабинета отправит на /login.
-    await navigate("/", { replace: true });
-    authStore.clear();
+    // Guard кабинета видит signedOut и уводит на главную (раньше успевал отправить на /login?next)
+    authStore.clear(true);
     queryClient.removeQueries();
   };
 
