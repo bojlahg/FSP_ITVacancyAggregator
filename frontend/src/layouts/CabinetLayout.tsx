@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import { Bug, Loader2, LogOut, Menu, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useMatches, useNavigate } from "react-router";
 import type { RouteHandle } from "@/app/DocumentTitle";
 import { LegalLinks } from "@/components/LegalLinks";
@@ -51,6 +51,8 @@ export function CabinetLayout({ homePath, roleLabel, nav: baseNav, debugLink = t
   const debug = useDebugStatus();
   const nav = debugLink && debug.data ? [...baseNav, { to: `${homePath}/debug`, label: "Отладка", icon: Bug }] : baseNav;
   const [menuOpen, setMenuOpen] = useState(false);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const openRef = useRef<HTMLButtonElement>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -63,6 +65,21 @@ export function CabinetLayout({ homePath, roleLabel, nav: baseNav, debugLink = t
     authStore.clear();
     queryClient.removeQueries();
   };
+
+  // Шторка на телефоне: фокус на «Закрыть», Escape закрывает, фокус возвращается к кнопке меню
+  useEffect(() => {
+    if (!menuOpen) return;
+    closeRef.current?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+    const opener = openRef.current;
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      opener?.focus();
+    };
+  }, [menuOpen]);
 
   const email = user?.email ?? "";
   const initials = email.slice(0, 2).toUpperCase();
@@ -93,33 +110,44 @@ export function CabinetLayout({ homePath, roleLabel, nav: baseNav, debugLink = t
         <button
           type="button"
           aria-label="Закрыть меню"
-          className="fixed inset-0 z-30 bg-ink/40 lg:hidden"
+          className="fixed inset-0 z-30 bg-ink/60 lg:hidden"
           onClick={() => setMenuOpen(false)}
         />
       )}
 
+      {/* На телефоне — шторка слева поверх страницы, закрытая убрана из дерева доступности; с lg — колонка */}
       <aside
+        role={menuOpen ? "dialog" : undefined}
+        aria-modal={menuOpen || undefined}
+        aria-label={menuOpen ? "Меню кабинета" : undefined}
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-border-subtle bg-background transition-transform lg:sticky lg:top-0 lg:h-dvh lg:translate-x-0",
-          menuOpen ? "translate-x-0" : "-translate-x-full",
+          "fixed inset-y-0 left-0 z-40 flex w-76 max-w-[85vw] flex-col overflow-hidden rounded-r-2xl border-r border-border-subtle bg-card transition-[transform,visibility] lg:visible lg:sticky lg:top-0 lg:h-dvh lg:w-64 lg:max-w-none lg:translate-x-0 lg:rounded-none lg:bg-background",
+          menuOpen ? "visible translate-x-0" : "invisible -translate-x-full",
         )}
       >
-        <div className="flex items-start justify-between gap-2 px-5 pt-6 pb-4">
-          <Link to={homePath} onClick={() => setMenuOpen(false)}>
+        <div className="flex items-start justify-between gap-2 py-1.5 pr-1.5 pl-5 lg:px-5 lg:pt-6 lg:pb-4">
+          <Link to={homePath} onClick={() => setMenuOpen(false)} className="max-lg:pt-3">
             <ProductMark />
           </Link>
-          <Button variant="ghost" size="icon-sm" className="lg:hidden" onClick={() => setMenuOpen(false)} aria-label="Закрыть меню">
-            <X />
+          <Button
+            ref={closeRef}
+            variant="ghost"
+            size="icon"
+            className="size-11 lg:hidden"
+            onClick={() => setMenuOpen(false)}
+            aria-label="Закрыть меню"
+          >
+            <X className="size-5" />
           </Button>
         </div>
-        <div className="px-5 pb-4">
+        <div className="border-b border-border-subtle px-5 pb-3 lg:border-b-0 lg:pb-4">
           <span className="inline-flex items-center gap-2 rounded-full border border-primary px-2.5 py-0.5 font-mono text-xs font-medium text-primary">
             <span className="size-1.5 rounded-full bg-destructive" aria-hidden />
             {roleLabel}
           </span>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-3 pb-3" aria-label="Разделы кабинета">
+        <nav className="flex-1 overflow-y-auto px-2 py-2 lg:px-3 lg:pt-0 lg:pb-3" aria-label="Разделы кабинета">
           {navSections(nav).map((section, index) => (
             <div
               key={section.group ?? `section-${index}`}
@@ -142,14 +170,14 @@ export function CabinetLayout({ homePath, roleLabel, nav: baseNav, debugLink = t
                       onClick={() => setMenuOpen(false)}
                       className={({ isActive }) =>
                         cn(
-                          "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                          "flex min-h-12 items-center gap-3 rounded-md px-3 py-2 text-[15px] font-medium transition-colors lg:min-h-0 lg:text-sm",
                           isActive
                             ? "bg-primary-tint text-primary"
                             : "text-foreground hover:bg-muted hover:text-foreground",
                         )
                       }
                     >
-                      <Icon className="size-4 shrink-0" aria-hidden />
+                      <Icon className="size-[18px] shrink-0 lg:size-4" aria-hidden />
                       {label}
                     </NavLink>
                   </li>
@@ -159,38 +187,53 @@ export function CabinetLayout({ homePath, roleLabel, nav: baseNav, debugLink = t
           ))}
         </nav>
 
-        <div className="flex items-center gap-3 border-t border-border-subtle px-4 py-4">
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-ink font-mono text-sm font-bold text-ink-foreground">
-            {initials}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-medium" title={email}>
-              {email}
+        <div className="space-y-2 border-t border-border-subtle px-4 py-3 lg:py-4">
+          <div className="flex items-center gap-3">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-ink font-mono text-sm font-bold text-ink-foreground">
+              {initials}
             </div>
-            <div className="truncate text-xs text-muted-foreground">{roleLabel}</div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-medium" title={email}>
+                {email}
+              </div>
+              <div className="truncate text-xs text-muted-foreground">{roleLabel}</div>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="max-lg:size-11"
+              onClick={() => void onLogout()}
+              disabled={logout.isPending}
+              aria-label="Выйти"
+              title="Выйти"
+            >
+              {logout.isPending ? <Loader2 className="animate-spin" /> : <LogOut />}
+            </Button>
           </div>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => void onLogout()}
-            disabled={logout.isPending}
-            aria-label="Выйти"
-            title="Выйти"
-          >
-            {logout.isPending ? <Loader2 className="animate-spin" /> : <LogOut />}
-          </Button>
+          <div className="flex items-center justify-between gap-2 lg:hidden">
+            <span className="font-mono text-xs font-medium tracking-wider text-muted-foreground uppercase">Тема</span>
+            <ThemeToggle size="lg" />
+          </div>
         </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-border-subtle bg-background/95 px-4 py-3 backdrop-blur lg:hidden">
-          <Button variant="ghost" size="icon-sm" onClick={() => setMenuOpen(true)} aria-label="Открыть меню">
-            <Menu />
+        <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b border-border-subtle bg-background/95 px-1.5 backdrop-blur lg:hidden">
+          <Button
+            ref={openRef}
+            variant="ghost"
+            size="icon"
+            className="size-11"
+            onClick={() => setMenuOpen(true)}
+            aria-label="Открыть меню"
+            aria-expanded={menuOpen}
+          >
+            <Menu className="size-5" />
           </Button>
           <Link to={homePath} className="font-mono text-base font-extrabold text-primary">
             IT<span className="text-foreground">Scout</span>
           </Link>
-          <ThemeToggle />
+          <ThemeToggle className="mr-2.5" />
         </header>
         <div className="mx-auto hidden w-full max-w-7xl justify-end px-10 pt-4 lg:flex">
           <ThemeToggle />
