@@ -5420,6 +5420,59 @@
         ]
       }
     },
+    "/api/v1/talent/cities": {
+      "get": {
+        "tags": [
+          "employer: talent pool"
+        ],
+        "summary": "Города кандидатов в выдаче — справочник для фильтра; самые частые первыми",
+        "operationId": "list_cities_api_v1_talent_cities_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array",
+                  "title": "Response List Cities Api V1 Talent Cities Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Требуется вход",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Недостаточно прав",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
     "/api/v1/talent/search": {
       "get": {
         "tags": [

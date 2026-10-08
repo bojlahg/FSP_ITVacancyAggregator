@@ -211,4 +211,8 @@
   ::selection {
     @apply bg-primary text-primary-foreground;
   }
+  /* Пункты выпадающего списка без отступа прилипают к краю (QA 09.10) */
+  option {
+    padding: 0.25rem 0.75rem;
+  }
 }

@@ -47,6 +47,7 @@ export const employerKeys = {
   recommendations: (id: number, query: RecommendationsQuery) => ["needs", id, "recommendations", query] as const,
   coverage: (id: number) => ["needs", id, "salary-coverage"] as const,
   talentCategories: ["talent", "categories"] as const,
+  talentCities: ["talent", "cities"] as const,
   talentSearch: (query: TalentSearchQuery) => ["talent", "search", query] as const,
   candidateAll: (id: number) => ["talent", "candidates", id] as const,
   candidate: (id: number, needId: number | null) => ["talent", "candidates", id, needId] as const,
@@ -291,6 +292,23 @@ export function useTalentCategories() {
       if (!data) throw toApiError(response, error);
       return data;
     },
+  });
+}
+
+/** Город из адреса может не попасть в справочник (кандидат сменил город) — оставляем его в списке. */
+export function cityOptions(cities: string[], current: string): string[] {
+  return current && !cities.includes(current) ? [current, ...cities] : cities;
+}
+
+export function useTalentCities() {
+  return useQuery({
+    queryKey: employerKeys.talentCities,
+    queryFn: async () => {
+      const { data, error, response } = await api.GET("/api/v1/talent/cities");
+      if (!data) throw toApiError(response, error);
+      return data;
+    },
+    staleTime: 5 * 60_000,
   });
 }
 

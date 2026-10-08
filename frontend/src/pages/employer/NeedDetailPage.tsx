@@ -41,6 +41,7 @@ import {
   type CandidateBrief,
   type CandidateMatch,
   type CategoryRecommendation,
+  cityOptions,
   type Need,
   parseId,
   type RecommendationsQuery,
@@ -51,6 +52,7 @@ import {
   useRecommendations,
   useSalaryCoverage,
   useSetNeedPublished,
+  useTalentCities,
   useToggleShortlist,
 } from "@/lib/employer-queries";
 import { formatNumber, plural, toPercent } from "@/lib/format";
@@ -102,6 +104,7 @@ export default function NeedDetailPage() {
 function NeedView({ need }: { need: Need }) {
   const { params, set, reset } = useUrlFilters();
   const grades = useGrades();
+  const cities = useTalentCities();
 
   // Фильтры живут в URL (§8.1 п.4) и уходят в query API; подборку считает только backend.
   const filters = {
@@ -332,8 +335,12 @@ function NeedView({ need }: { need: Need }) {
             <ToggleChip checked={filters.fsp} onChange={(checked) => set({ fsp: checked })}>
               Есть достижения ФСП
             </ToggleChip>
-            <ToggleChip checked={filters.verified} onChange={(checked) => set({ verified: checked })}>
-              Только навыки, проверенные тестом
+            <ToggleChip
+              checked={filters.verified}
+              onChange={(checked) => set({ verified: checked })}
+              title="Хотя бы один обязательный навык потребности проверен тестом"
+            >
+              Навык из стека проверен тестом
             </ToggleChip>
             <SelectChip
               label="Грейд"
@@ -386,16 +393,14 @@ function NeedView({ need }: { need: Need }) {
                 </option>
               ))}
             </SelectChip>
-            <InputChip label="Город" ariaLabel="Город" active={!!filters.city}>
-              <CommitInput
-                id="filter-city"
-                aria-label="Город"
-                placeholder="любой"
-                value={filters.city}
-                onCommit={(value) => set({ city: value })}
-                className={chipInputClass("w-24")}
-              />
-            </InputChip>
+            <SelectChip label="Город" active={!!filters.city} value={filters.city} onChange={(value) => set({ city: value })}>
+              <option value="">любой</option>
+              {cityOptions(cities.data ?? [], filters.city).map((city) => (
+                <option key={city} value={city}>
+                  {city}
+                </option>
+              ))}
+            </SelectChip>
             <SelectChip
               label="Свежесть"
               ariaLabel="Свежесть результата"

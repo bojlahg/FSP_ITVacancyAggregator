@@ -478,7 +478,9 @@ def _passes(
         return False
     if filters.has_fsp is not None and row.has_fsp != filters.has_fsp:
         return False
-    if filters.verified_only and any((row.skills_status or {}).get(s) != "verified" for s in need.required):
+    # Все обязательные навыки сразу тест не проверяет (Next.js, GraphQL…), поэтому достаточно одного
+    statuses = row.skills_status or {}
+    if filters.verified_only and not any(statuses.get(s) == "verified" for s in need.required):
         return False
     if filters.salary_max and row.salary_min and row.salary_min > filters.salary_max:
         return False
@@ -1006,6 +1008,12 @@ async def keyword_rank(db: AsyncSession, need: HiringNeed) -> list[int]:
 
 
 # ---------- каталог и поиск ----------
+
+
+async def cities(db: AsyncSession, user_id: int) -> list[str]:
+    rows = await _visible_rows(db, await _employer_id(db, user_id), unconfirmed=True)
+    counts = Counter(row.city.strip() for row, _ in rows if row.city and row.city.strip())
+    return [city for city, _ in sorted(counts.items(), key=lambda item: (-item[1], item[0]))]
 
 
 async def categories_catalog(db: AsyncSession, user_id: int) -> list[CategoryCatalogItem]:

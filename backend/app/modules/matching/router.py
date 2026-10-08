@@ -33,6 +33,16 @@ async def list_categories(user: CurrentEmployer, db: DbSession) -> list[Category
 
 
 @router.get(
+    "/cities",
+    response_model=list[str],
+    summary="Города кандидатов в выдаче — справочник для фильтра; самые частые первыми",
+    responses=error_responses(401, 403),
+)
+async def list_cities(user: CurrentEmployer, db: DbSession) -> list[str]:
+    return await service.cities(db, user.id)
+
+
+@router.get(
     "/search",
     response_model=TalentSearchOut,
     summary="Поиск по всей базе с фильтрами; сортировка внутри категории по силе профиля",

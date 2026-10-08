@@ -13,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { apiError } from "@/lib/api-error";
-import { type TalentSearchQuery, useTalentSearch } from "@/lib/employer-queries";
+import { cityOptions, type TalentSearchQuery, useTalentCities, useTalentSearch } from "@/lib/employer-queries";
 import { formatNumber } from "@/lib/format";
 import { WORK_FORMAT_LABELS } from "@/lib/labels";
 import { type Grade, type SkillOut, useGrades, useSkillCatalog, useSpecializations } from "@/lib/testing-queries";
@@ -73,6 +73,7 @@ export default function SearchPage() {
     ...(filters.fresh && { fresh_days: filters.fresh }),
   };
   const search = useTalentSearch(query);
+  const cities = useTalentCities();
 
   // Любой фильтр возвращает на первую страницу.
   const setFilter = (changes: Parameters<typeof set>[0]) => set({ ...changes, page: null });
@@ -181,12 +182,14 @@ export default function SearchPage() {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="search-city">Город</Label>
-              <CommitInput
-                id="search-city"
-                placeholder="Любой"
-                value={filters.city}
-                onCommit={(value) => setFilter({ city: value })}
-              />
+              <Select id="search-city" value={filters.city} onChange={(event) => setFilter({ city: event.target.value })}>
+                <option value="">Любой</option>
+                {cityOptions(cities.data ?? [], filters.city).map((city) => (
+                  <option key={city} value={city}>
+                    {city}
+                  </option>
+                ))}
+              </Select>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="search-fresh">Свежесть результата</Label>
