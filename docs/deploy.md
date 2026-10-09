@@ -235,6 +235,7 @@ DEBUG_TOOLS=true            # отладочный раздел; перед по
 | `EXPRESS_TEST_ENABLED`, `EXPRESS_TESTS_PER_DAY` | `true`, `5` | экспресс-тест без категории (§10.3.1): кнопка на экране «Категория и грейд», лимит на кандидата в сутки |
 | `INTEGRITY_SIGNALS_ENABLED` | `true` | сигналы честности попытки (§10.9): `false` — не считаются, не сохраняются и не показываются работодателю |
 | `PUBLIC_BASE_URL`, `CORS_ORIGINS` | localhost:5173 | адрес фронта для ссылок в письмах, OIDC и CORS |
+| `LEGAL_OPERATOR`, `LEGAL_CONTACT_EMAIL` | заглушка «оператор будет указан при запуске», `privacy@itscout.ru` | оператор ПДн и контакт в политике и согласиях; на проде — команда «ЯТут!» с пометкой, что при внедрении оператором станет ОФСОО «ФСП» |
 | `POSTGRES_*` | `itscout` | БД |
 | `JWT_SECRET`, `COOKIE_SECURE` | dev-секрет, `false` | сессии |
 | `EMAIL_BACKEND`, `EMAIL_VERIFICATION_REQUIRED` | `console`, `false` | отправка писем и обязательность подтверждения |
