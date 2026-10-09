@@ -38,7 +38,8 @@ def reference(
             continue
         if filters.has_fsp is not None and row.has_fsp != filters.has_fsp:
             continue
-        if filters.fsp_discipline and row.candidate_id not in disciplines:
+        # Скрытый ФСП (has_fsp=false в индексе) не находится и по дисциплине (§6.4)
+        if filters.fsp_discipline and (not row.has_fsp or row.candidate_id not in disciplines):
             continue
         if filters.fsp_min_rank and (
             not row.max_rank or rank_order.index(row.max_rank) < rank_order.index(filters.fsp_min_rank)
@@ -163,7 +164,8 @@ async def test_sql_search_matches_python_reference(client, session):
         filters.offset, filters.limit = 2, 3
         page = await matching_service.search(session, user_id, filters)
         assert [item.id for item in page.items] == expected[2:5], filters
-    assert sum(size > 1 for size in sizes) >= 30, "случаи должны давать непустые выборки"
+    # Порог ниже 30: дисциплина ФСП ищется только у кандидатов с видимым ФСП (has_fsp), выборки строже
+    assert sum(size > 1 for size in sizes) >= 25, "случаи должны давать непустые выборки"
 
 
 async def test_recommendations_cache_follows_index_and_need_changes(client, session):

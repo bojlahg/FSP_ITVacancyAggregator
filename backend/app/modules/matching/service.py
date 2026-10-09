@@ -1068,6 +1068,8 @@ def _search_conditions(filters: SearchFilters, now: datetime) -> list:
     if filters.has_fsp is not None:
         conditions.append(index.has_fsp.is_(filters.has_fsp))
     if filters.fsp_discipline:
+        # Скрытый ФСП считается отсутствующим и для фильтров (§6.4): has_fsp в индексе это уже учёл
+        conditions.append(index.has_fsp.is_(True))
         conditions.append(
             index.candidate_id.in_(
                 select(FspAchievement.candidate_id).where(FspAchievement.discipline == filters.fsp_discipline)
