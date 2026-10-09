@@ -202,7 +202,10 @@ async def demo_login(db: AsyncSession, persona: str) -> Session:
 async def refresh(db: AsyncSession, refresh_token: str | None) -> Session:
     if not refresh_token:
         raise UnauthorizedError("Сессия истекла, войдите снова", code="no_refresh_token")
-    stored = await db.scalar(select(RefreshToken).where(RefreshToken.token_hash == hash_token(refresh_token)))
+    # Блокировка строки: параллельный обмен того же токена ждёт и затем видит его отозванным — как повтор
+    stored = await db.scalar(
+        select(RefreshToken).where(RefreshToken.token_hash == hash_token(refresh_token)).with_for_update()
+    )
     if stored is None or stored.expires_at <= _now():
         raise UnauthorizedError("Сессия истекла, войдите снова", code="invalid_refresh_token")
     if stored.revoked_at is not None:

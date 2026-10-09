@@ -127,20 +127,13 @@ async def start(db: AsyncSession, candidate: Candidate, body: AttemptCreate) -> 
         raise AppError("Для этой специализации тест появится позже", code="no_test_for_specialization")
 
     # Два параллельных старта не должны создать две попытки: проверка и создание — под блокировкой кандидата
-    await db.execute(select(Candidate.id).where(Candidate.id == candidate.id).with_for_update())
-    in_progress = await db.scalar(
-        select(TestAttempt).where(
-            TestAttempt.candidate_id == candidate.id, TestAttempt.status == AttemptStatus.in_progress
-        )
-    )
-    if in_progress is not None:
-        raise ConflictError(
-            "Есть незавершённый тест", code="attempt_in_progress", details={"attempt_id": in_progress.id}
-        )
+    await _lock_without_active_attempt(db, candidate)
 
     express = body.purpose == AttemptPurpose.express
     if express:
         await _check_express(db, candidate)
+        # Лимитер коммитит свой счётчик и этим снимает блокировку — берём её снова и проверяем заново
+        await _lock_without_active_attempt(db, candidate)
         purpose, mode = AttemptPurpose.express, "express"
     else:
         decision = await categories_service.check_can_start(db, candidate, body.grade_target.value)
@@ -168,6 +161,19 @@ async def start(db: AsyncSession, candidate: Candidate, body: AttemptCreate) -> 
     db.add(attempt)
     await db.commit()
     return _attempt_out(attempt, [], await _planner(db, attempt))
+
+
+async def _lock_without_active_attempt(db: AsyncSession, candidate: Candidate) -> None:
+    await db.execute(select(Candidate.id).where(Candidate.id == candidate.id).with_for_update())
+    in_progress = await db.scalar(
+        select(TestAttempt).where(
+            TestAttempt.candidate_id == candidate.id, TestAttempt.status == AttemptStatus.in_progress
+        )
+    )
+    if in_progress is not None:
+        raise ConflictError(
+            "Есть незавершённый тест", code="attempt_in_progress", details={"attempt_id": in_progress.id}
+        )
 
 
 async def _check_express(db: AsyncSession, candidate: Candidate) -> None:

@@ -111,6 +111,8 @@ async def is_latest(db: AsyncSession, need_id: int) -> bool:
 
 async def _get_latest_own(db: AsyncSession, user_id: int, need_id: int) -> HiringNeed:
     need = await get_own_need(db, user_id, need_id)
+    # Блокировка версии до транзакции правки: параллельная правка ждёт и затем видит уже созданного потомка
+    await db.execute(select(HiringNeed.id).where(HiringNeed.id == need.id).with_for_update())
     if not await is_latest(db, need.id):
         raise NeedSupersededError()
     return need

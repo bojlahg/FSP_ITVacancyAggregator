@@ -4,7 +4,7 @@ import logging
 from datetime import UTC, date, datetime
 
 import httpx
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import audit
@@ -211,6 +211,8 @@ async def _link(db: AsyncSession, candidate: Candidate, fsp_id: str, method: Fsp
     """Общий путь ручной и OIDC-привязки: импорт из реестра, согласие, аудит, пересчёт индекса."""
     from app.modules.matching import service as matching_service
 
+    # Один ФСП ID — один профиль: параллельные привязки того же ID идут по очереди до конца транзакции
+    await db.execute(select(func.pg_advisory_xact_lock(func.hashtext(f"fsp_id:{fsp_id}"))))
     owner = await db.scalar(
         select(Candidate.id).where(Candidate.fsp_id == fsp_id, Candidate.id != candidate.id)
     )
