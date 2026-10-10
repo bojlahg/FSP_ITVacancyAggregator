@@ -122,7 +122,7 @@ EMAIL_BACKEND=smtp
 SMTP_HOST=mail
 SMTP_PORT=25
 SMTP_SECURITY=none
-EMAIL_VERIFICATION_REQUIRED=false      # true — кабинет только после подтверждения почты (e2e с регистрацией при этом упадёт)
+EMAIL_VERIFICATION_REQUIRED=true       # кабинет только после подтверждения почты; e2e-сценарии с регистрацией при этом пропускаются
 LLM_PROVIDER=none                      # yandex + YANDEX_API_KEY, YANDEX_FOLDER_ID — включить LLM
 ```
 
@@ -203,7 +203,7 @@ $DC start backend
 TEAM_ACCOUNTS=[{"name":"ivan","password":"…","email":"ivan@gmail.com"},{"name":"maria","password":"…"},{"name":"petr","password":"…"}]
 DEMO_SEED_PASSWORD=…        # пароль остальных сид-аккаунтов; пусто — случайный при каждом reseed
 E2E_CANDIDATE_PASSWORD=…    # пароль служебного кандидата e2e — тот же в секрете GitHub E2E_CANDIDATE_PASSWORD
-DEBUG_TOOLS=true            # отладочный раздел; перед показом жюри — убрать
+DEBUG_TOOLS=false           # отладочный раздел; на проде выключен с 10.10 (перед показом жюри)
 ```
 
 Аккаунты создаются при `reseed` (и пересоздаются при каждом следующем). Демо-кнопки «Кандидат» и «Работодатель» на странице входа работают без пароля, пока `DEMO_MODE=true`.

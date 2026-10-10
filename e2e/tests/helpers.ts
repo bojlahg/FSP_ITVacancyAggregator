@@ -1,4 +1,4 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 /** Пароль одноразовых аккаунтов e2e: домен example.com почту не принимает, аккаунты живут только в этой БД. */
 export const E2E_PASSWORD = "e2e-password-2026";
@@ -52,7 +52,16 @@ export async function registerUser(page: Page, role: "candidate" | "employer", e
   await page.getByLabel("Пароль").fill(E2E_PASSWORD);
   await page.getByRole("checkbox", { name: /обработку персональных данных/ }).check();
   if (role === "candidate") await page.getByRole("checkbox", { name: /публикацию профиля/ }).check();
+  const registered = page.waitForResponse(
+    (response) => response.request().method() === "POST" && response.url().endsWith("/api/v1/auth/register"),
+  );
   await page.getByRole("button", { name: "Зарегистрироваться" }).click();
+  const { user } = await (await registered).json();
+  // При EMAIL_VERIFICATION_REQUIRED кабинет открывается только по ссылке из письма, а example.com почту не принимает
+  test.skip(
+    user.email_verification_required,
+    "На стенде включено обязательное подтверждение почты (EMAIL_VERIFICATION_REQUIRED): сценарий с регистрацией пропущен",
+  );
   await expect(page).toHaveURL(role === "candidate" ? /\/candidate\/onboarding$/ : /\/employer\/company$/);
 }
 
