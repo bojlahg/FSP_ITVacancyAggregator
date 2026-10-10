@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 
+import httpx
 import pytest
 
 from app.core import llm
@@ -298,6 +299,24 @@ def transport(monkeypatch, tmp_path) -> list[dict]:
 
     monkeypatch.setattr(llm, "post_json", fake_post)
     return calls
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [httpx.ConnectTimeout("timeout"), httpx.HTTPStatusError("503", request=None, response=None), "не json"],
+)
+async def test_need_parse_falls_back_to_dict_when_llm_fails(transport, monkeypatch, failure):
+    async def broken_post(url: str, headers: dict, body: dict) -> dict:
+        if isinstance(failure, Exception):
+            raise failure
+        return {"result": {"alternatives": [{"message": {"text": failure}}], "usage": {"totalTokens": "5"}}}
+
+    monkeypatch.setattr(llm, "post_json", broken_post)
+
+    result = await parser.parse_need_text(BACKEND_FINTECH, user_id=1)
+
+    assert result.parser == ParserKind.dict
+    assert result.draft == parser.parse_dict(BACKEND_FINTECH).draft
 
 
 async def test_llm_never_calls_network_in_test_env(transport, monkeypatch):

@@ -123,7 +123,7 @@ SMTP_HOST=mail
 SMTP_PORT=25
 SMTP_SECURITY=none
 EMAIL_VERIFICATION_REQUIRED=true       # кабинет только после подтверждения почты; e2e-сценарии с регистрацией при этом пропускаются
-LLM_PROVIDER=none                      # yandex + YANDEX_API_KEY, YANDEX_FOLDER_ID — включить LLM
+LLM_PROVIDER=yandex                    # с YANDEX_API_KEY, YANDEX_FOLDER_ID; на проде включён с 10.10. Сбой LLM — разбор словарём, none — выключить
 ```
 
 ### 5.2. CI/CD

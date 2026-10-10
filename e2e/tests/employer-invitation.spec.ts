@@ -52,7 +52,7 @@ test("работодатель создаёт потребность, собир
     await page.getByRole("textbox", { name: "Текст вакансии или описание потребности" }).fill(NEED_TEXT);
     await page.getByRole("button", { name: "Разобрать" }).click();
 
-    // На проде LLM выключен — разбор словарём; со включённым LLM подпись другая, тест её тоже принимает
+    // С LLM подпись «словарём и языковой моделью», при его сбое или исчерпанном лимите — «по словарю навыков»
     await expect(page.getByText(/Разобрано (по словарю навыков|словарём и языковой моделью)/)).toBeVisible();
     await expect(page.getByLabel(/^Специализация/)).toHaveValue("backend");
     await expect(page.getByLabel(/^Грейд/)).toHaveValue("middle");
