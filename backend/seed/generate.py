@@ -885,6 +885,7 @@ class Seeder:
         Своя ветка RNG — демо-данные не зависят от состава команды.
         """
         main_rng = self.rng
+        self.team_candidates: list[dict] = []
         try:
             for number, member in enumerate(get_settings().team_accounts):
                 self.rng = random.Random(f"{self.seed}:team:{member.name}")
@@ -905,6 +906,9 @@ class Seeder:
                     wanted={"pass"},
                 )
                 record["user"].password_hash = password
+                # Тестовые профили команды не видны демо-компаниям, которые смотрит жюри: только своим компаниям команды
+                record["candidate"].hidden_employer_ids = [employer.id for employer in self.employers]
+                self.team_candidates.append(record)
                 user = self.user(self.team_email(member, "employer"), Role.employer, self.now)
                 user.password_hash = password
                 await self.db.flush()
@@ -1196,8 +1200,11 @@ class Seeder:
             (InvitationStatus.sent, 20),
             (InvitationStatus.expired, 10),
         ]
-        # Герои и служебный e2e-кандидат не получают синтетических приглашений и откликов
-        heroes = {id(hero["candidate"]) for hero in [*self.heroes.values(), self.e2e_candidate]}
+        # Герои, служебный e2e-кандидат и профили команды не получают синтетических приглашений и откликов
+        heroes = {
+            id(hero["candidate"])
+            for hero in [*self.heroes.values(), self.e2e_candidate, *self.team_candidates]
+        }
         unlocked: set[tuple[int, int]] = set()
         self.interactions: list[tuple[HiringNeed, Invitation | Application]] = []
 
@@ -1323,7 +1330,10 @@ class Seeder:
         self.db.add(challenge)
         await self.db.flush()
 
-        heroes = {id(hero["candidate"]) for hero in [*self.heroes.values(), self.e2e_candidate]}
+        heroes = {
+            id(hero["candidate"])
+            for hero in [*self.heroes.values(), self.e2e_candidate, *self.team_candidates]
+        }
         pool = [
             c
             for c in self.candidates
@@ -1407,7 +1417,10 @@ class Seeder:
         self.db.add_all([auto, approach])
         await self.db.flush()
 
-        heroes = {id(hero["candidate"]) for hero in [*self.heroes.values(), self.e2e_candidate]}
+        heroes = {
+            id(hero["candidate"])
+            for hero in [*self.heroes.values(), self.e2e_candidate, *self.team_candidates]
+        }
         pool = [
             c
             for c in self.candidates
