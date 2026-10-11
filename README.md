@@ -5,7 +5,7 @@
 - Прототип: **https://itscout.ru** (вход в кабинеты — кнопками демо-входа на странице входа)
 - Swagger UI: https://itscout.ru/api/docs, контракт — [`backend/openapi.json`](backend/openapi.json)
 - Документация одним файлом: [`docs/ITScout-docs.pdf`](docs/ITScout-docs.pdf)
-- Лицензия: MIT
+- Лицензия: [MIT](LICENSE)
 
 ## Как это работает
 
