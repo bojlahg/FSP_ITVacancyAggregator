@@ -43,7 +43,7 @@ async def link_fsp(body: FspLinkRequest, user: CurrentCandidate, db: DbSession) 
     responses=error_responses(401, 403),
 )
 async def unlink_fsp(user: CurrentCandidate, db: DbSession) -> MessageResponse:
-    await service.unlink(db, await candidates_service.get_by_user(db, user.id))
+    await service.unlink_own(db, await candidates_service.get_by_user(db, user.id))
     return MessageResponse(message="Данные ФСП удалены")
 
 

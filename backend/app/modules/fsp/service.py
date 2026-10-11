@@ -245,6 +245,14 @@ async def _link(db: AsyncSession, candidate: Candidate, fsp_id: str, method: Fsp
     await db.commit()
 
 
+async def unlink_own(db: AsyncSession, candidate: Candidate) -> None:
+    """Отвязка по запросу самого кандидата; общему демо-кандидату недоступна."""
+    from app.modules.candidates import privacy
+
+    await privacy.ensure_not_shared_demo(db, candidate, "отвязка ФСП")
+    await unlink(db, candidate)
+
+
 async def unlink(db: AsyncSession, candidate: Candidate) -> None:
     from app.modules.matching import service as matching_service
 

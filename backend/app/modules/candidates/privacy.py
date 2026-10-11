@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.audit import audit
 from app.core.config import get_settings
 from app.core.enums import ConsentKind, InvitationStatus, SearchStatus
-from app.core.errors import ConflictError
+from app.core.errors import ConflictError, ForbiddenError
 from app.modules.auth import service as auth_service
 from app.modules.auth.models import Consent, User
 from app.modules.candidates.models import Candidate, CandidateExperience
@@ -28,9 +28,20 @@ def _now() -> datetime:
     return datetime.now(UTC)
 
 
+async def ensure_not_shared_demo(db: AsyncSession, candidate: Candidate, action: str) -> None:
+    """Демо-кандидата открывает любой посетитель с главной: необратимое действие сломало бы показ всем."""
+    if await auth_service.is_shared_demo_candidate(db, candidate.user_id):
+        raise ForbiddenError(
+            f"В общем демо-аккаунте {action} недоступно — чтобы попробовать, зарегистрируйте свой аккаунт",
+            code="demo_account",
+        )
+
+
 async def update_privacy(db: AsyncSession, candidate: Candidate, body: PrivacySettings) -> PrivacySettings:
     from app.modules.matching import service as matching_service
 
+    if body.hidden_employer_ids:
+        await ensure_not_shared_demo(db, candidate, "скрытие профиля от компаний")
     candidate.privacy = body.model_dump(exclude={"hidden_employer_ids"})
     candidate.hidden_employer_ids = sorted(set(body.hidden_employer_ids))
     await db.flush()
@@ -42,6 +53,8 @@ async def update_privacy(db: AsyncSession, candidate: Candidate, body: PrivacySe
 async def update_search_status(db: AsyncSession, candidate: Candidate, body: SearchStatusUpdate) -> None:
     from app.modules.matching import service as matching_service
 
+    if body.search_status == SearchStatus.hidden:
+        await ensure_not_shared_demo(db, candidate, "скрытие профиля из поиска")
     candidate.search_status = body.search_status
     await db.flush()
     await matching_service.refresh_candidate(db, candidate.id)
@@ -94,6 +107,8 @@ async def update_consent(db: AsyncSession, candidate: Candidate, body: ConsentUp
             Consent.user_id == candidate.user_id, Consent.kind == body.kind, Consent.revoked_at.is_(None)
         )
     )
+    if not body.granted and active is not None and body.kind != ConsentKind.pd_processing:
+        await ensure_not_shared_demo(db, candidate, "отзыв согласий")
     if body.granted and active is None:
         db.add(
             Consent(user_id=candidate.user_id, kind=body.kind, policy_version=get_settings().policy_version)
@@ -145,6 +160,7 @@ async def delete_account(db: AsyncSession, candidate: Candidate) -> None:
     from app.modules.tasks import service as tasks_service
     from app.modules.testing import service as testing_service
 
+    await ensure_not_shared_demo(db, candidate, "удаление аккаунта")
     now = _now()
     user = await db.get(User, candidate.user_id)
     await fsp_service.clear_evidence(db, candidate.id)

@@ -293,6 +293,11 @@ async def is_shared_demo_employer(db: AsyncSession, user_id: int) -> bool:
     return user is not None and user.email.lower() == get_settings().demo_employer_email.lower()
 
 
+async def is_shared_demo_candidate(db: AsyncSession, user_id: int) -> bool:
+    user = await db.get(User, user_id)
+    return user is not None and user.email.lower() == get_settings().demo_candidate_email.lower()
+
+
 async def is_deleted(db: AsyncSession, user_id: int) -> bool:
     user = await db.get(User, user_id)
     return user is None or user.deleted_at is not None
