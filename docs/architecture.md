@@ -102,7 +102,7 @@ flowchart LR
 |---|---|---|---|
 | `web` | Caddy 2 + собранный Vite-бандл | HTTPS, SPA с fallback на `index.html`, прокси `/api/*` в backend и `/fsp-id/*` в Keycloak (наружу только realm `fsp`, админка закрыта) | ~30 МБ |
 | `backend` | Python 3.12, FastAPI, SQLAlchemy 2 async, psycopg 3, numpy/scipy, WeasyPrint | вся бизнес-логика и API `/api/v1`, миграции Alembic при старте | ~250 МБ |
-| `db` | PostgreSQL 16 | 26 таблиц, CHECK-ограничения на вилку и статусы | ~150 МБ |
+| `db` | PostgreSQL 16 | 38 таблиц, CHECK-ограничения на вилку и статусы | ~150 МБ |
 | `fsp-mock` | FastAPI | внешняя система «реестр ФСП»: участники, результаты, разряды; данные пишет генератор демо-данных | ~80 МБ |
 | `keycloak` | Keycloak 26.4 | мок IdP «ФСП ID»: authorization code + PKCE, claim `fsp_id` | ~500 МБ (лимит 1 ГБ) |
 | `mail` | Postfix (`boky/postfix`) | отправка писем подтверждения от `noreply@itscout.ru` с DKIM | — |
@@ -154,7 +154,7 @@ React 19 + Vite + TypeScript (strict). Маршруты — React Router, сер
 
 ## 3. Модель данных
 
-26 таблиц. Ниже — основные связи (служебные таблицы токенов, аудита и статистики шаблонов опущены).
+38 таблиц. Ниже — основные связи (служебные таблицы токенов, аудита и статистики шаблонов опущены).
 
 ```mermaid
 erDiagram
