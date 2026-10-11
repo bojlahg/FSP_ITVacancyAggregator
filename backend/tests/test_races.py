@@ -62,6 +62,22 @@ async def test_same_refresh_token_cannot_be_exchanged_twice(client, session, mon
     assert active == 0, "повтор отзывает и только что выданную сессию"
 
 
+async def test_shared_demo_account_survives_parallel_refresh(client, session, monkeypatch):
+    other_viewer = await client.post(f"{API}/auth/demo-login", json={"persona": "employer"})
+    assert other_viewer.status_code == 200
+    await client.post(f"{API}/auth/demo-login", json={"persona": "employer"})
+    token = client.cookies.get(get_settings().refresh_cookie_name)
+    paused(monkeypatch, auth_service, "_issue_session", before=True)
+
+    first, second = await asyncio.gather(refresh_with(client, token), refresh_with(client, token))
+
+    assert [first.status_code, second.status_code] == [200, 200], "две вкладки демо-входа — не кража токена"
+    active = await session.scalar(
+        select(func.count()).select_from(RefreshToken).where(RefreshToken.revoked_at.is_(None))
+    )
+    assert active == 3, "сессия другого зрителя и обе новые сессии живы"
+
+
 async def test_parallel_express_start_creates_one_attempt(client, session, monkeypatch):
     headers = await candidate_signup(client, "express-race@example.com")
     await onboard(client, headers)

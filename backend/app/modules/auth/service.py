@@ -209,6 +209,11 @@ async def refresh(db: AsyncSession, refresh_token: str | None) -> Session:
     if stored is None or stored.expires_at <= _now():
         raise UnauthorizedError("Сессия истекла, войдите снова", code="invalid_refresh_token")
     if stored.revoked_at is not None:
+        # Общий демо-аккаунт открыт у многих зрителей сразу: две вкладки, обновившие сессию одновременно, —
+        # не кража. Отзыв всех сессий выкинул бы каждого, поэтому повтору просто выдаём новую сессию
+        demo_user = await db.get(User, stored.user_id)
+        if demo_user is not None and demo_user.deleted_at is None and _is_shared_demo_email(demo_user.email):
+            return await _issue_session(db, demo_user)
         # Повторное использование отозванного токена — признак кражи: отзываем все сессии пользователя
         await _revoke_all(db, stored.user_id)
         await db.commit()
@@ -276,6 +281,11 @@ async def get_user(db: AsyncSession, user_id: int) -> User:
     if user is None or user.deleted_at is not None:
         raise UnauthorizedError()
     return user
+
+
+def _is_shared_demo_email(email: str) -> bool:
+    settings = get_settings()
+    return email.lower() in {settings.demo_candidate_email.lower(), settings.demo_employer_email.lower()}
 
 
 async def is_shared_demo_employer(db: AsyncSession, user_id: int) -> bool:
